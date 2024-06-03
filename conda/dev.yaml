@@ -15,3 +15,4 @@ dependencies:
       # fix issues with distlib
       - paginate
       - pyrepl
+      - msgpack-python
