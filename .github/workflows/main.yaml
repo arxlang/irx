@@ -39,7 +39,7 @@ jobs:
           - "3.13"
         os:
           - "ubuntu"
-          # - "macos"
+          - "macos"
     runs-on: ${{ matrix.os }}-latest
     concurrency:
       group: ci-tests-${{ matrix.os }}-${{ matrix.python_version }}-${{ github.ref }}
