@@ -29,7 +29,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
-          environment-file: conda/dev.yaml
+          environment-file: conda/ci.yaml
           channels: conda-forge,nodefaults
           activate-environment: irx
           auto-update-conda: true
