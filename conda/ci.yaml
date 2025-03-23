@@ -16,3 +16,4 @@ dependencies:
       # fix issues with distlib
       - paginate
       - pyrepl
+      - msgpack-python >=0.5.6
