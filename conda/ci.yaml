@@ -9,10 +9,11 @@ dependencies:
   - pip
   - poetry >=2
   - python
-  - nodejs >=18.17 # used by semantic-release
+  - nodejs # used by semantic-release
   - shellcheck
   - llvmlite >=0.41.1
   - pip:
       # fix issues with distlib
       - paginate
       - pyrepl
+      - msgpack-python >=0.5.6
