@@ -62,6 +62,10 @@ jobs:
           conda-solver: libmamba
           python-version: ${{ matrix.python_version }}
 
+      - name: Set SDKROOT environment variable
+        if: "${{ matrix.macos == 'macos' }}"
+        run: echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: |
           poetry check
