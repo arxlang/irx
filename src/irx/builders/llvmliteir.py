@@ -43,6 +43,11 @@ class VariablesLLVM:
     INT8_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
+
+    def __init__(self):
+        # Existing initializations...
+        self.STRING_TYPE = ir.ArrayType(ir.IntType(8), 0)  # 0-length array, dynamically sized
 
     context: ir.context.Context
     module: ir.module.Module
@@ -73,6 +78,8 @@ class VariablesLLVM:
             return self.INT8_TYPE
         elif type_name == "void":
             return self.VOID_TYPE
+        elif type_name == "string":
+            return self.STRING_TYPE
 
         raise Exception("[EE]: type_name not valid.")
 
@@ -197,9 +204,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_start(
             self._llvm.ir_builder.function.entry_basic_block
         )
-        alloca = self._llvm.ir_builder.alloca(
-            self._llvm.get_data_type(type_name), None, var_name
-        )
+        if type_name == "string":
+            alloca = self._llvm.ir_builder.alloca(ir.PointerType(self._llvm.STRING_TYPE), None, var_name)
+        else:
+            alloca = self._llvm.ir_builder.alloca(
+                self._llvm.get_data_type(type_name), None, var_name
+            )
         self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
         return alloca
 
@@ -605,6 +615,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralString) -> None:
+        """Translate ASTx LiteralString to LLVM-IR."""
+        # Create a global string constant
+        global_string = ir.GlobalVariable(self._llvm.module, self._llvm.STRING_TYPE, name="str")
+        global_string.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(expr.value)), bytearray(expr.value, 'utf-8'))
+        global_string.linkage = 'internal'
+        global_string.global_constant = True
+
+        # Get a pointer to the first element of the string
+        zero = ir.Constant(ir.IntType(32), 0)
+        gep = self._llvm.ir_builder.gep(global_string, [zero, zero], name="strptr")
+        self.result_stack.append(gep)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
         callee_f = self.get_function(expr.callee)
@@ -658,9 +682,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
-        args_type = [self._llvm.INT32_TYPE] * len(expr.args.nodes)
-        # note: it should be dynamic
-        return_type = self._llvm.get_data_type("int32")
+        args_type = []
+        for arg in expr.args.nodes:
+            if arg.type == "string":
+                args_type.append(ir.PointerType(self._llvm.STRING_TYPE))
+            else:
+                # args_type.append(self._llvm.get_data_type(arg.type))
+                args_type.append(self._llvm.INT32_TYPE)
+
+        return_type = self._llvm.get_data_type(expr.return_type)
         fn_type = ir.FunctionType(return_type, args_type, False)
 
         fn = ir.Function(self._llvm.module, fn_type, expr.name)
@@ -699,8 +729,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         else:
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            if expr.type == "string":
+                # Initialize an empty string
+                init_val = ir.Constant(ir.ArrayType(ir.IntType(8), 0), bytearray("", 'utf-8'))
+            else:
+                # Default to INT32 and initialize to 0
+                init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
 
+        # Create an alloca in the entry block.
+        alloca = self.create_entry_block_alloca(expr.name, expr.type)
         alloca = self.create_entry_block_alloca(expr.name, "int32")
         self._llvm.ir_builder.store(init_val, alloca)
         self.named_values[expr.name] = alloca
@@ -733,7 +770,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             # If not specified, use 0 as the initializer.
             # note: it should create something according to the defined type
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            if expr.type == "string":
+                init_val = ir.Constant(ir.ArrayType(ir.IntType(8), 0), bytearray("", 'utf-8'))
+            else:
+                init_val = ir.Constant(self._llvm.get_data_type(expr.type), 0)
 
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
