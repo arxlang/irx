@@ -89,6 +89,7 @@ def test_for_count(
     var_a = astx.Variable("a2")
     cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=astx.LiteralInt32(10))
     update = astx.UnaryOp(op_code="++", operand=var_a)
+    step = astx.LiteralInt32(1)  #example step value 
 
     for_body = astx.Block()
     for_body.append(astx.LiteralInt32(2))
@@ -97,6 +98,7 @@ def test_for_count(
         condition=cond,
         update=update,
         body=for_body,
+        step = step
     )
 
     # main function
@@ -112,4 +114,4 @@ def test_for_count(
     module.block.append(fn_main)
 
     # note: not yet fully implemented
-    # check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file)
