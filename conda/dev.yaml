@@ -8,7 +8,7 @@ dependencies:
   - graphviz
   - pip
   - poetry >=2
-  - python <=3.13
+  - python 3.12.*
   - nodejs # used by semantic-release
   - shellcheck
   - llvmlite >=0.41.1
