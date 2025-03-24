@@ -44,6 +44,8 @@ class VariablesLLVM:
     INT8_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
+    INT64_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -62,7 +64,7 @@ class VariablesLLVM:
         -------
             ir.Type: The LLVM data type.
         """
-        if type_name == "float":
+        if type_name == "float32":
             return self.FLOAT_TYPE
         elif type_name == "double":
             return self.DOUBLE_TYPE
@@ -76,8 +78,12 @@ class VariablesLLVM:
             return self.VOID_TYPE
         elif type_name == "bool":
             return self.BOOLEAN_TYPE
+        elif type_name == "string":
+            return self.STRING_TYPE
+        elif type_name == "int64":
+            return self.INT64_TYPE
 
-        raise Exception("[EE]: type_name not valid.")
+        raise Exception(f"[EE]: type_name : {type_name} not valid. ")
 
 
 class LLVMLiteIRVisitor(BuilderVisitor):
@@ -726,13 +732,28 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
-        args_type = [self._llvm.INT32_TYPE] * len(expr.args.nodes)
-        # note: it should be dynamic
-        return_type = self._llvm.get_data_type("int32")
+        args_type = []
+        for arg in expr.args.nodes:
+            if isinstance(arg.type_, astx.Float32):
+                args_type.append(self._llvm.FLOAT_TYPE)
+            elif isinstance(arg.type_, astx.Int32):
+                args_type.append(self._llvm.INT32_TYPE)
+            else:
+                raise Exception("Unsupported  data type")
+        if isinstance(expr.return_type, astx.Float32):
+            return_type = self._llvm.FLOAT_TYPE
+        elif isinstance(expr.return_type, astx.Float64):
+            return_type = self._llvm.DOUBLE_TYPE
+        elif isinstance(expr.return_type, astx.Int32):
+            return_type = self._llvm.INT32_TYPE
+        elif isinstance(expr.return_type, astx.Int64):
+            return_type = self._llvm.INT64_TYPE
+        elif isinstance(expr.return_type, astx.Void):
+            return_type = self._llvm.VOID_TYPE
+        else:
+            raise Exception(f"Unsupported return type: {expr.return_type}")
         fn_type = ir.FunctionType(return_type, args_type, False)
-
         fn = ir.Function(self._llvm.module, fn_type, expr.name)
-
         # Set names for all arguments.
         for idx, arg in enumerate(fn.args):
             arg.name = expr.args[idx].name
@@ -757,6 +778,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.InlineVariableDeclaration) -> None:
         """Translate an ASTx InlineVariableDeclaration expression."""
+        type = expr.type_
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
@@ -766,11 +788,24 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
-        else:
+        # If not specified, use 0 as the initializer.
+        # note: it should create something according to the defined type
+        elif isinstance(type, astx.Int32):
             init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+        elif isinstance(type, astx.Float32):
+            init_val = ir.Constant(self._llvm.get_data_type("float32"), 0.0)
+        else:
+            raise Exception("Unsupported type")
 
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
+        if isinstance(type, astx.Int32):
+            alloca = self.create_entry_block_alloca(expr.name, "int32")
+        elif isinstance(type, astx.Float32):
+            alloca = self.create_entry_block_alloca(expr.name, "float32")
+        else:
+            raise Exception("Unsupported type")
+        # Store the initial value.
         self._llvm.ir_builder.store(init_val, alloca)
+        # Remember this binding.
         self.named_values[expr.name] = alloca
 
         self.result_stack.append(init_val)
@@ -789,26 +824,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.VariableDeclaration) -> None:
         """Translate ASTx Variable to LLVM-IR."""
+        type = expr.type_
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
         # Emit the initializer
         if expr.value is not None:
-            expr.kind
             self.visit(expr.value)
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
-        else:
-            # If not specified, use 0 as the initializer.
-            # note: it should create something according to the defined type
-
+        # If not specified, use 0 as the initializer.
+        # note: it should create something according to the defined type
+        elif isinstance(type, astx.Int32):
             init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
-
+        elif isinstance(type, astx.Float32):
+            init_val = ir.Constant(self._llvm.get_data_type("float32"), 0.0)
+        else:
+            raise Exception("Unsupported type")
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
-
+        if isinstance(type, astx.Int32):
+            alloca = self.create_entry_block_alloca(expr.name, "int32")
+        elif isinstance(type, astx.Float32):
+            alloca = self.create_entry_block_alloca(expr.name, "float32")
+        else:
+            raise Exception("Unsupported type")
         # Store the initial value.
         self._llvm.ir_builder.store(init_val, alloca)
 
