@@ -211,12 +211,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.UnaryOp) -> None:
         """Translate an ASTx UnaryOp expression."""
-        if expr.op_code == "++":  # Handle increment operator
-            # First visit the operand to get its value
+        if expr.op_code == "++":
+
             self.visit(expr.operand)
             operand_val = safe_pop(self.result_stack)
         
-            # Create constant 1 of the same type as the operand
             one = ir.Constant(operand_val.type, 1)
         
             # Perform the increment operation
@@ -228,11 +227,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
         
-            # Push the result to the stack
             self.result_stack.append(result)
             return
     
-        elif expr.op_code == "--":  # Handle decrement operator (for completeness)
+        elif expr.op_code == "--":
             self.visit(expr.operand)
             operand_val = safe_pop(self.result_stack)
             one = ir.Constant(operand_val.type, 1)
@@ -326,10 +324,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 ">", llvm_lhs, llvm_rhs, "gttmp"
             )
-            result = self._llvm.ir_builder.zext(
-                cmp_result, self._llvm.INT32_TYPE, "booltmp"
-            )
-            self.result_stack.append(result)
+            # result = self._llvm.ir_builder.zext(
+            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
+            # )
+            self.result_stack.append(cmp_result)
             return
         elif expr.op_code == "/":
             # Check the datatype to decide between floating-point and integer
@@ -486,79 +484,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     
         # Move to after-loop block
         self._llvm.ir_builder.position_at_start(after_loop_bb)
-        # # Make the new basic block for the loop header, inserting after
-        # # current block.
-        # loop_bb = self._llvm.ir_builder.function.append_basic_block("loop")
-
-        # # Insert an explicit fall through from the current block to the
-        # # loop_bb.
-        # self._llvm.ir_builder.branch(loop_bb)
-
-        # # Start insertion in loop_bb.
-        # self._llvm.ir_builder.position_at_start(loop_bb)
-
-        # # Within the loop, the variable is defined equal to the PHI node.
-        # # If it shadows an existing variable, we have to restore it, so save
-        # # it now.
-        # old_val = self.named_values.get(expr.initializer.name)
-        # self.named_values[expr.initializer.name] = var_addr
-
-        # # Emit the body of the loop. This, like any other expr, can change
-        # # the current basic_block. Note that we ignore the value computed by
-        # # the body, but don't allow an error.
-        # self.visit(expr.body)
-        # body_val = self.result_stack.pop()
-
-        # if not body_val:
-        #     return
-
-        # # Emit the step value.
-        # if expr.step:
-        #     self.visit(expr.step)
-        #     step_val = self.result_stack.pop()
-        #     if not step_val:
-        #         return
-        # else:
-        #     # If not specified, use 1.0.
-        #     step_val = ir.Constant(self._llvm.INT32_TYPE, 1)
-
-        # # Compute the end condition.
-        # self.visit(expr.end)
-        # end_cond = self.result_stack.pop()
-        # if not end_cond:
-        #     return
-
-        # # Reload, increment, and restore the var_addr. This handles the case
-        # # where the body of the loop mutates the variable.
-        # cur_var = self._llvm.ir_builder.load(var_addr, expr.initializer.name)
-        # next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
-        # self._llvm.ir_builder.store(next_var, var_addr)
-
-        # # Convert condition to a bool by comparing non-equal to zero
-        # if isinstance(end_cond.type, (ir.FloatType, ir.DoubleType)):
-        #     cmp_instruction = self._llvm.ir_builder.fcmp_ordered
-        #     zero_val = ir.Constant(end_cond.type, 0.0)
-        # else:
-        #     cmp_instruction = self._llvm.ir_builder.icmp_signed
-        #     zero_val = ir.Constant(end_cond.type, 0)
-
-        # end_cond = cmp_instruction(
-        #     "!=",
-        #     end_cond,
-        #     zero_val,
-        #     "loopcond",
-        # )
-
-        # # Create the "after loop" block and insert it.
-        # after_bb = self._llvm.ir_builder.function.append_basic_block(
-        #     "afterloop"
-        # )
-
-        # # Insert the conditional branch into the end of loop_bb.
-        # self._llvm.ir_builder.cbranch(end_cond, loop_bb, after_bb)
-
-        # # Any new code will be inserted in after_bb.
-        # self._llvm.ir_builder.position_at_start(after_bb)
 
         # Restore the unshadowed variable.
         if old_val:
