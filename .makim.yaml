@@ -42,7 +42,7 @@ groups:
         run: |
           pytest \
             --cov=irx \
-            --cov-fail-under=52 \
+            --cov-fail-under=59 \
             --cov-report term-missing \
             --no-cov-on-fail ${{ args.path }} ${{ args.params }}
 
