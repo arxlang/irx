@@ -112,4 +112,4 @@ def test_for_count(
     module.block.append(fn_main)
 
     # note: not yet fully implemented
-    # check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file)
