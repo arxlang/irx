@@ -207,45 +207,44 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.AST) -> None:
         """Translate an ASTx expression."""
         raise Exception("Not implemented yet.")
-    
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.UnaryOp) -> None:
         """Translate an ASTx UnaryOp expression."""
         if expr.op_code == "++":
-
             self.visit(expr.operand)
             operand_val = safe_pop(self.result_stack)
-        
+
             one = ir.Constant(operand_val.type, 1)
-        
+
             # Perform the increment operation
             result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
-        
+
             # If operand is a variable, store the new value back
             if isinstance(expr.operand, astx.Variable):
                 var_addr = self.named_values.get(expr.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
-        
+
             self.result_stack.append(result)
             return
-    
+
         elif expr.op_code == "--":
             self.visit(expr.operand)
             operand_val = safe_pop(self.result_stack)
             one = ir.Constant(operand_val.type, 1)
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
-        
+
             if isinstance(expr.operand, astx.Variable):
                 var_addr = self.named_values.get(expr.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
-        
+
             self.result_stack.append(result)
             return
-    
+
         raise Exception(f"Unary operator {expr.op_code} not implemented yet.")
-    
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.BinaryOp) -> None:
         """Translate binary operation expression."""
@@ -446,42 +445,48 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Store the value into the alloca.
         self._llvm.ir_builder.store(initializer_val, var_addr)
 
-        loop_header_bb = self._llvm.ir_builder.function.append_basic_block("loop.header")
+        loop_header_bb = self._llvm.ir_builder.function.append_basic_block(
+            "loop.header"
+        )
         self._llvm.ir_builder.branch(loop_header_bb)
-    
+
         # Start insertion in loop header
         self._llvm.ir_builder.position_at_start(loop_header_bb)
 
         # Save old value if variable shadows an existing one
         old_val = self.named_values.get(expr.initializer.name)
         self.named_values[expr.initializer.name] = var_addr
-    
+
         # Emit condition check (e.g., i < 10)
         self.visit(expr.condition)
         cond_val = self.result_stack.pop()
-    
+
         # Create blocks for loop body and after loop
-        loop_body_bb = self._llvm.ir_builder.function.append_basic_block("loop.body")
-        after_loop_bb = self._llvm.ir_builder.function.append_basic_block("after.loop")
-    
+        loop_body_bb = self._llvm.ir_builder.function.append_basic_block(
+            "loop.body"
+        )
+        after_loop_bb = self._llvm.ir_builder.function.append_basic_block(
+            "after.loop"
+        )
+
         # Branch based on condition
         self._llvm.ir_builder.cbranch(cond_val, loop_body_bb, after_loop_bb)
-    
+
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(expr.body)
-        body_val = self.result_stack.pop()
-    
-        # Emit update expression (e.g., i++)
+        _body_val = self.result_stack.pop()
+
+        # Emit update expression
         self.visit(expr.update)
         update_val = self.result_stack.pop()
-    
+
         # Store updated value
         self._llvm.ir_builder.store(update_val, var_addr)
-    
+
         # Branch back to loop header
         self._llvm.ir_builder.branch(loop_header_bb)
-    
+
         # Move to after-loop block
         self._llvm.ir_builder.position_at_start(after_loop_bb)
 
@@ -491,7 +496,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             self.named_values.pop(expr.initializer.name, None)
 
-        # for expr always returns 0.0.
         result = ir.Constant(self._llvm.INT32_TYPE, 0)
         self.result_stack.append(result)
 
