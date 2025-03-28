@@ -37,10 +37,12 @@ def test_append_operation(register_table: RegisterTable) -> None:
 def test_increase_operation(register_table: RegisterTable) -> None:
     """Test increase modifies current context."""
     register_table.append()
-    assert register_table.increase(TEST_INCREMENT_1) == TEST_INCREMENT_1
+    new_value = register_table.increase(TEST_INCREMENT_1)
+    assert new_value == TEST_INCREMENT_1
     assert register_table.stack == [TEST_INCREMENT_1]
 
-    assert register_table.increase() == TEST_INCREMENT_2
+    new_value = register_table.increase()
+    assert new_value == TEST_INCREMENT_1 + TEST_INCREMENT_2
     assert register_table.stack == [TEST_INCREMENT_1 + TEST_INCREMENT_2]
 
 

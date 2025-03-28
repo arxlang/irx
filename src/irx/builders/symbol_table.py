@@ -21,7 +21,7 @@ class RegisterTable:
 
     def increase(self, count: int = 1) -> int:
         self.stack[-1] += count
-        return count
+        return self.stack[-1]
 
     @property
     def last(self) -> int:
