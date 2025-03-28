@@ -44,10 +44,7 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     STRING_TYPE: ir.types.Type
-
-    def __init__(self):
-        # Existing initializations...
-        self.STRING_TYPE = ir.ArrayType(ir.IntType(8), 0)  # 0-length array, dynamically sized
+    STRING_PTR_TYPE: ir.types.Type  # Add pointer type for strings
 
     context: ir.context.Context
     module: ir.module.Module
@@ -205,7 +202,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ir_builder.function.entry_basic_block
         )
         if type_name == "string":
-            alloca = self._llvm.ir_builder.alloca(ir.PointerType(self._llvm.STRING_TYPE), None, var_name)
+            alloca = self._llvm.ir_builder.alloca(
+                ir.PointerType(self._llvm.STRING_TYPE), None, var_name
+            )
         else:
             alloca = self._llvm.ir_builder.alloca(
                 self._llvm.get_data_type(type_name), None, var_name
@@ -618,14 +617,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralString) -> None:
         """Translate ASTx LiteralString to LLVM-IR."""
         # Create a global string constant
-        global_string = ir.GlobalVariable(self._llvm.module, self._llvm.STRING_TYPE, name="str")
-        global_string.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(expr.value)), bytearray(expr.value, 'utf-8'))
-        global_string.linkage = 'internal'
+        global_string = ir.GlobalVariable(
+            self._llvm.module, self._llvm.STRING_TYPE, name="str"
+        )
+        global_string.initializer = ir.Constant(
+            ir.ArrayType(ir.IntType(8), len(expr.value)),
+            bytearray(expr.value, "utf-8"),
+        )
+        global_string.linkage = "internal"
         global_string.global_constant = True
 
         # Get a pointer to the first element of the string
         zero = ir.Constant(ir.IntType(32), 0)
-        gep = self._llvm.ir_builder.gep(global_string, [zero, zero], name="strptr")
+        gep = self._llvm.ir_builder.gep(
+            global_string, [zero, zero], name="strptr"
+        )
         self.result_stack.append(gep)
 
     @dispatch  # type: ignore[no-redef]
@@ -728,13 +734,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+        elif expr.type == "string":
+            # Initialize an empty string
+            init_val = ir.Constant(
+                ir.ArrayType(ir.IntType(8), 0), bytearray("", "utf-8")
+            )
         else:
-            if expr.type == "string":
-                # Initialize an empty string
-                init_val = ir.Constant(ir.ArrayType(ir.IntType(8), 0), bytearray("", 'utf-8'))
-            else:
-                # Default to INT32 and initialize to 0
-                init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            # Default to INT32 and initialize to 0
+            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
 
         # Create an alloca in the entry block.
         alloca = self.create_entry_block_alloca(expr.name, expr.type)
@@ -767,13 +774,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+        # If not specified, use 0 as the initializer.
+        # note: it should create something according to the defined type
+        elif expr.type == "string":
+            init_val = ir.Constant(
+                ir.ArrayType(ir.IntType(8), 0), bytearray("", "utf-8")
+            )
         else:
-            # If not specified, use 0 as the initializer.
-            # note: it should create something according to the defined type
-            if expr.type == "string":
-                init_val = ir.Constant(ir.ArrayType(ir.IntType(8), 0), bytearray("", 'utf-8'))
-            else:
-                init_val = ir.Constant(self._llvm.get_data_type(expr.type), 0)
+            init_val = ir.Constant(self._llvm.get_data_type(expr.type), 0)
 
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
