@@ -40,6 +40,7 @@ jobs:
         os:
           - "ubuntu"
           - "macos"
+          - "windows"
         exclude:
           - os: macos
             python_version: "3.9"
@@ -76,8 +77,13 @@ jobs:
           poetry check
           poetry install
 
-      - name: Run tests
+      - name: Run tests (linux/macos)
+        if: ${{ matrix.os != 'windows' }}
         run: makim tests.unit
+
+      - name: Run tests (windows)
+        if: ${{ matrix.os == 'windows' }}
+        run: pytest -v
 
   linter:
     runs-on: ubuntu-latest
