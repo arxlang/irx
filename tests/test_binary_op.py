@@ -62,6 +62,7 @@ def test_binary_op_basic(
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)
 
+
 @pytest.mark.parametrize(
     "builder_class",
     [

@@ -93,7 +93,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def __init__(self) -> None:
         """Initialize LLVMTranslator object."""
         super().__init__()
-        # named_values as instance variable so it isn't shared across instances.
+        # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
         self.function_protos = {}
         self.result_stack = []
@@ -678,7 +678,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type_str = arg.type_.__class__.__name__.lower()
             args_type.append(self._llvm.get_data_type(type_str))
         # note: it should be dynamic
-        return_type = self._llvm.get_data_type(expr.return_type.__class__.__name__.lower())
+        return_type = self._llvm.get_data_type(
+            expr.return_type.__class__.__name__.lower()
+        )
         fn_type = ir.FunctionType(return_type, args_type, False)
 
         fn = ir.Function(self._llvm.module, fn_type, expr.name)
@@ -710,7 +712,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
-       
         type_str = expr.type_.__class__.__name__.lower()
 
         # Emit the initializer
@@ -773,6 +774,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx LiteralInt16 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT16_TYPE, expr.value)
         self.result_stack.append(result)
+
 
 @public
 class LLVMLiteIR(Builder):
