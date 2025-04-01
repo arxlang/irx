@@ -61,3 +61,39 @@ def test_binary_op_basic(
 
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_binary_op_int16(builder_class: Type[Builder]) -> None:
+    """Test ASTx Module with int16 binary operations."""
+    builder = builder_class()
+    module = builder.module()
+
+    decl_a = astx.VariableDeclaration(
+        name="a", type_=astx.Int16(), value=astx.LiteralInt16(10)
+    )
+    decl_b = astx.VariableDeclaration(
+        name="b", type_=astx.Int16(), value=astx.LiteralInt16(20)
+    )
+
+    a = astx.Variable("a")
+    b = astx.Variable("b")
+
+    lit_2 = astx.LiteralInt16(2)
+    basic_op = (a * lit_2) + b
+
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int16()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(decl_b)
+    main_block.append(astx.FunctionReturn(basic_op))
+    main_fn = astx.Function(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+    check_result("build", builder, module, "")

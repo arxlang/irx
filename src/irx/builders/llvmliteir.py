@@ -41,6 +41,7 @@ class VariablesLLVM:
     FLOAT_TYPE: ir.types.Type
     DOUBLE_TYPE: ir.types.Type
     INT8_TYPE: ir.types.Type
+    INT16_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
 
@@ -67,6 +68,8 @@ class VariablesLLVM:
             return self.DOUBLE_TYPE
         elif type_name == "int8":
             return self.INT8_TYPE
+        elif type_name == "int16":
+            return self.INT16_TYPE
         elif type_name == "int32":
             return self.INT32_TYPE
         elif type_name == "char":
@@ -81,7 +84,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     """LLVM-IR Translator."""
 
     # AllocaInst
-    named_values: dict[str, Any] = {}  # noqa: RUF012
+
     _llvm: VariablesLLVM
 
     function_protos: dict[str, astx.FunctionPrototype]
@@ -90,8 +93,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def __init__(self) -> None:
         """Initialize LLVMTranslator object."""
         super().__init__()
-        self.function_protos: dict[str, astx.FunctionPrototype] = {}
-        self.result_stack: list[ir.Value | ir.Function] = []
+        # named_values as instance variable so it isn't shared across instances.
+        self.named_values: dict[str, Any] = {}
+        self.function_protos = {}
+        self.result_stack = []
 
         self.initialize()
 
@@ -128,6 +133,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
         self._llvm.INT8_TYPE = ir.IntType(8)
+        self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.VOID_TYPE = ir.VoidType()
 
@@ -647,11 +653,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         basic_block = fn.append_basic_block("entry")
         self._llvm.ir_builder = ir.IRBuilder(basic_block)
 
-        for llvm_arg in fn.args:
+        for idx, llvm_arg in enumerate(fn.args):
+            arg_ast = proto.args.nodes[idx]
+            type_str = arg_ast.type_.__class__.__name__.lower()
+            arg_type = self._llvm.get_data_type(type_str)
+
             # Create an alloca for this variable.
-            alloca = self._llvm.ir_builder.alloca(
-                self._llvm.INT32_TYPE, name=llvm_arg.name
-            )
+            alloca = self._llvm.ir_builder.alloca(arg_type, name=llvm_arg.name)
 
             # Store the initial value into the alloca.
             self._llvm.ir_builder.store(llvm_arg, alloca)
@@ -665,16 +673,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
-        args_type = [self._llvm.INT32_TYPE] * len(expr.args.nodes)
+        args_type = []
+        for arg in expr.args.nodes:
+            type_str = arg.type_.__class__.__name__.lower()
+            args_type.append(self._llvm.get_data_type(type_str))
         # note: it should be dynamic
-        return_type = self._llvm.get_data_type("int32")
+        return_type = self._llvm.get_data_type(expr.return_type.__class__.__name__.lower())
         fn_type = ir.FunctionType(return_type, args_type, False)
 
         fn = ir.Function(self._llvm.module, fn_type, expr.name)
 
         # Set names for all arguments.
-        for idx, arg in enumerate(fn.args):
-            arg.name = expr.args[idx].name
+        for idx, llvm_arg in enumerate(fn.args):
+            llvm_arg.name = expr.args.nodes[idx].name
 
         self.result_stack.append(fn)
 
@@ -699,6 +710,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
+       
+        type_str = expr.type_.__class__.__name__.lower()
+
         # Emit the initializer
         if expr.value is not None:
             self.visit(expr.value)
@@ -706,9 +720,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         else:
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
+        alloca = self.create_entry_block_alloca(expr.name, type_str)
         self._llvm.ir_builder.store(init_val, alloca)
         self.named_values[expr.name] = alloca
 
@@ -731,6 +745,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
+        type_str = expr.type_.__class__.__name__.lower()
+
         # Emit the initializer
         if expr.value is not None:
             self.visit(expr.value)
@@ -740,11 +756,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             # If not specified, use 0 as the initializer.
             # note: it should create something according to the defined type
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
+        alloca = self.create_entry_block_alloca(expr.name, type_str)
 
         # Store the initial value.
         self._llvm.ir_builder.store(init_val, alloca)
@@ -752,6 +768,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Remember this binding.
         self.named_values[expr.name] = alloca
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralInt16) -> None:
+        """Translate ASTx LiteralInt16 to LLVM-IR."""
+        result = ir.Constant(self._llvm.INT16_TYPE, expr.value)
+        self.result_stack.append(result)
 
 @public
 class LLVMLiteIR(Builder):
