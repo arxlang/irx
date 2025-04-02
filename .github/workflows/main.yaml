@@ -77,13 +77,8 @@ jobs:
           poetry check
           poetry install
 
-      - name: Run tests (linux/macos)
-        if: ${{ matrix.os != 'windows' }}
+      - name: Run tests
         run: makim tests.unit
-
-      - name: Run tests (windows)
-        if: ${{ matrix.os == 'windows' }}
-        run: pytest -v
 
   linter:
     runs-on: ubuntu-latest
