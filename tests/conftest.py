@@ -22,7 +22,7 @@ def check_result(
     builder: Builder,
     module: astx.Module,
     expected_file: str = "",
-    similarity_factor: float = 0.35,  # TODO: change it to 0.95
+    similarity_factor: float = 0.95,
 ) -> None:
     """Check the result for translation or build."""
     if action == "build":
