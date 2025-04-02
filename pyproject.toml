@@ -50,7 +50,7 @@ mkdocs-literate-nav = ">=0.6.0"
 mkdocs-macros-plugin = ">=0.7.0,<1"
 mkdocs-material = ">=9.1.15"
 mkdocstrings = {version=">=0.24.3", extras=["python"]}
-makim = "1.15.1"
+makim = "1.25.0"
 pdbpp = ">=0.10.3"
 jupyterlab = ">=4.0.7"
 mkdocs-gen-files = ">=0.5.0"
