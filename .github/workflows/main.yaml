@@ -50,6 +50,9 @@ jobs:
             python_version: "3.11"
           - os: macos
             python_version: "3.13"
+          # issues with llvmlite (0.43.0)
+          - os: windows
+            python_version: "3.13"
     runs-on: ${{ matrix.os }}-latest
     concurrency:
       group: ci-tests-${{ matrix.os }}-${{ matrix.python_version }}-${{ github.ref }}
