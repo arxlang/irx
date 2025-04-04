@@ -209,6 +209,53 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
         return alloca
 
+    def promote_operands(
+        self, lhs: ir.Value, rhs: ir.Value
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        Promote two LLVM IR numeric operands to a common type.
+
+        Parameters
+        ----------
+        lhs : ir.Value
+            The left-hand operand.
+        rhs : ir.Value
+            The right-hand operand.
+
+        Returns
+        -------
+        tuple[ir.Value, ir.Value]
+            A tuple containing the promoted operands.
+        """
+        if lhs.type == rhs.type:
+            return lhs, rhs
+
+        # perform sign extension (for integer operands)
+        if isinstance(lhs.type, ir.IntType) and isinstance(
+            rhs.type, ir.IntType
+        ):
+            if lhs.type.width < rhs.type.width:
+                lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
+            elif lhs.type.width > rhs.type.width:
+                rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
+            return lhs, rhs
+
+        # ranking dictionary for floating point types
+        fp_types_order = {"float": 1, "double": 2}
+
+        lhs_str = str(lhs.type)
+        rhs_str = str(rhs.type)
+
+        # perform floating-point extension
+        if lhs_str in fp_types_order and rhs_str in fp_types_order:
+            if fp_types_order[lhs_str] < fp_types_order[rhs_str]:
+                lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
+            elif fp_types_order[lhs_str] > fp_types_order[rhs_str]:
+                rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
+            return lhs, rhs
+
+        return lhs, rhs
+
     @dispatch.abstract
     def visit(self, expr: astx.AST) -> None:
         """Translate an ASTx expression."""
@@ -293,6 +340,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
+
+        # automatic type promotion
+        llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
         if expr.op_code == "+":
             # note: it should be according the datatype,
@@ -439,7 +489,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.ForCountLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
-        var_addr = self.create_entry_block_alloca("for_count_loop", "int32")
+        var_addr = self.create_entry_block_alloca(
+            "for_count_loop", expr.initializer.type_.__class__.__name__.lower()
+        )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
@@ -502,14 +554,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             self.named_values.pop(expr.initializer.name, None)
 
-        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        result = ir.Constant(
+            self._llvm.get_data_type(
+                expr.initializer.type_.__class__.__name__.lower()
+            ),
+            0,
+        )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.ForRangeLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
-        var_addr = self.create_entry_block_alloca("for_count_loop", "int32")
+        var_addr = self.create_entry_block_alloca(
+            "for_count_loop", expr.variable.type_.__class__.__name__.lower()
+        )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
@@ -555,7 +614,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 return
         else:
             # If not specified, use 1.0.
-            step_val = ir.Constant(self._llvm.INT32_TYPE, 1)
+            step_val = ir.Constant(
+                self._llvm.get_data_type(
+                    expr.variable.type_.__class__.__name__.lower()
+                ),
+                1,
+            )
 
         # Compute the end condition.
         self.visit(expr.end)
@@ -602,7 +666,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.named_values.pop(expr.variable.name, None)
 
         # for expr always returns 0.0.
-        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        result = ir.Constant(
+            self._llvm.get_data_type(
+                expr.variable.type_.__class__.__name__.lower()
+            ),
+            0,
+        )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]

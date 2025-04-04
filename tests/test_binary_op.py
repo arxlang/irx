@@ -12,6 +12,10 @@ from .conftest import check_result
 
 
 @pytest.mark.parametrize(
+    "int_type, literal_type",
+    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+)
+@pytest.mark.parametrize(
     "action,expected_file",
     [
         # ("translate", "test_binary_op_basic.ll"),
@@ -25,32 +29,36 @@ from .conftest import check_result
     ],
 )
 def test_binary_op_basic(
-    action: str, expected_file: str, builder_class: Type[Builder]
+    action: str,
+    expected_file: str,
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
 ) -> None:
     """Test ASTx Module with a function called add."""
     builder = builder_class()
     module = builder.module()
 
     decl_a = astx.VariableDeclaration(
-        name="a", type_=astx.Int32(), value=astx.LiteralInt32(1)
+        name="a", type_=int_type(), value=literal_type(1)
     )
     decl_b = astx.VariableDeclaration(
-        name="b", type_=astx.Int32(), value=astx.LiteralInt32(2)
+        name="b", type_=int_type(), value=literal_type(2)
     )
     decl_c = astx.VariableDeclaration(
-        name="c", type_=astx.Int32(), value=astx.LiteralInt32(4)
+        name="c", type_=int_type(), value=literal_type(4)
     )
 
     a = astx.Variable("a")
     b = astx.Variable("b")
     c = astx.Variable("c")
 
-    lit_1 = astx.LiteralInt32(1)
+    lit_1 = literal_type(1)
 
     basic_op = lit_1 + b - a * c / a + (b - a + c / a)
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
+        name="main", args=astx.Arguments(), return_type=int_type()
     )
     main_block = astx.Block()
     main_block.append(decl_a)
@@ -61,40 +69,3 @@ def test_binary_op_basic(
 
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)
-
-
-@pytest.mark.parametrize(
-    "builder_class",
-    [
-        LLVMLiteIR,
-    ],
-)
-def test_binary_op_int16(builder_class: Type[Builder]) -> None:
-    """Test ASTx Module with int16 binary operations."""
-    builder = builder_class()
-    module = builder.module()
-
-    decl_a = astx.VariableDeclaration(
-        name="a", type_=astx.Int16(), value=astx.LiteralInt16(10)
-    )
-    decl_b = astx.VariableDeclaration(
-        name="b", type_=astx.Int16(), value=astx.LiteralInt16(20)
-    )
-
-    a = astx.Variable("a")
-    b = astx.Variable("b")
-
-    lit_2 = astx.LiteralInt16(2)
-    basic_op = (a * lit_2) + b
-
-    main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int16()
-    )
-    main_block = astx.Block()
-    main_block.append(decl_a)
-    main_block.append(decl_b)
-    main_block.append(astx.FunctionReturn(basic_op))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
-
-    module.block.append(main_fn)
-    check_result("build", builder, module, "")
