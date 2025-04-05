@@ -40,6 +40,7 @@ jobs:
         os:
           - "ubuntu"
           - "macos"
+          - "windows"
         exclude:
           - os: macos
             python_version: "3.9"
@@ -48,6 +49,9 @@ jobs:
           - os: macos
             python_version: "3.11"
           - os: macos
+            python_version: "3.13"
+          # issues with llvmlite (0.43.0)
+          - os: windows
             python_version: "3.13"
     runs-on: ${{ matrix.os }}-latest
     concurrency:
