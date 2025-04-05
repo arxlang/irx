@@ -363,7 +363,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.IfStmt) -> None:
         """Translate IF statement."""
-        self.visit(expr.cond)
+        self.visit(expr.condition)
         cond_v = self.result_stack.pop()
 
         if not cond_v:
@@ -395,7 +395,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
-        self.visit(expr.then_)
+        self.visit(expr.then)
         then_v = self.result_stack.pop()
 
         if not then_v:
