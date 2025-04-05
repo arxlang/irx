@@ -12,6 +12,10 @@ from .conftest import check_result
 
 
 @pytest.mark.parametrize(
+    "int_type, literal_type",
+    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+)
+@pytest.mark.parametrize(
     "action,expected_file",
     [
         # ("translate", "test_for_range.ll"),
@@ -25,20 +29,24 @@ from .conftest import check_result
     ],
 )
 def test_for_range(
-    action: str, expected_file: str, builder_class: Type[Builder]
+    action: str,
+    expected_file: str,
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
 ) -> None:
     """Test For Range statement."""
     builder = builder_class()
 
     # `for` statement
     var_a = astx.InlineVariableDeclaration(
-        "a", type_=astx.Int32(), value=astx.LiteralInt32(-1)
+        "a", type_=int_type(), value=literal_type(-1)
     )
-    start = astx.LiteralInt32(1)
-    end = astx.LiteralInt32(10)
-    step = astx.LiteralInt32(1)
+    start = literal_type(1)
+    end = literal_type(10)
+    step = literal_type(1)
     body = astx.Block()
-    body.append(astx.LiteralInt32(2))
+    body.append(literal_type(2))
     for_loop = astx.ForRangeLoopStmt(
         variable=var_a,
         start=start,
@@ -49,11 +57,11 @@ def test_for_range(
 
     # main function
     proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
+        name="main", args=astx.Arguments(), return_type=int_type()
     )
     block = astx.Block()
     block.append(for_loop)
-    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    block.append(astx.FunctionReturn(literal_type(0)))
     fn_main = astx.Function(prototype=proto, body=block)
 
     module = builder.module()
@@ -62,6 +70,10 @@ def test_for_range(
     check_result(action, builder, module, expected_file)
 
 
+@pytest.mark.parametrize(
+    "int_type, literal_type",
+    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+)
 @pytest.mark.parametrize(
     "action,expected_file",
     [
@@ -76,22 +88,24 @@ def test_for_range(
     ],
 )
 def test_for_count(
-    action: str, expected_file: str, builder_class: Type[Builder]
+    action: str,
+    expected_file: str,
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
 ) -> None:
     """Test the For Count statement."""
     builder = builder_class()
 
-    # NOTE: it seems that the systable in the tests is not correctly
-    # sanitized, the variable `a` was renamed to `a2`
     init_a = astx.InlineVariableDeclaration(
-        "a2", type_=astx.Int32(), value=astx.LiteralInt32(0)
+        "a2", type_=int_type(), value=literal_type(0)
     )
     var_a = astx.Variable("a2")
-    cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=astx.LiteralInt32(10))
+    cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(10))
     update = astx.UnaryOp(op_code="++", operand=var_a)
 
     for_body = astx.Block()
-    for_body.append(astx.LiteralInt32(2))
+    for_body.append(literal_type(2))
     for_loop = astx.ForCountLoopStmt(
         initializer=init_a,
         condition=cond,
@@ -101,11 +115,11 @@ def test_for_count(
 
     # main function
     proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
+        name="main", args=astx.Arguments(), return_type=int_type()
     )
     fn_block = astx.Block()
     fn_block.append(for_loop)
-    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn_block.append(astx.FunctionReturn(literal_type(0)))
     fn_main = astx.Function(prototype=proto, body=fn_block)
 
     module = builder.module()
