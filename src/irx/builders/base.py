@@ -12,7 +12,10 @@ import astx
 
 from plum import dispatch
 
+from irx.tools.typing import typechecked
 
+
+@typechecked
 class BuilderVisitor:
     """Builder translator visitor."""
 
@@ -108,6 +111,7 @@ class BuilderVisitor:
         raise Exception("Not implemented yet.")
 
 
+@typechecked
 class Builder(ABC):
     """ASTx Builder."""
 

@@ -5,10 +5,13 @@ from typing import List
 from astx.symbol_table import SymbolTable
 from public import public
 
+from irx.tools.typing import typechecked
+
 __all__ = ["SymbolTable"]
 
 
 @public
+@typechecked
 class RegisterTable:
     # each level in the stack represents a context
     stack: List[int]
