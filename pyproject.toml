@@ -15,6 +15,7 @@ dependencies = [
   "plum-dispatch >= 2.2.2",
   "typing-extensions >=4 ; python_version < '3.9'",
   "eval-type-backport >=0.2 ; python_version < '3.10'",
+  "typeguard >= 4",
 ]
 
 [build-system]
@@ -60,6 +61,10 @@ nbmake = ">=1.5.3"
 testpaths = [
     "tests",
 ]
+filterwarnings = [
+    "error::RuntimeWarning",
+    "error::typeguard.TypeHintWarning",
+]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
@@ -86,9 +91,10 @@ fix = true
 
 [tool.ruff.lint]
 ignore = [
-  "F811",
+  "F811",  # redefined-while-unused
   "PLR0911",  # Too many return statements
   "PLR0912",  # Too many branches
+  "RUF012",  # mutable-class-default
 ]
 select = [
   "E",   # pycodestyle
