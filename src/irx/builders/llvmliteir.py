@@ -84,6 +84,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     """LLVM-IR Translator."""
 
     # AllocaInst
+    named_values: dict[str, Any] = {}  # noqa: RUF012
 
     _llvm: VariablesLLVM
 
@@ -95,8 +96,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         super().__init__()
         # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
-        self.function_protos = {}
-        self.result_stack = []
+        self.function_protos: dict[str, astx.FunctionPrototype] = {}
+        self.result_stack: list[ir.Value | ir.Function] = []
 
         self.initialize()
 
