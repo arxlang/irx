@@ -45,6 +45,7 @@ class VariablesLLVM:
     FLOAT_TYPE: ir.types.Type
     DOUBLE_TYPE: ir.types.Type
     INT8_TYPE: ir.types.Type
+    INT16_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
 
@@ -71,6 +72,8 @@ class VariablesLLVM:
             return self.DOUBLE_TYPE
         elif type_name == "int8":
             return self.INT8_TYPE
+        elif type_name == "int16":
+            return self.INT16_TYPE
         elif type_name == "int32":
             return self.INT32_TYPE
         elif type_name == "char":
@@ -87,6 +90,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     # AllocaInst
     named_values: dict[str, Any] = {}
+
     _llvm: VariablesLLVM
 
     function_protos: dict[str, astx.FunctionPrototype]
@@ -95,6 +99,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def __init__(self) -> None:
         """Initialize LLVMTranslator object."""
         super().__init__()
+
+        # named_values as instance variable so it isn't shared across instances
+        self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
 
@@ -133,6 +140,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
         self._llvm.INT8_TYPE = ir.IntType(8)
+        self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.VOID_TYPE = ir.VoidType()
 
@@ -207,6 +215,53 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
         return alloca
+
+    def promote_operands(
+        self, lhs: ir.Value, rhs: ir.Value
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        Promote two LLVM IR numeric operands to a common type.
+
+        Parameters
+        ----------
+        lhs : ir.Value
+            The left-hand operand.
+        rhs : ir.Value
+            The right-hand operand.
+
+        Returns
+        -------
+        tuple[ir.Value, ir.Value]
+            A tuple containing the promoted operands.
+        """
+        if lhs.type == rhs.type:
+            return lhs, rhs
+
+        # perform sign extension (for integer operands)
+        if isinstance(lhs.type, ir.IntType) and isinstance(
+            rhs.type, ir.IntType
+        ):
+            if lhs.type.width < rhs.type.width:
+                lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
+            elif lhs.type.width > rhs.type.width:
+                rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
+            return lhs, rhs
+
+        # ranking dictionary for floating point types
+        fp_types_order = {"float": 1, "double": 2}
+
+        lhs_str = str(lhs.type)
+        rhs_str = str(rhs.type)
+
+        # perform floating-point extension
+        if lhs_str in fp_types_order and rhs_str in fp_types_order:
+            if fp_types_order[lhs_str] < fp_types_order[rhs_str]:
+                lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
+            elif fp_types_order[lhs_str] > fp_types_order[rhs_str]:
+                rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
+            return lhs, rhs
+
+        return lhs, rhs
 
     @dispatch.abstract
     def visit(self, expr: astx.AST) -> None:
@@ -292,6 +347,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
+
+        # automatic type promotion
+        llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
         if expr.op_code == "+":
             # note: it should be according the datatype,
@@ -438,7 +496,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.ForCountLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
-        var_addr = self.create_entry_block_alloca("for_count_loop", "int32")
+        var_addr = self.create_entry_block_alloca(
+            "for_count_loop", expr.initializer.type_.__class__.__name__.lower()
+        )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
@@ -501,14 +561,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             self.named_values.pop(expr.initializer.name, None)
 
-        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        result = ir.Constant(
+            self._llvm.get_data_type(
+                expr.initializer.type_.__class__.__name__.lower()
+            ),
+            0,
+        )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.ForRangeLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
-        var_addr = self.create_entry_block_alloca("for_count_loop", "int32")
+        var_addr = self.create_entry_block_alloca(
+            "for_count_loop", expr.variable.type_.__class__.__name__.lower()
+        )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
@@ -554,7 +621,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 return
         else:
             # If not specified, use 1.0.
-            step_val = ir.Constant(self._llvm.INT32_TYPE, 1)
+            step_val = ir.Constant(
+                self._llvm.get_data_type(
+                    expr.variable.type_.__class__.__name__.lower()
+                ),
+                1,
+            )
 
         # Compute the end condition.
         self.visit(expr.end)
@@ -601,7 +673,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.named_values.pop(expr.variable.name, None)
 
         # for expr always returns 0.0.
-        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        result = ir.Constant(
+            self._llvm.get_data_type(
+                expr.variable.type_.__class__.__name__.lower()
+            ),
+            0,
+        )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
@@ -652,11 +729,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         basic_block = fn.append_basic_block("entry")
         self._llvm.ir_builder = ir.IRBuilder(basic_block)
 
-        for llvm_arg in fn.args:
+        for idx, llvm_arg in enumerate(fn.args):
+            arg_ast = proto.args.nodes[idx]
+            type_str = arg_ast.type_.__class__.__name__.lower()
+            arg_type = self._llvm.get_data_type(type_str)
+
             # Create an alloca for this variable.
-            alloca = self._llvm.ir_builder.alloca(
-                self._llvm.INT32_TYPE, name=llvm_arg.name
-            )
+            alloca = self._llvm.ir_builder.alloca(arg_type, name=llvm_arg.name)
 
             # Store the initial value into the alloca.
             self._llvm.ir_builder.store(llvm_arg, alloca)
@@ -670,16 +749,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
-        args_type = [self._llvm.INT32_TYPE] * len(expr.args.nodes)
+        args_type = []
+        for arg in expr.args.nodes:
+            type_str = arg.type_.__class__.__name__.lower()
+            args_type.append(self._llvm.get_data_type(type_str))
         # note: it should be dynamic
-        return_type = self._llvm.get_data_type("int32")
+        return_type = self._llvm.get_data_type(
+            expr.return_type.__class__.__name__.lower()
+        )
         fn_type = ir.FunctionType(return_type, args_type, False)
 
         fn = ir.Function(self._llvm.module, fn_type, expr.name)
 
         # Set names for all arguments.
-        for idx, arg in enumerate(fn.args):
-            arg.name = expr.args[idx].name
+        for idx, llvm_arg in enumerate(fn.args):
+            llvm_arg.name = expr.args.nodes[idx].name
 
         self.result_stack.append(fn)
 
@@ -704,6 +788,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
+        type_str = expr.type_.__class__.__name__.lower()
+
         # Emit the initializer
         if expr.value is not None:
             self.visit(expr.value)
@@ -711,9 +797,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         else:
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
+        alloca = self.create_entry_block_alloca(expr.name, type_str)
         self._llvm.ir_builder.store(init_val, alloca)
         self.named_values[expr.name] = alloca
 
@@ -736,6 +822,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if self.named_values.get(expr.name):
             raise Exception(f"Variable already declared: {expr.name}")
 
+        type_str = expr.type_.__class__.__name__.lower()
+
         # Emit the initializer
         if expr.value is not None:
             self.visit(expr.value)
@@ -745,17 +833,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             # If not specified, use 0 as the initializer.
             # note: it should create something according to the defined type
-            init_val = ir.Constant(self._llvm.get_data_type("int32"), 0)
+            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
-        alloca = self.create_entry_block_alloca(expr.name, "int32")
+        alloca = self.create_entry_block_alloca(expr.name, type_str)
 
         # Store the initial value.
         self._llvm.ir_builder.store(init_val, alloca)
 
         # Remember this binding.
         self.named_values[expr.name] = alloca
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralInt16) -> None:
+        """Translate ASTx LiteralInt16 to LLVM-IR."""
+        result = ir.Constant(self._llvm.INT16_TYPE, expr.value)
+        self.result_stack.append(result)
 
 
 @public
