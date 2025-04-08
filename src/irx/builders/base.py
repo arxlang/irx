@@ -12,10 +12,7 @@ import astx
 
 from plum import dispatch
 
-from irx.tools.typing import typechecked
 
-
-@typechecked
 class BuilderVisitor:
     """Builder translator visitor."""
 
@@ -59,6 +56,11 @@ class BuilderVisitor:
     def visit(self, expr: astx.InlineVariableDeclaration) -> None:
         """Translate an ASTx InlineVariableDeclaration expression."""
         raise Exception("InlineVariableDeclaration not implemented yet.")
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralInt16) -> None:
+        """Translate an ASTx LiteralInt16 expression."""
+        raise Exception("Not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralInt32) -> None:
@@ -111,7 +113,6 @@ class BuilderVisitor:
         raise Exception("Not implemented yet.")
 
 
-@typechecked
 class Builder(ABC):
     """ASTx Builder."""
 
