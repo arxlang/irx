@@ -16,8 +16,10 @@ from plum import dispatch
 from public import public
 
 from irx.builders.base import Builder, BuilderVisitor
+from irx.tools.typing import typechecked
 
 
+@typechecked
 def run_command(command: list[str]) -> None:
     """Run a command in the operating system."""
     try:
@@ -27,6 +29,7 @@ def run_command(command: list[str]) -> None:
         # Handle the error as needed
 
 
+@typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
     """Implement a safe pop operation for lists."""
     try:
@@ -35,6 +38,7 @@ def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
         return None
 
 
+@typechecked
 class VariablesLLVM:
     """Store all the LLVM variables that is used for the code generation."""
 
@@ -80,6 +84,7 @@ class VariablesLLVM:
         raise Exception("[EE]: type_name not valid.")
 
 
+@typechecked
 class LLVMLiteIRVisitor(BuilderVisitor):
     """LLVM-IR Translator."""
 
