@@ -1,4 +1,4 @@
-"""Tests for the BinaryOp."""
+"""Tests for the UnaryOp."""
 
 from typing import Type
 
@@ -18,7 +18,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "action,expected_file",
     [
-        # ("translate", "test_binary_op_basic.ll"),
+        # ("translate", "test_unary_op.ll"),
         ("build", ""),
     ],
 )
@@ -28,34 +28,33 @@ from .conftest import check_result
         LLVMLiteIR,
     ],
 )
-def test_binary_op_basic(
+def test_unary_op_increment_decrement(
     action: str,
     expected_file: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx Module with a function called add."""
+    """Test ASTx UnaryOp for increment and decrement operations."""
     builder = builder_class()
     module = builder.module()
 
     decl_a = astx.VariableDeclaration(
-        name="a", type_=int_type(), value=literal_type(1)
+        name="a", type_=int_type(), value=literal_type(5)
     )
     decl_b = astx.VariableDeclaration(
-        name="b", type_=int_type(), value=literal_type(2)
-    )
-    decl_c = astx.VariableDeclaration(
-        name="c", type_=int_type(), value=literal_type(4)
+        name="b", type_=int_type(), value=literal_type(10)
     )
 
-    a = astx.Variable("a")
-    b = astx.Variable("b")
-    c = astx.Variable("c")
+    var_a = astx.Variable("a")
+    var_b = astx.Variable("b")
 
-    lit_1 = literal_type(1)
+    incr_a = astx.UnaryOp(op_code="++", operand=var_a)
+    incr_a.type_ = int_type()
+    decr_b = astx.UnaryOp(op_code="--", operand=var_b)
+    decr_b.type_ = int_type()
 
-    basic_op = lit_1 + b - a * c / a + (b - a + c / a)
+    final_expr = incr_a + decr_b
 
     main_proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=int_type()
@@ -63,9 +62,9 @@ def test_binary_op_basic(
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
-    main_block.append(decl_c)
-    main_block.append(astx.FunctionReturn(basic_op))
+    main_block.append(astx.FunctionReturn(final_expr))
     main_fn = astx.Function(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
+
     check_result(action, builder, module, expected_file)
