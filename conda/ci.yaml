@@ -6,6 +6,7 @@ dependencies:
   - clang 14.*
   - clangdev 14.*
   - graphviz
+  - openjdk
   - pip
   - poetry >=2
   - python

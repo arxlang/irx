@@ -1,5 +1,6 @@
 """General configuration module for pytest."""
 
+import os
 import tempfile
 
 from difflib import SequenceMatcher
@@ -26,10 +27,17 @@ def check_result(
 ) -> None:
     """Check the result for translation or build."""
     if action == "build":
+        filename_exe = ""
         with tempfile.NamedTemporaryFile(
-            suffix=".exe", prefix="arx", dir="/tmp"
+            suffix=".exe",
+            prefix="arx",
+            dir="/tmp",
+            delete=False,
         ) as fp:
-            builder.build(module, output_file=fp.name)
+            filename_exe = fp.name
+            builder.build(module, output_file=filename_exe)
+        builder.run()
+        os.unlink(filename_exe)
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:
             expected = f.read()
