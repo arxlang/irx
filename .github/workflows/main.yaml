@@ -39,7 +39,8 @@ jobs:
           - "3.13"
         os:
           - "ubuntu"
-          - "macos"
+          # note: we need to enable the code generation for macos on ci
+          # - "macos"
           - "windows"
         exclude:
           - os: macos

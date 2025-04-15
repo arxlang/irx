@@ -2,7 +2,7 @@
 
 import pytest
 
-from irx.builders.symbol_table import RegisterTable
+from irx.symbol_table import RegisterTable
 
 # Constants for test values used in each test
 INITIAL_VALUE = 0

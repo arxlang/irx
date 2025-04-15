@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 
 from abc import ABC, abstractmethod
@@ -10,9 +11,17 @@ from typing import Any, Dict
 
 import astx
 
-from plum import dispatch
-
 from irx.tools.typing import typechecked
+
+
+@typechecked
+def run_command(command: list[str]) -> None:
+    """Run a command in the operating system."""
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+        # Handle the error as needed
 
 
 @typechecked
@@ -28,91 +37,6 @@ class BuilderVisitor:
             self.visit(expr)
             return str(self.result)
         """
-        raise Exception("Not implemented yet.")
-
-    @dispatch.abstract
-    def visit(self, expr: astx.AST) -> None:
-        """Translate an ASTx expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionCall) -> None:
-        """Translate an ASTx FunctionCall expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Function) -> None:
-        """Translate an ASTx Function expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionPrototype) -> None:
-        """Translate an ASTx FunctionPrototype expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionReturn) -> None:
-        """Translate an ASTx FunctionReturn expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.InlineVariableDeclaration) -> None:
-        """Translate an ASTx InlineVariableDeclaration expression."""
-        raise Exception("InlineVariableDeclaration not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.LiteralInt16) -> None:
-        """Translate an ASTx LiteralInt16 expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.LiteralInt32) -> None:
-        """Translate an ASTx LiteralInt32 expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.ForCountLoopStmt) -> None:
-        """Translate an ASTx ForCountLoopStmt expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.ForRangeLoopStmt) -> None:
-        """Translate an ASTx ForRangeLoopStmt expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.IfStmt) -> None:
-        """Translate an ASTx If expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.BinaryOp) -> None:
-        """Translate an ASTx BinaryOp expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.UnaryOp) -> None:
-        """Translate an ASTx UnaryOp expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Block) -> None:
-        """Translate an ASTx Block expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Module) -> None:
-        """Translate an ASTx Module expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Variable) -> None:
-        """Translate an ASTx Variable expression."""
-        raise Exception("Not implemented yet.")
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.VariableDeclaration) -> None:
-        """Translate an ASTx VariableDeclaration expression."""
         raise Exception("Not implemented yet.")
 
 
@@ -156,7 +80,6 @@ class Builder(ABC):
         """Transpile ASTx to LLVM-IR and build an executable file."""
         ...
 
-    @abstractmethod
     def run(self) -> None:
         """Run the generated executable."""
-        ...
+        run_command([self.output_file])

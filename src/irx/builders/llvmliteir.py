@@ -2,31 +2,22 @@
 
 from __future__ import annotations
 
-import subprocess
+import os
 import tempfile
 
 from typing import Any, Optional, cast
 
 import astx
-import sh
+import xh
 
 from llvmlite import binding as llvm
 from llvmlite import ir
 from plum import dispatch
 from public import public
 
+from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
-
-
-@typechecked
-def run_command(command: list[str]) -> None:
-    """Run a command in the operating system."""
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred: {e}")
-        # Handle the error as needed
 
 
 @typechecked
@@ -114,9 +105,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._add_builtins()
 
-    def translate(self, expr: astx.AST) -> str:
+    def translate(self, node: astx.AST) -> str:
         """Translate an ASTx expression to string."""
-        self.visit(expr)
+        self.visit(node)
         return str(self._llvm.module)
 
     def initialize(self) -> None:
@@ -264,15 +255,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return lhs, rhs
 
     @dispatch.abstract
-    def visit(self, expr: astx.AST) -> None:
+    def visit(self, node: astx.AST) -> None:
         """Translate an ASTx expression."""
         raise Exception("Not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.UnaryOp) -> None:
+    def visit(self, node: astx.UnaryOp) -> None:
         """Translate an ASTx UnaryOp expression."""
-        if expr.op_code == "++":
-            self.visit(expr.operand)
+        if node.op_code == "++":
+            self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
 
             one = ir.Constant(operand_val.type, 1)
@@ -281,34 +272,34 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
 
             # If operand is a variable, store the new value back
-            if isinstance(expr.operand, astx.Variable):
-                var_addr = self.named_values.get(expr.operand.name)
+            if isinstance(node.operand, astx.Variable):
+                var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
 
             self.result_stack.append(result)
             return
 
-        elif expr.op_code == "--":
-            self.visit(expr.operand)
+        elif node.op_code == "--":
+            self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
             one = ir.Constant(operand_val.type, 1)
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
-            if isinstance(expr.operand, astx.Variable):
-                var_addr = self.named_values.get(expr.operand.name)
+            if isinstance(node.operand, astx.Variable):
+                var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
 
             self.result_stack.append(result)
             return
 
-        raise Exception(f"Unary operator {expr.op_code} not implemented yet.")
+        raise Exception(f"Unary operator {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.BinaryOp) -> None:
+    def visit(self, node: astx.BinaryOp) -> None:
         """Translate binary operation expression."""
-        if expr.op_code == "=":
+        if node.op_code == "=":
             # Special case '=' because we don't want to emit the lhs as an
             # expression.
             # Assignment requires the lhs to be an identifier.
@@ -316,13 +307,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # that way by default.
             # If you build LLVM with RTTI, this can be changed to a
             # dynamic_cast for automatic error checking.
-            var_lhs = expr.lhs
+            var_lhs = node.lhs
 
             if not isinstance(var_lhs, astx.VariableExprAST):
                 raise Exception("destination of '=' must be a variable")
 
             # Codegen the rhs.
-            self.visit(expr.rhs)
+            self.visit(node.rhs)
             llvm_rhs = safe_pop(self.result_stack)
 
             if not llvm_rhs:
@@ -339,10 +330,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
 
-        self.visit(expr.lhs)
+        self.visit(node.lhs)
         llvm_lhs = safe_pop(self.result_stack)
 
-        self.visit(expr.rhs)
+        self.visit(node.rhs)
         llvm_rhs = safe_pop(self.result_stack)
 
         if not llvm_lhs or not llvm_rhs:
@@ -351,25 +342,25 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # automatic type promotion
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
-        if expr.op_code == "+":
+        if node.op_code == "+":
             # note: it should be according the datatype,
             #       e.g. for float it should be fadd
             result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, "addtmp")
             self.result_stack.append(result)
             return
-        elif expr.op_code == "-":
+        elif node.op_code == "-":
             # note: it should be according the datatype,
             #       e.g. for float it should be fsub
             result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
             self.result_stack.append(result)
             return
-        elif expr.op_code == "*":
+        elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
             result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
             self.result_stack.append(result)
             return
-        elif expr.op_code == "<":
+        elif node.op_code == "<":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
@@ -380,7 +371,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # )
             self.result_stack.append(cmp_result)
             return
-        elif expr.op_code == ">":
+        elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
@@ -391,7 +382,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # )
             self.result_stack.append(cmp_result)
             return
-        elif expr.op_code == "/":
+        elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
             # division
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
@@ -408,7 +399,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
 
-        raise Exception(f"Binary op {expr.op_code} not implemented yet.")
+        raise Exception(f"Binary op {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, block: astx.Block) -> None:
@@ -424,9 +415,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.IfStmt) -> None:
+    def visit(self, node: astx.IfStmt) -> None:
         """Translate IF statement."""
-        self.visit(expr.cond)
+        self.visit(node.cond)
         cond_v = self.result_stack.pop()
 
         if not cond_v:
@@ -458,7 +449,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
-        self.visit(expr.then_)
+        self.visit(node.then_)
         then_v = self.result_stack.pop()
 
         if not then_v:
@@ -473,7 +464,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit else block.
         self._llvm.ir_builder.function.basic_blocks.append(else_bb)
         self._llvm.ir_builder.position_at_start(else_bb)
-        self.visit(expr.else_)
+        self.visit(node.else_)
         else_v = self.result_stack.pop()
         if not else_v:
             raise Exception("Revisit this!")
@@ -493,16 +484,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(phi)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.ForCountLoopStmt) -> None:
+    def visit(self, node: astx.ForCountLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
         var_addr = self.create_entry_block_alloca(
-            "for_count_loop", expr.initializer.type_.__class__.__name__.lower()
+            "for_count_loop", node.initializer.type_.__class__.__name__.lower()
         )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
-        self.visit(expr.initializer)
+        self.visit(node.initializer)
         initializer_val = self.result_stack.pop()
         if not initializer_val:
             raise Exception("codegen: Invalid start argument.")
@@ -519,11 +510,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_start(loop_header_bb)
 
         # Save old value if variable shadows an existing one
-        old_val = self.named_values.get(expr.initializer.name)
-        self.named_values[expr.initializer.name] = var_addr
+        old_val = self.named_values.get(node.initializer.name)
+        self.named_values[node.initializer.name] = var_addr
 
         # Emit condition check (e.g., i < 10)
-        self.visit(expr.condition)
+        self.visit(node.condition)
         cond_val = self.result_stack.pop()
 
         # Create blocks for loop body and after loop
@@ -539,11 +530,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
-        self.visit(expr.body)
+        self.visit(node.body)
         _body_val = self.result_stack.pop()
 
         # Emit update expression
-        self.visit(expr.update)
+        self.visit(node.update)
         update_val = self.result_stack.pop()
 
         # Store updated value
@@ -557,29 +548,29 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Restore the unshadowed variable.
         if old_val:
-            self.named_values[expr.initializer.name] = old_val
+            self.named_values[node.initializer.name] = old_val
         else:
-            self.named_values.pop(expr.initializer.name, None)
+            self.named_values.pop(node.initializer.name, None)
 
         result = ir.Constant(
             self._llvm.get_data_type(
-                expr.initializer.type_.__class__.__name__.lower()
+                node.initializer.type_.__class__.__name__.lower()
             ),
             0,
         )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.ForRangeLoopStmt) -> None:
+    def visit(self, node: astx.ForRangeLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
         var_addr = self.create_entry_block_alloca(
-            "for_count_loop", expr.variable.type_.__class__.__name__.lower()
+            "for_count_loop", node.variable.type_.__class__.__name__.lower()
         )
         self._llvm.ir_builder.position_at_end(saved_block)
 
         # Emit the start code first, without 'variable' in scope.
-        self.visit(expr.start)
+        self.visit(node.start)
         start_val = self.result_stack.pop()
         if not start_val:
             raise Exception("codegen: Invalid start argument.")
@@ -601,21 +592,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Within the loop, the variable is defined equal to the PHI node.
         # If it shadows an existing variable, we have to restore it, so save
         # it now.
-        old_val = self.named_values.get(expr.variable.name)
-        self.named_values[expr.variable.name] = var_addr
+        old_val = self.named_values.get(node.variable.name)
+        self.named_values[node.variable.name] = var_addr
 
-        # Emit the body of the loop. This, like any other expr, can change
+        # Emit the body of the loop. This, like any other node, can change
         # the current basic_block. Note that we ignore the value computed by
         # the body, but don't allow an error.
-        self.visit(expr.body)
+        self.visit(node.body)
         body_val = self.result_stack.pop()
 
         if not body_val:
             return
 
         # Emit the step value.
-        if expr.step:
-            self.visit(expr.step)
+        if node.step:
+            self.visit(node.step)
             step_val = self.result_stack.pop()
             if not step_val:
                 return
@@ -623,20 +614,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # If not specified, use 1.0.
             step_val = ir.Constant(
                 self._llvm.get_data_type(
-                    expr.variable.type_.__class__.__name__.lower()
+                    node.variable.type_.__class__.__name__.lower()
                 ),
                 1,
             )
 
         # Compute the end condition.
-        self.visit(expr.end)
+        self.visit(node.end)
         end_cond = self.result_stack.pop()
         if not end_cond:
             return
 
         # Reload, increment, and restore the var_addr. This handles the case
         # where the body of the loop mutates the variable.
-        cur_var = self._llvm.ir_builder.load(var_addr, expr.variable.name)
+        cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
         self._llvm.ir_builder.store(next_var, var_addr)
 
@@ -668,44 +659,44 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Restore the unshadowed variable.
         if old_val:
-            self.named_values[expr.variable.name] = old_val
+            self.named_values[node.variable.name] = old_val
         else:
-            self.named_values.pop(expr.variable.name, None)
+            self.named_values.pop(node.variable.name, None)
 
-        # for expr always returns 0.0.
+        # for node always returns 0.0.
         result = ir.Constant(
             self._llvm.get_data_type(
-                expr.variable.type_.__class__.__name__.lower()
+                node.variable.type_.__class__.__name__.lower()
             ),
             0,
         )
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Module) -> None:
+    def visit(self, node: astx.Module) -> None:
         """Translate ASTx Module to LLVM-IR."""
-        for node in expr.nodes:
-            self.visit(node)
+        for mod_node in node.nodes:
+            self.visit(mod_node)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.LiteralInt32) -> None:
+    def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
-        result = ir.Constant(self._llvm.INT32_TYPE, expr.value)
+        result = ir.Constant(self._llvm.INT32_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionCall) -> None:
+    def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
-        callee_f = self.get_function(expr.callee)
+        callee_f = self.get_function(node.callee)
 
         if not callee_f:
             raise Exception("Unknown function referenced")
 
-        if len(callee_f.args) != len(expr.args):
+        if len(callee_f.args) != len(node.args):
             raise Exception("codegen: Incorrect # arguments passed.")
 
         llvm_args = []
-        for arg in expr.args:
+        for arg in node.args:
             self.visit(arg)
             llvm_arg = self.result_stack.pop()
             if not llvm_arg:
@@ -716,9 +707,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Function) -> None:
+    def visit(self, node: astx.Function) -> None:
         """Translate ASTx Function to LLVM-IR."""
-        proto = expr.prototype
+        proto = node.prototype
         self.function_protos[proto.name] = proto
         fn = self.get_function(proto.name)
 
@@ -743,34 +734,34 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # Add arguments to variable symbol table.
             self.named_values[llvm_arg.name] = alloca
 
-        self.visit(expr.body)
+        self.visit(node.body)
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionPrototype) -> None:
+    def visit(self, node: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
         args_type = []
-        for arg in expr.args.nodes:
+        for arg in node.args.nodes:
             type_str = arg.type_.__class__.__name__.lower()
             args_type.append(self._llvm.get_data_type(type_str))
         # note: it should be dynamic
         return_type = self._llvm.get_data_type(
-            expr.return_type.__class__.__name__.lower()
+            node.return_type.__class__.__name__.lower()
         )
         fn_type = ir.FunctionType(return_type, args_type, False)
 
-        fn = ir.Function(self._llvm.module, fn_type, expr.name)
+        fn = ir.Function(self._llvm.module, fn_type, node.name)
 
         # Set names for all arguments.
         for idx, llvm_arg in enumerate(fn.args):
-            llvm_arg.name = expr.args.nodes[idx].name
+            llvm_arg.name = node.args.nodes[idx].name
 
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.FunctionReturn) -> None:
+    def visit(self, node: astx.FunctionReturn) -> None:
         """Translate ASTx FunctionReturn to LLVM-IR."""
-        self.visit(expr.value)
+        self.visit(node.value)
 
         try:
             retval = self.result_stack.pop()
@@ -783,50 +774,85 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.ret_void()
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.InlineVariableDeclaration) -> None:
+    def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """Translate an ASTx InlineVariableDeclaration expression."""
-        if self.named_values.get(expr.name):
-            raise Exception(f"Variable already declared: {expr.name}")
+        if self.named_values.get(node.name):
+            raise Exception(f"Variable already declared: {node.name}")
 
-        type_str = expr.type_.__class__.__name__.lower()
+        type_str = node.type_.__class__.__name__.lower()
 
         # Emit the initializer
-        if expr.value is not None:
-            self.visit(expr.value)
+        if node.value is not None:
+            self.visit(node.value)
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         else:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
-        alloca = self.create_entry_block_alloca(expr.name, type_str)
+        alloca = self.create_entry_block_alloca(node.name, type_str)
         self._llvm.ir_builder.store(init_val, alloca)
-        self.named_values[expr.name] = alloca
+        self.named_values[node.name] = alloca
 
         self.result_stack.append(init_val)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.Variable) -> None:
+    def visit(self, node: system.PrintExpr) -> None:
+        """Generate LLVM IR for a PrintExpr node."""
+        message = node.message.value
+
+        msg_length = len(message) + 1
+
+        msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
+
+        global_msg = ir.GlobalVariable(
+            self._llvm.module, msg_type, name="print_msg"
+        )
+        global_msg.linkage = "internal"
+        global_msg.global_constant = True
+        global_msg.initializer = ir.Constant(
+            msg_type, bytearray(message + "\0", "utf8")
+        )
+
+        ptr = self._llvm.ir_builder.gep(
+            global_msg,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        puts_fn = self._llvm.module.globals.get("puts")
+        if puts_fn is None:
+            puts_ty = ir.FunctionType(
+                self._llvm.INT32_TYPE, [ir.PointerType(self._llvm.INT8_TYPE)]
+            )
+            puts_fn = ir.Function(self._llvm.module, puts_ty, name="puts")
+
+        self._llvm.ir_builder.call(puts_fn, [ptr])
+
+        self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.Variable) -> None:
         """Translate ASTx Variable to LLVM-IR."""
-        expr_var = self.named_values.get(expr.name)
+        expr_var = self.named_values.get(node.name)
 
         if not expr_var:
-            raise Exception(f"Unknown variable name: {expr.name}")
+            raise Exception(f"Unknown variable name: {node.name}")
 
-        result = self._llvm.ir_builder.load(expr_var, expr.name)
+        result = self._llvm.ir_builder.load(expr_var, node.name)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.VariableDeclaration) -> None:
+    def visit(self, node: astx.VariableDeclaration) -> None:
         """Translate ASTx Variable to LLVM-IR."""
-        if self.named_values.get(expr.name):
-            raise Exception(f"Variable already declared: {expr.name}")
+        if self.named_values.get(node.name):
+            raise Exception(f"Variable already declared: {node.name}")
 
-        type_str = expr.type_.__class__.__name__.lower()
+        type_str = node.type_.__class__.__name__.lower()
 
         # Emit the initializer
-        if expr.value is not None:
-            self.visit(expr.value)
+        if node.value is not None:
+            self.visit(node.value)
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
@@ -837,18 +863,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Create an alloca in the entry block.
         # note: it should create the type according to the defined type
-        alloca = self.create_entry_block_alloca(expr.name, type_str)
+        alloca = self.create_entry_block_alloca(node.name, type_str)
 
         # Store the initial value.
         self._llvm.ir_builder.store(init_val, alloca)
 
         # Remember this binding.
-        self.named_values[expr.name] = alloca
+        self.named_values[node.name] = alloca
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, expr: astx.LiteralInt16) -> None:
+    def visit(self, node: astx.LiteralInt16) -> None:
         """Translate ASTx LiteralInt16 to LLVM-IR."""
-        result = ir.Constant(self._llvm.INT16_TYPE, expr.value)
+        result = ir.Constant(self._llvm.INT16_TYPE, node.value)
         self.result_stack.append(result)
 
 
@@ -861,14 +887,14 @@ class LLVMLiteIR(Builder):
         super().__init__()
         self.translator: LLVMLiteIRVisitor = LLVMLiteIRVisitor()
 
-    def build(self, expr: astx.AST, output_file: str) -> None:
+    def build(self, node: astx.AST, output_file: str) -> None:
         """Transpile the ASTx to LLVM-IR and build it to an executable file."""
-        result = self.translate(expr)
+        result = self.translate(node)
 
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)
 
-        with tempfile.NamedTemporaryFile(suffix="", delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix="", delete=True) as temp_file:
             self.tmp_path = temp_file.name
 
         file_path_o = f"{self.tmp_path}.o"
@@ -878,15 +904,9 @@ class LLVMLiteIR(Builder):
 
         self.output_file = output_file
 
-        run_command(
-            [
-                "clang",
-                file_path_o,
-                "-o",
-                self.output_file,
-            ]
+        xh.clang(  # type: ignore
+            file_path_o,
+            "-o",
+            self.output_file,
         )
-
-    def run(self) -> None:
-        """Run the generated executable."""
-        sh([self.output_file])
+        os.chmod(self.output_file, 0o755)
