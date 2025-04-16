@@ -417,11 +417,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.IfStmt) -> None:
         """Translate IF statement."""
-<<<<<<< HEAD
-        self.visit(node.cond)
-=======
-        self.visit(expr.condition)
->>>>>>> 1daf58a (tests: Add test for if_stmt)
+        self.visit(node.condition)
         cond_v = self.result_stack.pop()
 
         if not cond_v:
@@ -459,18 +455,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
-<<<<<<< HEAD
-        self.visit(node.then_)
-        then_v = self.result_stack.pop()
-=======
-        self.visit(expr.then)
+        self.visit(node.then)
         # then_v = self.result_stack.pop()
         then_v = (
             self.result_stack.pop()
             if self.result_stack
             else ir.Constant(self._llvm.INT32_TYPE, 1)
         )
->>>>>>> 1daf58a (tests: Add test for if_stmt)
 
         if not then_v:
             raise Exception("codegen: `Then` expression is invalid.")
@@ -481,18 +472,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit else block.
         # self._llvm.ir_builder.function.basic_blocks.append(else_bb)
         self._llvm.ir_builder.position_at_start(else_bb)
-<<<<<<< HEAD
         self.visit(node.else_)
-        else_v = self.result_stack.pop()
-=======
-        self.visit(expr.else_)
         # else_v = self.result_stack.pop()
         else_v = (
             self.result_stack.pop()
             if self.result_stack
             else ir.Constant(self._llvm.INT32_TYPE, 0)
         )
->>>>>>> 1daf58a (tests: Add test for if_stmt)
         if not else_v:
             raise Exception("Revisit this!")
 
