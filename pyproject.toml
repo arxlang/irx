@@ -13,6 +13,7 @@ dependencies = [
   "astx == 0.16.1",
   "llvmlite  >= 0.41.1",
   "plum-dispatch >= 2.2.2",
+  "xhell (>=0.2.1)",
   "typing-extensions >=4 ; python_version < '3.9'",
   "eval-type-backport >=0.2 ; python_version < '3.10'",
   "typeguard >= 4",
