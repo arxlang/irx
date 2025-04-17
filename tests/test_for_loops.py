@@ -39,9 +39,7 @@ def test_for_range(
     builder = builder_class()
 
     # `for` statement
-    var_a = astx.InlineVariableDeclaration(
-        "a", type_=int_type(), value=literal_type(-1)
-    )
+    var_a = astx.InlineVariableDeclaration("a", type_=int_type())
     start = literal_type(1)
     end = literal_type(10)
     step = literal_type(1)
@@ -67,8 +65,7 @@ def test_for_range(
     module = builder.module()
     module.block.append(fn_main)
 
-    # note: this test is not working actually, maybe it has an infinite loop
-    # check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file)
 
 
 @pytest.mark.parametrize(
@@ -126,5 +123,4 @@ def test_for_count(
     module = builder.module()
     module.block.append(fn_main)
 
-    # note: not yet fully implemented
     check_result(action, builder, module, expected_file)
