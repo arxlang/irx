@@ -495,7 +495,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         phi.add_incoming(else_v, else_bb)
 
         self.result_stack.append(phi)
-        self._llvm.ir_builder.ret(phi)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForCountLoopStmt) -> None:

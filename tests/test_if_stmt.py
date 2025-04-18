@@ -14,6 +14,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "action,expected_file",
     [
+        # ("translate", "test_if_stmt.ll"),
         ("build", ""),
     ],
 )
@@ -51,7 +52,7 @@ def test_if_stmt(
     fn_block = astx.Block()
     fn_block.append(init_a)
     fn_block.append(if_stmt)
-
+    fn_block.append(astx.FunctionReturn(astx.Variable("a")))
     fn_main = astx.Function(prototype=proto, body=fn_block)
 
     module = builder.module()
