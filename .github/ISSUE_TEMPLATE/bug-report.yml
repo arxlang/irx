@@ -122,13 +122,14 @@ body:
     validations:
       required: true
 
+
   - type: textarea
     attributes:
-      # label: IRx version
-      # description: >-
-      # Paste verbatim output from `IRx --version` below, under the prompt line.
-      # Don't wrap it with triple backticks &mdash; your whole input will be
-      # turned into a code snippet automatically.
+      label: IRx version
+      description: >-
+        Paste verbatim output from `IRx --version` below, under the prompt line.
+        Don't wrap it with triple backticks &mdash; your whole input will be
+        turned into a code snippet automatically.
       render: console
       placeholder: |
         python -m pip show IRx
