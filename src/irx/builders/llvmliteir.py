@@ -404,11 +404,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, block: astx.Block) -> None:
         """Translate ASTx Block to LLVM-IR."""
-        result = None
+        result = []
         for node in block.nodes:
             self.visit(node)
             try:
-                result = self.result_stack.pop()
+                result.append(self.result_stack.pop())
             except IndexError:
                 # some nodes doesn't add anything in the stack
                 pass
