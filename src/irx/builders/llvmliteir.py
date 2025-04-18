@@ -418,9 +418,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.IfStmt) -> None:
         """Translate IF statement."""
-        self.visit(node.cond)
+        self.visit(node.condition)
         cond_v = self.result_stack.pop()
-
         if not cond_v:
             raise Exception("codegen: Invalid condition expression.")
 
@@ -437,48 +436,45 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             zero_val,
         )
 
-        # fn = self._llvm.ir_builder.position_at_start().getParent()
-
-        # Create blocks for the then and else cases. Insert the 'then' block
-        # at the end of the function.
-        # then_bb = ir.Block(self._llvm.ir_builder.function, "then", fn)
-        then_bb = self._llvm.ir_builder.function.append_basic_block("then")
-        else_bb = ir.Block(self._llvm.ir_builder.function, "else")
-        merge_bb = ir.Block(self._llvm.ir_builder.function, "ifcont")
+        # Create blocks for the then and else cases.
+        then_bb = self._llvm.ir_builder.function.append_basic_block(
+            "bb_if_then"
+        )
+        else_bb = self._llvm.ir_builder.function.append_basic_block(
+            "bb_if_else"
+        )
+        merge_bb = self._llvm.ir_builder.function.append_basic_block(
+            "bb_if_end"
+        )
 
         self._llvm.ir_builder.cbranch(cond_v, then_bb, else_bb)
 
         # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
-        self.visit(node.then_)
+        self.visit(node.then)
         then_v = self.result_stack.pop()
-
         if not then_v:
             raise Exception("codegen: `Then` expression is invalid.")
 
         self._llvm.ir_builder.branch(merge_bb)
 
-        # Codegen of 'then' can change the current block, update then_bb
-        # for the PHI.
+        # Update reference to final block of 'then'
         then_bb = self._llvm.ir_builder.block
 
         # Emit else block.
-        self._llvm.ir_builder.function.basic_blocks.append(else_bb)
         self._llvm.ir_builder.position_at_start(else_bb)
         self.visit(node.else_)
         else_v = self.result_stack.pop()
         if not else_v:
             raise Exception("Revisit this!")
 
-        # Emission of else_val could have modified the current basic block.
+        # Update reference to final block of 'else'
         else_bb = self._llvm.ir_builder.block
         self._llvm.ir_builder.branch(merge_bb)
 
-        # Emit merge block.
-        self._llvm.ir_builder.function.basic_blocks.append(merge_bb)
+        # Emit merge block and PHI node
         self._llvm.ir_builder.position_at_start(merge_bb)
         phi = self._llvm.ir_builder.phi(self._llvm.INT32_TYPE, "iftmp")
-
         phi.add_incoming(then_v, then_bb)
         phi.add_incoming(else_v, else_bb)
 
