@@ -404,15 +404,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, block: astx.Block) -> None:
         """Translate ASTx Block to LLVM-IR."""
-        result = []
+        result = None
         for node in block.nodes:
             self.visit(node)
             try:
-                result.append(self.result_stack.pop())
+                result = self.result_stack.pop()
             except IndexError:
                 # some nodes doesn't add anything in the stack
                 pass
-        self.result_stack.append(result)
+        if result is not None:
+            self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.IfStmt) -> None:
@@ -574,30 +575,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         start_val = self.result_stack.pop()
         if not start_val:
             raise Exception("codegen: Invalid start argument.")
-
-        # Store the value into the alloca.
         self._llvm.ir_builder.store(start_val, var_addr)
 
-        # Make the new basic block for the loop header, inserting after
-        # current block.
+        # Create and jump to the loop block
         loop_bb = self._llvm.ir_builder.function.append_basic_block("loop")
-
-        # Insert an explicit fall through from the current block to the
-        # loop_bb.
         self._llvm.ir_builder.branch(loop_bb)
-
-        # Start insertion in loop_bb.
         self._llvm.ir_builder.position_at_start(loop_bb)
 
-        # Within the loop, the variable is defined equal to the PHI node.
-        # If it shadows an existing variable, we have to restore it, so save
-        # it now.
+        # Store current var in scope
         old_val = self.named_values.get(node.variable.name)
         self.named_values[node.variable.name] = var_addr
 
-        # Emit the body of the loop. This, like any other node, can change
-        # the current basic_block. Note that we ignore the value computed by
-        # the body, but don't allow an error.
+        # Emit the body of the loop.
         self.visit(node.body)
         body_val = self.result_stack.pop()
 
@@ -611,7 +600,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if not step_val:
                 return
         else:
-            # If not specified, use 1.0.
             step_val = ir.Constant(
                 self._llvm.get_data_type(
                     node.variable.type_.__class__.__name__.lower()
@@ -625,24 +613,30 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not end_cond:
             return
 
-        # Reload, increment, and restore the var_addr. This handles the case
-        # where the body of the loop mutates the variable.
+        # Increment loop variable: i = i + step
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
         self._llvm.ir_builder.store(next_var, var_addr)
 
-        # Convert condition to a bool by comparing non-equal to 0.0.
         if isinstance(end_cond.type, (ir.FloatType, ir.DoubleType)):
             cmp_instruction = self._llvm.ir_builder.fcmp_ordered
-            zero_val = ir.Constant(end_cond.type, 0.0)
+            cmp_op = (
+                "<"
+                if isinstance(step_val, ir.Constant) and step_val.constant > 0
+                else ">"
+            )
         else:
             cmp_instruction = self._llvm.ir_builder.icmp_signed
-            zero_val = ir.Constant(end_cond.type, 0)
+            cmp_op = (
+                "<"
+                if isinstance(step_val, ir.Constant) and step_val.constant > 0
+                else ">"
+            )
 
         end_cond = cmp_instruction(
-            "!=",
+            cmp_op,
+            cur_var,
             end_cond,
-            zero_val,
             "loopcond",
         )
 
