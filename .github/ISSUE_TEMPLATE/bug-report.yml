@@ -122,7 +122,6 @@ body:
     validations:
       required: true
 
-
   - type: textarea
     attributes:
       label: IRx version
