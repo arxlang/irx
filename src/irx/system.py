@@ -1,5 +1,7 @@
 """Collection of system classes and functions."""
 
+import itertools
+
 import astx
 
 
@@ -12,10 +14,12 @@ class PrintExpr(astx.Expr):
     """
 
     message: astx.LiteralUTF8String
+    _counter = itertools.count()  # <- ADD THIS LINE
 
     def __init__(self, message: astx.LiteralUTF8String) -> None:
         """Initialize the PrintExpr."""
         self.message = message
+        self._name = f"print_msg_{next(PrintExpr._counter)}"
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """Return the AST structure of the object."""

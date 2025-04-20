@@ -463,8 +463,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit else block.
         self._llvm.ir_builder.position_at_start(else_bb)
-        self.visit(node.else_)
-        else_v = self.result_stack.pop()
+        # self.visit(node.else_)
+        # else_v = self.result_stack.pop()
+
+        else_v = None
+        if node.else_ is not None:
+            self.visit(node.else_)
+            else_v = self.result_stack.pop()
+        else:
+            else_v = ir.Constant(self._llvm.INT32_TYPE, 0)
         if not else_v:
             raise Exception("Revisit this!")
 
@@ -796,7 +803,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
 
         global_msg = ir.GlobalVariable(
-            self._llvm.module, msg_type, name="print_msg"
+            self._llvm.module, msg_type, name=node._name
         )
         global_msg.linkage = "internal"
         global_msg.global_constant = True
