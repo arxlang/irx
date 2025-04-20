@@ -14,7 +14,7 @@ class PrintExpr(astx.Expr):
     """
 
     message: astx.LiteralUTF8String
-    _counter = itertools.count()  # <- ADD THIS LINE
+    _counter = itertools.count()
 
     def __init__(self, message: astx.LiteralUTF8String) -> None:
         """Initialize the PrintExpr."""
