@@ -463,17 +463,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit else block.
         self._llvm.ir_builder.position_at_start(else_bb)
-        # self.visit(node.else_)
-        # else_v = self.result_stack.pop()
-
         else_v = None
         if node.else_ is not None:
             self.visit(node.else_)
             else_v = self.result_stack.pop()
         else:
             else_v = ir.Constant(self._llvm.INT32_TYPE, 0)
-        if not else_v:
-            raise Exception("Revisit this!")
 
         # Update reference to final block of 'else'
         else_bb = self._llvm.ir_builder.block
