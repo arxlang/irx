@@ -483,6 +483,73 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(phi)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.WhileStmt) -> None:
+        """Translate ASTx While Loop to LLVM-IR."""
+        # Create blocks for the condition check, the loop body,
+        # and the block after the loop.
+        cond_bb = self._llvm.ir_builder.function.append_basic_block(
+            "whilecond"
+        )
+        body_bb = self._llvm.ir_builder.function.append_basic_block(
+            "whilebody"
+        )
+        after_bb = self._llvm.ir_builder.function.append_basic_block(
+            "afterwhile"
+        )
+
+        # Branch to the condition check block.
+        self._llvm.ir_builder.branch(cond_bb)
+
+        # Start inserting into the condition check block.
+        self._llvm.ir_builder.position_at_start(cond_bb)
+
+        # Emit the condition.
+        self.visit(expr.condition)
+        cond_val = self.result_stack.pop()
+        if not cond_val:
+            raise Exception("codegen: Invalid condition expression.")
+
+        # Convert condition to a bool by comparing non-equal to 0.
+        if isinstance(cond_val.type, (ir.FloatType, ir.DoubleType)):
+            cmp_instruction = self._llvm.ir_builder.fcmp_ordered
+            zero_val = ir.Constant(cond_val.type, 0.0)
+        else:
+            cmp_instruction = self._llvm.ir_builder.icmp_signed
+            zero_val = ir.Constant(cond_val.type, 0)
+
+        cond_val = cmp_instruction(
+            "!=",
+            cond_val,
+            zero_val,
+            "whilecond",
+        )
+
+        # Conditional branch based on the condition.
+        self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
+
+        # Start inserting into the loop body block.
+        self._llvm.ir_builder.position_at_start(body_bb)
+
+        # Emit the body of the loop. This, like any other expr, can change
+        # the current basic_block. Note that we ignore the value computed by
+        # the body, but don't allow an error.
+        self.visit(expr.body)
+        body_val = self.result_stack.pop()
+
+        if not body_val:
+            return
+
+        # Branch back to the condition check.
+        self._llvm.ir_builder.branch(cond_bb)
+
+        # Start inserting into the block after the loop.
+        self._llvm.ir_builder.position_at_start(after_bb)
+
+        # While loop always returns 0.
+        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
