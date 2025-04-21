@@ -530,9 +530,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Start inserting into the loop body block.
         self._llvm.ir_builder.position_at_start(body_bb)
 
-        # Emit the body of the loop. This, like any other expr, can change
-        # the current basic_block. Note that we ignore the value computed by
-        # the body, but don't allow an error.
+        # Emit the body of the loop.
         self.visit(expr.body)
         body_val = self.result_stack.pop()
 
