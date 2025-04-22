@@ -548,6 +548,33 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.VariableAssignment) -> None:
+        """Translate variable assignment expression."""
+        # Get the name of the variable to assign to
+        var_name = expr.name
+
+        # Codegen the value expression on the right-hand side
+        self.visit(expr.value)
+        llvm_value = safe_pop(self.result_stack)
+
+        if not llvm_value:
+            raise Exception("codegen: Invalid value in VariableAssignment.")
+
+        # Look up the variable in the named values
+        llvm_var = self.named_values.get(var_name)
+
+        if not llvm_var:
+            raise Exception(
+                f"Variable '{var_name}' not found in the named values."
+            )
+
+        # Store the value in the variable
+        self._llvm.ir_builder.store(llvm_value, llvm_var)
+
+        # Optionally, you can push the result onto the result stack if needed
+        self.result_stack.append(llvm_value)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
