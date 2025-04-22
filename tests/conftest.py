@@ -5,6 +5,7 @@ import tempfile
 
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Optional
 
 import astx
 
@@ -23,6 +24,7 @@ def check_result(
     builder: Builder,
     module: astx.Module,
     expected_file: str = "",
+    expected_output: Optional[str] = None,
     similarity_factor: float = 0.35,  # TODO: change it to 0.95
 ) -> None:
     """Check the result for translation or build."""
@@ -36,7 +38,11 @@ def check_result(
         ) as fp:
             filename_exe = fp.name
             builder.build(module, output_file=filename_exe)
-        builder.run()
+        exe_result = builder.run()
+
+        if expected_output:
+            message = f"Expected {expected_output}, but result is {exe_result}"
+            assert expected_output == exe_result, message
         os.unlink(filename_exe)
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:

@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 
 import astx
 
@@ -15,13 +15,16 @@ from irx.tools.typing import typechecked
 
 
 @typechecked
-def run_command(command: list[str]) -> None:
-    """Run a command in the operating system."""
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred: {e}")
-        # Handle the error as needed
+def run_command(command: Sequence[str]) -> str:
+    """
+    Run a shell command and return its stdout as a string.
+
+    Raises CalledProcessError if the command exits with a non-zero status.
+    """
+    result = subprocess.run(
+        command, check=True, capture_output=True, text=True
+    )
+    return result.stdout
 
 
 @typechecked
@@ -80,6 +83,6 @@ class Builder(ABC):
         """Transpile ASTx to LLVM-IR and build an executable file."""
         ...
 
-    def run(self) -> None:
+    def run(self) -> str:
         """Run the generated executable."""
-        run_command([self.output_file])
+        return run_command([self.output_file])

@@ -62,7 +62,8 @@ def test_unary_op_increment_decrement(
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
-    main_block.append(astx.FunctionReturn(final_expr))
+    main_block.append(final_expr)
+    main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.Function(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)

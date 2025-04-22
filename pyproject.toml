@@ -95,6 +95,7 @@ ignore = [
   "F811",  # redefined-while-unused
   "PLR0911",  # Too many return statements
   "PLR0912",  # Too many branches
+  "PLR0913",  # Too many arguments in a function definition
   "RUF012",  # mutable-class-default
 ]
 select = [
