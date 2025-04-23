@@ -771,8 +771,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
-        callee_f = self.get_function(node.callee)
+        # callee_f = self.get_function(node.fn)
+        if isinstance(node.fn, astx.Function):
+            fn_name = node.fn.prototype.name
+        else:
+            raise Exception(
+                f"Unsupported function call target: {type(node.fn)}"
+            )
 
+        callee_f = self.get_function(fn_name)
         if not callee_f:
             raise Exception("Unknown function referenced")
 
