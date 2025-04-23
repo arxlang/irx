@@ -881,7 +881,8 @@ class LLVMLiteIR(Builder):
 
     def build(self, node: astx.AST, output_file: str) -> None:
         """Transpile the ASTx to LLVM-IR and build it to an executable file."""
-        result = self.translate(node)
+        self.translator = LLVMLiteIRVisitor()
+        result = self.translator.translate(node)
 
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)
