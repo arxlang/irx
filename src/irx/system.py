@@ -13,7 +13,7 @@ class PrintExpr(astx.Expr):
         supported by Python (*args, sep=' ', end='', file=None, flush=False).
     """
 
-    message: astx.LiteralUTF8String
+    message: astx.Expr
     _counter = itertools.count()
 
     def __init__(self, message: astx.LiteralUTF8String) -> None:
