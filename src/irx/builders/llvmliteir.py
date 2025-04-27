@@ -377,9 +377,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 ">", llvm_lhs, llvm_rhs, "gttmp"
             )
-            # result = self._llvm.ir_builder.zext(
-            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
-            # )
+            self.result_stack.append(cmp_result)
+            return
+        elif node.op_code == "<=":
+            cmp_result = self._llvm.ir_builder.icmp_signed(
+                "<=", llvm_lhs, llvm_rhs, "letmp"
+            )
+            self.result_stack.append(cmp_result)
+            return
+        elif node.op_code == ">=":
+            cmp_result = self._llvm.ir_builder.icmp_signed(
+                ">=", llvm_lhs, llvm_rhs, "getmp"
+            )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == "/":
