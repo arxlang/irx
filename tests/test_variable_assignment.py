@@ -1,4 +1,4 @@
-"""Test For VariableAssignemnt."""
+"""Test For VariableAssignment."""
 
 import subprocess
 
