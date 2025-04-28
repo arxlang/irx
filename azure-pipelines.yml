@@ -1,0 +1,77 @@
+# Azure Pipeline for macOS testing
+trigger:
+  branches:
+    include:
+    - main
+  
+pr:
+  branches:
+    include:
+    - main
+
+jobs:
+- job: macOS_tests
+  displayName: macOS Tests
+  timeoutInMinutes: 10
+  pool:
+    vmImage: 'macOS-latest'
+  strategy:
+    matrix:
+      Python39:
+        python_version: '3.9'
+      Python310:
+        python_version: '3.10'
+      Python311:
+        python_version: '3.11'
+      Python312:
+        python_version: '3.12'
+  
+  steps:
+  - checkout: self
+  
+  - script: |
+      brew install llvm@14
+      brew link --force llvm@14
+      export LLVM_CONFIG=$(brew --prefix llvm@14)/bin/llvm-config
+      echo "##vso[task.setvariable variable=LLVM_CONFIG]$(brew --prefix llvm@14)/bin/llvm-config"
+    displayName: 'Install LLVM'
+  
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: $(python_version)
+      addToPath: true
+    displayName: 'Setup Python $(python_version)'
+  
+  - script: |
+      curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -o miniconda.sh
+      bash miniconda.sh -b -p $HOME/miniconda
+      source $HOME/miniconda/bin/activate
+      conda config --set always_yes yes --set changeps1 no
+      conda config --add channels conda-forge
+      conda config --set channel_priority strict
+      conda install -y mamba
+      mamba env create -f conda/ci.yaml
+      source activate irx
+    displayName: 'Setup conda environment'
+  
+  - script: |
+      source $HOME/miniconda/bin/activate irx
+      export LLVM_CONFIG=$(brew --prefix llvm@14)/bin/llvm-config
+      poetry check
+      poetry install
+    displayName: 'Install dependencies'
+  
+  - script: |
+      source $HOME/miniconda/bin/activate irx
+      export LLVM_CONFIG=$(brew --prefix llvm@14)/bin/llvm-config
+      poetry run makim tests.unit
+    displayName: 'Run tests'
+    
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/test-*.xml'
+      testRunTitle: 'macOS Python $(python_version) Tests'
+    displayName: 'Publish test results'
+    
