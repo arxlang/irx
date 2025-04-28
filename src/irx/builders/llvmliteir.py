@@ -377,9 +377,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 ">", llvm_lhs, llvm_rhs, "gttmp"
             )
-            # result = self._llvm.ir_builder.zext(
-            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
-            # )
+            self.result_stack.append(cmp_result)
+            return
+        elif node.op_code == "<=":
+            cmp_result = self._llvm.ir_builder.icmp_signed(
+                "<=", llvm_lhs, llvm_rhs, "letmp"
+            )
+            self.result_stack.append(cmp_result)
+            return
+        elif node.op_code == ">=":
+            cmp_result = self._llvm.ir_builder.icmp_signed(
+                ">=", llvm_lhs, llvm_rhs, "getmp"
+            )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == "/":
@@ -481,6 +490,98 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         phi.add_incoming(else_v, else_bb)
 
         self.result_stack.append(phi)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.WhileStmt) -> None:
+        """Translate ASTx While Loop to LLVM-IR."""
+        # Create blocks for the condition check, the loop body,
+        # and the block after the loop.
+        cond_bb = self._llvm.ir_builder.function.append_basic_block(
+            "whilecond"
+        )
+        body_bb = self._llvm.ir_builder.function.append_basic_block(
+            "whilebody"
+        )
+        after_bb = self._llvm.ir_builder.function.append_basic_block(
+            "afterwhile"
+        )
+
+        # Branch to the condition check block.
+        self._llvm.ir_builder.branch(cond_bb)
+
+        # Start inserting into the condition check block.
+        self._llvm.ir_builder.position_at_start(cond_bb)
+
+        # Emit the condition.
+        self.visit(expr.condition)
+        cond_val = self.result_stack.pop()
+        if not cond_val:
+            raise Exception("codegen: Invalid condition expression.")
+
+        # Convert condition to a bool by comparing non-equal to 0.
+        if isinstance(cond_val.type, (ir.FloatType, ir.DoubleType)):
+            cmp_instruction = self._llvm.ir_builder.fcmp_ordered
+            zero_val = ir.Constant(cond_val.type, 0.0)
+        else:
+            cmp_instruction = self._llvm.ir_builder.icmp_signed
+            zero_val = ir.Constant(cond_val.type, 0)
+
+        cond_val = cmp_instruction(
+            "!=",
+            cond_val,
+            zero_val,
+            "whilecond",
+        )
+
+        # Conditional branch based on the condition.
+        self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
+
+        # Start inserting into the loop body block.
+        self._llvm.ir_builder.position_at_start(body_bb)
+
+        # Emit the body of the loop.
+        self.visit(expr.body)
+        body_val = self.result_stack.pop()
+
+        if not body_val:
+            return
+
+        # Branch back to the condition check.
+        self._llvm.ir_builder.branch(cond_bb)
+
+        # Start inserting into the block after the loop.
+        self._llvm.ir_builder.position_at_start(after_bb)
+
+        # While loop always returns 0.
+        result = ir.Constant(self._llvm.INT32_TYPE, 0)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.VariableAssignment) -> None:
+        """Translate variable assignment expression."""
+        # Get the name of the variable to assign to
+        var_name = expr.name
+
+        # Codegen the value expression on the right-hand side
+        self.visit(expr.value)
+        llvm_value = safe_pop(self.result_stack)
+
+        if not llvm_value:
+            raise Exception("codegen: Invalid value in VariableAssignment.")
+
+        # Look up the variable in the named values
+        llvm_var = self.named_values.get(var_name)
+
+        if not llvm_var:
+            raise Exception(
+                f"Variable '{var_name}' not found in the named values."
+            )
+
+        # Store the value in the variable
+        self._llvm.ir_builder.store(llvm_value, llvm_var)
+
+        # Optionally, you can push the result onto the result stack if needed
+        self.result_stack.append(llvm_value)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForCountLoopStmt) -> None:
@@ -679,8 +780,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
-        callee_f = self.get_function(node.callee)
+        # callee_f = self.get_function(node.fn)
+        if isinstance(node.fn, astx.Function):
+            fn_name = node.fn.prototype.name
+        else:
+            raise Exception(
+                f"Unsupported function call target: {type(node.fn)}"
+            )
 
+        callee_f = self.get_function(fn_name)
         if not callee_f:
             raise Exception("Unknown function referenced")
 
