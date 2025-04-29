@@ -1,4 +1,4 @@
-# Azure Pipeline for macOS testing
+# Azure Pipeline for macOS CI tests
 trigger:
   branches:
     include:
