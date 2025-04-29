@@ -96,7 +96,7 @@ def test_function_call_fibonacci(
     fib_fn = astx.Function(prototype=fib_proto, body=fib_block)
     module.block.append(fib_fn)
 
-    # Main function calling fib(10)
+    # Main function calling fib()
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
