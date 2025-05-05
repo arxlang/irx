@@ -1005,7 +1005,7 @@ class LLVMLiteIR(Builder):
 
         self.output_file = output_file
 
-        xh.clang(  # type: ignore
+        xh.clang(
             file_path_o,
             "-o",
             self.output_file,
