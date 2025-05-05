@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 
-from typing import Any, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 import astx
 import xh
@@ -1005,7 +1005,10 @@ class LLVMLiteIR(Builder):
 
         self.output_file = output_file
 
-        xh.clang(
+        # fix xh typing
+        clang: Callable[..., Any] = xh.clang
+
+        clang(
             file_path_o,
             "-o",
             self.output_file,
