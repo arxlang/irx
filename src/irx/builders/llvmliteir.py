@@ -837,6 +837,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.body)
         self.result_stack.append(fn)
 
+    @dispatch
+    def visit(self, node: astx.Cast) -> None:
+        """Handle Cast node."""
+        self.visit(node.value)
+        value = safe_pop(self.result_stack)
+
+        if not value:
+            raise Exception("Cast: No value on result stack.")
+
+        from_type = value.type
+        to_type_str = node.target_type().__class__.__name__.lower()
+        to_type = self._llvm.get_data_type(to_type_str)
+
+        # Handle integer to integer casts (e.g., i32 to i8)
+        if isinstance(from_type, ir.IntType) and isinstance(
+            to_type, ir.IntType
+        ):
+            if from_type.width < to_type.width:
+                casted = self._llvm.ir_builder.sext(value, to_type, "sextcast")
+            elif from_type.width > to_type.width:
+                casted = self._llvm.ir_builder.trunc(
+                    value, to_type, "trunccast"
+                )
+            else:
+                casted = value
+            self.result_stack.append(casted)
+            return
+
+        raise Exception(f"Unsupported cast from {from_type} to {to_type}")
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionPrototype) -> None:
         """Translate ASTx Function Prototype to LLVM-IR."""
@@ -989,8 +1019,7 @@ class LLVMLiteIR(Builder):
 
     def build(self, node: astx.AST, output_file: str) -> None:
         """Transpile the ASTx to LLVM-IR and build it to an executable file."""
-        self.translator = LLVMLiteIRVisitor()
-        result = self.translator.translate(node)
+        result = self.translate(node)
 
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)
