@@ -16,6 +16,14 @@ from .conftest import check_result
 
 
 @pytest.mark.parametrize(
+    "int_type, literal_type",
+    [
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.Int8, astx.LiteralInt8),
+    ],
+)
+@pytest.mark.parametrize(
     "builder_class",
     [
         LLVMLiteIR,
@@ -23,6 +31,8 @@ from .conftest import check_result
 )
 def test_function_call_fibonacci(
     builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
 ) -> None:
     """Test the FunctionCall class with Fibonacci."""
     builder = builder_class()
@@ -31,33 +41,33 @@ def test_function_call_fibonacci(
     # Define Fibonacci function
     fib_proto = astx.FunctionPrototype(
         name="fib",
-        args=astx.Arguments(astx.Argument("n", astx.Int32())),
-        return_type=astx.Int32(),
+        args=astx.Arguments(astx.Argument("n", int_type())),
+        return_type=int_type(),
     )
     fib_block = astx.Block()
 
     astx.VariableDeclaration(
         name="a",
-        type_=astx.Int32(),
-        value=astx.LiteralInt32(0),
+        type_=int_type(),
+        value=literal_type(0),
         parent=fib_block,
     )
     astx.VariableDeclaration(
         name="b",
-        type_=astx.Int32(),
-        value=astx.LiteralInt32(1),
+        type_=int_type(),
+        value=literal_type(1),
         parent=fib_block,
     )
     astx.VariableDeclaration(
         name="i",
-        type_=astx.Int32(),
-        value=astx.LiteralInt32(2),
+        type_=int_type(),
+        value=literal_type(2),
         parent=fib_block,
     )
     astx.VariableDeclaration(
         name="sum",
-        type_=astx.Int32(),
-        value=astx.LiteralInt32(0),
+        type_=int_type(),
+        value=literal_type(10),
         parent=fib_block,
     )
 
@@ -85,7 +95,7 @@ def test_function_call_fibonacci(
         astx.VariableAssignment(
             name="i",
             value=astx.BinaryOp(
-                op_code="+", lhs=astx.Variable("i"), rhs=astx.LiteralInt32(1)
+                op_code="+", lhs=astx.Variable("i"), rhs=literal_type(1)
             ),
         )
     )
@@ -100,10 +110,10 @@ def test_function_call_fibonacci(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=astx.Int32(),
+        return_type=int_type(),
     )
     main_block = astx.Block()
-    call_fib = astx.FunctionCall(fib_fn, [astx.LiteralInt32(10)])
+    call_fib = astx.FunctionCall(fib_fn, [literal_type(10)])
     main_block.append(astx.FunctionReturn(call_fib))
     main_fn = astx.Function(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
