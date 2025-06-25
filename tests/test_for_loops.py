@@ -79,7 +79,7 @@ def test_for_range(
 @pytest.mark.parametrize(
     "action,expected_file",
     [
-        # ("translate", ""),
+        # ("translate", "test_for_loops.ll"),
         ("build", ""),
     ],
 )
