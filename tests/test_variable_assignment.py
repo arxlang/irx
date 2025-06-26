@@ -15,11 +15,16 @@ from .conftest import check_result
 
 @pytest.mark.parametrize(
     "int_type, literal_type",
-    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+    [
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.Int8, astx.LiteralInt8),
+    ],
 )
 @pytest.mark.parametrize(
     "builder_class",
     [
+        # ("translate", "test_variable_assignment.ll"),
         LLVMLiteIR,
     ],
 )

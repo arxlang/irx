@@ -36,6 +36,7 @@ class VariablesLLVM:
     FLOAT_TYPE: ir.types.Type
     DOUBLE_TYPE: ir.types.Type
     INT8_TYPE: ir.types.Type
+    INT64_TYPE: ir.types.Type
     INT16_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
@@ -775,6 +776,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralInt8) -> None:
+        """Translate ASTx LiteralInt8 to LLVM-IR."""
+        result = ir.Constant(self._llvm.INT8_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
