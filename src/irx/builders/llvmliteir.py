@@ -68,6 +68,8 @@ class VariablesLLVM:
             return self.INT16_TYPE
         elif type_name == "int32":
             return self.INT32_TYPE
+        elif type_name == "int64":
+            return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
         elif type_name == "void":
@@ -134,6 +136,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT8_TYPE = ir.IntType(8)
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
+        self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
 
     def _add_builtins(self) -> None:
@@ -776,6 +779,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralInt64) -> None:
+        """Translate ASTx LiteralInt64 to LLVM-IR."""
+        result = ir.Constant(self._llvm.INT64_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
