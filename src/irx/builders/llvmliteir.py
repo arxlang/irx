@@ -913,6 +913,66 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(init_val)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.Cast) -> None:
+        """Translate Cast expression to LLVM-IR."""
+        self.visit(node.value)
+        value = self.result_stack.pop()
+
+        target_type_str = node.target_type.__class__.__name__.lower()
+        target_type = self._llvm.get_data_type(target_type_str)
+
+        if value.type == target_type:
+            self.result_stack.append(value)
+            return
+
+        result: ir.Value
+
+        if isinstance(value.type, ir.IntType) and isinstance(
+            target_type, ir.IntType
+        ):
+            if value.type.width < target_type.width:
+                result = self._llvm.ir_builder.sext(
+                    value, target_type, "cast_int_up"
+                )
+            else:
+                result = self._llvm.ir_builder.trunc(
+                    value, target_type, "cast_int_down"
+                )
+        elif isinstance(value.type, ir.IntType) and isinstance(
+            target_type, ir.FloatType
+        ):
+            result = self._llvm.ir_builder.sitofp(
+                value, target_type, "cast_int_to_fp"
+            )
+
+        elif isinstance(value.type, ir.FloatType) and isinstance(
+            target_type, ir.IntType
+        ):
+            result = self._llvm.ir_builder.fptosi(
+                value, target_type, "cast_fp_to_int"
+            )
+
+        elif isinstance(value.type, ir.FloatType) and isinstance(
+            target_type, ir.FloatType
+        ):
+            if value.type.width < target_type.width:
+                result = self._llvm.ir_builder.fpext(
+                    value, target_type, "cast_fp_up"
+                )
+
+            else:
+                result = self._llvm.ir_builder.fptrunc(
+                    value, target_type, "cast_fp_down"
+                )
+
+        else:
+            raise Exception(
+                f"Unsupported cast from {value.type} to {target_type}"
+            )
+
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: system.PrintExpr) -> None:
         """Generate LLVM IR for a PrintExpr node."""
         message = node.message.value
