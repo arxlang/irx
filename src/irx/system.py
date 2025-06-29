@@ -27,3 +27,20 @@ class PrintExpr(astx.Expr):
         value = self.message.get_struct(simplified)
 
         return self._prepare_struct(key, value, simplified)
+
+
+class Cast(astx.Expr):
+    """
+    Cast AST node for type conversions.
+
+    Represents a cast of `value` to a specified `target_type`.
+    """
+
+    def __init__(self, value: astx.AST, target_type: astx.types) -> None:
+        self.value = value
+        self.target_type = target_type
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        key = f"Cast[{self.target_type}]"
+        value = self.value.get_struct(simplified)
+        return self._prepare_struct(key, value, simplified)
