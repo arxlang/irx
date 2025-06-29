@@ -1,12 +1,11 @@
-import subprocess
 from typing import Type
 
 import astx
 import pytest
 
-from irx.system import Cast
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import Cast
 
 from .conftest import check_result
 
@@ -56,8 +55,8 @@ def test_cast_basic(
     main_block = astx.Block()
     main_block.append(decl_a)
     cast_var = astx.InlineVariableDeclaration(
-    	name="r", type_=int_type_to(), value=cast_expr
-	)
+        name="r", type_=int_type_to(), value=cast_expr
+    )
     main_block.append(cast_var)
     main_block.append(astx.FunctionReturn(astx.Variable("r")))
     main_fn = astx.Function(prototype=main_proto, body=main_block)
