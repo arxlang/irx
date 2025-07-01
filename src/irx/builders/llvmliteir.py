@@ -40,6 +40,7 @@ class VariablesLLVM:
     INT16_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
+    BOOLEAN_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -62,6 +63,8 @@ class VariablesLLVM:
             return self.FLOAT_TYPE
         elif type_name == "double":
             return self.DOUBLE_TYPE
+        elif type_name == "boolean":
+            return self.BOOLEAN_TYPE
         elif type_name == "int8":
             return self.INT8_TYPE
         elif type_name == "int16":
@@ -133,6 +136,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Data Types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
+        self._llvm.BOOLEAN_TYPE = ir.IntType(1)
         self._llvm.INT8_TYPE = ir.IntType(8)
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
@@ -779,6 +783,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralBoolean) -> None:
+        """Translate ASTx LiteralBoolean to LLVM-IR."""
+        result = ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
