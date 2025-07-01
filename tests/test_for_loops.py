@@ -17,6 +17,7 @@ from .conftest import check_result
         (astx.Int32, astx.LiteralInt32),
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
+        (astx.Int64, astx.LiteralInt64),
     ],
 )
 @pytest.mark.parametrize(
@@ -74,7 +75,12 @@ def test_for_range(
 
 @pytest.mark.parametrize(
     "int_type, literal_type",
-    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+    [
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.Int64, astx.LiteralInt64),
+        (astx.Int8, astx.LiteralInt8),
+    ],
 )
 @pytest.mark.parametrize(
     "action,expected_file",
