@@ -50,7 +50,7 @@ def test_variable_assignment(
     fn_block.append(decl)
     fn_block.append(assignment)
     fn_block.append(astx.FunctionReturn(astx.Variable("x")))
-    fn_main = astx.Function(prototype=proto, body=fn_block)
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 
     module.block.append(fn_main)
 

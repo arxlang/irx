@@ -71,7 +71,7 @@ def test_while_expr(
     fn_block.append(while_expr)
     fn_block.append(astx.FunctionReturn(literal_type(0)))
 
-    fn_main = astx.Function(prototype=proto, body=fn_block)
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 
     module = builder.module()
     module.block.append(fn_main)
