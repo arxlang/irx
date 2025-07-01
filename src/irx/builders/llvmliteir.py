@@ -42,6 +42,7 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -78,7 +79,9 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name == "nonetype":
+        elif type_name == "string":
+            return self.STRING_TYPE
+        elif type_name == "void":
             return self.VOID_TYPE
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
@@ -146,6 +149,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
+        self._llvm.STRING_TYPE = ir.IntType(8).as_pointer()
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -912,6 +916,29 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx LiteralInt8 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT8_TYPE, node.value)
         self.result_stack.append(result)
+
+    # Extend LLVMLiteIRVisitor with support for string literals
+    @dispatch  # type: ignore[no-redef]
+    def visit(self: LLVMLiteIRVisitor, node: astx.LiteralString) -> None:
+        """Translate ASTx LiteralString to LLVM-IR."""
+        string_bytes = bytearray(node.value + "\0", "utf8")
+        const_array = ir.Constant(
+            ir.ArrayType(ir.IntType(8), len(string_bytes)), string_bytes
+        )
+        global_str = ir.GlobalVariable(
+            self._llvm.module, const_array.type, name="str"
+        )
+        global_str.linkage = "internal"
+        global_str.global_constant = True
+        global_str.initializer = const_array
+
+        ptr = self._llvm.ir_builder.gep(
+            global_str,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        self.result_stack.append(ptr)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
