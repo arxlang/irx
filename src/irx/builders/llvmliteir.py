@@ -917,7 +917,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         result = ir.Constant(self._llvm.INT8_TYPE, node.value)
         self.result_stack.append(result)
 
-    # Extend LLVMLiteIRVisitor with support for string literals
     @dispatch  # type: ignore[no-redef]
     def visit(self: LLVMLiteIRVisitor, node: astx.LiteralString) -> None:
         """Translate ASTx LiteralString to LLVM-IR."""
