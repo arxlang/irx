@@ -797,7 +797,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
         # callee_f = self.get_function(node.fn)
-        if isinstance(node.fn, astx.Function):
+        if isinstance(node.fn, astx.FunctionDef):
             fn_name = node.fn.prototype.name
         else:
             raise Exception(
@@ -823,7 +823,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, node: astx.Function) -> None:
+    def visit(self, node: astx.FunctionDef) -> None:
         """Translate ASTx Function to LLVM-IR."""
         proto = node.prototype
         self.function_protos[proto.name] = proto

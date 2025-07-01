@@ -40,7 +40,7 @@ def test_binary_op_literals(
     )
     main_block = astx.Block()
     main_block.append(astx.FunctionReturn(basic_op))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
     success = True
@@ -116,7 +116,7 @@ def test_binary_op_basic(
     main_block.append(decl_c)
     main_block.append(basic_op)
     main_block.append(astx.FunctionReturn(literal_type(0)))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)

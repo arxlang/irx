@@ -69,7 +69,7 @@ def test_if_else_stmt(
     main_body.append(if_stmt)
     main_body.append(astx.FunctionReturn(literal_type(0)))
 
-    main_fn = astx.Function(prototype=main_proto, body=main_body)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)
@@ -127,7 +127,7 @@ def test_if_only_stmt(
     main_body.append(if_stmt)
     main_body.append(astx.FunctionReturn(literal_type(0)))
 
-    main_fn = astx.Function(prototype=main_proto, body=main_body)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)

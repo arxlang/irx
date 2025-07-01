@@ -104,7 +104,7 @@ def test_function_call_fibonacci(
     fib_block.append(loop)
     fib_block.append(astx.FunctionReturn(astx.Variable(name="b")))
 
-    fib_fn = astx.Function(prototype=fib_proto, body=fib_block)
+    fib_fn = astx.FunctionDef(prototype=fib_proto, body=fib_block)
     module.block.append(fib_fn)
 
     # Main function calling fib()
@@ -116,7 +116,7 @@ def test_function_call_fibonacci(
     main_block = astx.Block()
     call_fib = astx.FunctionCall(fib_fn, [literal_type(10)])
     main_block.append(astx.FunctionReturn(call_fib))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 
     expected_output = "55"  # fib(10) = 55
