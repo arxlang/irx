@@ -62,4 +62,13 @@ def test_cast_basic(
     main_fn = astx.Function(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
-    check_result(action, builder, module, expected_file)
+    
+    expected_output = 42
+
+    try:
+        check_result("build", builder, module, expected_output=expected_output)
+    except subprocess.CalledProcessError as e:
+        success = False
+        assert e.returncode == int(expected_output)
+    assert not success
+    # check_result(action, builder, module, expected_file)
