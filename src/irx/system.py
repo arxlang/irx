@@ -2,6 +2,8 @@
 
 import itertools
 
+from typing import Any
+
 import astx
 
 
@@ -36,11 +38,12 @@ class Cast(astx.Expr):
     Represents a cast of `value` to a specified `target_type`.
     """
 
-    def __init__(self, value: astx.AST, target_type: astx.types) -> None:
+    def __init__(self, value: astx.AST, target_type: Any) -> None:
         self.value = value
         self.target_type = target_type
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """Return the structured representation of the cast expression."""
         key = f"Cast[{self.target_type}]"
         value = self.value.get_struct(simplified)
         return self._prepare_struct(key, value, simplified)

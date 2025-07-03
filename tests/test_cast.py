@@ -1,3 +1,7 @@
+"""Tests for the Casting."""
+
+import subprocess
+
 from typing import Type
 
 import astx
@@ -62,8 +66,9 @@ def test_cast_basic(
     main_fn = astx.Function(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
-    
-    expected_output = 42
+
+    expected_output = "42"
+    success = True
 
     try:
         check_result("build", builder, module, expected_output=expected_output)
@@ -71,4 +76,3 @@ def test_cast_basic(
         success = False
         assert e.returncode == int(expected_output)
     assert not success
-    # check_result(action, builder, module, expected_file)
