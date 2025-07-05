@@ -380,16 +380,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "-":
+            # note: it should be according the datatype,
             #       e.g. for float it should be fsub
             result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
             self.result_stack.append(result)
             return
         elif node.op_code == "*":
+            # note: it should be according the datatype,
             #       e.g. for float it should be fmul
             result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
             self.result_stack.append(result)
             return
         elif node.op_code == "<":
+            # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 "<", llvm_lhs, llvm_rhs, "lttmp"
@@ -397,6 +400,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == ">":
+            # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 ">", llvm_lhs, llvm_rhs, "gttmp"
