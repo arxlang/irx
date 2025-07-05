@@ -302,6 +302,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
 
+        elif node.op_code == "!":
+            self.visit(node.operand)
+            val = safe_pop(self.result_stack)
+            result = self._llvm.ir_builder.xor(
+                val, ir.Constant(val.type, 1), "nottmp"
+            )
+
+            if isinstance(node.operand, astx.Variable):
+                addr = self.named_values.get(node.operand.name)
+                if addr:
+                    self._llvm.ir_builder.store(result, addr)
+
+            self.result_stack.append(result)
+            return
+
         raise Exception(f"Unary operator {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
@@ -327,7 +342,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if not llvm_rhs:
                 raise Exception("codegen: Invalid rhs expression.")
 
-            # Look up the name.
             llvm_lhs = self.named_values.get(var_lhs.get_name())
 
             if not llvm_lhs:
@@ -350,6 +364,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # automatic type promotion
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
+        if node.op_code == "&&":
+            result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == "||":
+            result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
+            self.result_stack.append(result)
+            return
+
         if node.op_code == "+":
             # note: it should be according the datatype,
             #       e.g. for float it should be fadd
@@ -357,30 +380,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "-":
-            # note: it should be according the datatype,
             #       e.g. for float it should be fsub
             result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
             self.result_stack.append(result)
             return
         elif node.op_code == "*":
-            # note: it should be according the datatype,
             #       e.g. for float it should be fmul
             result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
             self.result_stack.append(result)
             return
         elif node.op_code == "<":
-            # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 "<", llvm_lhs, llvm_rhs, "lttmp"
             )
-            # result = self._llvm.ir_builder.zext(
-            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
-            # )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == ">":
-            # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 ">", llvm_lhs, llvm_rhs, "gttmp"
