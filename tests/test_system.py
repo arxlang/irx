@@ -52,7 +52,7 @@ def test_print_expr(
     main_block = astx.Block()
     main_block.append(print_node)
     main_block.append(astx.FunctionReturn(literal_type(0)))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)

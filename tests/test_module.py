@@ -22,7 +22,7 @@ def make_fn_add(int_type: type, literal_type: type) -> astx.AST:
     block = astx.Block()
     var_sum = var_a + var_b
     block.append(astx.FunctionReturn(var_sum))
-    return astx.Function(prototype=proto, body=block)
+    return astx.FunctionDef(prototype=proto, body=block)
 
 
 @pytest.mark.parametrize(
@@ -67,7 +67,7 @@ def test_module_fn_main(
     )
     main_block = astx.Block()
     main_block.append(astx.FunctionReturn(literal_type(0)))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
 

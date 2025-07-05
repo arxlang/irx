@@ -65,7 +65,7 @@ def test_for_range(
     block = astx.Block()
     block.append(for_loop)
     block.append(astx.FunctionReturn(literal_type(0)))
-    fn_main = astx.Function(prototype=proto, body=block)
+    fn_main = astx.FunctionDef(prototype=proto, body=block)
 
     module = builder.module()
     module.block.append(fn_main)
@@ -128,7 +128,7 @@ def test_for_count(
     fn_block = astx.Block()
     fn_block.append(for_loop)
     fn_block.append(astx.FunctionReturn(literal_type(0)))
-    fn_main = astx.Function(prototype=proto, body=fn_block)
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 
     module = builder.module()
     module.block.append(fn_main)
