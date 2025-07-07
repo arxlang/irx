@@ -376,19 +376,47 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.op_code == "+":
             # note: it should be according the datatype,
             #       e.g. for float it should be fadd
-            result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, "addtmp")
+            # result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, "addtmp")
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                result = self._llvm.ir_builder.fadd(
+                    llvm_lhs, llvm_rhs, "addtmp"
+                )
+
+            else:
+                # there's more conditions to be handled
+                result = self._llvm.ir_builder.add(
+                    llvm_lhs, llvm_rhs, "addtmp"
+                )
             self.result_stack.append(result)
             return
         elif node.op_code == "-":
             # note: it should be according the datatype,
             #       e.g. for float it should be fsub
-            result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
+            # result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                result = self._llvm.ir_builder.fsub(
+                    llvm_lhs, llvm_rhs, "subtmp"
+                )
+            else:
+                # note: be careful you should handle this as  INT32
+                result = self._llvm.ir_builder.sub(
+                    llvm_lhs, llvm_rhs, "subtmp"
+                )
             self.result_stack.append(result)
             return
         elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
-            result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
+            # result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                result = self._llvm.ir_builder.fmul(
+                    llvm_lhs, llvm_rhs, "multmp"
+                )
+            else:
+                # note: be careful you should handle this
+                result = self._llvm.ir_builder.mul(
+                    llvm_lhs, llvm_rhs, "multmp"
+                )
             self.result_stack.append(result)
             return
         elif node.op_code == "<":
@@ -397,14 +425,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 "<", llvm_lhs, llvm_rhs, "lttmp"
             )
+            # result = self._llvm.ir_builder.zext(
+            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
+            # )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            cmp_result = self._llvm.ir_builder.icmp_signed(
-                ">", llvm_lhs, llvm_rhs, "gttmp"
-            )
+            # cmp_result = self._llvm.ir_builder.icmp_signed(
+            #     ">", llvm_lhs, llvm_rhs, "gttmp"
+            # )
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    ">", llvm_lhs, llvm_rhs, "gttmp"
+                )
+                result = self._llvm.ir_builder.uitofp(
+                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
+                )
+            else:
+                # be careful we havn't  handled all the conditions
+                cmp_result = self._llvm.ir_builder.cmp_unordered(
+                    ">", llvm_lhs, llvm_rhs, "gttmp"
+                )
+                result = self._llvm.ir_builder.uitofp(
+                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
+                )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == "<=":
