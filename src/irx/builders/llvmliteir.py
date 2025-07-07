@@ -59,7 +59,7 @@ class VariablesLLVM:
         -------
             ir.Type: The LLVM data type.
         """
-        if type_name == "float":
+        if type_name == "float32":
             return self.FLOAT_TYPE
         elif type_name == "double":
             return self.DOUBLE_TYPE
@@ -803,12 +803,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT32_TYPE, node.value)
-        self.result_stack.append(result)
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, node: astx.LiteralBoolean) -> None:
-        """Translate ASTx LiteralBoolean to LLVM-IR."""
-        result = ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
