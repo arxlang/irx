@@ -63,7 +63,7 @@ def test_cast_basic(
     )
     main_block.append(cast_var)
     main_block.append(astx.FunctionReturn(astx.Variable("r")))
-    main_fn = astx.Function(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
 
