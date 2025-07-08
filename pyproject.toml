@@ -97,6 +97,7 @@ ignore = [
   "PLR0912",  # Too many branches
   "PLR0913",  # Too many arguments in a function definition
   "RUF012",  # mutable-class-default
+  "PLR0915",  # Too many statements
 ]
 select = [
   "E",   # pycodestyle

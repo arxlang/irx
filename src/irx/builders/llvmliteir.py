@@ -40,6 +40,7 @@ class VariablesLLVM:
     INT16_TYPE: ir.types.Type
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
+    BOOLEAN_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -62,6 +63,8 @@ class VariablesLLVM:
             return self.FLOAT_TYPE
         elif type_name == "double":
             return self.DOUBLE_TYPE
+        elif type_name == "boolean":
+            return self.BOOLEAN_TYPE
         elif type_name == "int8":
             return self.INT8_TYPE
         elif type_name == "int16":
@@ -133,6 +136,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Data Types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
+        self._llvm.BOOLEAN_TYPE = ir.IntType(1)
         self._llvm.INT8_TYPE = ir.IntType(8)
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
@@ -298,6 +302,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
 
+        elif node.op_code == "!":
+            self.visit(node.operand)
+            val = safe_pop(self.result_stack)
+            result = self._llvm.ir_builder.xor(
+                val, ir.Constant(val.type, 1), "nottmp"
+            )
+
+            if isinstance(node.operand, astx.Variable):
+                addr = self.named_values.get(node.operand.name)
+                if addr:
+                    self._llvm.ir_builder.store(result, addr)
+
+            self.result_stack.append(result)
+            return
+
         raise Exception(f"Unary operator {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
@@ -323,7 +342,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if not llvm_rhs:
                 raise Exception("codegen: Invalid rhs expression.")
 
-            # Look up the name.
             llvm_lhs = self.named_values.get(var_lhs.get_name())
 
             if not llvm_lhs:
@@ -345,6 +363,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # automatic type promotion
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
+
+        if node.op_code == "&&":
+            result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == "||":
+            result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
+            self.result_stack.append(result)
+            return
 
         if node.op_code == "+":
             # note: it should be according the datatype,
@@ -370,9 +397,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             cmp_result = self._llvm.ir_builder.icmp_signed(
                 "<", llvm_lhs, llvm_rhs, "lttmp"
             )
-            # result = self._llvm.ir_builder.zext(
-            #     cmp_result, self._llvm.INT32_TYPE, "booltmp"
-            # )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == ">":
@@ -779,6 +803,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """Translate ASTx LiteralInt32 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralBoolean) -> None:
+        """Translate ASTx LiteralBoolean to LLVM-IR."""
+        result = ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
