@@ -427,15 +427,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
-                result = self._llvm.ir_builder.uitofp(
+                result = self._llvm.ir_builder.zext(
                     cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # handle it depend on datatype
-                cmp_result = self._llvm.ir_builder.cmp_unordered(
+                cmp_result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
-                result = self._llvm.ir_builder.uitofp(
+                result = self._llvm.ir_builder.zext(
                     cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(cmp_result)
@@ -447,15 +447,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
-                result = self._llvm.ir_builder.uitofp(
+                result = self._llvm.ir_builder.zext(
                     cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # be careful we havn't  handled all the conditions
-                cmp_result = self._llvm.ir_builder.cmp_unordered(
+                cmp_result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
-                result = self._llvm.ir_builder.uitofp(
+                result = self._llvm.ir_builder.zext(
                     cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(cmp_result)
