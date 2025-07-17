@@ -461,15 +461,37 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == "<=":
-            cmp_result = self._llvm.ir_builder.icmp_signed(
-                "<=", llvm_lhs, llvm_rhs, "letmp"
-            )
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    "<=", llvm_lhs, llvm_rhs, "letmp"
+                )
+                result = self._llvm.ir_builder.zext(
+                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
+                )
+            else:
+                cmp_result = self._llvm.ir_builder.icmp_signed(
+                    "<=", llvm_lhs, llvm_rhs, "letmp"
+                )
+                result = self._llvm.ir_builder.zext(
+                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
+                )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == ">=":
-            cmp_result = self._llvm.ir_builder.icmp_signed(
-                ">=", llvm_lhs, llvm_rhs, "getmp"
-            )
+            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    ">=", llvm_lhs, llvm_rhs, "getmp"
+                )
+                result = self._llvm.ir_builder.zext(
+                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
+                )
+            else:
+                cmp_result = self._llvm.ir_builder.icmp_signed(
+                    ">=", llvm_lhs, llvm_rhs, "getmp"
+                )
+                result = self._llvm.ir_builder.zext(
+                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
+                )
             self.result_stack.append(cmp_result)
             return
         elif node.op_code == "/":
