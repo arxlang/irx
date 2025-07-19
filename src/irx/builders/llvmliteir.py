@@ -441,7 +441,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
-                result = self._llvm.ir_builder.zext(
+                result = self._llvm.ir_builder.uitofp(
                     cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
@@ -1008,6 +1008,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+        # Default zero value based on type
+        elif "float" in type_str:
+            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
         else:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
