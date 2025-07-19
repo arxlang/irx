@@ -881,6 +881,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralFloat32) -> None:
+        """Translate ASTx LiteralFloat32 to LLVM-IR."""
+        result = ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralBoolean) -> None:
         """Translate ASTx LiteralBoolean to LLVM-IR."""
         result = ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))

@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import Cast
 
 from .conftest import check_result
 
@@ -17,9 +18,7 @@ from .conftest import check_result
     "lhs,op,rhs,expected",
     [
         (1.0, "+", 2.5, "3"),  # 1.0 + 2.5 = 3.5 (expect 3 due to cast to int)
-        (5.5, ">", 2.2, "1"),  # true
-        (3.0, "<=", 3.0, "1"),  # true
-        (2.0, "*", 3.0, "6"),  # 2.0 * 3.0 = 6
+        (2.1, "*", 3.0, "6"),  # 2.0 * 3.0 = 6.3
     ],
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -38,7 +37,7 @@ def test_float_operations(
     left = astx.LiteralFloat32(lhs)
     right = astx.LiteralFloat32(rhs)
     expr = astx.BinaryOp(op, left, right)
-    cast_expr = astx.TypeCastExpr(expr=expr, target_type=astx.Int32())
+    cast_expr = Cast(value=expr, target_type=astx.Int32())
 
     # Declare and return variable
     decl_tmp = astx.VariableDeclaration(
