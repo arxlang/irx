@@ -149,7 +149,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
-        self._llvm.STRING_TYPE = ir.IntType(8).as_pointer()
+        self._llvm.STRING_TYPE = ir.LiteralStructType(
+            [ir.IntType(32), ir.IntType(8).as_pointer()]
+        )
+        self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
+        self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
