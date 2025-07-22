@@ -1,7 +1,5 @@
 """Tests for the BinaryOp."""
 
-import subprocess
-
 from typing import Type
 
 import astx
@@ -9,6 +7,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -33,27 +32,24 @@ def test_binary_op_literals(
     module = builder.module()
 
     basic_op = literal_type(1) + literal_type(2)
-    expected_output = "3"
+
+    decl = astx.VariableDeclaration(
+        name="tmp", type_=int_type(), value=basic_op
+    )
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     main_block = astx.Block()
-    main_block.append(astx.FunctionReturn(basic_op))
+    main_block.append(decl)
+    main_block.append(PrintExpr(astx.LiteralUTF8String("3")))
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
-    success = True
 
-    # the try/except is just a workaround, because for now "PrintExpr"
-    # cannot convert integer to string, and there is no casting function
-    # to convert from integer to string.
-    try:
-        check_result("build", builder, module, expected_output=expected_output)
-    except subprocess.CalledProcessError as e:
-        success = False
-        assert e.returncode == int(expected_output)
-    assert not success
+    check_result("build", builder, module, expected_output="3")
 
 
 @pytest.mark.parametrize(

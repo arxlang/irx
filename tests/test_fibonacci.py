@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
-
 from typing import Type
 
 import astx
@@ -120,12 +118,5 @@ def test_function_call_fibonacci(
     module.block.append(main_fn)
 
     expected_output = "55"  # fib(10) = 55
-    success = True
 
-    try:
-        check_result("build", builder, module, expected_output=expected_output)
-    except subprocess.CalledProcessError as e:
-        success = False
-        assert e.returncode == int(expected_output)
-
-    assert not success
+    check_result("build", builder, module, expected_output=expected_output)

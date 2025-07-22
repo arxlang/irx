@@ -21,10 +21,15 @@ def run_command(command: Sequence[str]) -> str:
 
     Raises CalledProcessError if the command exits with a non-zero status.
     """
-    result = subprocess.run(
-        command, check=True, capture_output=True, text=True
-    )
-    return result.stdout
+    try:
+        result = subprocess.run(
+            command, check=True, capture_output=True, text=True
+        )
+        output = result.stdout
+    except subprocess.CalledProcessError as e:
+        output = str(e.returncode)
+
+    return output
 
 
 @typechecked

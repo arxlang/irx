@@ -26,6 +26,7 @@ def check_result(
     expected_file: str = "",
     expected_output: Optional[str] = None,
     similarity_factor: float = 0.35,  # TODO: change it to 0.95
+    tolerance: float = 1e-4,
 ) -> None:
     """Check the result for translation or build."""
     if action == "build":
@@ -38,12 +39,16 @@ def check_result(
         ) as fp:
             filename_exe = fp.name
             builder.build(module, output_file=filename_exe)
-        exe_result = builder.run()
+
+        # todo: fix the code to avoid workarounds
+        exe_result = str(builder.run()).replace("\n", "")
 
         if expected_output:
             message = f"Expected {expected_output}, but result is {exe_result}"
             assert expected_output == exe_result, message
+
         os.unlink(filename_exe)
+
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:
             expected = f.read()
