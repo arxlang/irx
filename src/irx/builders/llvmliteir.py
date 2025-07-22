@@ -78,7 +78,7 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name == "void":
+        elif type_name == "none":
             return self.VOID_TYPE
 
         raise Exception("[EE]: type_name not valid.")
@@ -891,6 +891,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralNone) -> None:
+        """Translate ASTx LiteralNone to LLVM-IR."""
+        self.result_stack.append(None)  # No IR emitted for void
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralBoolean) -> None:
         """Translate ASTx LiteralBoolean to LLVM-IR."""
         result = ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
@@ -1000,19 +1005,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             retval = None
 
         if retval:
-            fn_return_type = (
-                self._llvm.ir_builder.function.function_type.return_type
-            )
-            if (
-                isinstance(fn_return_type, ir.IntType)
-                and fn_return_type.width == 1
-            ):
-                # Force cast retval to i1 if not already
-                if (
-                    isinstance(retval.type, ir.IntType)
-                    and retval.type.width != 1
-                ):
-                    retval = self._llvm.ir_builder.trunc(retval, ir.IntType(1))
             self._llvm.ir_builder.ret(retval)
             return
         self._llvm.ir_builder.ret_void()
