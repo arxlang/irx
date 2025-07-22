@@ -1,7 +1,5 @@
 """Tests for Boolean logic and comparisons."""
 
-import subprocess
-
 from typing import Type
 
 import astx
@@ -52,13 +50,7 @@ def test_boolean_operations(
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    success = True
-    try:
-        check_result("build", builder, module, expected_output=expected)
-    except subprocess.CalledProcessError as e:
-        success = False
-        assert e.returncode == int(expected)
-    assert not success
+    check_result("build", builder, module, expected_output=expected)
 
 
 @pytest.mark.parametrize(
@@ -112,10 +104,4 @@ def test_boolean_comparison(
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    success = True
-    try:
-        check_result("build", builder, module, expected_output=expected)
-    except subprocess.CalledProcessError as e:
-        success = False
-        assert e.returncode == int(expected)
-    assert not success
+    check_result("build", builder, module, expected_output=expected)
