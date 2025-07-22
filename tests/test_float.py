@@ -18,9 +18,9 @@ from .conftest import check_result
     "lhs,op,rhs,expected",
     [
         (1.0, "+", 2.5, "3"),  # 1.0 + 2.5 = 3.5 (expect 3 due to cast to int)
-        # (5.5, ">", 2.2, "1"),  # true
-        # (3.0, "<=", 3.0, "1"),  # true
+        (6.2, "-", 4.2, "2"),
         (2.1, "*", 3.0, "6"),  # 2.0 * 3.0 = 6
+        (2.0, "/", 1.0, "2"),
     ],
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
