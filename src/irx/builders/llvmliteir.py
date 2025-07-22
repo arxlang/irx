@@ -879,15 +879,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-<<<<<<< HEAD
     def visit(self, expr: astx.LiteralFloat32) -> None:
         """Translate ASTx LiteralFloat32 to LLVM-IR."""
         result = ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
-=======
-    def visit(self, expr: astx.LiteralFloat16) -> None:
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralFloat16) -> None:
         """Translate ASTx LiteralFloat16 to LLVM-IR."""
-        result = ir.Constant(self._llvm.FLOAT16_TYPE, expr.value)
->>>>>>> ef44cdc (add support for float16)
+        result = ir.Constant(self._llvm.FLOAT16_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
