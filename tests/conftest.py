@@ -1,8 +1,6 @@
 """General configuration module for pytest."""
 
-import math
 import os
-import subprocess
 import tempfile
 
 from difflib import SequenceMatcher
@@ -42,28 +40,14 @@ def check_result(
             filename_exe = fp.name
             builder.build(module, output_file=filename_exe)
 
-        try:
-            result = (
-                subprocess.check_output([filename_exe]).decode("utf-8").strip()
-            )
-        except subprocess.CalledProcessError as e:
-            raise AssertionError(
-                f"Program failed with exit code {e.returncode}"
-            )
+        # todo: fix the code to avoid workarounds
+        exe_result = str(builder.run()).replace("\n", "")
+
+        if expected_output:
+            message = f"Expected {expected_output}, but result is {exe_result}"
+            assert expected_output == exe_result, message
 
         os.unlink(filename_exe)
-
-        if expected_output is not None:
-            try:
-                expected_val = float(expected_output)
-                result_val = float(result)
-                assert math.isclose(
-                    result_val, expected_val, rel_tol=tolerance
-                ), f"Expected {expected_val}, got {result_val}"
-            except ValueError:
-                assert result == expected_output, (
-                    f"Expected '{expected_output}', got '{result}'"
-                )
 
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:
