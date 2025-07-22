@@ -34,6 +34,7 @@ class VariablesLLVM:
     """Store all the LLVM variables that is used for the code generation."""
 
     FLOAT_TYPE: ir.types.Type
+    FLOAT16_TYPE: ir.types.Type
     DOUBLE_TYPE: ir.types.Type
     INT8_TYPE: ir.types.Type
     INT64_TYPE: ir.types.Type
@@ -61,6 +62,8 @@ class VariablesLLVM:
         """
         if type_name == "float32":
             return self.FLOAT_TYPE
+        elif type_name == "float16":
+            return self.FLOAT16_TYPE
         elif type_name == "double":
             return self.DOUBLE_TYPE
         elif type_name == "boolean":
@@ -135,6 +138,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Data Types
         self._llvm.FLOAT_TYPE = ir.FloatType()
+        self._llvm.FLOAT16_TYPE = ir.HalfType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
         self._llvm.BOOLEAN_TYPE = ir.IntType(1)
         self._llvm.INT8_TYPE = ir.IntType(8)
@@ -875,9 +879,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+<<<<<<< HEAD
     def visit(self, expr: astx.LiteralFloat32) -> None:
         """Translate ASTx LiteralFloat32 to LLVM-IR."""
         result = ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
+=======
+    def visit(self, expr: astx.LiteralFloat16) -> None:
+        """Translate ASTx LiteralFloat16 to LLVM-IR."""
+        result = ir.Constant(self._llvm.FLOAT16_TYPE, expr.value)
+>>>>>>> ef44cdc (add support for float16)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
@@ -1071,6 +1081,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         ):
             result = self._llvm.ir_builder.fptosi(
                 value, target_type, "cast_fp_to_int"
+            )
+
+        elif isinstance(value.type, ir.FloatType) and isinstance(
+            target_type, ir.HalfType
+        ):
+            result = self._llvm.ir_builder.fptrunc(
+                value, target_type, "cast_fp_to_half"
+            )
+
+        elif isinstance(value.type, ir.HalfType) and isinstance(
+            target_type, ir.FloatType
+        ):
+            result = self._llvm.ir_builder.fpext(
+                value, target_type, "cast_half_to_fp"
             )
 
         elif isinstance(value.type, ir.FloatType) and isinstance(
