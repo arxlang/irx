@@ -78,7 +78,7 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name == "void":
+        elif type_name == "none":
             return self.VOID_TYPE
 
         raise Exception("[EE]: type_name not valid.")
@@ -889,6 +889,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx LiteralFloat16 to LLVM-IR."""
         result = ir.Constant(self._llvm.FLOAT16_TYPE, node.value)
         self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralNone) -> None:
+        """Translate ASTx LiteralNone to LLVM-IR."""
+        self.result_stack.append(None)  # No IR emitted for void
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralBoolean) -> None:
