@@ -1005,6 +1005,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             retval = None
 
         if retval:
+            fn_return_type = (
+                self._llvm.ir_builder.function.function_type.return_type
+            )
+            if (
+                isinstance(fn_return_type, ir.IntType)
+                and fn_return_type.width == 1
+            ):
+                # Force cast retval to i1 if not already
+                if (
+                    isinstance(retval.type, ir.IntType)
+                    and retval.type.width != 1
+                ):
+                    retval = self._llvm.ir_builder.trunc(retval, ir.IntType(1))
             self._llvm.ir_builder.ret(retval)
             return
         self._llvm.ir_builder.ret_void()
