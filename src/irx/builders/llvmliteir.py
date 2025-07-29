@@ -43,6 +43,8 @@ class VariablesLLVM:
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
     STRING_TYPE: ir.types.Type
+    ASCII_STRING_TYPE: ir.types.Type
+    UTF8_STRING_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -81,6 +83,10 @@ class VariablesLLVM:
             return self.INT8_TYPE
         elif type_name == "string":
             return self.STRING_TYPE
+        elif type_name == "stringascii":
+            return self.ASCII_STRING_TYPE
+        elif type_name == "stringutf8":
+            return self.UTF8_STRING_TYPE
         elif type_name == "void":
             return self.VOID_TYPE
 
@@ -922,14 +928,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self: LLVMLiteIRVisitor, node: astx.LiteralString) -> None:
-        """Translate ASTx LiteralString to LLVM-IR."""
+    def visit(self, node: astx.LiteralString) -> None:
+        """Translate ASTx LiteralString to LLVM-IR (generic string)."""
         string_bytes = bytearray(node.value + "\0", "utf8")
         const_array = ir.Constant(
             ir.ArrayType(ir.IntType(8), len(string_bytes)), string_bytes
         )
         global_str = ir.GlobalVariable(
-            self._llvm.module, const_array.type, name="str"
+            self._llvm.module,
+            const_array.type,
+            name=f"str_{len(self._llvm.module.globals)}",
         )
         global_str.linkage = "internal"
         global_str.global_constant = True
@@ -942,6 +950,63 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
         self.result_stack.append(ptr)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUTF8Char) -> None:
+        """Translate ASTx LiteralUTF8Char to LLVM-IR (raw char*)."""
+        ascii_bytes = bytearray(node.value + "\0", "ascii")
+        const_array = ir.Constant(
+            ir.ArrayType(ir.IntType(8), len(ascii_bytes)), ascii_bytes
+        )
+        global_str = ir.GlobalVariable(
+            self._llvm.module,
+            const_array.type,
+            name=f"ascii_str_{len(self._llvm.module.globals)}",
+        )
+        global_str.linkage = "internal"
+        global_str.global_constant = True
+        global_str.initializer = const_array
+
+        ptr = self._llvm.ir_builder.gep(
+            global_str,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        # Cast to ASCII_STRING_TYPE (i8*)
+        ptr_cast = self._llvm.ir_builder.bitcast(
+            ptr, self._llvm.ASCII_STRING_TYPE
+        )
+        self.result_stack.append(ptr_cast)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUTF8String) -> None:
+        """Translate ASTx LiteralUTF8String to LLVM-IR."""
+        utf8_bytes = bytearray(node.value + "\0", "utf8")
+        const_array = ir.Constant(
+            ir.ArrayType(ir.IntType(8), len(utf8_bytes)), utf8_bytes
+        )
+        global_str = ir.GlobalVariable(
+            self._llvm.module,
+            const_array.type,
+            name=f"utf8_str_{len(self._llvm.module.globals)}",
+        )
+        global_str.linkage = "internal"
+        global_str.global_constant = True
+        global_str.initializer = const_array
+
+        ptr = self._llvm.ir_builder.gep(
+            global_str,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        # Build {i32, i8*} struct (length + pointer)
+        str_struct = ir.Constant.literal_struct(
+            [ir.Constant(ir.IntType(32), len(node.value)), ptr]
+        )
+
+        self.result_stack.append(str_struct)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
