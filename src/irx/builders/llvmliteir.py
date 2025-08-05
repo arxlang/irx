@@ -1009,6 +1009,24 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(str_struct)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StringIndex) -> None:
+        self.visit(node.string_expr)
+        str_val = self.result_stack.pop()
+
+        self.visit(node.index_expr)
+        idx_val = self.result_stack.pop()
+
+        str_len = self._llvm.ir_builder.extract_value(str_val, 0)
+        str_ptr = self._llvm.ir_builder.extract_value(str_val, 1)
+
+        # Bounds check: if idx >= len, error
+        in_bounds = self._llvm.ir_builder.icmp_signed("<", idx_val, str_len)
+        with self._llvm.ir_builder.if_then(in_bounds):
+            ptr = self._llvm.ir_builder.gep(str_ptr, [idx_val])
+            char_val = self._llvm.ir_builder.load(ptr)
+            self.result_stack.append(char_val)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
         # callee_f = self.get_function(node.fn)
