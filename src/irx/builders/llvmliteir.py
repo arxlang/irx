@@ -997,7 +997,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionReturn) -> None:
         """Translate ASTx FunctionReturn to LLVM-IR."""
-        # self.visit(node.value)
         if node.value is not None:
             self.visit(node.value)
             try:
