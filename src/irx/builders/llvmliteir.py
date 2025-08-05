@@ -85,7 +85,7 @@ class VariablesLLVM:
             return self.STRING_TYPE
         elif type_name == "stringascii":
             return self.ASCII_STRING_TYPE
-        elif type_name == "stringutf8":
+        elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
         elif type_name == "void":
             return self.VOID_TYPE
@@ -953,15 +953,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralUTF8Char) -> None:
-        """Translate ASTx LiteralUTF8Char to LLVM-IR (raw char*)."""
-        ascii_bytes = bytearray(node.value + "\0", "ascii")
+        """Translate ASTx LiteralUTF8Char to LLVM-IR."""
+        utf8_bytes = bytearray(node.value + "\0", "utf8")
         const_array = ir.Constant(
-            ir.ArrayType(ir.IntType(8), len(ascii_bytes)), ascii_bytes
+            ir.ArrayType(ir.IntType(8), len(utf8_bytes)), utf8_bytes
         )
         global_str = ir.GlobalVariable(
             self._llvm.module,
             const_array.type,
-            name=f"ascii_str_{len(self._llvm.module.globals)}",
+            name=f"utf8_str_{len(self._llvm.module.globals)}",
         )
         global_str.linkage = "internal"
         global_str.global_constant = True
@@ -973,9 +973,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             inbounds=True,
         )
 
-        # Cast to ASCII_STRING_TYPE (i8*)
+        # Cast to UTF8_STRING_TYPE (i8*)
         ptr_cast = self._llvm.ir_builder.bitcast(
-            ptr, self._llvm.ASCII_STRING_TYPE
+            ptr, self._llvm.UTF8_STRING_TYPE
         )
         self.result_stack.append(ptr_cast)
 
@@ -1007,24 +1007,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
         self.result_stack.append(str_struct)
-
-    @dispatch  # type: ignore[no-redef]
-    def visit(self, node: astx.StringIndex) -> None:
-        self.visit(node.string_expr)
-        str_val = self.result_stack.pop()
-
-        self.visit(node.index_expr)
-        idx_val = self.result_stack.pop()
-
-        str_len = self._llvm.ir_builder.extract_value(str_val, 0)
-        str_ptr = self._llvm.ir_builder.extract_value(str_val, 1)
-
-        # Bounds check: if idx >= len, error
-        in_bounds = self._llvm.ir_builder.icmp_signed("<", idx_val, str_len)
-        with self._llvm.ir_builder.if_then(in_bounds):
-            ptr = self._llvm.ir_builder.gep(str_ptr, [idx_val])
-            char_val = self._llvm.ir_builder.load(ptr)
-            self.result_stack.append(char_val)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
