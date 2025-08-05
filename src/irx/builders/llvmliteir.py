@@ -997,14 +997,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionReturn) -> None:
         """Translate ASTx FunctionReturn to LLVM-IR."""
-        self.visit(node.value)
-
-        try:
-            retval = self.result_stack.pop()
-        except IndexError:
+        # self.visit(node.value)
+        if node.value is not None:
+            self.visit(node.value)
+            try:
+                retval = self.result_stack.pop()
+            except IndexError:
+                retval = None
+        else:
             retval = None
 
-        if retval:
+        if retval is not None:
             fn_return_type = (
                 self._llvm.ir_builder.function.function_type.return_type
             )
