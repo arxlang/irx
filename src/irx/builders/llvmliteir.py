@@ -78,10 +78,10 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name == "none":
+        elif type_name == "nonetype":
             return self.VOID_TYPE
 
-        raise Exception("[EE]: type_name not valid.")
+        raise Exception(f"[EE]: Type name {type_name} not valid.")
 
 
 @typechecked

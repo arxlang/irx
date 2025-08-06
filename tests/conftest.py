@@ -44,7 +44,10 @@ def check_result(
         exe_result = str(builder.run()).replace("\n", "")
 
         if expected_output:
-            message = f"Expected {expected_output}, but result is {exe_result}"
+            message = (
+                f"Expected `{expected_output}`, "
+                f"but the result is `{exe_result}`"
+            )
             assert expected_output == exe_result, message
 
         os.unlink(filename_exe)
