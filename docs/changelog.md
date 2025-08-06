@@ -1,6 +1,33 @@
 # Release Notes
 ---
 
+# [1.3.0](https://github.com/arxlang/irx/compare/1.2.1...1.3.0) (2025-08-06)
+
+
+### Bug Fixes
+
+*  Reset the names_values in LLVMLiteIRVisitor ([#66](https://github.com/arxlang/irx/issues/66)) ([9bcc3e6](https://github.com/arxlang/irx/commit/9bcc3e65a705095e26a24c7eafd78cc5bd7a6c45))
+* Fix ForCount Implementation and its tests ([#41](https://github.com/arxlang/irx/issues/41)) ([3d36157](https://github.com/arxlang/irx/commit/3d36157af9ea5f5c394b0b259cfac09975321fb7))
+* Fix incorrect result handling in Block visitor ([#62](https://github.com/arxlang/irx/issues/62)) ([538e031](https://github.com/arxlang/irx/commit/538e031f7cad0b00b954f78d9a31555304868206))
+* Fix issues with symbol table and add test cases for it ([#43](https://github.com/arxlang/irx/issues/43)) ([a769d79](https://github.com/arxlang/irx/commit/a769d7931007cb9cead6bc08437da7877cb5c50e))
+* Fix typing with clang ([#70](https://github.com/arxlang/irx/issues/70)) ([1936259](https://github.com/arxlang/irx/commit/19362599130babdd18427cfebd4289fcf540f141))
+* ForRangeLoop now checks loop var < end, not end != 0 ([#61](https://github.com/arxlang/irx/issues/61)) ([aad8c2d](https://github.com/arxlang/irx/commit/aad8c2de86b4212b9ffd49cfafbac2c65fd37988))
+* Rename Function to FunctionDef ([#75](https://github.com/arxlang/irx/issues/75)) ([da95f82](https://github.com/arxlang/irx/commit/da95f824e42c0ef775f603117d3b105e0188dc22))
+* Update astx dependency; improve tests for void ([#79](https://github.com/arxlang/irx/issues/79)) ([3e147f3](https://github.com/arxlang/irx/commit/3e147f3b4e1fb5031e10d75832c39cc28d895a10))
+
+
+### Features
+
+* Add casting to use printexpr with integers ([#67](https://github.com/arxlang/irx/issues/67)) ([d3ab378](https://github.com/arxlang/irx/commit/d3ab378890a2837198ed2a210d05b61e4cf75580))
+* Add support for boolean ([#74](https://github.com/arxlang/irx/issues/74)) ([34d3f4b](https://github.com/arxlang/irx/commit/34d3f4bdb61020955683670c4894fee93a5beea3))
+* add support for float16 ([#77](https://github.com/arxlang/irx/issues/77)) ([6fe9ece](https://github.com/arxlang/irx/commit/6fe9ece456f3d2adc9b88cfff78232cf2134f88d))
+* Add support for int64 ([#72](https://github.com/arxlang/irx/issues/72)) ([d6d0702](https://github.com/arxlang/irx/commit/d6d07026734f5bbd92c84aadf40f4096e99b9e4a))
+* Add support for int8 datatype ([#71](https://github.com/arxlang/irx/issues/71)) ([6748c57](https://github.com/arxlang/irx/commit/6748c57f0afc7c59ba085bcf84cce75a02b6b1a6))
+* Add support for none type ([#78](https://github.com/arxlang/irx/issues/78)) ([cf2978d](https://github.com/arxlang/irx/commit/cf2978d7c4d8b6b172b8cf53ee8f756fadb100ed))
+* Add support for runtime type check ([#52](https://github.com/arxlang/irx/issues/52)) ([4c95199](https://github.com/arxlang/irx/commit/4c95199e681636d4e3bac3009b1b182f58be1835))
+* Add support for system print function ([#57](https://github.com/arxlang/irx/issues/57)) ([88b9e10](https://github.com/arxlang/irx/commit/88b9e10b1a22207fc1206d686313808ecb3b1316))
+* Add translation for `WhileStmt` ([#64](https://github.com/arxlang/irx/issues/64)) ([2933b51](https://github.com/arxlang/irx/commit/2933b519719ff286c6b5efd293dfd1402ee5c8d2))
+
 ## [1.2.1](https://github.com/arxlang/irx/compare/1.2.0...1.2.1) (2024-05-02)
 
 
