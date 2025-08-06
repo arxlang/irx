@@ -1,5 +1,0 @@
-* [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> irx](index.md)
-    * [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> builders](builders/index.md)
-        * [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base](builders/base.md)
-        * [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> llvmliteir](builders/llvmliteir.md)
-        * [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbol_table](builders/symbol_table.md)
