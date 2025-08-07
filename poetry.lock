@@ -179,14 +179,14 @@ test = ["astroid (>=2,<4)", "pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "astx"
-version = "0.22.0"
+version = "0.22.1"
 description = "ASTx is an agnostic expression structure for AST."
 optional = false
 python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "astx-0.22.0-py3-none-any.whl", hash = "sha256:ba261248fbed42b6c1fdf7344177bb44ebfdbd73b1146c037a0ee024e0155e8f"},
-    {file = "astx-0.22.0.tar.gz", hash = "sha256:3793b20fb1da3b00e2ff3c032400af3f7a67b1471bd71e487f54474e9c31fdf5"},
+    {file = "astx-0.22.1-py3-none-any.whl", hash = "sha256:7f67497eb881418df40743bb6cc8a60b72ff5aa39eeab9ce8cbd2ac5a47e4500"},
+    {file = "astx-0.22.1.tar.gz", hash = "sha256:beb70a6e42cf426c19e98cbfc5b640d8dbdce0c72069b9b4bff32b4abb9c131d"},
 ]
 
 [package.dependencies]
@@ -928,26 +928,6 @@ files = [
 
 [package.extras]
 tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipython", "littleutils", "pytest", "rich ; python_version >= \"3.11\""]
-
-[[package]]
-name = "fancycompleter"
-version = "0.11.0"
-description = "colorful TAB completion for Python prompt"
-optional = false
-python-versions = ">=3.8"
-groups = ["dev"]
-files = [
-    {file = "fancycompleter-0.11.0-py3-none-any.whl", hash = "sha256:a4712fdda8d7f3df08511ab2755ea0f1e669e2c65701a28c0c0aa2ff528521ed"},
-    {file = "fancycompleter-0.11.0.tar.gz", hash = "sha256:632b265b29dd0315b96d33d13d83132a541d6312262214f50211b3981bb4fa00"},
-]
-
-[package.dependencies]
-pyreadline3 = {version = "*", markers = "platform_system == \"Windows\""}
-pyrepl = {version = ">=0.11.3", markers = "python_version < \"3.13\""}
-
-[package.extras]
-dev = ["fancycompleter[tests]", "mypy", "ruff (==0.11.2)"]
-tests = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "fastjsonschema"
@@ -2775,25 +2755,6 @@ files = [
 setuptools = "*"
 
 [[package]]
-name = "pdbpp"
-version = "0.11.5"
-description = "pdb++, a drop-in replacement for pdb"
-optional = false
-python-versions = "*"
-groups = ["dev"]
-files = [
-    {file = "pdbpp-0.11.5-py3-none-any.whl", hash = "sha256:aec6495b74e2bdd3fe3e7e72b41b2d0c162940feda9aff20804bdc8a2422b512"},
-    {file = "pdbpp-0.11.5.tar.gz", hash = "sha256:3f383b0305f0d0bf54dd53c0f485290f3d92ac2cb07c59f45b28e8a68e2930fe"},
-]
-
-[package.dependencies]
-fancycompleter = ">=0.11.0"
-pygments = "*"
-
-[package.extras]
-testing = ["ipython", "pexpect", "pytest", "pytest-cov"]
-
-[[package]]
 name = "pexpect"
 version = "4.9.0"
 description = "Pexpect allows easy control of interactive console applications."
@@ -3035,39 +2996,6 @@ cffi = ">=1.4.1"
 [package.extras]
 docs = ["sphinx (>=1.6.5)", "sphinx-rtd-theme"]
 tests = ["hypothesis (>=3.27.0)", "pytest (>=3.2.1,!=3.3.0)"]
-
-[[package]]
-name = "pyreadline3"
-version = "3.5.4"
-description = "A python implementation of GNU readline."
-optional = false
-python-versions = ">=3.8"
-groups = ["dev"]
-markers = "platform_system == \"Windows\""
-files = [
-    {file = "pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6"},
-    {file = "pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7"},
-]
-
-[package.extras]
-dev = ["build", "flake8", "mypy", "pytest", "twine"]
-
-[[package]]
-name = "pyrepl"
-version = "0.11.3.post1"
-description = "A library for building flexible command line interfaces"
-optional = false
-python-versions = ">=3.8"
-groups = ["dev"]
-markers = "python_version < \"3.13\""
-files = [
-    {file = "pyrepl-0.11.3.post1-py3-none-any.whl", hash = "sha256:59fcd67588892731dc6e7aff106c380d303d54324ff028827804a2b056223d92"},
-    {file = "pyrepl-0.11.3.post1.tar.gz", hash = "sha256:0ca7568c8be919b69f99644d29d31738a5b1a87750d06dd36564bcfad278d402"},
-]
-
-[package.extras]
-dev = ["pyrepl[tests]", "ruff (==0.9.3)"]
-tests = ["pexpect", "pytest", "pytest-coverage", "pytest-timeout"]
 
 [[package]]
 name = "pytest"
@@ -4454,4 +4382,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "990cf5eb1939dda7ee8101c89d08ca6b7653e9312daef0577040b0f1be4020b2"
+content-hash = "78bb8e0b1348ed6ef8922b2b25220fca6720ae49f57d2ba01c1d01077beed79b"
