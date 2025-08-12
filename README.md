@@ -219,7 +219,4 @@ graph LR
 
 ```
 
----
-
-Do you want me to also make a **`docs/` folder with separate usage and developer guide markdowns** so the repo looks more professional? That would complement this README.
 ```
