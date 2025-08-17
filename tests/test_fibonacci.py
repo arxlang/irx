@@ -72,35 +72,35 @@ def test_function_call_fibonacci(
 
     cond = astx.BinaryOp(
         op_code="<=",
-        lhs=astx.Variable(name="i"),
-        rhs=astx.Variable(name="n"),
+        lhs=astx.Identifier(name="i"),
+        rhs=astx.Identifier(name="n"),
     )
     loop_block = astx.Block()
     loop_block.append(
         astx.VariableAssignment(
             name="sum",
             value=astx.BinaryOp(
-                op_code="+", lhs=astx.Variable("a"), rhs=astx.Variable("b")
+                op_code="+", lhs=astx.Identifier("a"), rhs=astx.Identifier("b")
             ),
         )
     )
     loop_block.append(
-        astx.VariableAssignment(name="a", value=astx.Variable("b"))
+        astx.VariableAssignment(name="a", value=astx.Identifier("b"))
     )
     loop_block.append(
-        astx.VariableAssignment(name="b", value=astx.Variable("sum"))
+        astx.VariableAssignment(name="b", value=astx.Identifier("sum"))
     )
     loop_block.append(
         astx.VariableAssignment(
             name="i",
             value=astx.BinaryOp(
-                op_code="+", lhs=astx.Variable("i"), rhs=literal_type(1)
+                op_code="+", lhs=astx.Identifier("i"), rhs=literal_type(1)
             ),
         )
     )
     loop = astx.WhileStmt(condition=cond, body=loop_block)
     fib_block.append(loop)
-    fib_block.append(astx.FunctionReturn(astx.Variable(name="b")))
+    fib_block.append(astx.FunctionReturn(astx.Identifier(name="b")))
 
     fib_fn = astx.FunctionDef(prototype=fib_proto, body=fib_block)
     module.block.append(fib_fn)

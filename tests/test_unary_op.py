@@ -51,8 +51,8 @@ def test_unary_op_increment_decrement(
         name="b", type_=int_type(), value=literal_type(10)
     )
 
-    var_a = astx.Variable("a")
-    var_b = astx.Variable("b")
+    var_a = astx.Identifier("a")
+    var_b = astx.Identifier("b")
 
     incr_a = astx.UnaryOp(op_code="++", operand=var_a)
     incr_a.type_ = int_type()

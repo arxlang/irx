@@ -48,7 +48,7 @@ def test_cast_basic(
     decl_a = astx.VariableDeclaration(
         name="a", type_=int_type_from(), value=literal_type_from(42)
     )
-    a = astx.Variable("a")
+    a = astx.Identifier("a")
     cast_expr = Cast(value=a, target_type=int_type_to())
 
     main_proto = astx.FunctionPrototype(
@@ -60,7 +60,7 @@ def test_cast_basic(
         name="r", type_=int_type_to(), value=cast_expr
     )
     main_block.append(cast_var)
-    main_block.append(astx.FunctionReturn(astx.Variable("r")))
+    main_block.append(astx.FunctionReturn(astx.Identifier("r")))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)

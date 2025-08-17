@@ -50,7 +50,7 @@ def test_if_else_stmt(
     )
 
     cond = astx.BinaryOp(
-        op_code=">", lhs=astx.Variable("a"), rhs=literal_type(5)
+        op_code=">", lhs=astx.Identifier("a"), rhs=literal_type(5)
     )
 
     then_block = astx.Block()
@@ -111,7 +111,7 @@ def test_if_only_stmt(
     )
 
     cond = astx.BinaryOp(
-        op_code=">", lhs=astx.Variable("a"), rhs=literal_type(5)
+        op_code=">", lhs=astx.Identifier("a"), rhs=literal_type(5)
     )
 
     then_block = astx.Block()

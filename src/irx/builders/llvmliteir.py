@@ -298,7 +298,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
 
             # If operand is a variable, store the new value back
-            if isinstance(node.operand, astx.Variable):
+            if isinstance(node.operand, astx.Identifier):
                 var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
@@ -312,7 +312,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             one = ir.Constant(operand_val.type, 1)
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
-            if isinstance(node.operand, astx.Variable):
+            if isinstance(node.operand, astx.Identifier):
                 var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
@@ -327,7 +327,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 val, ir.Constant(val.type, 1), "nottmp"
             )
 
-            if isinstance(node.operand, astx.Variable):
+            if isinstance(node.operand, astx.Identifier):
                 addr = self.named_values.get(node.operand.name)
                 if addr:
                     self._llvm.ir_builder.store(result, addr)
@@ -721,7 +721,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if not llvm_var:
             raise Exception(
-                f"Variable '{var_name}' not found in the named values."
+                f"Identifier '{var_name}' not found in the named values."
             )
 
         # Store the value in the variable
@@ -1415,7 +1415,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """Translate an ASTx InlineVariableDeclaration expression."""
         if self.named_values.get(node.name):
-            raise Exception(f"Variable already declared: {node.name}")
+            raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
 
@@ -1556,8 +1556,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, node: astx.Variable) -> None:
-        """Translate ASTx Variable to LLVM-IR."""
+    def visit(self, node: astx.Identifier) -> None:
+        """Translate ASTx Identifier to LLVM-IR."""
         expr_var = self.named_values.get(node.name)
 
         if not expr_var:
@@ -1568,9 +1568,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.VariableDeclaration) -> None:
-        """Translate ASTx Variable to LLVM-IR."""
+        """Translate ASTx Identifier to LLVM-IR."""
         if self.named_values.get(node.name):
-            raise Exception(f"Variable already declared: {node.name}")
+            raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
 
