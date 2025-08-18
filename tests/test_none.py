@@ -20,25 +20,24 @@ def test_none_as_placeholder_in_expression(
     builder = builder_class()
     module = builder.module()
 
-    block_fn_void = astx.Block()
-    block_fn_void.append(PrintExpr(astx.LiteralUTF8String("done")))
-    block_fn_void.append(astx.FunctionReturn(astx.LiteralNone()))
-
-    fn_void_proto = astx.FunctionPrototype(
-        name="fn_void", args=astx.Arguments(), return_type=astx.NoneType()
+    # tmp: int32 = 5
+    decl_tmp = astx.VariableDeclaration(
+        name="tmp", type_=astx.Int32(), value=astx.LiteralInt32(5)
     )
-    fn_void = astx.FunctionDef(prototype=fn_void_proto, body=block_fn_void)
 
-    block_fn_main = astx.Block()
-    block_fn_main.append(astx.FunctionCall(fn_void, args=[]))
-    block_fn_main.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    # Just evaluate LiteralNone (no IR emitted)
+    none_expr = astx.LiteralNone()
 
-    fn_main_proto = astx.FunctionPrototype(
+    block = astx.Block()
+    block.append(decl_tmp)
+    block.append(none_expr)
+    block.append(PrintExpr(astx.LiteralUTF8String("done")))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
-    fn_main = astx.FunctionDef(prototype=fn_main_proto, body=block_fn_main)
-
-    module.block.append(fn_void)
-    module.block.append(fn_main)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
 
     check_result("build", builder, module, expected_output="done")

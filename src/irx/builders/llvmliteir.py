@@ -87,7 +87,7 @@ class VariablesLLVM:
             return self.ASCII_STRING_TYPE
         elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
-        elif type_name == "void":
+        elif type_name == "none":
             return self.VOID_TYPE
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
@@ -446,19 +446,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # handle it depend on datatype
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(result)
             return
@@ -466,53 +460,35 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
-                )
-                result = self._llvm.ir_builder.uitofp(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # be careful we havn't  handled all the conditions
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == "<=":
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == ">=":
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
                 )
             self.result_stack.append(result)
             return
