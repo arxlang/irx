@@ -987,7 +987,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """Handle ASCII string literals."""
         string_value = expr.value
-        string_length = len(string_value)
+        utf8_bytes = string_value.encode("utf-8")
+        string_length = len(utf8_bytes)
 
         # Create a global constant for the string data
         string_data_type = ir.ArrayType(
@@ -1002,7 +1003,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             string_data_type, bytearray(string_value + "\0", "ascii")
         )
 
-        # Get pointer to the string data
         ptr = self._llvm.ir_builder.gep(
             string_data,
             [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
@@ -1022,8 +1022,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         string_data_type = ir.ArrayType(
             self._llvm.INT8_TYPE, string_length + 1
         )
+        unique_name = f"str_utf8_{abs(hash(string_value))}_{id(expr)}"
         string_data = ir.GlobalVariable(
-            self._llvm.module, string_data_type, name=f"str_utf8_{id(expr)}"
+            self._llvm.module, string_data_type, name=unique_name
         )
         string_data.linkage = "internal"
         string_data.global_constant = True
@@ -1043,25 +1044,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralString) -> None:
         """Handle generic string literals - defaults to UTF-8."""
-        # Create a UTF-8 string literal and delegate
         utf8_literal = astx.LiteralUTF8String(value=expr.value)
         self.visit(utf8_literal)
 
-    # String operation helper methods
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
         func_name = "string_concat"
         if func_name in self._llvm.module.globals:
             return self._llvm.module.get_global(func_name)
 
-        # Function signature: string_concat(char* str1, char* str2) -> char*
         func_type = ir.FunctionType(
             self._llvm.ASCII_STRING_TYPE,
             [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
 
-        # Mark as external - to be provided by runtime library
         func.linkage = "external"
         return func
 
@@ -1116,25 +1113,213 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _handle_string_concatenation(
         self, lhs: ir.Value, rhs: ir.Value
     ) -> ir.Value:
-        """Handle string concatenation operation."""
-        concat_func = self._create_string_concat_function()
+        """Handle string concatenation operation using inline function."""
+        strcat_func = self._create_strcat_inline()
         return self._llvm.ir_builder.call(
-            concat_func, [lhs, rhs], "str_concat"
+            strcat_func, [lhs, rhs], "str_concat"
         )
+
+    def _create_strcat_inline(self) -> ir.Function:
+        """Create an inline string concatenation function in LLVM IR."""
+        func_name = "strcat_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        func_type = ir.FunctionType(
+            self._llvm.INT8_TYPE.as_pointer(),
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        builder = ir.IRBuilder(entry)
+
+        strlen_func = self._create_strlen_inline()
+        len1 = builder.call(strlen_func, [func.args[0]], "len1")
+        len2 = builder.call(strlen_func, [func.args[1]], "len2")
+
+        # Total length = len1 + len2 + 1 (for null terminator)
+        total_len = builder.add(len1, len2, "total_len")
+        total_len = builder.add(
+            total_len,
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+            "total_len_with_null",
+        )
+
+        # For simplicity, using alloca
+        result_ptr = builder.alloca(self._llvm.INT8_TYPE, total_len, "result")
+
+        self._generate_strcpy(builder, result_ptr, func.args[0])
+
+        result_end = builder.gep(result_ptr, [len1], inbounds=True)
+        self._generate_strcpy(builder, result_end, func.args[1])
+
+        builder.ret(result_ptr)
+        return func
+
+    def _generate_strcpy(
+        self, builder: ir.IRBuilder, dest: ir.Value, src: ir.Value
+    ) -> None:
+        """Generate inline string copy code."""
+        loop_bb = builder.function.append_basic_block("strcpy_loop")
+        end_bb = builder.function.append_basic_block("strcpy_end")
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="strcpy_index")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop_bb)
+
+        builder.position_at_start(loop_bb)
+        idx_val = builder.load(index, "idx_val")
+
+        src_char_ptr = builder.gep(src, [idx_val], inbounds=True)
+        char_val = builder.load(src_char_ptr, "char_val")
+
+        dest_char_ptr = builder.gep(dest, [idx_val], inbounds=True)
+        builder.store(char_val, dest_char_ptr)
+
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+
+        builder.cbranch(is_null, end_bb, loop_bb)
+
+        builder.position_at_start(end_bb)
+
+    def _create_strcmp_inline(self) -> ir.Function:
+        """Create an inline strcmp function in LLVM IR."""
+        func_name = "strcmp_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        func_type = ir.FunctionType(
+            self._llvm.BOOLEAN_TYPE,
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        not_equal = func.append_basic_block("not_equal")
+        equal = func.append_basic_block("equal")
+
+        builder = ir.IRBuilder(entry)
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="index")
+
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        idx_val = builder.load(index, "idx_val")
+
+        char1_ptr = builder.gep(func.args[0], [idx_val], inbounds=True)
+        char2_ptr = builder.gep(func.args[1], [idx_val], inbounds=True)
+
+        char1 = builder.load(char1_ptr, "char1")
+        char2 = builder.load(char2_ptr, "char2")
+
+        chars_equal = builder.icmp_signed("==", char1, char2)
+
+        char1_null = builder.icmp_signed(
+            "==", char1, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        builder.cbranch(
+            chars_equal,
+            builder.function.append_basic_block("check_null"),
+            not_equal,
+        )
+
+        check_null_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(check_null_bb)
+        builder.cbranch(
+            char1_null,
+            equal,
+            builder.function.append_basic_block("continue_loop"),
+        )
+
+        continue_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(continue_bb)
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+        builder.branch(loop)
+
+        builder.position_at_start(not_equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 0))
+
+        builder.position_at_start(equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 1))
+
+        return func
+
+    def _create_strlen_inline(self) -> ir.Function:
+        """Create an inline strlen function in LLVM IR."""
+        func_name = "strlen_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        # Function signature: strlen_inline(char* str) -> i32
+        func_type = ir.FunctionType(
+            self._llvm.INT32_TYPE, [self._llvm.INT8_TYPE.as_pointer()]
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        end = func.append_basic_block("end")
+
+        builder = ir.IRBuilder(entry)
+
+        counter = builder.alloca(self._llvm.INT32_TYPE, name="counter")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), counter)
+
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        count_val = builder.load(counter, "count_val")
+
+        char_ptr = builder.gep(func.args[0], [count_val], inbounds=True)
+        char_val = builder.load(char_ptr, "char_val")
+
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        next_count = builder.add(
+            count_val, ir.Constant(self._llvm.INT32_TYPE, 1)
+        )
+        builder.store(next_count, counter)
+
+        builder.cbranch(is_null, end, loop)
+
+        builder.position_at_start(end)
+        final_count = builder.load(counter, "final_count")
+        builder.ret(final_count)
+
+        return func
 
     def _handle_string_comparison(
         self, lhs: ir.Value, rhs: ir.Value, op: str
     ) -> ir.Value:
-        """Handle string comparison operations."""
+        """Handle string comparison operations using inline functions."""
         if op == "==":
-            equals_func = self._create_string_equals_function()
+            strcmp_func = self._create_strcmp_inline()
             return self._llvm.ir_builder.call(
-                equals_func, [lhs, rhs], "str_equals"
+                strcmp_func, [lhs, rhs], "str_equals"
             )
         elif op == "!=":
-            equals_func = self._create_string_equals_function()
+            strcmp_func = self._create_strcmp_inline()
             equals_result = self._llvm.ir_builder.call(
-                equals_func, [lhs, rhs], "str_equals"
+                strcmp_func, [lhs, rhs], "str_equals"
             )
             return self._llvm.ir_builder.xor(
                 equals_result,
