@@ -42,6 +42,9 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
+    ASCII_STRING_TYPE: ir.types.Type
+    UTF8_STRING_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -78,6 +81,12 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
+        elif type_name == "string":
+            return self.STRING_TYPE
+        elif type_name == "stringascii":
+            return self.ASCII_STRING_TYPE
+        elif type_name == "utf8string":
+            return self.UTF8_STRING_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -146,6 +155,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
+        self._llvm.STRING_TYPE = ir.LiteralStructType(
+            [ir.IntType(32), ir.IntType(8).as_pointer()]
+        )
+        self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
+        self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -380,7 +394,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.op_code == "+":
             # note: it should be according the datatype,
             #       e.g. for float it should be fadd
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if (
+                isinstance(llvm_lhs.type, ir.PointerType)
+                and isinstance(llvm_rhs.type, ir.PointerType)
+                and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
+                and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
+            ):
+                result = self._handle_string_concatenation(llvm_lhs, llvm_rhs)
+                self.result_stack.append(result)
+                return
+
+            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
                 result = self._llvm.ir_builder.fadd(
                     llvm_lhs, llvm_rhs, "addtmp"
                 )
@@ -422,75 +446,51 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # handle it depend on datatype
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
-                )
-            self.result_stack.append(cmp_result)
+            self.result_stack.append(result)
             return
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
-                )
-                result = self._llvm.ir_builder.uitofp(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
                 # be careful we havn't  handled all the conditions
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
-                )
-            self.result_stack.append(cmp_result)
+            self.result_stack.append(result)
             return
         elif node.op_code == "<=":
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
-                )
-            self.result_stack.append(cmp_result)
+            self.result_stack.append(result)
             return
         elif node.op_code == ">=":
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
-                )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.FLOAT_TYPE, "booltmp"
                 )
             else:
-                cmp_result = self._llvm.ir_builder.icmp_signed(
+                result = self._llvm.ir_builder.icmp_signed(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
-                result = self._llvm.ir_builder.zext(
-                    cmp_result, self._llvm.INT32_TYPE, "booltmp"
-                )
-            self.result_stack.append(cmp_result)
+            self.result_stack.append(result)
             return
         elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
@@ -507,6 +507,52 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
             self.result_stack.append(result)
+            return
+
+        elif node.op_code == "==":
+            # Handle string comparison for equality
+            if (
+                isinstance(llvm_lhs.type, ir.PointerType)
+                and isinstance(llvm_rhs.type, ir.PointerType)
+                and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
+                and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
+            ):
+                # String comparison
+                cmp_result = self._handle_string_comparison(
+                    llvm_lhs, llvm_rhs, "=="
+                )
+            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    "==", llvm_lhs, llvm_rhs, "eqtmp"
+                )
+            else:
+                cmp_result = self._llvm.ir_builder.icmp_signed(
+                    "==", llvm_lhs, llvm_rhs, "eqtmp"
+                )
+            self.result_stack.append(cmp_result)
+            return
+
+        elif node.op_code == "!=":
+            # Handle string comparison for inequality
+            if (
+                isinstance(llvm_lhs.type, ir.PointerType)
+                and isinstance(llvm_rhs.type, ir.PointerType)
+                and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
+                and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
+            ):
+                # String comparison
+                cmp_result = self._handle_string_comparison(
+                    llvm_lhs, llvm_rhs, "!="
+                )
+            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+                cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    "!=", llvm_lhs, llvm_rhs, "netmp"
+                )
+            else:
+                cmp_result = self._llvm.ir_builder.icmp_signed(
+                    "!=", llvm_lhs, llvm_rhs, "netmp"
+                )
+            self.result_stack.append(cmp_result)
             return
 
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
@@ -914,6 +960,352 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralUTF8Char) -> None:
+        """Handle ASCII string literals."""
+        string_value = expr.value
+        utf8_bytes = string_value.encode("utf-8")
+        string_length = len(utf8_bytes)
+
+        # Create a global constant for the string data
+        string_data_type = ir.ArrayType(
+            self._llvm.INT8_TYPE, string_length + 1
+        )
+        string_data = ir.GlobalVariable(
+            self._llvm.module, string_data_type, name=f"str_ascii_{id(expr)}"
+        )
+        string_data.linkage = "internal"
+        string_data.global_constant = True
+        string_data.initializer = ir.Constant(
+            string_data_type, bytearray(string_value + "\0", "ascii")
+        )
+
+        ptr = self._llvm.ir_builder.gep(
+            string_data,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        self.result_stack.append(ptr)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralUTF8String) -> None:
+        """Handle UTF-8 string literals."""
+        string_value = expr.value
+        utf8_bytes = string_value.encode("utf-8")
+        string_length = len(utf8_bytes)
+
+        # Create a global constant for the string data
+        string_data_type = ir.ArrayType(
+            self._llvm.INT8_TYPE, string_length + 1
+        )
+        unique_name = f"str_utf8_{abs(hash(string_value))}_{id(expr)}"
+        string_data = ir.GlobalVariable(
+            self._llvm.module, string_data_type, name=unique_name
+        )
+        string_data.linkage = "internal"
+        string_data.global_constant = True
+        string_data.initializer = ir.Constant(
+            string_data_type, bytearray(utf8_bytes + b"\0")
+        )
+
+        # Get pointer to the string data (i8*)
+        data_ptr = self._llvm.ir_builder.gep(
+            string_data,
+            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
+            inbounds=True,
+        )
+
+        self.result_stack.append(data_ptr)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralString) -> None:
+        """Handle generic string literals - defaults to UTF-8."""
+        utf8_literal = astx.LiteralUTF8String(value=expr.value)
+        self.visit(utf8_literal)
+
+    def _create_string_concat_function(self) -> ir.Function:
+        """Create a string concatenation function."""
+        func_name = "string_concat"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        func_type = ir.FunctionType(
+            self._llvm.ASCII_STRING_TYPE,
+            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        func.linkage = "external"
+        return func
+
+    def _create_string_length_function(self) -> ir.Function:
+        """Create a string length function."""
+        func_name = "string_length"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        # Function signature: string_length(char* str) -> i32
+        func_type = ir.FunctionType(
+            self._llvm.INT32_TYPE, [self._llvm.ASCII_STRING_TYPE]
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        func.linkage = "external"
+        return func
+
+    def _create_string_equals_function(self) -> ir.Function:
+        """Create a string equality comparison function."""
+        func_name = "string_equals"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        # Function signature: string_equals(char* str1, char* str2) -> i1
+        func_type = ir.FunctionType(
+            self._llvm.BOOLEAN_TYPE,
+            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        func.linkage = "external"
+        return func
+
+    def _create_string_substring_function(self) -> ir.Function:
+        """Create a string substring function."""
+        func_name = "string_substring"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        # string_substring(char* str, i32 start, i32 length) -> char*
+        func_type = ir.FunctionType(
+            self._llvm.ASCII_STRING_TYPE,
+            [
+                self._llvm.ASCII_STRING_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        func.linkage = "external"
+        return func
+
+    def _handle_string_concatenation(
+        self, lhs: ir.Value, rhs: ir.Value
+    ) -> ir.Value:
+        """Handle string concatenation operation using inline function."""
+        strcat_func = self._create_strcat_inline()
+        return self._llvm.ir_builder.call(
+            strcat_func, [lhs, rhs], "str_concat"
+        )
+
+    def _create_strcat_inline(self) -> ir.Function:
+        """Create an inline string concatenation function in LLVM IR."""
+        func_name = "strcat_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        func_type = ir.FunctionType(
+            self._llvm.INT8_TYPE.as_pointer(),
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        builder = ir.IRBuilder(entry)
+
+        strlen_func = self._create_strlen_inline()
+        len1 = builder.call(strlen_func, [func.args[0]], "len1")
+        len2 = builder.call(strlen_func, [func.args[1]], "len2")
+
+        # Total length = len1 + len2 + 1 (for null terminator)
+        total_len = builder.add(len1, len2, "total_len")
+        total_len = builder.add(
+            total_len,
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+            "total_len_with_null",
+        )
+
+        # For simplicity, using alloca
+        result_ptr = builder.alloca(self._llvm.INT8_TYPE, total_len, "result")
+
+        self._generate_strcpy(builder, result_ptr, func.args[0])
+
+        result_end = builder.gep(result_ptr, [len1], inbounds=True)
+        self._generate_strcpy(builder, result_end, func.args[1])
+
+        builder.ret(result_ptr)
+        return func
+
+    def _generate_strcpy(
+        self, builder: ir.IRBuilder, dest: ir.Value, src: ir.Value
+    ) -> None:
+        """Generate inline string copy code."""
+        loop_bb = builder.function.append_basic_block("strcpy_loop")
+        end_bb = builder.function.append_basic_block("strcpy_end")
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="strcpy_index")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop_bb)
+
+        builder.position_at_start(loop_bb)
+        idx_val = builder.load(index, "idx_val")
+
+        src_char_ptr = builder.gep(src, [idx_val], inbounds=True)
+        char_val = builder.load(src_char_ptr, "char_val")
+
+        dest_char_ptr = builder.gep(dest, [idx_val], inbounds=True)
+        builder.store(char_val, dest_char_ptr)
+
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+
+        builder.cbranch(is_null, end_bb, loop_bb)
+
+        builder.position_at_start(end_bb)
+
+    def _create_strcmp_inline(self) -> ir.Function:
+        """Create an inline strcmp function in LLVM IR."""
+        func_name = "strcmp_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        func_type = ir.FunctionType(
+            self._llvm.BOOLEAN_TYPE,
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        not_equal = func.append_basic_block("not_equal")
+        equal = func.append_basic_block("equal")
+
+        builder = ir.IRBuilder(entry)
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="index")
+
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        idx_val = builder.load(index, "idx_val")
+
+        char1_ptr = builder.gep(func.args[0], [idx_val], inbounds=True)
+        char2_ptr = builder.gep(func.args[1], [idx_val], inbounds=True)
+
+        char1 = builder.load(char1_ptr, "char1")
+        char2 = builder.load(char2_ptr, "char2")
+
+        chars_equal = builder.icmp_signed("==", char1, char2)
+
+        char1_null = builder.icmp_signed(
+            "==", char1, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        builder.cbranch(
+            chars_equal,
+            builder.function.append_basic_block("check_null"),
+            not_equal,
+        )
+
+        check_null_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(check_null_bb)
+        builder.cbranch(
+            char1_null,
+            equal,
+            builder.function.append_basic_block("continue_loop"),
+        )
+
+        continue_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(continue_bb)
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+        builder.branch(loop)
+
+        builder.position_at_start(not_equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 0))
+
+        builder.position_at_start(equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 1))
+
+        return func
+
+    def _create_strlen_inline(self) -> ir.Function:
+        """Create an inline strlen function in LLVM IR."""
+        func_name = "strlen_inline"
+        if func_name in self._llvm.module.globals:
+            return self._llvm.module.get_global(func_name)
+
+        # Function signature: strlen_inline(char* str) -> i32
+        func_type = ir.FunctionType(
+            self._llvm.INT32_TYPE, [self._llvm.INT8_TYPE.as_pointer()]
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        end = func.append_basic_block("end")
+
+        builder = ir.IRBuilder(entry)
+
+        counter = builder.alloca(self._llvm.INT32_TYPE, name="counter")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), counter)
+
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        count_val = builder.load(counter, "count_val")
+
+        char_ptr = builder.gep(func.args[0], [count_val], inbounds=True)
+        char_val = builder.load(char_ptr, "char_val")
+
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        next_count = builder.add(
+            count_val, ir.Constant(self._llvm.INT32_TYPE, 1)
+        )
+        builder.store(next_count, counter)
+
+        builder.cbranch(is_null, end, loop)
+
+        builder.position_at_start(end)
+        final_count = builder.load(counter, "final_count")
+        builder.ret(final_count)
+
+        return func
+
+    def _handle_string_comparison(
+        self, lhs: ir.Value, rhs: ir.Value, op: str
+    ) -> ir.Value:
+        """Handle string comparison operations using inline functions."""
+        if op == "==":
+            strcmp_func = self._create_strcmp_inline()
+            return self._llvm.ir_builder.call(
+                strcmp_func, [lhs, rhs], "str_equals"
+            )
+        elif op == "!=":
+            strcmp_func = self._create_strcmp_inline()
+            equals_result = self._llvm.ir_builder.call(
+                strcmp_func, [lhs, rhs], "str_equals"
+            )
+            return self._llvm.ir_builder.xor(
+                equals_result,
+                ir.Constant(self._llvm.BOOLEAN_TYPE, 1),
+                "str_not_equals",
+            )
+        else:
+            raise Exception(f"String comparison operator {op} not implemented")
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionCall) -> None:
         """Translate Function FunctionCall."""
         # callee_f = self.get_function(node.fn)
@@ -1122,26 +1514,35 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: system.PrintExpr) -> None:
         """Generate LLVM IR for a PrintExpr node."""
-        message = node.message.value
+        if hasattr(node.message, "value"):
+            # For literal strings/values
+            message = node.message.value
+            msg_length = len(message) + 1
+            msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
 
-        msg_length = len(message) + 1
+            global_msg = ir.GlobalVariable(
+                self._llvm.module, msg_type, name=node._name
+            )
+            global_msg.linkage = "internal"
+            global_msg.global_constant = True
+            global_msg.initializer = ir.Constant(
+                msg_type, bytearray(message + "\0", "utf8")
+            )
 
-        msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
-
-        global_msg = ir.GlobalVariable(
-            self._llvm.module, msg_type, name=node._name
-        )
-        global_msg.linkage = "internal"
-        global_msg.global_constant = True
-        global_msg.initializer = ir.Constant(
-            msg_type, bytearray(message + "\0", "utf8")
-        )
-
-        ptr = self._llvm.ir_builder.gep(
-            global_msg,
-            [ir.Constant(ir.IntType(32), 0), ir.Constant(ir.IntType(32), 0)],
-            inbounds=True,
-        )
+            ptr = self._llvm.ir_builder.gep(
+                global_msg,
+                [
+                    ir.Constant(ir.IntType(32), 0),
+                    ir.Constant(ir.IntType(32), 0),
+                ],
+                inbounds=True,
+            )
+        else:
+            # For variables and other expressions
+            self.visit(node.message)
+            ptr = safe_pop(self.result_stack)
+            if not ptr:
+                raise Exception("Invalid message in PrintExpr")
 
         puts_fn = self._llvm.module.globals.get("puts")
         if puts_fn is None:
@@ -1179,17 +1580,54 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             init_val = self.result_stack.pop()
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+
+            if type_str == "string":
+                alloca = self.create_entry_block_alloca(
+                    node.name, "stringascii"
+                )
+                self._llvm.ir_builder.store(init_val, alloca)
+            else:
+                alloca = self.create_entry_block_alloca(node.name, type_str)
+                self._llvm.ir_builder.store(init_val, alloca)
+
         else:
-            # If not specified, use 0 as the initializer.
-            # note: it should create something according to the defined type
-            init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
+            if type_str == "string":
+                # For strings, create empty string
+                empty_str_type = ir.ArrayType(self._llvm.INT8_TYPE, 1)
+                empty_str_global = ir.GlobalVariable(
+                    self._llvm.module,
+                    empty_str_type,
+                    name=f"empty_str_{node.name}",
+                )
+                empty_str_global.linkage = "internal"
+                empty_str_global.global_constant = True
+                empty_str_global.initializer = ir.Constant(
+                    empty_str_type, bytearray(b"\0")
+                )
 
-        # Create an alloca in the entry block.
-        # note: it should create the type according to the defined type
-        alloca = self.create_entry_block_alloca(node.name, type_str)
+                init_val = self._llvm.ir_builder.gep(
+                    empty_str_global,
+                    [
+                        ir.Constant(ir.IntType(32), 0),
+                        ir.Constant(ir.IntType(32), 0),
+                    ],
+                    inbounds=True,
+                )
+                alloca = self.create_entry_block_alloca(
+                    node.name, "stringascii"
+                )
 
-        # Store the initial value.
-        self._llvm.ir_builder.store(init_val, alloca)
+            elif "float" in type_str:
+                init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
+                alloca = self.create_entry_block_alloca(node.name, type_str)
+
+            else:
+                # If not specified, use 0 as the initializer.
+                init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
+                alloca = self.create_entry_block_alloca(node.name, type_str)
+
+            # Store the initial value.
+            self._llvm.ir_builder.store(init_val, alloca)
 
         # Remember this binding.
         self.named_values[node.name] = alloca
