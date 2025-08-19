@@ -87,7 +87,7 @@ class VariablesLLVM:
             return self.ASCII_STRING_TYPE
         elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
-        elif type_name == "none":
+        elif type_name == "nonetype":
             return self.VOID_TYPE
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
