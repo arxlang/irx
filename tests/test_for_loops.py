@@ -108,7 +108,7 @@ def test_for_count(
     init_a = astx.InlineVariableDeclaration(
         "a2", type_=int_type(), value=literal_type(0)
     )
-    var_a = astx.Variable("a2")
+    var_a = astx.Identifier("a2")
     cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(10))
     update = astx.UnaryOp(op_code="++", operand=var_a)
 

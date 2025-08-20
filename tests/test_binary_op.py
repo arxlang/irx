@@ -95,9 +95,9 @@ def test_binary_op_basic(
         name="c", type_=int_type(), value=literal_type(4)
     )
 
-    a = astx.Variable("a")
-    b = astx.Variable("b")
-    c = astx.Variable("c")
+    a = astx.Identifier("a")
+    b = astx.Identifier("b")
+    c = astx.Identifier("c")
 
     lit_1 = literal_type(1)
 

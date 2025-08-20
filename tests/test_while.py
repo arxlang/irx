@@ -43,13 +43,13 @@ def test_while_expr(
     """Test the While expression translation."""
     builder = builder_class()
 
-    # Variable declaration and initialization: int a = 0
+    # Identifier declaration and initialization: int a = 0
     init_var = astx.InlineVariableDeclaration(
         "a", type_=int_type(), value=literal_type(0)
     )
 
     # Condition: a < 5
-    var_a = astx.Variable("a")
+    var_a = astx.Identifier("a")
     cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(5))
 
     # Update: ++a
