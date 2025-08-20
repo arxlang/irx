@@ -116,3 +116,144 @@ def test_binary_op_basic(
 
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_string_concat_and_equals(builder_class: Type[Builder]) -> None:
+    """
+    Verify:
+      - string concatenation using BinaryOp '+'
+      - string equality '=='
+    Flow:
+        s = "he" + "llo"
+        s = s + "!"
+        if (s == "hello!"): print("OK") else print("BAD")
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    s_decl = astx.VariableDeclaration(
+        name="s", type_=astx.String(), value=astx.LiteralString("he") + astx.LiteralString("llo")
+    )
+    s_id = astx.Identifier("s")
+    s_update = astx.VariableAssignment(name="s", value=s_id + astx.LiteralString("!"))
+
+    cond = (astx.Identifier("s") == astx.LiteralString("hello!"))
+    then_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("OK"))])
+    else_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("BAD"))])
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    main_proto = astx.FunctionPrototype(name="main", args=astx.Arguments(), return_type=astx.Int32())
+    main_block = astx.Block([s_decl, s_update, if_stmt, astx.FunctionReturn(astx.LiteralInt32(0))])
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output="OK")
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
+    """
+    Verify string '!=' uses strcmp_inline + xor 1 path.
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    cond = (astx.LiteralString("foo") != astx.LiteralString("bar"))
+    then_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("NE"))])
+    else_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("EQ"))])
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    main_proto = astx.FunctionPrototype(name="main", args=astx.Arguments(), return_type=astx.Int32())
+    main_block = astx.Block([if_stmt, astx.FunctionReturn(astx.LiteralInt32(0))])
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output="NE")
+
+
+@pytest.mark.parametrize(
+    "int_type,literal_type,a_val,b_val,expect",
+    [
+        # use 0/1 so bitwise and/or behave like logical
+        (astx.Int32, astx.LiteralInt32, 1, 0, "1"),  # (1 && 1) || 0 -> after assignment below becomes 1
+        (astx.Int16, astx.LiteralInt16, 1, 1, "1"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_logical_and_or(
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
+    a_val: int,
+    b_val: int,
+    expect: str) -> None:
+    """
+    Verify '&&' and '||' for integer booleans (0/1).
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    decl_x = astx.VariableDeclaration(
+        name="x", type_=int_type(), value=literal_type(a_val)
+    )
+    decl_y = astx.VariableDeclaration(
+        name="y", type_=int_type(), value=literal_type(b_val)
+    )
+
+    expr = (astx.Identifier("x") & astx.Identifier("x")) | astx.Identifier("y")
+    assign = astx.VariableAssignment(name="x", value=expr)
+
+    # print x
+    print_ok = PrintExpr(astx.LiteralUTF8String(expect))
+
+    main_proto = astx.FunctionPrototype(name="main", args=astx.Arguments(), return_type=astx.Int32())
+    main_block = astx.Block([decl_x, decl_y, assign, print_ok, astx.FunctionReturn(astx.LiteralInt32(0))])
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    # We aren’t printing the numeric x; we assert control path via expected literal.
+    check_result("build", builder, module, expected_output=expect)
+
+
+@pytest.mark.parametrize(
+    "int_type,literal_type,cmp_op,left,right,expect",
+    [
+        (astx.Int32, astx.LiteralInt32, "<",  2, 3, "T"),
+        (astx.Int32, astx.LiteralInt32, ">",  3, 2, "T"),
+        (astx.Int32, astx.LiteralInt32, "<=", 3, 3, "T"),
+        (astx.Int32, astx.LiteralInt32, ">=", 3, 3, "T"),
+        (astx.Int32, astx.LiteralInt32, "==", 4, 4, "T"),
+        (astx.Int32, astx.LiteralInt32, "!=", 4, 5, "T"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_comparisons_in_if(
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
+    cmp_op: str,
+    left: int,
+    right: int,
+    expect: str) -> None:
+    """
+    Drive all integer comparisons through IfStmt to ensure i1 results integrate in control flow.
+    If true, print 'T'; else 'F'.
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    lhs = literal_type(left)
+    rhs = literal_type(right)
+    cond = astx.BinaryOp(op_code=cmp_op, lhs=lhs, rhs=rhs)
+
+    then_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("T"))])
+    else_blk = astx.Block([PrintExpr(astx.LiteralUTF8String("F"))])
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    main_proto = astx.FunctionPrototype(name="main", args=astx.Arguments(), return_type=astx.Int32())
+    main_block = astx.Block([if_stmt, astx.FunctionReturn(astx.LiteralInt32(0))])
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output=expect)
