@@ -1,6 +1,6 @@
 [project]
 name = "pyirx"
-version = "1.3.1"  # semantic-release
+version = "1.4.0"  # semantic-release
 description = "IRx"
 readme = "docs/index.md"
 authors = [

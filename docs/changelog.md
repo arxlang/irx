@@ -1,6 +1,19 @@
 # Release Notes
 ---
 
+# [1.4.0](https://github.com/arxlang/irx/compare/1.3.1...1.4.0) (2025-08-20)
+
+
+### Bug Fixes
+
+* Update ASTx to version 0.23.0 ([#82](https://github.com/arxlang/irx/issues/82)) ([f20bd26](https://github.com/arxlang/irx/commit/f20bd26d32b9e4340dbb94de811be861a8d34045))
+
+
+### Features
+
+* Add support for String ([#73](https://github.com/arxlang/irx/issues/73)) ([f2135ac](https://github.com/arxlang/irx/commit/f2135acb5ae1b12694df3ed79c9aef381f5d2ad6))
+* Replace Variable by Identifier ([#83](https://github.com/arxlang/irx/issues/83)) ([0f4ee4b](https://github.com/arxlang/irx/commit/0f4ee4bfd5d545925e55d3fa61cacca788393e59))
+
 ## [1.3.1](https://github.com/arxlang/irx/compare/1.3.0...1.3.1) (2025-08-07)
 
 
