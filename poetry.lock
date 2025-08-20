@@ -161,14 +161,14 @@ test = ["astroid (>=2,<4)", "pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "astx"
-version = "0.23.0"
+version = "0.23.1"
 description = "ASTx is an agnostic expression structure for AST."
 optional = false
 python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "astx-0.23.0-py3-none-any.whl", hash = "sha256:7cef6ee2971bcee3375d994c2b4dbc0947dd09b8d450a0b73e171f0e6170afc0"},
-    {file = "astx-0.23.0.tar.gz", hash = "sha256:c25de414b565e549234bc53815f29c8b73a873706e839e6c5d84c670b0555a78"},
+    {file = "astx-0.23.1-py3-none-any.whl", hash = "sha256:481cd8701a2aa2c042c0fe74ac7b2e0c7613d13e9b0afe0822789797559908af"},
+    {file = "astx-0.23.1.tar.gz", hash = "sha256:546f45fc44c59a42f4fd8700504a66921cbb94cf0305835a380e1ffb129face0"},
 ]
 
 [package.dependencies]
@@ -893,6 +893,21 @@ files = [
 
 [package.extras]
 test = ["pytest (>=6)"]
+
+[[package]]
+name = "execnet"
+version = "2.1.1"
+description = "execnet: rapid multi-Python deployment"
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "execnet-2.1.1-py3-none-any.whl", hash = "sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc"},
+    {file = "execnet-2.1.1.tar.gz", hash = "sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3"},
+]
+
+[package.extras]
+testing = ["hatch", "pre-commit", "pytest", "tox"]
 
 [[package]]
 name = "executing"
@@ -2908,6 +2923,27 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
+name = "pytest-xdist"
+version = "3.8.0"
+description = "pytest xdist plugin for distributed testing, most importantly across multiple CPUs"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "pytest_xdist-3.8.0-py3-none-any.whl", hash = "sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88"},
+    {file = "pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1"},
+]
+
+[package.dependencies]
+execnet = ">=2.1"
+pytest = ">=7.0.0"
+
+[package.extras]
+psutil = ["psutil (>=3.0)"]
+setproctitle = ["setproctitle"]
+testing = ["filelock"]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -4250,4 +4286,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "b9de449f39bd7ae07fe3102245708aa7ee77f183e0086da0c9704a8284236c06"
+content-hash = "be8e805225579593d6fb2d187fb44d7ed7576fec785b4bd5d916cbfac5aaa648"

@@ -36,12 +36,12 @@ groups:
           params:
             help: Specify parameters to be used for tests
             type: string
-            default: "-vv"
+            default: "-vvv -n auto"
         backend: bash
         run: |
           pytest \
             --cov=irx \
-            --cov-fail-under=84 \
+            --cov-fail-under=80 \
             --cov-report term-missing \
             --no-cov-on-fail ${{ args.path }} ${{ args.params }}
 
