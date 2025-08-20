@@ -2,58 +2,58 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://irx.arxlang.org/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/changelog/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/contributing/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/installation/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/SUMMARY/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/symbol_table/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/system/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/base/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/llvmliteir/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/tools/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/tools/typing/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/tutorials/get-started/</loc>
-         <lastmod>2025-08-07</lastmod>
+         <lastmod>2025-08-20</lastmod>
     </url>
 </urlset>
