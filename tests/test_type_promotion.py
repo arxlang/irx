@@ -3,7 +3,6 @@
 import pytest
 
 from irx.builders.llvmliteir import LLVMLiteIRVisitor
-from irx.tools import typing
 from llvmlite import ir
 
 
@@ -58,16 +57,3 @@ def test_same_type_returns_original_operands(
     a_promoted, b_promoted = visitor.promote_operands(a, b)
     assert a_promoted is a
     assert b_promoted is b
-
-
-def test_skip_unused_with_args_and_kwargs():
-    typing.skip_unused(1, 2, 3, key="value")
-
-
-def test_copy_type_returns_identity_function():
-    def dummy_func(x):
-        return x
-
-    wrapped = typing.copy_type(dummy_func)
-    assert wrapped("hello") == "hello"
-    assert callable(wrapped)

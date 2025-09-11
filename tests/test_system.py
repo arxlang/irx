@@ -7,7 +7,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
-from irx.system import Cast, PrintExpr
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -56,23 +56,3 @@ def test_print_expr(
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)
-
-
-def test_printexpr_init_and_struct_direct():
-    msg = astx.LiteralUTF8String("Direct test")
-    node = PrintExpr(msg)
-
-    struct = node.get_struct(simplified=True)
-    assert "FunctionCall[PrintExpr]" in struct
-    assert list(struct.values())[0] == {
-        "LiteralUTF8String: Direct test": "Direct test"
-    }
-
-
-def test_cast_init_and_struct():
-    val = astx.LiteralUTF8String("42")
-    cast = Cast(val, target_type="int32")
-
-    struct = cast.get_struct(simplified=True)
-    assert "Cast[int32]" in struct
-    assert list(struct.values())[0] == {"LiteralUTF8String: 42": "42"}

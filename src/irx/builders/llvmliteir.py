@@ -382,11 +382,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # automatic type promotion
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
-        if node.op_code == "&&":
+        if node.op_code in ("&&", "and"):
             result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
             self.result_stack.append(result)
             return
-        elif node.op_code == "||":
+        elif node.op_code in ("||", "or"):
             result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
             self.result_stack.append(result)
             return
