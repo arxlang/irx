@@ -116,3 +116,76 @@ def test_binary_op_basic(
 
     module.block.append(main_fn)
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
+    """Verify string '!=' uses strcmp_inline + xor 1 path."""
+    builder = builder_class()
+    module = builder.module()
+
+    cond = astx.LiteralString("foo") != astx.LiteralString("bar")
+    then_blk = astx.Block()
+    then_blk.append(PrintExpr(astx.LiteralUTF8String("NE")))
+    else_blk = astx.Block()
+    else_blk.append(PrintExpr(astx.LiteralUTF8String("EQ")))
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(if_stmt)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output="NE")
+
+
+@pytest.mark.parametrize(
+    "int_type,literal_type,a_val,b_val,expect",
+    [
+        # use 0/1 so bitwise and/or behave like logical
+        (astx.Int32, astx.LiteralInt32, 1, 0, "1"),
+        (astx.Int16, astx.LiteralInt16, 1, 1, "1"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_logical_and_or(
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
+    a_val: int,
+    b_val: int,
+    expect: str,
+) -> None:
+    """Verify '&&' and '||' for integer booleans (0/1)."""
+    builder = builder_class()
+    module = builder.module()
+
+    decl_x = astx.VariableDeclaration(
+        name="x", type_=int_type(), value=literal_type(a_val)
+    )
+    decl_y = astx.VariableDeclaration(
+        name="y", type_=int_type(), value=literal_type(b_val)
+    )
+
+    expr = (astx.Identifier("x") & astx.Identifier("x")) | astx.Identifier("y")
+    assign = astx.VariableAssignment(name="x", value=expr)
+
+    print_ok = PrintExpr(astx.LiteralUTF8String(expect))
+
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_x)
+    main_block.append(decl_y)
+    main_block.append(assign)
+    main_block.append(print_ok)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output=expect)
