@@ -233,6 +233,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
         return alloca
 
+    def fp_rank(self, t: ir.Type) -> int:
+        """Rank floating-point types: half < float < double."""
+        if isinstance(t, ir.HalfType):
+            return 1
+        if isinstance(t, ir.FloatType):
+            return 2
+        if isinstance(t, ir.DoubleType):
+            return 3
+        return 0
+
     def promote_operands(
         self, lhs: ir.Value, rhs: ir.Value
     ) -> tuple[ir.Value, ir.Value]:
@@ -264,33 +274,25 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
 
-        def fp_rank(t: ir.Type) -> int:
-            # ranks: half < float < double
-            s = str(t)
-            if "half" in s or isinstance(t, ir.HalfType):
-                return 1
-            if "float" in s and "double" not in s:
-                return 2
-            if "double" in s or isinstance(t, ir.DoubleType):
-                return 3
-            return 0
+        lhs_fp_rank = self.fp_rank(lhs.type)
+        rhs_fp_rank = self.fp_rank(rhs.type)
 
-        if fp_rank(lhs.type) > 0 and fp_rank(rhs.type) > 0:
+        if lhs_fp_rank > 0 and rhs_fp_rank > 0:
             # make both the wider FP
-            if fp_rank(lhs.type) < fp_rank(rhs.type):
+            if lhs_fp_rank < rhs_fp_rank:
                 lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
-            elif fp_rank(lhs.type) > fp_rank(rhs.type):
+            elif lhs_fp_rank > rhs_fp_rank:
                 rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
 
         # If one is int and other is FP, convert int -> FP (sitofp),
-        if isinstance(lhs.type, ir.IntType) and fp_rank(rhs.type) > 0:
+        if isinstance(lhs.type, ir.IntType) and rhs_fp_rank > 0:
             target_fp = rhs.type
             lhs_fp = self._llvm.ir_builder.sitofp(lhs, target_fp, "int_to_fp")
             # Now if rhs is narrower/wider, adjust (rhs already target_fp here)
             return lhs_fp, rhs
 
-        if isinstance(rhs.type, ir.IntType) and fp_rank(lhs.type) > 0:
+        if isinstance(rhs.type, ir.IntType) and lhs_fp_rank > 0:
             target_fp = lhs.type
             rhs_fp = self._llvm.ir_builder.sitofp(rhs, target_fp, "int_to_fp")
             return lhs, rhs_fp
