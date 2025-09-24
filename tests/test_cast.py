@@ -86,13 +86,13 @@ def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
     )
     a_ident = astx.Identifier("a")
 
-    # r: float32 = cast(a)        # int -> float->42.0
+    # r: float32 = cast(a)
     cast_to_float = Cast(value=a_ident, target_type=astx.Float32())
     cast_var_float = astx.InlineVariableDeclaration(
         name="r", type_=astx.Float32(), value=cast_to_float
     )
 
-    # s: int32 = cast(r)          # float -> int
+    # s: int32 = cast(r)
     r_ident = astx.Identifier("r")
     cast_back_to_int = Cast(value=r_ident, target_type=astx.Int32())
     cast_var_int = astx.InlineVariableDeclaration(

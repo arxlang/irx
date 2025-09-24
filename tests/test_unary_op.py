@@ -50,16 +50,22 @@ def test_unary_op_increment_decrement(
     decl_b = astx.VariableDeclaration(
         name="b", type_=int_type(), value=literal_type(10)
     )
+    decl_c = astx.VariableDeclaration(
+        name="c", type_=int_type(), value=literal_type(0)
+    )
 
     var_a = astx.Identifier("a")
     var_b = astx.Identifier("b")
+    var_c = astx.Identifier("c")
 
     incr_a = astx.UnaryOp(op_code="++", operand=var_a)
     incr_a.type_ = int_type()
     decr_b = astx.UnaryOp(op_code="--", operand=var_b)
     decr_b.type_ = int_type()
+    not_c = astx.UnaryOp(op_code="!", operand=var_c)
+    not_c.type_ = int_type()
 
-    final_expr = incr_a + decr_b
+    final_expr = incr_a + decr_b + not_c
 
     main_proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=int_type()
@@ -67,6 +73,7 @@ def test_unary_op_increment_decrement(
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
+    main_block.append(decl_c)
     main_block.append(final_expr)
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
