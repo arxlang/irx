@@ -264,19 +264,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
 
-        # ranking dictionary for floating point types
-        fp_types_order = {"float": 1, "double": 2}
+        def fp_rank(t: ir.Type) -> int:
+            # ranks: half < float < double
+            s = str(t)
+            if "half" in s or isinstance(t, ir.HalfType):
+                return 1
+            if "float" in s and "double" not in s:
+                return 2
+            if "double" in s or isinstance(t, ir.DoubleType):
+                return 3
+            return 0
 
-        lhs_str = str(lhs.type)
-        rhs_str = str(rhs.type)
-
-        # perform floating-point extension
-        if lhs_str in fp_types_order and rhs_str in fp_types_order:
-            if fp_types_order[lhs_str] < fp_types_order[rhs_str]:
+        if fp_rank(lhs.type) > 0 and fp_rank(rhs.type) > 0:
+            # make both the wider FP
+            if fp_rank(lhs.type) < fp_rank(rhs.type):
                 lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
-            elif fp_types_order[lhs_str] > fp_types_order[rhs_str]:
+            elif fp_rank(lhs.type) > fp_rank(rhs.type):
                 rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
+
+        # If one is int and other is FP, convert int -> FP (sitofp),
+        if isinstance(lhs.type, ir.IntType) and fp_rank(rhs.type) > 0:
+            target_fp = rhs.type
+            lhs_fp = self._llvm.ir_builder.sitofp(lhs, target_fp, "int_to_fp")
+            # Now if rhs is narrower/wider, adjust (rhs already target_fp here)
+            return lhs_fp, rhs
+
+        if isinstance(rhs.type, ir.IntType) and fp_rank(lhs.type) > 0:
+            target_fp = lhs.type
+            rhs_fp = self._llvm.ir_builder.sitofp(rhs, target_fp, "int_to_fp")
+            return lhs, rhs_fp
 
         return lhs, rhs
 
