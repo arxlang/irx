@@ -50,12 +50,12 @@ via `clang`.
 ```bash
 git clone https://github.com/arxlang/irx.git
 cd irx
-python -m venv .venv && source .venv/bin/activate
-pip install -U pip
-pip install -e ".[dev]"
+conda env create --file conda/dev.yaml
+conda activate irx
+poetry install
 ```
 
-(If/when published on PyPI: `pip install irx`.)
+You can also install it from PyPI: `pip install pyirx`.
 
 More details:
 [https://irx.arxlang.org/installation/](https://irx.arxlang.org/installation/)
