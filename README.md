@@ -2,43 +2,89 @@
 
 **IRx** is a Python library that lowers
 [**ARXLang ASTx**](https://astx.arxlang.org) nodes to **LLVM IR** using
-[llvmlite]. It provides a clean visitor-based codegen pipeline and a small
-builder API that can both **translate** ASTs to LLVM IR and **produce runnable
-executables** via `clang`.
+[llvmlite]. It provides a visitor-based codegen pipeline and a small builder API
+that can **translate** ASTs to LLVM IR text or **produce runnable executables**
+via `clang`.
 
 > Status: early but functional. Arithmetic, variables, functions, returns, basic
-> control flow and a few system expressions (e.g. `PrintExpr`) are supported.
+> control flow, and a few system-level expressions (e.g. `PrintExpr`) are
+> supported.
 
 ## Features
 
-- **ASTx → LLVM IR** via a multiple-dispatch visitor
+- **ASTx → LLVM IR** via multiple-dispatch visitors
   ([`plum`](https://github.com/beartype/plum)).
-- **Back-end: llvmlite** IR construction and object emission.
-- **Native build**: links with `clang` to produce an executable.
-- Supported nodes (subset): literals (`Int16`, `Int32`, `LiteralString`),
-  variables & declarations, unary (`++`, `--`), binary ops (`+ - * / < >`),
-  `FunctionPrototype`, `Function`, `FunctionReturn`, `Block`, `If`, `For`
-  (count/range), `FunctionCall` (generic), and `system.PrintExpr`.
-- Minimal built-ins: `putchar`, `putchard` (emitted as IR), and `puts`
-  declaration when needed.
+- **Back end:** IR construction and object emission with [llvmlite].
+- **Native build:** links with `clang` to produce an executable.
+- **Supported nodes (subset; exact ASTx class names):**
+
+  - **Literals:** `LiteralInt16`, `LiteralInt32`, `LiteralString`
+  - **Variables:** `Variable`, `VariableDeclaration`,
+    `InlineVariableDeclaration`
+  - **Ops:** `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with simple type
+    promotion
+  - **Flow:** `IfStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`
+  - **Functions:** `FunctionPrototype`, `Function`, `FunctionReturn`,
+    `FunctionCall`
+  - **System:** `system.PrintExpr` (string printing)
+
+- **Built-ins:** `putchar`, `putchard` (emitted as IR); `puts` declaration when
+  needed.
 
 ## Quick Start
 
 ### Requirements
 
-- Python 3.9–3.13 (project tests commonly target these; macOS CI currently runs
-  3.12).
-- `clang` and a working LLVM toolchain on your PATH.
-- `llvmlite`, `pytest`, and other project deps (see `pyproject.toml` /
+- Python **3.9 – 3.13**.
+- A recent **LLVM/Clang** toolchain available on `PATH`.
+- A working **C standard library** (e.g., system libc) for linking calls like
+  `puts`.
+- Python deps: `llvmlite`, `pytest`, etc. (see `pyproject.toml` /
   `requirements.txt`).
+
+  - Note: llvmlite has **specific Python/LLVM compatibility windows**; see its
+    docs.
 
 ### Install (dev)
 
-Check out https://irx.arxlang.org/installation/
+```bash
+git clone https://github.com/arxlang/irx.git
+cd irx
+python -m venv .venv && source .venv/bin/activate
+pip install -U pip
+pip install -e ".[dev]"
+```
 
-## Minimal Example
+(If/when published on PyPI: `pip install irx`.)
 
-Build and run a tiny program that prints and returns `0`.
+More details:
+[https://irx.arxlang.org/installation/](https://irx.arxlang.org/installation/)
+
+## Minimal Examples
+
+### 1) Translate to LLVM IR (no linking)
+
+```python
+import astx
+from irx.builders.llvmliteir import LLVMLiteIR
+
+builder = LLVMLiteIR()
+module = builder.module()
+
+# int main() { return 0; }
+proto = astx.FunctionPrototype("main", astx.Arguments(), astx.Int32())
+body = astx.Block()
+body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+module.block.append(astx.Function(prototype=proto, body=body))
+
+ir_text = builder.translate(module)
+print(ir_text)  # LLVM IR text (str)
+```
+
+**`translate`** returns a `str` with LLVM IR. It does not produce an object file
+or binary; use it for inspection, tests, or feeding another tool.
+
+### 2) Build and run a tiny program that prints and returns `0`
 
 ```python
 import astx
@@ -49,71 +95,46 @@ builder = LLVMLiteIR()
 module = builder.module()
 
 # int main() { print("Hello, IRx!"); return 0; }
-main_proto = astx.FunctionPrototype(
-    name="main", args=astx.Arguments(), return_type=astx.Int32()
-)
+main_proto = astx.FunctionPrototype("main", astx.Arguments(), astx.Int32())
 body = astx.Block()
 body.append(PrintExpr(astx.LiteralString("Hello, IRx!")))
 body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-main_fn = astx.Function(prototype=main_proto, body=body)
+module.block.append(astx.Function(prototype=main_proto, body=body))
 
-module.block.append(main_fn)
-
-# Compile and link with clang; produce native binary "hello"
-builder.build(module, "hello")
-builder.run()  # executes ./hello
+builder.build(module, "hello")  # emits object + links with clang
+builder.run()                   # executes ./hello (or hello.exe on Windows)
 ```
 
 ## How It Works
 
 ### Builders & Visitors
 
-- `LLVMLiteIR` (public API)
+- **`LLVMLiteIR` (public API)**
 
-  - `translate(ast) -> str`: returns LLVM IR text.
-  - `build(ast, output_path)`: emits object via llvmlite, links with `clang`.
-  - `run()`: executes the produced binary.
+  - `translate(ast) -> str` — generate LLVM IR text.
+  - `build(ast, output_path)` — emit object via llvmlite and link with `clang`.
+  - `run()` — execute the produced binary.
 
-- `LLVMLiteIRVisitor` (codegen)
+- **`LLVMLiteIRVisitor` (codegen)**
 
-  - Uses `@dispatch` (from `plum`) to visit each ASTx node type.
-  - Maintains a small **value stack** (`result_stack`) and **symbol table**
+  - Uses `@dispatch` to visit each ASTx node type.
+  - Maintains a **value stack** (`result_stack`) and **symbol table**
     (`named_values`).
-  - Emits LLVM IR via `llvmlite.ir.IRBuilder`.
-
-### Types
-
-Mapped in `VariablesLLVM.get_data_type`:
-
-- `float`, `double`, `int8`, `int16`, `int32`, `void`.
-
-### Selected Nodes
-
-- **Literals**: `LiteralInt16`, `LiteralInt32`, `LiteralString`.
-- **Vars**: `Identifier`, `VariableDeclaration`, `InlineVariableDeclaration`.
-- **Ops**: `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with simple type
-  promotion.
-- **Flow**: `IfStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`.
-- **Functions**: `FunctionPrototype`, `Function`, `FunctionReturn`,
-  `FunctionCall`.
-- **System**: `PrintExpr(astx.LiteralString)` lowers to a call to `puts`, which
-  appends a newline at the end.
+  - Emits LLVM IR with `llvmlite.ir.IRBuilder`.
 
 ### System Printing
 
-`PrintExpr` is an `astx.Expr` holding a `LiteralString`. The visitor:
+`PrintExpr` is an `astx.Expr` holding a `LiteralString`. Its lowering:
 
-1. Creates a global constant for the string (with `\0`).
-2. GEPs to `i8*`.
-3. Declares (or reuses) `i32 @puts(i8*)`.
-4. Calls `puts`.
+1. Create a global constant for the string (with `\0`).
+2. GEP to an `i8*` pointer.
+3. Declare (or reuse) `i32 @puts(i8*)`.
+4. Call `puts`.
 
 ## Testing
 
-Run the test suite:
-
 ```bash
-pytest -vvv -q
+pytest -vv
 ```
 
 Example style (simplified):
@@ -123,20 +144,20 @@ def test_binary_op_basic():
     builder = LLVMLiteIR()
     module = builder.module()
 
-    a = astx.VariableDeclaration("a", astx.Int32(), astx.LiteralInt32(1))
-    b = astx.VariableDeclaration("b", astx.Int32(), astx.LiteralInt32(2))
-    expr = (astx.LiteralInt32(1) + astx.Variable("b")
-           - astx.Variable("a") * astx.Variable("b") / astx.Variable("a"))
+    decl_a = astx.VariableDeclaration("a", astx.Int32(), astx.LiteralInt32(1))
+    decl_b = astx.VariableDeclaration("b", astx.Int32(), astx.LiteralInt32(2))
+
+    a, b = astx.Variable("a"), astx.Variable("b")
+    expr = astx.LiteralInt32(1) + b - a * b / a
 
     proto = astx.FunctionPrototype("main", astx.Arguments(), astx.Int32())
     block = astx.Block()
-    block.append(a); block.append(b)
+    block.append(decl_a); block.append(decl_b)
     block.append(astx.FunctionReturn(expr))
-
     module.block.append(astx.Function(proto, block))
 
-    # Typically compare IR or build & run
-    builder.build(module, "binop_example")
+    ir_text = builder.translate(module)
+    assert "add" in ir_text
 ```
 
 ## Troubleshooting
@@ -144,45 +165,52 @@ def test_binary_op_basic():
 ### macOS: `ld: library 'System' not found`
 
 - Ensure **Xcode Command Line Tools** are installed: `xcode-select --install`.
-- For local builds, `clang --version` should work.
-- In some environments, setting `SDKROOT` helps:
+- Verify `clang --version` works.
+- If needed:
 
   ```bash
   export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
   ```
 
-- CI note: the project currently runs macOS jobs on **Python 3.12** only.
+- CI note: macOS jobs currently run on **Python 3.12** only.
 
-### Exit code not zero when function returns `void`
+### Non-zero exit when function returns `void`
 
-- Always define `main` as returning **`Int32`** in ASTx and emit `return 0`.
-- If you fall off the end or return `void`, the process exit code may be an
-  arbitrary register value (e.g., appears as 32).
+- Define `main` to return **`Int32`** and emit `return 0`. Falling off the end
+  or returning `void` can yield an arbitrary exit code.
 
 ### `plum.resolver.NotFoundLookupError`
 
-- A visitor for a node type is missing the `@dispatch` decorator, or is not
-  imported.
-- Ensure the specialized method signature matches the **exact** class used at
-  runtime (e.g., `visit(self, node: PrintExpr)`).
+- A visitor is missing `@dispatch` or is typed against a different class than
+  the one instantiated. Ensure signatures match the exact runtime class (e.g.,
+  `visit(self, node: PrintExpr)`).
 
 ### Linker or `clang` not found
 
-- Install a recent LLVM/Clang. On Linux, use your distro packages (e.g., `llvm`,
-  `clang`). On macOS, install Xcode CLT.
+- Install a recent LLVM/Clang. On Linux, use distro packages.
+- On macOS, install Xcode CLT.
+- On Windows, ensure LLVM’s `bin` directory is on `PATH`.
+
+## Platform Notes
+
+- **Linux & macOS:** supported and used in CI.
+- **Windows:** expected to work with a proper LLVM/Clang setup; consider it
+  experimental. `builder.run()` will execute `hello.exe`.
 
 ## Roadmap
 
-- More ASTx coverage (booleans, arrays, structs, calls with varargs/options).
+- More ASTx coverage (booleans, arrays, structs, varargs/options).
 - Richer stdlib bindings (I/O, math).
-- Optimization toggles and passes.
-- Alternative backends and/or JIT runner integration.
+- Optimization toggles/passes.
+- Alternative backends and/or JIT runner.
 - Better diagnostics and source locations in IR.
-- Integration with Apache Arrow
+- Integration with [Apache Arrow](https://arrow.apache.org/).
 
 ## Contributing
 
-Check out the [contributing guide](https://irx.arxlang.org/contributing/).
+Please see the [contributing guide](https://irx.arxlang.org/contributing/). Add
+tests for new features and keep visitors isolated (avoid special-casing derived
+nodes inside generic visitors).
 
 ## Acknowledgments
 
@@ -192,7 +220,7 @@ Check out the [contributing guide](https://irx.arxlang.org/contributing/).
 
 ## License
 
-License: BSD-3-Clause; See [LICENSE](./LICENSE) in the repository.
+License: BSD-3-Clause. See [LICENSE](./LICENSE).
 
 [LLVM]: https://llvm.org/
 [llvmlite]: https://llvmlite.readthedocs.io/
