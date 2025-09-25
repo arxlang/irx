@@ -1456,12 +1456,48 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.result_stack.append(init_val)
 
+    def _create_sprintf_decl(self) -> ir.Function:
+        """Declare (or return) the external sprintf function (varargs)."""
+        name = "sprintf"
+        if name in self._llvm.module.globals:
+            return self._llvm.module.get_global(name)
+
+        # int sprintf(char *str, const char *fmt, ...);
+        sprintf_ty = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+            var_arg=True,
+        )
+        fn = ir.Function(self._llvm.module, sprintf_ty, name=name)
+        fn.linkage = "external"
+        return fn
+
+    def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
+        """Create a constant global format string."""
+        # safe unique name for the format
+        name = f"fmt_{abs(hash(fmt))}"
+        if name in self._llvm.module.globals:
+            gv = self._llvm.module.get_global(name)
+            # compute pointer (gep) at use time; return gv (array) here
+            return gv
+
+        data = bytearray(fmt + "\0", "utf8")
+        arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, len(data))
+        gv = ir.GlobalVariable(self._llvm.module, arr_ty, name=name)
+        gv.linkage = "internal"
+        gv.global_constant = True
+        gv.initializer = ir.Constant(arr_ty, data)
+        return gv
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: system.Cast) -> None:
         """Translate Cast expression to LLVM-IR."""
         self.visit(node.value)
         value = self.result_stack.pop()
-
+        INT32_WIDTH = 32
         target_type_str = node.target_type.__class__.__name__.lower()
         target_type = self._llvm.get_data_type(target_type_str)
 
@@ -1522,6 +1558,107 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fptrunc(
                     value, target_type, "cast_fp_down"
                 )
+
+        elif target_type in (
+            self._llvm.ASCII_STRING_TYPE,
+            self._llvm.STRING_TYPE,
+        ):
+            # value must be int or float
+            if isinstance(value.type, ir.IntType):
+                # fixed 64-byte stack buffer
+                buf = self._llvm.ir_builder.alloca(
+                    ir.ArrayType(self._llvm.INT8_TYPE, 64),
+                    name="num_to_str_buf",
+                )
+                buf_ptr = self._llvm.ir_builder.gep(
+                    buf,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+
+                fmt_gv = self._get_or_create_format_global("%d")
+                fmt_ptr = self._llvm.ir_builder.gep(
+                    fmt_gv,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+
+                sprintf = self._create_sprintf_decl()
+
+                # normalize integer to i32 for "%d"
+                if value.type.width != INT32_WIDTH:
+                    if value.type.width < INT32_WIDTH:
+                        value_cast = self._llvm.ir_builder.sext(
+                            value, self._llvm.INT32_TYPE
+                        )
+                    else:
+                        value_cast = self._llvm.ir_builder.trunc(
+                            value, self._llvm.INT32_TYPE
+                        )
+                else:
+                    value_cast = value
+
+                self._llvm.ir_builder.call(
+                    sprintf, [buf_ptr, fmt_ptr, value_cast]
+                )
+                self.result_stack.append(buf_ptr)
+                return
+
+            elif isinstance(
+                value.type, (ir.FloatType, ir.DoubleType, ir.HalfType)
+            ):
+                buf = self._llvm.ir_builder.alloca(
+                    ir.ArrayType(self._llvm.INT8_TYPE, 64),
+                    name="fp_to_str_buf",
+                )
+                buf_ptr = self._llvm.ir_builder.gep(
+                    buf,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+
+                fmt_gv = self._get_or_create_format_global("%f")
+                fmt_ptr = self._llvm.ir_builder.gep(
+                    fmt_gv,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+
+                sprintf = self._create_sprintf_decl()
+
+                if isinstance(value.type, ir.FloatType) or isinstance(
+                    value.type, ir.HalfType
+                ):
+                    value_prom = self._llvm.ir_builder.fpext(
+                        value, self._llvm.DOUBLE_TYPE, "promote_fp_to_double"
+                    )
+                else:
+                    value_prom = value
+
+                self._llvm.ir_builder.call(
+                    sprintf, [buf_ptr, fmt_ptr, value_prom]
+                )
+                self.result_stack.append(buf_ptr)
+                return
+
+            else:
+                msg = (
+                    "Unsupported numeric-to-string cast from "
+                    f"{value.type} to {target_type}"
+                )
+                raise Exception(msg)
 
         else:
             raise Exception(
