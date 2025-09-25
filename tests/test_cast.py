@@ -7,7 +7,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
-from irx.system import Cast
+from irx.system import Cast, PrintExpr
 
 from .conftest import check_result
 
@@ -114,4 +114,92 @@ def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
 
     # expected output: program exit code "42"
     expected_output = "42"
+    check_result("build", builder, module, expected_output=expected_output)
+
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
+    """Cast an integer to a string, print it, and return 0."""
+    builder = builder_class()
+    module = builder.module()
+
+    # a: i32 = 42
+    decl_a = astx.VariableDeclaration(
+        name="a", type_=astx.Int32(), value=astx.LiteralInt32(42)
+    )
+    a_ident = astx.Identifier("a")
+
+    # r: string = cast(a)
+    cast_to_str = Cast(value=a_ident, target_type=astx.String())
+    cast_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+
+    # print(r)
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+
+    # main returns int32 (exit code 0)
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(cast_var)
+    main_block.append(print_stmt)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    # Depending on your runtime the printed output may include a newline.
+    # If the test fails, try "42\n" for expected_output.
+    expected_output = "42"
+    check_result("build", builder, module, expected_output=expected_output)
+
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_cast_float_to_string(builder_class: Type[Builder]) -> None:
+    """Cast a float to a string, print it, and return 0."""
+    builder = builder_class()
+    module = builder.module()
+
+    # a: float32 = 42.0
+    decl_a = astx.VariableDeclaration(
+        name="a", type_=astx.Float32(), value=astx.LiteralFloat32(42.0)
+    )
+    a_ident = astx.Identifier("a")
+
+    # r: string = cast(a)
+    cast_to_str = Cast(value=a_ident, target_type=astx.String())
+    cast_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+
+    # print(r)
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+
+    # main returns int32 (exit code 0)
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(cast_var)
+    main_block.append(print_stmt)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    expected_output = "42.000000"
     check_result("build", builder, module, expected_output=expected_output)
