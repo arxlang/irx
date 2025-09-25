@@ -39,4 +39,4 @@ jobs:
             **/*.{pkl,sqlite,sqlite3,db}
             **/*.{lock,lockb}
             package-lock.json, yarn.lock, pnpm-lock.yaml, Pipfile.lock, Cargo.lock, Gemfile.lock
-            .ipynb
+            **/*.ipynb
