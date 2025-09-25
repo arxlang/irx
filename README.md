@@ -1,18 +1,18 @@
 # IRx
 
-**IRx** is a Python library that lowers **ARXLang ASTx** nodes to **LLVM IR**
-using [llvmlite]. It provides a clean visitor-based codegen pipeline and a small
+**IRx** is a Python library that lowers
+[**ARXLang ASTx**](https://astx.arxlang.org) nodes to **LLVM IR** using
+[llvmlite]. It provides a clean visitor-based codegen pipeline and a small
 builder API that can both **translate** ASTs to LLVM IR and **produce runnable
 executables** via `clang`.
 
 > Status: early but functional. Arithmetic, variables, functions, returns, basic
 > control flow and a few system expressions (e.g. `PrintExpr`) are supported.
 
----
-
 ## Features
 
-- **ASTx → LLVM IR** via a multiple-dispatch visitor (`plum`).
+- **ASTx → LLVM IR** via a multiple-dispatch visitor
+  ([`plum`](https://github.com/beartype/plum)).
 - **Back-end: llvmlite** IR construction and object emission.
 - **Native build**: links with `clang` to produce an executable.
 - Supported nodes (subset): literals (`Int16`, `Int32`, `LiteralString`),
@@ -21,8 +21,6 @@ executables** via `clang`.
   (count/range), `FunctionCall` (generic), and `system.PrintExpr`.
 - Minimal built-ins: `putchar`, `putchard` (emitted as IR), and `puts`
   declaration when needed.
-
----
 
 ## Quick Start
 
@@ -36,7 +34,7 @@ executables** via `clang`.
 
 ### Install (dev)
 
-## Chekck out https://irx.arxlang.org/installation/
+Check out https://irx.arxlang.org/installation/
 
 ## Minimal Example
 
@@ -66,8 +64,6 @@ builder.build(module, "hello")
 builder.run()  # executes ./hello
 ```
 
----
-
 ## How It Works
 
 ### Builders & Visitors
@@ -94,13 +90,14 @@ Mapped in `VariablesLLVM.get_data_type`:
 ### Selected Nodes
 
 - **Literals**: `LiteralInt16`, `LiteralInt32`, `LiteralString`.
-- **Vars**: `Variable`, `VariableDeclaration`, `InlineVariableDeclaration`.
+- **Vars**: `Identifier`, `VariableDeclaration`, `InlineVariableDeclaration`.
 - **Ops**: `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with simple type
   promotion.
 - **Flow**: `IfStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`.
 - **Functions**: `FunctionPrototype`, `Function`, `FunctionReturn`,
   `FunctionCall`.
-- **System**: `PrintExpr(astx.LiteralString)` lowers to a call to `puts`.
+- **System**: `PrintExpr(astx.LiteralString)` lowers to a call to `puts`, which
+  appends a newline at the end.
 
 ### System Printing
 
@@ -110,8 +107,6 @@ Mapped in `VariablesLLVM.get_data_type`:
 2. GEPs to `i8*`.
 3. Declares (or reuses) `i32 @puts(i8*)`.
 4. Calls `puts`.
-
----
 
 ## Testing
 
@@ -143,8 +138,6 @@ def test_binary_op_basic():
     # Typically compare IR or build & run
     builder.build(module, "binop_example")
 ```
-
----
 
 ## Troubleshooting
 
@@ -187,13 +180,9 @@ def test_binary_op_basic():
 - Better diagnostics and source locations in IR.
 - Integration with Apache Arrow
 
----
-
 ## Contributing
 
 Check out the [contributing guide](https://irx.arxlang.org/contributing/).
-
----
 
 ## Acknowledgments
 
@@ -201,13 +190,9 @@ Check out the [contributing guide](https://irx.arxlang.org/contributing/).
 - **ASTx / ARXLang** for the front-end AST.
 - Contributors and users experimenting with IRx.
 
----
-
 ## License
 
-See [LICENSE](./LICENSE) in the repository.
-
----
+License: BSD-3-Clause; See [LICENSE](./LICENSE) in the repository.
 
 [LLVM]: https://llvm.org/
 [llvmlite]: https://llvmlite.readthedocs.io/
