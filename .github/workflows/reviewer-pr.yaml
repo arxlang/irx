@@ -35,8 +35,4 @@ jobs:
           github_pr_id: ${{ github.event.pull_request.number }}
           exclude_path: |
             poetry.lock
-            *.png
-            *.jpg
-            *.jpeg
-            *.pkl
-            *.sqlite
+            **/*.{png,jpg,jpeg,pkl,sqlite}
