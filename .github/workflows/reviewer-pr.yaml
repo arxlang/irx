@@ -34,7 +34,8 @@ jobs:
           github_token: ${{ github.token }}
           github_pr_id: ${{ github.event.pull_request.number }}
           exclude_path: |
-            **/*.{png,jpg,jpeg,webp,avif,gif,tif,tiff,ico,bmp,svg,pdf,mp4,mov}
+            **/*.{png,jpg,jpeg,webp,avif,gif,tif,tiff,ico,bmp,svg,pdf,flac,ogg,wav,mp3,mp4,mov}
+            **/*.{zip,tar,tar.gz,gz,7z,rar,bin,exe,wasm,woff,woff2,ttf,otf,heic,heif}
             **/*.{pkl,sqlite,sqlite3,db}
             **/*.{lock,lockb}
             package-lock.json, yarn.lock, pnpm-lock.yaml, Pipfile.lock, Cargo.lock, Gemfile.lock
