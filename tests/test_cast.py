@@ -156,8 +156,6 @@ def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
 
     module.block.append(main_fn)
 
-    # Depending on your runtime the printed output may include a newline.
-    # If the test fails, try "42\n" for expected_output.
     expected_output = "42"
     check_result("build", builder, module, expected_output=expected_output)
 

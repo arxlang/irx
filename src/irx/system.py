@@ -15,10 +15,10 @@ class PrintExpr(astx.Expr):
         supported by Python (*args, sep=' ', end='', file=None, flush=False).
     """
 
-    message: astx.LiteralUTF8String
+    message: astx.AST
     _counter = itertools.count()
 
-    def __init__(self, message: astx.LiteralUTF8String) -> None:
+    def __init__(self, message: astx.AST) -> None:
         """Initialize the PrintExpr."""
         self.message = message
         self._name = f"print_msg_{next(PrintExpr._counter)}"
