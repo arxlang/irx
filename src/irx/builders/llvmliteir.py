@@ -1450,7 +1450,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
-        alloca = self.create_entry_block_alloca(node.name, type_str)
+        if type_str == "string":
+            alloca = self.create_entry_block_alloca(node.name, "stringascii")
+        else:
+            alloca = self.create_entry_block_alloca(node.name, type_str)
+
         self._llvm.ir_builder.store(init_val, alloca)
         self.named_values[node.name] = alloca
 
