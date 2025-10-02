@@ -20,14 +20,19 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
 
       - name: Review PR
-        uses: osl-incubator/github-actions-chatgpt-pr-reviewer@1.0.17
+        uses: osl-incubator/github-actions-chatgpt-pr-reviewer@1.1.0
         with:
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           openai_model: gpt-5
           openai_temperature: "0.0"
           openai_max_tokens: "128000"
           openai_max_completion_tokens: "128000"
-          openai_extra_criteria: |
+          prompt_project_introduction: >
+            The project introduction: IRx converts nodes from ASTx into
+            LLVM IR and/or binary code with llvmlite library. Both ASTx and IRx
+            is under the ArxLang Project. IRx aims to be a generic compiler
+            because ASTx could be translated from any kind of source code.
+          prompt_extra_criteria: >
             verify SOLID principle violations;
             code should be objective;
             code should avoid redundancy;
