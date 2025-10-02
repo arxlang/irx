@@ -30,7 +30,7 @@ jobs:
           prompt_project_introduction: >
             The project introduction: IRx converts nodes from ASTx into
             LLVM IR and/or binary code with llvmlite library. Both ASTx and IRx
-            is under the ArxLang Project. IRx aims to be a generic compiler
+            is under the ArxLang Project. IRx is an agnostic compiler
             because ASTx could be translated from any kind of source code.
           prompt_extra_criteria: >
             verify SOLID principle violations;
