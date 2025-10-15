@@ -45,6 +45,8 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    SIZE_T_TYPE: ir.types.Type
+    POINTER_BITS: int
 
     context: ir.context.Context
     module: ir.module.Module
@@ -130,7 +132,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     def initialize(self) -> None:
         """Initialize self."""
-        # self._llvm.context = ir.context.Context()
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
@@ -160,6 +161,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.POINTER_BITS = 64
+        self._llvm.SIZE_T_TYPE = self._llvm.INT64_TYPE
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -1450,18 +1453,58 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
-        alloca = self.create_entry_block_alloca(node.name, type_str)
+        if type_str == "string":
+            alloca = self.create_entry_block_alloca(node.name, "stringascii")
+        else:
+            alloca = self.create_entry_block_alloca(node.name, type_str)
+
         self._llvm.ir_builder.store(init_val, alloca)
         self.named_values[node.name] = alloca
 
         self.result_stack.append(init_val)
+
+    def _create_snprintf_decl(self) -> ir.Function:
+        """Declare (or return) the external snprintf (varargs)."""
+        name = "snprintf"
+        if name in self._llvm.module.globals:
+            return self._llvm.module.get_global(name)
+
+        snprintf_ty = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.SIZE_T_TYPE,
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+            var_arg=True,
+        )
+        fn = ir.Function(self._llvm.module, snprintf_ty, name=name)
+        fn.linkage = "external"
+        return fn
+
+    def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
+        """Create a constant global format string."""
+        # safe unique name for the format
+        name = f"fmt_{abs(hash(fmt))}"
+        if name in self._llvm.module.globals:
+            gv = self._llvm.module.get_global(name)
+            # compute pointer (gep) at use time; return gv (array) here
+            return gv
+
+        data = bytearray(fmt + "\0", "utf8")
+        arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, len(data))
+        gv = ir.GlobalVariable(self._llvm.module, arr_ty, name=name)
+        gv.linkage = "internal"
+        gv.global_constant = True
+        gv.initializer = ir.Constant(arr_ty, data)
+        return gv
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: system.Cast) -> None:
         """Translate Cast expression to LLVM-IR."""
         self.visit(node.value)
         value = self.result_stack.pop()
-
+        INT32_WIDTH = 32
         target_type_str = node.target_type.__class__.__name__.lower()
         target_type = self._llvm.get_data_type(target_type_str)
 
@@ -1522,6 +1565,89 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fptrunc(
                     value, target_type, "cast_fp_down"
                 )
+
+        elif target_type in (
+            self._llvm.ASCII_STRING_TYPE,
+            self._llvm.STRING_TYPE,
+        ):
+            BUF_BYTES = 64
+            buf_arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, BUF_BYTES)
+            buf = self._llvm.ir_builder.alloca(buf_arr_ty, name="fmt_buf")
+            buf_ptr = self._llvm.ir_builder.gep(
+                buf,
+                [
+                    ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ir.Constant(self._llvm.INT32_TYPE, 0),
+                ],
+                inbounds=True,
+            )
+            buf_len = ir.Constant(self._llvm.SIZE_T_TYPE, BUF_BYTES)
+            snprintf = self._create_snprintf_decl()
+
+            if isinstance(value.type, ir.IntType):
+                INT64_WIDTH = 64
+                if value.type.width == INT64_WIDTH:
+                    fmt_gv = self._get_or_create_format_global("%lld")
+                    arg = value
+                else:
+                    if value.type.width < INT32_WIDTH:
+                        arg = self._llvm.ir_builder.sext(
+                            value, self._llvm.INT32_TYPE
+                        )
+                    elif value.type.width > INT32_WIDTH:
+                        arg = self._llvm.ir_builder.trunc(
+                            value, self._llvm.INT32_TYPE
+                        )
+                    else:
+                        arg = value
+                    fmt_gv = self._get_or_create_format_global("%d")
+
+                fmt_ptr = self._llvm.ir_builder.gep(
+                    fmt_gv,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+
+                _n = self._llvm.ir_builder.call(
+                    snprintf, [buf_ptr, buf_len, fmt_ptr, arg]
+                )
+                self.result_stack.append(buf_ptr)
+                return
+
+            elif isinstance(
+                value.type, (ir.FloatType, ir.DoubleType, ir.HalfType)
+            ):
+                if isinstance(value.type, (ir.FloatType, ir.HalfType)):
+                    value_prom = self._llvm.ir_builder.fpext(
+                        value, self._llvm.DOUBLE_TYPE, "to_double"
+                    )
+                else:
+                    value_prom = value
+
+                fmt_gv = self._get_or_create_format_global("%.6f")
+                fmt_ptr = self._llvm.ir_builder.gep(
+                    fmt_gv,
+                    [
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                        ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ],
+                    inbounds=True,
+                )
+                _n = self._llvm.ir_builder.call(
+                    snprintf, [buf_ptr, buf_len, fmt_ptr, value_prom]
+                )
+                self.result_stack.append(buf_ptr)
+                return
+
+            else:
+                msg = (
+                    "Unsupported numeric-to-string cast from "
+                    f"{value.type} to {target_type}"
+                )
+                raise Exception(msg)
 
         else:
             raise Exception(
