@@ -45,6 +45,8 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    SIZE_T_TYPE: ir.types.Type
+    POINTER_BITS: int
 
     context: ir.context.Context
     module: ir.module.Module
@@ -130,7 +132,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     def initialize(self) -> None:
         """Initialize self."""
-        # self._llvm.context = ir.context.Context()
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
@@ -160,6 +161,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.POINTER_BITS = 64
+        self._llvm.SIZE_T_TYPE = self._llvm.INT64_TYPE
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -1460,22 +1463,22 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.result_stack.append(init_val)
 
-    def _create_sprintf_decl(self) -> ir.Function:
-        """Declare (or return) the external sprintf function (varargs)."""
-        name = "sprintf"
+    def _create_snprintf_decl(self) -> ir.Function:
+        """Declare (or return) the external snprintf (varargs)."""
+        name = "snprintf"
         if name in self._llvm.module.globals:
             return self._llvm.module.get_global(name)
 
-        # int sprintf(char *str, const char *fmt, ...);
-        sprintf_ty = ir.FunctionType(
+        snprintf_ty = ir.FunctionType(
             self._llvm.INT32_TYPE,
             [
                 self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.SIZE_T_TYPE,
                 self._llvm.INT8_TYPE.as_pointer(),
             ],
             var_arg=True,
         )
-        fn = ir.Function(self._llvm.module, sprintf_ty, name=name)
+        fn = ir.Function(self._llvm.module, snprintf_ty, name=name)
         fn.linkage = "external"
         return fn
 
@@ -1567,23 +1570,38 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ASCII_STRING_TYPE,
             self._llvm.STRING_TYPE,
         ):
-            # value must be int or float
-            if isinstance(value.type, ir.IntType):
-                # fixed 64-byte stack buffer
-                buf = self._llvm.ir_builder.alloca(
-                    ir.ArrayType(self._llvm.INT8_TYPE, 64),
-                    name="num_to_str_buf",
-                )
-                buf_ptr = self._llvm.ir_builder.gep(
-                    buf,
-                    [
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ],
-                    inbounds=True,
-                )
+            BUF_BYTES = 64
+            buf_arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, BUF_BYTES)
+            buf = self._llvm.ir_builder.alloca(buf_arr_ty, name="fmt_buf")
+            buf_ptr = self._llvm.ir_builder.gep(
+                buf,
+                [
+                    ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ir.Constant(self._llvm.INT32_TYPE, 0),
+                ],
+                inbounds=True,
+            )
+            buf_len = ir.Constant(self._llvm.SIZE_T_TYPE, BUF_BYTES)
+            snprintf = self._create_snprintf_decl()
 
-                fmt_gv = self._get_or_create_format_global("%d")
+            if isinstance(value.type, ir.IntType):
+                INT64_WIDTH = 64
+                if value.type.width == INT64_WIDTH:
+                    fmt_gv = self._get_or_create_format_global("%lld")
+                    arg = value
+                else:
+                    if value.type.width < INT32_WIDTH:
+                        arg = self._llvm.ir_builder.sext(
+                            value, self._llvm.INT32_TYPE
+                        )
+                    elif value.type.width > INT32_WIDTH:
+                        arg = self._llvm.ir_builder.trunc(
+                            value, self._llvm.INT32_TYPE
+                        )
+                    else:
+                        arg = value
+                    fmt_gv = self._get_or_create_format_global("%d")
+
                 fmt_ptr = self._llvm.ir_builder.gep(
                     fmt_gv,
                     [
@@ -1593,23 +1611,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     inbounds=True,
                 )
 
-                sprintf = self._create_sprintf_decl()
-
-                # normalize integer to i32 for "%d"
-                if value.type.width != INT32_WIDTH:
-                    if value.type.width < INT32_WIDTH:
-                        value_cast = self._llvm.ir_builder.sext(
-                            value, self._llvm.INT32_TYPE
-                        )
-                    else:
-                        value_cast = self._llvm.ir_builder.trunc(
-                            value, self._llvm.INT32_TYPE
-                        )
-                else:
-                    value_cast = value
-
-                self._llvm.ir_builder.call(
-                    sprintf, [buf_ptr, fmt_ptr, value_cast]
+                _n = self._llvm.ir_builder.call(
+                    snprintf, [buf_ptr, buf_len, fmt_ptr, arg]
                 )
                 self.result_stack.append(buf_ptr)
                 return
@@ -1617,20 +1620,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             elif isinstance(
                 value.type, (ir.FloatType, ir.DoubleType, ir.HalfType)
             ):
-                buf = self._llvm.ir_builder.alloca(
-                    ir.ArrayType(self._llvm.INT8_TYPE, 64),
-                    name="fp_to_str_buf",
-                )
-                buf_ptr = self._llvm.ir_builder.gep(
-                    buf,
-                    [
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ],
-                    inbounds=True,
-                )
+                if isinstance(value.type, (ir.FloatType, ir.HalfType)):
+                    value_prom = self._llvm.ir_builder.fpext(
+                        value, self._llvm.DOUBLE_TYPE, "to_double"
+                    )
+                else:
+                    value_prom = value
 
-                fmt_gv = self._get_or_create_format_global("%f")
+                fmt_gv = self._get_or_create_format_global("%.6f")
                 fmt_ptr = self._llvm.ir_builder.gep(
                     fmt_gv,
                     [
@@ -1639,20 +1636,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     ],
                     inbounds=True,
                 )
-
-                sprintf = self._create_sprintf_decl()
-
-                if isinstance(value.type, ir.FloatType) or isinstance(
-                    value.type, ir.HalfType
-                ):
-                    value_prom = self._llvm.ir_builder.fpext(
-                        value, self._llvm.DOUBLE_TYPE, "promote_fp_to_double"
-                    )
-                else:
-                    value_prom = value
-
-                self._llvm.ir_builder.call(
-                    sprintf, [buf_ptr, fmt_ptr, value_prom]
+                _n = self._llvm.ir_builder.call(
+                    snprintf, [buf_ptr, buf_len, fmt_ptr, value_prom]
                 )
                 self.result_stack.append(buf_ptr)
                 return
