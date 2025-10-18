@@ -89,6 +89,10 @@ class VariablesLLVM:
             return self.UTF8_STRING_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
+        elif type_name == "time":
+            return self.TIME_TYPE
+
+
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
@@ -129,23 +133,22 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return str(self._llvm.module)
 
     def initialize(self) -> None:
-        """Initialize self."""
-        # self._llvm.context = ir.context.Context()
+        """Initialize LLVM module and types safely."""
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # initialize the target registry etc.
-        llvm.initialize()
-        llvm.initialize_all_asmprinters()
-        llvm.initialize_all_targets()
-        llvm.initialize_native_target()
-        llvm.initialize_native_asmparser()
-        llvm.initialize_native_asmprinter()
+        # ✅ Modern, safe initialization (llvmlite handles most automatically now)
+        try:
+            llvm.initialize_native_target()
+            llvm.initialize_native_asmprinter()
+        except (RuntimeError, AttributeError):
+            # These may already be initialized — safe to ignore
+            pass
 
-        # Create a new builder for the module.
+        # ✅ Create a new builder for the module
         self._llvm.ir_builder = ir.IRBuilder()
 
-        # Data Types
+        # ✅ Define basic data types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.FLOAT16_TYPE = ir.HalfType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
@@ -160,6 +163,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.TIME_TYPE = ir.LiteralStructType([
+            ir.IntType(32),  # hour
+            ir.IntType(32),  # minute
+            ir.IntType(32),  # second
+        ])
+
+
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -656,6 +666,85 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         phi.add_incoming(else_v, else_bb)
 
         self.result_stack.append(phi)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTime) -> None:
+        """
+        Lower a LiteralTime to LLVM IR.
+
+        Representation:
+        { i32 hour, i32 minute, i32 second }  -- emitted as a constant struct.
+
+        Accepted formats:
+        HH:MM
+        HH:MM:SS
+
+        Notes:
+        - Fractional seconds (e.g., HH:MM:SS.sss) are not supported yet.
+        - Basic range checks are enforced (00<=HH<=23, 00<=MM<=59, 00<=SS<=59).
+        """
+        s = node.value.strip()
+
+        parts = s.split(":")
+        if len(parts) not in (2, 3):
+            raise Exception(
+                f"LiteralTime: invalid time format '{node.value}'. "
+                "Expected 'HH:MM' or 'HH:MM:SS'."
+            )
+
+        # Parse hour, minute
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except Exception as exc:
+            raise Exception(
+                f"LiteralTime: invalid hour/minute in '{node.value}'."
+            ) from exc
+
+        # Parse second (optional)
+        if len(parts) == 3:
+            sec_part = parts[2]
+            if "." in sec_part:
+                # Not supported yet; reject clearly to avoid silent truncation.
+                raise Exception(
+                    f"LiteralTime: fractional seconds not supported in '{node.value}'."
+                )
+            try:
+                second = int(sec_part)
+            except Exception as exc:
+                raise Exception(
+                    f"LiteralTime: invalid seconds in '{node.value}'."
+                ) from exc
+        else:
+            second = 0
+
+        # Range checks
+        if not (0 <= hour <= 23):
+            raise Exception(
+                f"LiteralTime: hour out of range in '{node.value}'."
+            )
+        if not (0 <= minute <= 59):
+            raise Exception(
+                f"LiteralTime: minute out of range in '{node.value}'."
+            )
+        if not (0 <= second <= 59):
+            raise Exception(
+                f"LiteralTime: second out of range in '{node.value}'."
+            )
+
+        # Build constant struct { i32, i32, i32 }
+        i32 = self._llvm.INT32_TYPE
+        time_ty = ir.LiteralStructType([i32, i32, i32])
+        const_time = ir.Constant(
+            time_ty,
+            [
+                ir.Constant(i32, hour),
+                ir.Constant(i32, minute),
+                ir.Constant(i32, second),
+            ],
+        )
+
+        self.result_stack.append(const_time)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.WhileStmt) -> None:
