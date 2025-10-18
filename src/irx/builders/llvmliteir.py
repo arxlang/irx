@@ -89,6 +89,12 @@ class VariablesLLVM:
             return self.UTF8_STRING_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
+        elif type_name == "date":
+            return self.DATE_TYPE
+    
+    # Option 2: store as int64 timestamp (UNIX time)
+    # return self.INT64_TYPE
+
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
@@ -129,23 +135,22 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return str(self._llvm.module)
 
     def initialize(self) -> None:
-        """Initialize self."""
-        # self._llvm.context = ir.context.Context()
+        """Initialize LLVM module and types safely."""
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # initialize the target registry etc.
-        llvm.initialize()
-        llvm.initialize_all_asmprinters()
-        llvm.initialize_all_targets()
-        llvm.initialize_native_target()
-        llvm.initialize_native_asmparser()
-        llvm.initialize_native_asmprinter()
+        # ✅ Modern, safe initialization (llvmlite handles most automatically now)
+        try:
+            llvm.initialize_native_target()
+            llvm.initialize_native_asmprinter()
+        except (RuntimeError, AttributeError):
+            # These may already be initialized — safe to ignore
+            pass
 
-        # Create a new builder for the module.
+        # ✅ Create a new builder for the module
         self._llvm.ir_builder = ir.IRBuilder()
 
-        # Data Types
+        # ✅ Define basic data types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.FLOAT16_TYPE = ir.HalfType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
@@ -160,6 +165,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.DATE_TYPE= ir.LiteralStructType([ir.IntType(32),ir.IntType(32),ir.IntType(32)])
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -656,6 +662,60 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         phi.add_incoming(else_v, else_bb)
 
         self.result_stack.append(phi)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralDate) -> None:
+        """
+        Lower a LiteralDate to LLVM IR.
+
+        Representation:
+        { i32 year, i32 month, i32 day }  -- emitted as a constant struct.
+
+        Expected format: YYYY-MM-DD (ISO), but also accepts single-digit month/day.
+        """
+        s = node.value.strip()
+
+        # Split by "-"
+        parts = s.split("-")
+        if len(parts) != 3:
+            raise Exception(
+                f"LiteralDate: invalid date format '{node.value}'. Expected 'YYYY-MM-DD'."
+            )
+
+        try:
+            # Convert to integers even if month/day are single-digit
+            year = int(parts[0])
+            month = int(parts[1])
+            day = int(parts[2])
+        except Exception:
+            raise Exception(
+                f"LiteralDate: invalid year/month/day in '{node.value}'."
+            )
+
+        # Basic range checks
+        if not (1 <= month <= 12):
+            raise Exception(
+                f"LiteralDate: month out of range in '{node.value}'. Expected 1-12."
+            )
+        if not (1 <= day <= 31):
+            raise Exception(
+                f"LiteralDate: day out of range in '{node.value}'. Expected 1-31."
+            )
+        if not (1 <= year <= 9999):
+            raise Exception(
+                f"LiteralDate: year out of range in '{node.value}'. Expected 1-9999."
+            )
+
+        # Build constant struct { i32, i32, i32 }
+        i32 = self._llvm.INT32_TYPE
+        date_ty = ir.LiteralStructType([i32, i32, i32])
+        const_date = ir.Constant(
+            date_ty,
+            [ir.Constant(i32, year), ir.Constant(i32, month), ir.Constant(i32, day)],
+        )
+
+        self.result_stack.append(const_date)
+
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.WhileStmt) -> None:
