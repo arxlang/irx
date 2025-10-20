@@ -1,6 +1,6 @@
 site_name: IRx
 site_url: https://irx.arxlang.org
-repo_url: https://github.com/arx-project/irx
+repo_url: https://github.com/arxlang/irx
 docs_dir: ./docs
 site_dir: ./build
 
