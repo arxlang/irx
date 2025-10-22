@@ -8,8 +8,6 @@ import pytest
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 
-from .conftest import check_result
-
 
 @pytest.mark.parametrize(
     "time_str,expected_hour,expected_min,expected_sec",
@@ -40,16 +38,16 @@ def test_literal_time_basic(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     # Store time in variable
     time_decl = astx.VariableDeclaration(
         name="t", type_=astx.Time(), value=time_literal
     )
     block.append(time_decl)
-    
+
     # Return 0 for now (just testing that it compiles)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
@@ -84,13 +82,13 @@ def test_literal_time_invalid(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     time_decl = astx.VariableDeclaration(
         name="t", type_=astx.Time(), value=time_literal
     )
     block.append(time_decl)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 

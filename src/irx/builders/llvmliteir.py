@@ -141,7 +141,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # ✅ Modern, safe initialization 
+        # ✅ Modern, safe initialization
         # (llvmlite handles most automatically now)
         try:
             llvm.initialize_native_target()
@@ -168,13 +168,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
-        self._llvm.TIME_TYPE = ir.LiteralStructType([
-            ir.IntType(32),  # hour
-            ir.IntType(32),  # minute
-            ir.IntType(32),  # second
-        ])
-
-
+        self._llvm.TIME_TYPE = ir.LiteralStructType(
+            [
+                ir.IntType(32),  # hour
+                ir.IntType(32),  # minute
+                ir.IntType(32),  # second
+            ]
+        )
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -684,7 +684,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         HH:MM
         HH:MM:SS
 
-        Notes:
+        Notes
+        -----
         - Fractional seconds (e.g., HH:MM:SS.sss) are not supported yet.
         - Basic range checks are enforced (00<=HH<=23, 00<=MM<=59, 00<=SS<=59).
         """
@@ -703,9 +704,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             minute = int(parts[1])
         except Exception as exc:
             raise Exception(
-                "LiteralTime: invalid hour/minute" 
-                f"in '{node.value}'."
-            )from exc
+                f"LiteralTime: invalid hour/minutein '{node.value}'."
+            ) from exc
 
         # Parse second
         if len(parts) == TIME_PARTS_WITH_SECONDS:
@@ -720,8 +720,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 second = int(sec_part)
             except Exception as exc:
                 raise Exception(
-                    "LiteralTime: invalid seconds" 
-                    f"in '{node.value}'."
+                    f"LiteralTime: invalid secondsin '{node.value}'."
                 ) from exc
         else:
             second = 0
@@ -729,18 +728,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Range checks
         if not (0 <= hour <= MAX_HOUR):
             raise Exception(
-                "LiteralTime: hour out of range "
-                f"in '{node.value}'."
+                f"LiteralTime: hour out of range in '{node.value}'."
             )
         if not (0 <= minute <= MAX_MINUTE):
             raise Exception(
-                "LiteralTime: minute out of range "
-                f"in '{node.value}'."
+                f"LiteralTime: minute out of range in '{node.value}'."
             )
         if not (0 <= second <= MAX_SECOND):
             raise Exception(
-                "LiteralTime: second out of range "
-                f"in '{node.value}'."
+                f"LiteralTime: second out of range in '{node.value}'."
             )
 
         # Build constant struct { i32, i32, i32 }
