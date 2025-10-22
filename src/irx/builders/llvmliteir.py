@@ -19,6 +19,11 @@ from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
+TIME_PARTS_WITH_SECONDS = 3
+MAX_HOUR = 23
+MAX_MINUTE = 59
+MAX_SECOND = 59
+
 
 @typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
@@ -45,6 +50,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    TIME_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -92,8 +98,6 @@ class VariablesLLVM:
         elif type_name == "time":
             return self.TIME_TYPE
 
-
-
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
 
@@ -137,7 +141,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # ✅ Modern, safe initialization (llvmlite handles most automatically now)
+        # ✅ Modern, safe initialization 
+        # (llvmlite handles most automatically now)
         try:
             llvm.initialize_native_target()
             llvm.initialize_native_asmprinter()
@@ -686,7 +691,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         s = node.value.strip()
 
         parts = s.split(":")
-        if len(parts) not in (2, 3):
+        if len(parts) not in (2, TIME_PARTS_WITH_SECONDS):
             raise Exception(
                 f"LiteralTime: invalid time format '{node.value}'. "
                 "Expected 'HH:MM' or 'HH:MM:SS'."
@@ -698,38 +703,44 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             minute = int(parts[1])
         except Exception as exc:
             raise Exception(
-                f"LiteralTime: invalid hour/minute in '{node.value}'."
-            ) from exc
+                "LiteralTime: invalid hour/minute" 
+                f"in '{node.value}'."
+            )from exc
 
-        # Parse second (optional)
-        if len(parts) == 3:
+        # Parse second
+        if len(parts) == TIME_PARTS_WITH_SECONDS:
             sec_part = parts[2]
             if "." in sec_part:
                 # Not supported yet; reject clearly to avoid silent truncation.
                 raise Exception(
-                    f"LiteralTime: fractional seconds not supported in '{node.value}'."
+                    "LiteralTime: fractional seconds not supported "
+                    f"in '{node.value}'."
                 )
             try:
                 second = int(sec_part)
             except Exception as exc:
                 raise Exception(
-                    f"LiteralTime: invalid seconds in '{node.value}'."
+                    "LiteralTime: invalid seconds" 
+                    f"in '{node.value}'."
                 ) from exc
         else:
             second = 0
 
         # Range checks
-        if not (0 <= hour <= 23):
+        if not (0 <= hour <= MAX_HOUR):
             raise Exception(
-                f"LiteralTime: hour out of range in '{node.value}'."
+                "LiteralTime: hour out of range "
+                f"in '{node.value}'."
             )
-        if not (0 <= minute <= 59):
+        if not (0 <= minute <= MAX_MINUTE):
             raise Exception(
-                f"LiteralTime: minute out of range in '{node.value}'."
+                "LiteralTime: minute out of range "
+                f"in '{node.value}'."
             )
-        if not (0 <= second <= 59):
+        if not (0 <= second <= MAX_SECOND):
             raise Exception(
-                f"LiteralTime: second out of range in '{node.value}'."
+                "LiteralTime: second out of range "
+                f"in '{node.value}'."
             )
 
         # Build constant struct { i32, i32, i32 }
