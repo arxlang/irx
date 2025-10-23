@@ -19,6 +19,14 @@ from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
+DATE_PARTS = 3
+MIN_MONTH = 1
+MAX_MONTH = 12
+MIN_DAY = 1
+MAX_DAY = 31
+MIN_YEAR = 1
+MAX_YEAR = 9999
+
 
 @typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
@@ -45,6 +53,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    DATE_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -91,10 +100,6 @@ class VariablesLLVM:
             return self.VOID_TYPE
         elif type_name == "date":
             return self.DATE_TYPE
-    
-    # Option 2: store as int64 timestamp (UNIX time)
-    # return self.INT64_TYPE
-
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
@@ -139,7 +144,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # ✅ Modern, safe initialization (llvmlite handles most automatically now)
+        # (llvmlite handles most automatically now)
         try:
             llvm.initialize_native_target()
             llvm.initialize_native_asmprinter()
@@ -147,10 +152,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # These may already be initialized — safe to ignore
             pass
 
-        # ✅ Create a new builder for the module
+        # Create a new builder for the module
         self._llvm.ir_builder = ir.IRBuilder()
 
-        # ✅ Define basic data types
+        # Define basic data types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.FLOAT16_TYPE = ir.HalfType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
@@ -165,7 +170,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
-        self._llvm.DATE_TYPE= ir.LiteralStructType([ir.IntType(32),ir.IntType(32),ir.IntType(32)])
+        self._llvm.DATE_TYPE = ir.LiteralStructType(
+            [ir.IntType(32), ir.IntType(32), ir.IntType(32)]
+        )
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -669,17 +676,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         Lower a LiteralDate to LLVM IR.
 
         Representation:
-        { i32 year, i32 month, i32 day }  -- emitted as a constant struct.
+        { i32 year, i32 month, i32 day }
+        -- emitted as a constant struct.
 
-        Expected format: YYYY-MM-DD (ISO), but also accepts single-digit month/day.
+        Expected format: YYYY-MM-DD (ISO),
+        but also accepts single-digit month/day.
         """
         s = node.value.strip()
 
         # Split by "-"
         parts = s.split("-")
-        if len(parts) != 3:
+        if len(parts) != DATE_PARTS:
             raise Exception(
-                f"LiteralDate: invalid date format '{node.value}'. Expected 'YYYY-MM-DD'."
+                "LiteralDate: invalid date format "
+                f"'{node.value}'. Expected 'YYYY-MM-DD'."
             )
 
         try:
@@ -693,17 +703,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
 
         # Basic range checks
-        if not (1 <= month <= 12):
+        if not (1 <= month <= MAX_MONTH):
             raise Exception(
-                f"LiteralDate: month out of range in '{node.value}'. Expected 1-12."
+                "LiteralDate: month out of range in "
+                f"'{node.value}'. Expected 1-12."
             )
-        if not (1 <= day <= 31):
+        if not (1 <= day <= MAX_DAY):
             raise Exception(
-                f"LiteralDate: day out of range in '{node.value}'. Expected 1-31."
+                "LiteralDate: day out of range in "
+                f"'{node.value}'. Expected 1-31."
             )
-        if not (1 <= year <= 9999):
+        if not (1 <= year <= MAX_YEAR):
             raise Exception(
-                f"LiteralDate: year out of range in '{node.value}'. Expected 1-9999."
+                "LiteralDate: year out of range in "
+                f"'{node.value}'. Expected 1-9999."
             )
 
         # Build constant struct { i32, i32, i32 }
@@ -711,11 +724,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         date_ty = ir.LiteralStructType([i32, i32, i32])
         const_date = ir.Constant(
             date_ty,
-            [ir.Constant(i32, year), ir.Constant(i32, month), ir.Constant(i32, day)],
+            [
+                ir.Constant(i32, year),
+                ir.Constant(i32, month),
+                ir.Constant(i32, day),
+            ],
         )
 
         self.result_stack.append(const_date)
-
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.WhileStmt) -> None:

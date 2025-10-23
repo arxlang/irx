@@ -8,8 +8,6 @@ import pytest
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 
-from .conftest import check_result
-
 
 @pytest.mark.parametrize(
     "date_str,expected_year,expected_month,expected_day",
@@ -42,16 +40,16 @@ def test_literal_date_basic(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     # Store date in variable
     date_decl = astx.VariableDeclaration(
         name="d", type_=astx.Date(), value=date_literal
     )
     block.append(date_decl)
-    
+
     # Return 0 (just testing that it compiles)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
@@ -69,13 +67,13 @@ def test_literal_date_basic(
     [
         ("2024-13-01", "month out of range"),  # Invalid month
         ("2024-00-01", "month out of range"),  # Month = 0
-        ("2024-01-32", "day out of range"),    # Invalid day
-        ("2024-01-00", "day out of range"),    # Day = 0
+        ("2024-01-32", "day out of range"),  # Invalid day
+        ("2024-01-00", "day out of range"),  # Day = 0
         ("10000-01-01", "year out of range"),  # Year too large
-        ("0-01-01", "year out of range"),      # Year = 0
-        ("2024/01/01", "invalid date format"), # Wrong separator
-        ("2024-Jan-01", "invalid year/month/day"), # Text month
-        ("2024-01", "invalid date format"),    # Missing day
+        ("0-01-01", "year out of range"),  # Year = 0
+        ("2024/01/01", "invalid date format"),  # Wrong separator
+        ("2024-Jan-01", "invalid year/month/day"),  # Text month
+        ("2024-01", "invalid date format"),  # Missing day
     ],
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -94,20 +92,20 @@ def test_literal_date_invalid(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     date_decl = astx.VariableDeclaration(
         name="d", type_=astx.Date(), value=date_literal
     )
     block.append(date_decl)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
     # Should raise an exception with expected message
     with pytest.raises(Exception) as exc_info:
         builder.translate(module)
-    
+
     assert error_msg in str(exc_info.value).lower()
 
 
@@ -134,13 +132,13 @@ def test_literal_date_edge_cases(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     date_decl = astx.VariableDeclaration(
         name="d", type_=astx.Date(), value=date_literal
     )
     block.append(date_decl)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
@@ -164,7 +162,7 @@ def test_literal_date_multiple_variables(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     block = astx.Block()
-    
+
     # Store multiple dates
     date_decl1 = astx.VariableDeclaration(
         name="d1", type_=astx.Date(), value=date1
@@ -175,7 +173,7 @@ def test_literal_date_multiple_variables(
     block.append(date_decl1)
     block.append(date_decl2)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    
+
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
