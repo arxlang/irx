@@ -141,7 +141,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # ✅ Modern, safe initialization
         # (llvmlite handles most automatically now)
         try:
             llvm.initialize_native_target()
