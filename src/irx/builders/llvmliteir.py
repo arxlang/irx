@@ -1468,6 +1468,69 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.result_stack.append(init_val)
 
+    def _normalize_int_for_printf(self, v: ir.Value) -> tuple[ir.Value, str]:
+        """Promote/truncate integer to match printf format."""
+        INT64_WIDTH = 64
+        if not isinstance(v.type, ir.IntType):
+            raise Exception("Expected integer value")
+        w = v.type.width
+        if w < INT64_WIDTH:
+            arg = self._llvm.ir_builder.sext(v, self._llvm.INT64_TYPE)
+            return arg, "%lld"
+        if w == INT64_WIDTH:
+            return v, "%lld"
+        raise Exception(
+            "Casting integers wider than 64 bits to string is not supported"
+        )
+
+    def _create_malloc_decl(self) -> ir.Function:
+        """Declare malloc."""
+        name = "malloc"
+        if name in self._llvm.module.globals:
+            return self._llvm.module.get_global(name)
+        ty = ir.FunctionType(
+            self._llvm.INT8_TYPE.as_pointer(), [self._llvm.SIZE_T_TYPE]
+        )
+        fn = ir.Function(self._llvm.module, ty, name=name)
+        fn.linkage = "external"
+        return fn
+
+    def _snprintf_heap(
+        self, fmt_gv: ir.GlobalVariable, args: list[ir.Value]
+    ) -> ir.Value:
+        """Format into a heap buffer and return i8* (char*)."""
+        snprintf = self._create_snprintf_decl()
+        malloc = self._create_malloc_decl()
+
+        zero_size = ir.Constant(self._llvm.SIZE_T_TYPE, 0)
+        null_ptr = ir.Constant(self._llvm.INT8_TYPE.as_pointer(), None)
+
+        fmt_ptr = self._llvm.ir_builder.gep(
+            fmt_gv,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+            ],
+            inbounds=True,
+        )
+
+        needed_i32 = self._llvm.ir_builder.call(
+            snprintf, [null_ptr, zero_size, fmt_ptr, *args]
+        )
+        need_plus_1 = self._llvm.ir_builder.add(
+            needed_i32, ir.Constant(self._llvm.INT32_TYPE, 1)
+        )
+        need_szt = self._llvm.ir_builder.zext(
+            need_plus_1, self._llvm.SIZE_T_TYPE
+        )
+
+        # allocate and print
+        mem = self._llvm.ir_builder.call(malloc, [need_szt])
+        _ = self._llvm.ir_builder.call(
+            snprintf, [mem, need_szt, fmt_ptr, *args]
+        )
+        return mem
+
     def _create_snprintf_decl(self) -> ir.Function:
         """Declare (or return) the external snprintf (varargs)."""
         name = "snprintf"
@@ -1509,7 +1572,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate Cast expression to LLVM-IR."""
         self.visit(node.value)
         value = self.result_stack.pop()
-        INT32_WIDTH = 32
         target_type_str = node.target_type.__class__.__name__.lower()
         target_type = self._llvm.get_data_type(target_type_str)
 
@@ -1575,54 +1637,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ASCII_STRING_TYPE,
             self._llvm.STRING_TYPE,
         ):
-            BUF_BYTES = 64
-            buf_arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, BUF_BYTES)
-            buf = self._llvm.ir_builder.alloca(buf_arr_ty, name="fmt_buf")
-            buf_ptr = self._llvm.ir_builder.gep(
-                buf,
-                [
-                    ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ir.Constant(self._llvm.INT32_TYPE, 0),
-                ],
-                inbounds=True,
-            )
-            buf_len = ir.Constant(self._llvm.SIZE_T_TYPE, BUF_BYTES)
-            snprintf = self._create_snprintf_decl()
-
             if isinstance(value.type, ir.IntType):
-                INT64_WIDTH = 64
-                if value.type.width == INT64_WIDTH:
-                    fmt_gv = self._get_or_create_format_global("%lld")
-                    arg = value
-                else:
-                    if value.type.width < INT32_WIDTH:
-                        arg = self._llvm.ir_builder.sext(
-                            value, self._llvm.INT32_TYPE
-                        )
-                    elif value.type.width > INT32_WIDTH:
-                        arg = self._llvm.ir_builder.trunc(
-                            value, self._llvm.INT32_TYPE
-                        )
-                    else:
-                        arg = value
-                    fmt_gv = self._get_or_create_format_global("%d")
-
-                fmt_ptr = self._llvm.ir_builder.gep(
-                    fmt_gv,
-                    [
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ],
-                    inbounds=True,
-                )
-
-                _n = self._llvm.ir_builder.call(
-                    snprintf, [buf_ptr, buf_len, fmt_ptr, arg]
-                )
-                self.result_stack.append(buf_ptr)
+                arg, fmt_str = self._normalize_int_for_printf(value)
+                fmt_gv = self._get_or_create_format_global(fmt_str)
+                ptr = self._snprintf_heap(fmt_gv, [arg])
+                self.result_stack.append(ptr)
                 return
 
-            elif isinstance(
+            # floats / doubles / half -> print as double with fixed format
+            if isinstance(
                 value.type, (ir.FloatType, ir.DoubleType, ir.HalfType)
             ):
                 if isinstance(value.type, (ir.FloatType, ir.HalfType)):
@@ -1631,28 +1654,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     )
                 else:
                     value_prom = value
-
                 fmt_gv = self._get_or_create_format_global("%.6f")
-                fmt_ptr = self._llvm.ir_builder.gep(
-                    fmt_gv,
-                    [
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                        ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ],
-                    inbounds=True,
-                )
-                _n = self._llvm.ir_builder.call(
-                    snprintf, [buf_ptr, buf_len, fmt_ptr, value_prom]
-                )
-                self.result_stack.append(buf_ptr)
+                ptr = self._snprintf_heap(fmt_gv, [value_prom])
+                self.result_stack.append(ptr)
                 return
-
-            else:
-                msg = (
-                    "Unsupported numeric-to-string cast from "
-                    f"{value.type} to {target_type}"
-                )
-                raise Exception(msg)
 
         else:
             raise Exception(
