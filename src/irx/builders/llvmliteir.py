@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 import tempfile
 
@@ -130,6 +131,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node)
         return str(self._llvm.module)
 
+    def _init_native_size_types(self) -> None:
+        """Initialize pointer/size_t types from host."""
+        self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
+        self._llvm.SIZE_T_TYPE = ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
+
     def initialize(self) -> None:
         """Initialize self."""
         self._llvm = VariablesLLVM()
@@ -161,8 +167,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
-        self._llvm.POINTER_BITS = 64
-        self._llvm.SIZE_T_TYPE = self._llvm.INT64_TYPE
+        self._init_native_size_types()
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
