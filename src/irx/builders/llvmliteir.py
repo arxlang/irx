@@ -1076,26 +1076,25 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 f"{node.value}'."
             )
 
-        # Parse date: YYYY-MM-DD
+        # Parse and validate date: YYYY-MM-DD
+        from datetime import datetime
         try:
             y_str, m_str, d_str = date_part.split("-")
             year = int(y_str)
             month = int(m_str)
             day = int(d_str)
+            # Validate real calendar date (handles month/day/leap years)
+            datetime(year, month, day)
+        except ValueError as exc:
+            raise Exception(
+                "LiteralTimestamp: invalid date in '"
+                f"{node.value}'. Expected valid 'YYYY-MM-DD'."
+            ) from exc
         except Exception as exc:
             raise Exception(
                 "LiteralTimestamp: invalid date part in '"
                 f"{node.value}'. Expected 'YYYY-MM-DD'."
             ) from exc
-
-        if not (1 <= month <= 12):
-            raise Exception(
-                f"LiteralTimestamp: month out of range in '{node.value}'."
-            )
-        if not (1 <= day <= 31):
-            raise Exception(
-                f"LiteralTimestamp: day out of range in '{node.value}'."
-            )
 
         # Parse time: HH:MM:SS(.fffffffff)?
         frac_ns = 0
