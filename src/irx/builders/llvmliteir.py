@@ -25,13 +25,17 @@ from irx.tools.typing import typechecked
 
 def is_fp_type(t: "ir.Type") -> bool:
     """Return True if t is any floating-point LLVM type."""
-    from llvmlite.ir import HalfType, FloatType, DoubleType, FP128Type
+    from llvmlite.ir import DoubleType, FloatType, FP128Type, HalfType
+
     return isinstance(t, (HalfType, FloatType, DoubleType, FP128Type))
+
 
 def is_vector(v: "ir.Value") -> bool:
     """Return True if v is an LLVM vector value."""
     from llvmlite.ir import VectorType
-    return isinstance(getattr(v, 'type', None), VectorType)
+
+    return isinstance(getattr(v, "type", None), VectorType)
+
 
 def emit_int_div(
     ir_builder: "ir.IRBuilder",
@@ -40,7 +44,11 @@ def emit_int_div(
     unsigned: bool,
 ) -> "ir.Instruction":
     """Emit signed or unsigned vector integer division."""
-    return ir_builder.udiv(lhs, rhs, name="vdivtmp") if unsigned else ir_builder.sdiv(lhs, rhs, name="vdivtmp")
+    return (
+        ir_builder.udiv(lhs, rhs, name="vdivtmp")
+        if unsigned
+        else ir_builder.sdiv(lhs, rhs, name="vdivtmp")
+    )
 
 
 @typechecked
@@ -455,7 +463,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # VECTOR SUPPORT: If both operands are LLVM vectors, handle as vector ops
+        # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             if llvm_lhs.type.count != llvm_rhs.type.count:
                 raise Exception(
@@ -469,9 +477,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
             set_fast = is_float_vec and getattr(node, "fast_math", False)
-            if op == '*' and is_float_vec and getattr(node, 'fma', False):
-                if not hasattr(node, 'fma_rhs'):
-                    raise Exception('FMA requires a third operand (fma_rhs)')
+            if op == "*" and is_float_vec and getattr(node, "fma", False):
+                if not hasattr(node, "fma_rhs"):
+                    raise Exception("FMA requires a third operand (fma_rhs)")
                 self.visit(node.fma_rhs)
                 llvm_fma_rhs = safe_pop(self.result_stack)
                 if llvm_fma_rhs.type != llvm_lhs.type:
@@ -488,7 +496,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     self.set_fast_math(True)
                 try:
                     result = self._llvm.ir_builder.fma(
-                        llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma'
+                        llvm_lhs, llvm_rhs, llvm_fma_rhs, name="vfma"
                     )
                 finally:
                     if set_fast:
@@ -498,28 +506,44 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if set_fast:
                 self.set_fast_math(True)
             try:
-                if op == '+':
+                if op == "+":
                     if is_float_vec:
-                        result = self._llvm.ir_builder.fadd(llvm_lhs, llvm_rhs, name="vfaddtmp")
+                        result = self._llvm.ir_builder.fadd(
+                            llvm_lhs, llvm_rhs, name="vfaddtmp"
+                        )
                     else:
-                        result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, name="vaddtmp")
-                elif op == '-':
+                        result = self._llvm.ir_builder.add(
+                            llvm_lhs, llvm_rhs, name="vaddtmp"
+                        )
+                elif op == "-":
                     if is_float_vec:
-                        result = self._llvm.ir_builder.fsub(llvm_lhs, llvm_rhs, name="vfsubtmp")
+                        result = self._llvm.ir_builder.fsub(
+                            llvm_lhs, llvm_rhs, name="vfsubtmp"
+                        )
                     else:
-                        result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, name="vsubtmp")
-                elif op == '*':
+                        result = self._llvm.ir_builder.sub(
+                            llvm_lhs, llvm_rhs, name="vsubtmp"
+                        )
+                elif op == "*":
                     if is_float_vec:
-                        result = self._llvm.ir_builder.fmul(llvm_lhs, llvm_rhs, name="vfmultmp")
+                        result = self._llvm.ir_builder.fmul(
+                            llvm_lhs, llvm_rhs, name="vfmultmp"
+                        )
                     else:
-                        result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, name="vmultmp")
-                elif op == '/':
+                        result = self._llvm.ir_builder.mul(
+                            llvm_lhs, llvm_rhs, name="vmultmp"
+                        )
+                elif op == "/":
                     if is_float_vec:
-                        result = self._llvm.ir_builder.fdiv(llvm_lhs, llvm_rhs, name="vfdivtmp")
+                        result = self._llvm.ir_builder.fdiv(
+                            llvm_lhs, llvm_rhs, name="vfdivtmp"
+                        )
                     else:
                         # TODO: use more precise type info for unsigned!
                         unsigned = False  # Or infer from type/var name/etc.
-                        result = emit_int_div(self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned)
+                        result = emit_int_div(
+                            self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
+                        )
                 else:
                     raise Exception(f"Vector binop {op} not implemented.")
             finally:
