@@ -23,6 +23,21 @@ from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
 
+class VectorType:
+    """An LLVM vector type (e.g. <4 x float>)."""
+    def __init__(self, element_type, size):
+        self.element_type = element_type  # e.g., ir.FloatType()
+        self.size = size  # integer
+    def __repr__(self):
+        return f"VectorType({self.element_type}, {self.size})"
+    def __eq__(self, other):
+        return (
+            isinstance(other, VectorType)
+            and self.element_type == other.element_type
+            and self.size == other.size
+        )
+
+
 @typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
     """Implement a safe pop operation for lists."""
@@ -435,7 +450,56 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # automatic type promotion
+        # VECTOR SUPPORT: If both operands are LLVM vectors, handle as vector ops
+        if hasattr(llvm_lhs.type, 'element') and hasattr(llvm_rhs.type, 'element') and hasattr(llvm_lhs.type, 'count'):
+            # Check for size mismatch
+            if llvm_lhs.type.count != llvm_rhs.type.count:
+                raise Exception(f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}")
+            is_float_vec = isinstance(llvm_lhs.type.element, ir.FloatType)
+            op = node.op_code
+            # FMA logic: if op is '*' and node requests it, use fmuladd
+            # For now, if hasattr(node, 'fma') and node.fma, do fmuladd
+            if op == '*' and is_float_vec and hasattr(node, 'fma') and node.fma:
+                # Fused multiply-add: needs a third operand; not standard BinaryOp but for demo:
+                if not hasattr(node, 'fma_rhs'):
+                    raise Exception('FMA requires a third operand (fma_rhs)')
+                self.visit(node.fma_rhs)
+                llvm_fma_rhs = safe_pop(self.result_stack)
+                result = self._llvm.ir_builder.fma(llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma')
+                self.result_stack.append(result)
+                return
+            # Fast-math: opt-in if available (or via a field on node, e.g. node.fast_math)
+            if is_float_vec and hasattr(node, 'fast_math') and node.fast_math:
+                self.set_fast_math(True)
+            if op == '+':
+                if is_float_vec:
+                    result = self._llvm.ir_builder.fadd(llvm_lhs, llvm_rhs, name="vfaddtmp")
+                else:
+                    result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, name="vaddtmp")
+            elif op == '-':
+                if is_float_vec:
+                    result = self._llvm.ir_builder.fsub(llvm_lhs, llvm_rhs, name="vfsubtmp")
+                else:
+                    result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, name="vsubtmp")
+            elif op == '*':
+                if is_float_vec:
+                    result = self._llvm.ir_builder.fmul(llvm_lhs, llvm_rhs, name="vfmultmp")
+                else:
+                    result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, name="vmultmp")
+            elif op == '/':
+                if is_float_vec:
+                    result = self._llvm.ir_builder.fdiv(llvm_lhs, llvm_rhs, name="vfdivtmp")
+                else:
+                    result = self._llvm.ir_builder.sdiv(llvm_lhs, llvm_rhs, name="vdivtmp")
+            else:
+                raise Exception(f"Vector binop {op} not implemented.")
+            self.result_stack.append(result)
+            # Reset fast-math if we set it
+            if is_float_vec and hasattr(node, 'fast_math') and node.fast_math:
+                self.set_fast_math(False)
+            return
+
+        # Scalar Fallback: Original scalar promotion logic
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
         if node.op_code in ("&&", "and"):
@@ -2059,6 +2123,26 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx LiteralInt16 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT16_TYPE, node.value)
         self.result_stack.append(result)
+
+
+def create_vector_binop(ir_builder, op, lhs, rhs):
+    """
+    Generate a vector binary operation (add, sub, mul, div, fmuladd).
+    Args:
+        ir_builder: The llvmlite.IRBuilder
+        op: str, one of '+', '-', '*', '/'
+        lhs, rhs: ir.Value (vectors)
+    """
+    if op == '+':
+        return ir_builder.add(lhs, rhs, name="vaddtmp")
+    elif op == '-':
+        return ir_builder.sub(lhs, rhs, name="vsubtmp")
+    elif op == '*':
+        return ir_builder.mul(lhs, rhs, name="vmultmp")
+    elif op == '/':
+        return ir_builder.sdiv(lhs, rhs, name="vdivtmp") # Change to fdiv if floats
+    else:
+        raise NotImplementedError(f"Vector binop {op} not implemented.")
 
 
 @public
