@@ -23,16 +23,23 @@ from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
 
-def is_fp_type(t):
+def is_fp_type(t: "ir.Type") -> bool:
     """Return True if t is any floating-point LLVM type."""
     from llvmlite.ir import HalfType, FloatType, DoubleType, FP128Type
     return isinstance(t, (HalfType, FloatType, DoubleType, FP128Type))
 
-def is_vector(v):
+def is_vector(v: "ir.Value") -> bool:
+    """Return True if v is an LLVM vector value."""
     from llvmlite.ir import VectorType
     return isinstance(getattr(v, 'type', None), VectorType)
 
-def emit_int_div(ir_builder, lhs, rhs, unsigned):
+def emit_int_div(
+    ir_builder: "ir.IRBuilder",
+    lhs: "ir.Value",
+    rhs: "ir.Value",
+    unsigned: bool,
+) -> "ir.Instruction":
+    """Emit signed or unsigned vector integer division."""
     return ir_builder.udiv(lhs, rhs, name="vdivtmp") if unsigned else ir_builder.sdiv(lhs, rhs, name="vdivtmp")
 
 
@@ -451,9 +458,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # VECTOR SUPPORT: If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             if llvm_lhs.type.count != llvm_rhs.type.count:
-                raise Exception(f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}")
+                raise Exception(
+                    f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}"
+                )
             if llvm_lhs.type.element != llvm_rhs.type.element:
-                raise Exception(f"Vector element type mismatch: {llvm_lhs.type.element} vs {llvm_rhs.type.element}")
+                raise Exception(
+                    f"Vector element type mismatch: "
+                    f"{llvm_lhs.type.element} vs {llvm_rhs.type.element}"
+                )
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
             set_fast = is_float_vec and getattr(node, "fast_math", False)
@@ -463,13 +475,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self.visit(node.fma_rhs)
                 llvm_fma_rhs = safe_pop(self.result_stack)
                 if llvm_fma_rhs.type != llvm_lhs.type:
-                    raise Exception(f"FMA operand type mismatch: {llvm_lhs.type} vs {llvm_fma_rhs.type}")
+                    raise Exception(
+                        f"FMA operand type mismatch: "
+                        f"{llvm_lhs.type} vs {llvm_fma_rhs.type}"
+                    )
                 if not hasattr(self._llvm.ir_builder, "fma"):
-                    raise Exception("IRBuilder.fma not available; please lower via llvm.fma intrinsic")
+                    raise Exception(
+                        "IRBuilder.fma not available; please lower via "
+                        "llvm.fma intrinsic"
+                    )
                 if set_fast:
                     self.set_fast_math(True)
                 try:
-                    result = self._llvm.ir_builder.fma(llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma')
+                    result = self._llvm.ir_builder.fma(
+                        llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma'
+                    )
                 finally:
                     if set_fast:
                         self.set_fast_math(False)
