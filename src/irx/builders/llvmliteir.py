@@ -1077,7 +1077,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
 
         # Parse and validate date: YYYY-MM-DD
-        from datetime import datetime
         try:
             y_str, m_str, d_str = date_part.split("-")
             year = int(y_str)
