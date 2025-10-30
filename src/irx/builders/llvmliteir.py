@@ -23,19 +23,17 @@ from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
 
-class VectorType:
-    """An LLVM vector type (e.g. <4 x float>)."""
-    def __init__(self, element_type, size):
-        self.element_type = element_type  # e.g., ir.FloatType()
-        self.size = size  # integer
-    def __repr__(self):
-        return f"VectorType({self.element_type}, {self.size})"
-    def __eq__(self, other):
-        return (
-            isinstance(other, VectorType)
-            and self.element_type == other.element_type
-            and self.size == other.size
-        )
+def is_fp_type(t):
+    """Return True if t is any floating-point LLVM type."""
+    from llvmlite.ir import HalfType, FloatType, DoubleType, FP128Type
+    return isinstance(t, (HalfType, FloatType, DoubleType, FP128Type))
+
+def is_vector(v):
+    from llvmlite.ir import VectorType
+    return isinstance(getattr(v, 'type', None), VectorType)
+
+def emit_int_div(ir_builder, lhs, rhs, unsigned):
+    return ir_builder.udiv(lhs, rhs, name="vdivtmp") if unsigned else ir_builder.sdiv(lhs, rhs, name="vdivtmp")
 
 
 @typechecked
@@ -451,52 +449,63 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             raise Exception("codegen: Invalid lhs/rhs")
 
         # VECTOR SUPPORT: If both operands are LLVM vectors, handle as vector ops
-        if hasattr(llvm_lhs.type, 'element') and hasattr(llvm_rhs.type, 'element') and hasattr(llvm_lhs.type, 'count'):
-            # Check for size mismatch
+        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             if llvm_lhs.type.count != llvm_rhs.type.count:
                 raise Exception(f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}")
-            is_float_vec = isinstance(llvm_lhs.type.element, ir.FloatType)
+            if llvm_lhs.type.element != llvm_rhs.type.element:
+                raise Exception(f"Vector element type mismatch: {llvm_lhs.type.element} vs {llvm_rhs.type.element}")
+            is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
-            # FMA logic: if op is '*' and node requests it, use fmuladd
-            # For now, if hasattr(node, 'fma') and node.fma, do fmuladd
-            if op == '*' and is_float_vec and hasattr(node, 'fma') and node.fma:
-                # Fused multiply-add: needs a third operand; not standard BinaryOp but for demo:
+            set_fast = is_float_vec and getattr(node, "fast_math", False)
+            if op == '*' and is_float_vec and getattr(node, 'fma', False):
                 if not hasattr(node, 'fma_rhs'):
                     raise Exception('FMA requires a third operand (fma_rhs)')
                 self.visit(node.fma_rhs)
                 llvm_fma_rhs = safe_pop(self.result_stack)
-                result = self._llvm.ir_builder.fma(llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma')
+                if llvm_fma_rhs.type != llvm_lhs.type:
+                    raise Exception(f"FMA operand type mismatch: {llvm_lhs.type} vs {llvm_fma_rhs.type}")
+                if not hasattr(self._llvm.ir_builder, "fma"):
+                    raise Exception("IRBuilder.fma not available; please lower via llvm.fma intrinsic")
+                if set_fast:
+                    self.set_fast_math(True)
+                try:
+                    result = self._llvm.ir_builder.fma(llvm_lhs, llvm_rhs, llvm_fma_rhs, name='vfma')
+                finally:
+                    if set_fast:
+                        self.set_fast_math(False)
                 self.result_stack.append(result)
                 return
-            # Fast-math: opt-in if available (or via a field on node, e.g. node.fast_math)
-            if is_float_vec and hasattr(node, 'fast_math') and node.fast_math:
+            if set_fast:
                 self.set_fast_math(True)
-            if op == '+':
-                if is_float_vec:
-                    result = self._llvm.ir_builder.fadd(llvm_lhs, llvm_rhs, name="vfaddtmp")
+            try:
+                if op == '+':
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fadd(llvm_lhs, llvm_rhs, name="vfaddtmp")
+                    else:
+                        result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, name="vaddtmp")
+                elif op == '-':
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fsub(llvm_lhs, llvm_rhs, name="vfsubtmp")
+                    else:
+                        result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, name="vsubtmp")
+                elif op == '*':
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fmul(llvm_lhs, llvm_rhs, name="vfmultmp")
+                    else:
+                        result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, name="vmultmp")
+                elif op == '/':
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fdiv(llvm_lhs, llvm_rhs, name="vfdivtmp")
+                    else:
+                        # TODO: use more precise type info for unsigned!
+                        unsigned = False  # Or infer from type/var name/etc.
+                        result = emit_int_div(self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned)
                 else:
-                    result = self._llvm.ir_builder.add(llvm_lhs, llvm_rhs, name="vaddtmp")
-            elif op == '-':
-                if is_float_vec:
-                    result = self._llvm.ir_builder.fsub(llvm_lhs, llvm_rhs, name="vfsubtmp")
-                else:
-                    result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, name="vsubtmp")
-            elif op == '*':
-                if is_float_vec:
-                    result = self._llvm.ir_builder.fmul(llvm_lhs, llvm_rhs, name="vfmultmp")
-                else:
-                    result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, name="vmultmp")
-            elif op == '/':
-                if is_float_vec:
-                    result = self._llvm.ir_builder.fdiv(llvm_lhs, llvm_rhs, name="vfdivtmp")
-                else:
-                    result = self._llvm.ir_builder.sdiv(llvm_lhs, llvm_rhs, name="vdivtmp")
-            else:
-                raise Exception(f"Vector binop {op} not implemented.")
+                    raise Exception(f"Vector binop {op} not implemented.")
+            finally:
+                if set_fast:
+                    self.set_fast_math(False)
             self.result_stack.append(result)
-            # Reset fast-math if we set it
-            if is_float_vec and hasattr(node, 'fast_math') and node.fast_math:
-                self.set_fast_math(False)
             return
 
         # Scalar Fallback: Original scalar promotion logic
@@ -2123,26 +2132,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx LiteralInt16 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT16_TYPE, node.value)
         self.result_stack.append(result)
-
-
-def create_vector_binop(ir_builder, op, lhs, rhs):
-    """
-    Generate a vector binary operation (add, sub, mul, div, fmuladd).
-    Args:
-        ir_builder: The llvmlite.IRBuilder
-        op: str, one of '+', '-', '*', '/'
-        lhs, rhs: ir.Value (vectors)
-    """
-    if op == '+':
-        return ir_builder.add(lhs, rhs, name="vaddtmp")
-    elif op == '-':
-        return ir_builder.sub(lhs, rhs, name="vsubtmp")
-    elif op == '*':
-        return ir_builder.mul(lhs, rhs, name="vmultmp")
-    elif op == '/':
-        return ir_builder.sdiv(lhs, rhs, name="vdivtmp") # Change to fdiv if floats
-    else:
-        raise NotImplementedError(f"Vector binop {op} not implemented.")
 
 
 @public
