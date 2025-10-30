@@ -14,6 +14,7 @@ from llvmlite import binding as llvm
 from llvmlite import ir
 from plum import dispatch
 from public import public
+from datetime import datetime
 
 from irx import system
 from irx.builders.base import Builder, BuilderVisitor
