@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 
+from datetime import datetime
 from typing import Any, Callable, Optional, cast
 
 import astx
@@ -14,7 +15,6 @@ from llvmlite import binding as llvm
 from llvmlite import ir
 from plum import dispatch
 from public import public
-from datetime import datetime
 
 from irx import system
 from irx.builders.base import Builder, BuilderVisitor
@@ -1096,15 +1096,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             ) from exc
 
         # Parse time: HH:MM:SS(.fffffffff)?
+        # Named bounds to avoid magic numbers
+        NS_DIGITS = 9
+        MAX_HOUR = 23
+        MAX_MINUTE = 59
+        MAX_SECOND = 59
+
         frac_ns = 0
         try:
             if "." in time_part:
                 hms, frac = time_part.split(".", 1)
                 if not frac.isdigit():
                     raise ValueError("fractional seconds must be digits")
-                if len(frac) > 9:
-                    frac = frac[:9]
-                frac_ns = int(frac.ljust(9, "0"))
+                if len(frac) > NS_DIGITS:
+                    frac = frac[:NS_DIGITS]
+                frac_ns = int(frac.ljust(NS_DIGITS, "0"))
             else:
                 hms = time_part
 
@@ -1119,15 +1125,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 " (optionally with '.fffffffff')."
             ) from exc
 
-        if not (0 <= hour <= 23):
+        if not (0 <= hour <= MAX_HOUR):
             raise Exception(
                 f"LiteralTimestamp: hour out of range in '{node.value}'."
             )
-        if not (0 <= minute <= 59):
+        if not (0 <= minute <= MAX_MINUTE):
             raise Exception(
                 f"LiteralTimestamp: minute out of range in '{node.value}'."
             )
-        if not (0 <= second <= 59):
+        if not (0 <= second <= MAX_SECOND):
             raise Exception(
                 f"LiteralTimestamp: second out of range in '{node.value}'."
             )
