@@ -48,6 +48,7 @@ class VariablesLLVM:
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIMESTAMP_TYPE: ir.types.Type
+    SIZE_T_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -179,6 +180,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self._llvm.INT32_TYPE,
             ]
         )
+        # Platform-sized unsigned integer (assume 64-bit for CI targets)
+        self._llvm.SIZE_T_TYPE = ir.IntType(64)
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
