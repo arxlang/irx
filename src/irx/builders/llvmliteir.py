@@ -15,7 +15,12 @@ import xh
 
 from llvmlite import binding as llvm
 from llvmlite import ir
-from llvmlite.ir import DoubleType, FloatType, FP128Type, HalfType, VectorType
+from llvmlite.ir import DoubleType, FloatType, HalfType, VectorType
+
+try:  # FP128 may not exist depending on llvmlite build
+    from llvmlite.ir import FP128Type
+except ImportError:  # pragma: no cover - optional
+    FP128Type = None
 from plum import dispatch
 from public import public
 
@@ -26,7 +31,10 @@ from irx.tools.typing import typechecked
 
 def is_fp_type(t: "ir.Type") -> bool:
     """Return True if t is any floating-point LLVM type."""
-    return isinstance(t, (HalfType, FloatType, DoubleType, FP128Type))
+    fp_types = [HalfType, FloatType, DoubleType]
+    if FP128Type is not None:
+        fp_types.append(FP128Type)
+    return isinstance(t, tuple(fp_types))
 
 
 def is_vector(v: "ir.Value") -> bool:
