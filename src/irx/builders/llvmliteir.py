@@ -20,6 +20,22 @@ from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
+TIME_PARTS_WITH_SECONDS = 3
+MAX_HOUR = 23
+MAX_MINUTE = 59
+MAX_SECOND = 59
+
+
+def _init_llvm_targets() -> None:
+    try:
+        llvm.initialize()
+        llvm.initialize_all_targets()
+        llvm.initialize_all_asmprinters()
+        llvm.initialize_native_target()
+        llvm.initialize_native_asmprinter()
+    except Exception:
+        pass
+
 
 @typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
@@ -46,6 +62,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    TIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
     POINTER_BITS: int
 
@@ -92,6 +109,8 @@ class VariablesLLVM:
             return self.UTF8_STRING_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
+        elif type_name == "time":
+            return self.TIME_TYPE
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
@@ -137,22 +156,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.SIZE_T_TYPE = ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
 
     def initialize(self) -> None:
-        """Initialize self."""
+        """Initialize LLVM module and types safely."""
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
 
-        # initialize the target registry etc.
-        llvm.initialize()
-        llvm.initialize_all_asmprinters()
-        llvm.initialize_all_targets()
-        llvm.initialize_native_target()
-        llvm.initialize_native_asmparser()
-        llvm.initialize_native_asmprinter()
+        _init_llvm_targets()
 
-        # Create a new builder for the module.
         self._llvm.ir_builder = ir.IRBuilder()
 
-        # Data Types
         self._llvm.FLOAT_TYPE = ir.FloatType()
         self._llvm.FLOAT16_TYPE = ir.HalfType()
         self._llvm.DOUBLE_TYPE = ir.DoubleType()
@@ -167,22 +178,21 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.TIME_TYPE = ir.LiteralStructType(
+            [
+                ir.IntType(32),
+                ir.IntType(32),
+                ir.IntType(32),
+            ]
+        )
         self._init_native_size_types()
 
     def _add_builtins(self) -> None:
-        # The C++ tutorial adds putchard() simply by defining it in the host
-        # C++ code, which is then accessible to the JIT. It doesn't work as
-        # simply for us; but luckily it's very easy to define new "C level"
-        # functions for our JITed code to use - just emit them as LLVM IR.
-        # This is what this method does.
-
-        # Add the declaration of putchar
         putchar_ty = ir.FunctionType(
             self._llvm.INT32_TYPE, [self._llvm.INT32_TYPE]
         )
         putchar = ir.Function(self._llvm.module, putchar_ty, "putchar")
 
-        # Add putchard
         putchard_ty = ir.FunctionType(
             self._llvm.INT32_TYPE, [self._llvm.INT32_TYPE]
         )
@@ -272,7 +282,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if lhs.type == rhs.type:
             return lhs, rhs
 
-        # perform sign extension (for integer operands)
         if isinstance(lhs.type, ir.IntType) and isinstance(
             rhs.type, ir.IntType
         ):
@@ -286,18 +295,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         rhs_fp_rank = self.fp_rank(rhs.type)
 
         if lhs_fp_rank > 0 and rhs_fp_rank > 0:
-            # make both the wider FP
             if lhs_fp_rank < rhs_fp_rank:
                 lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
             elif lhs_fp_rank > rhs_fp_rank:
                 rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
 
-        # If one is int and other is FP, convert int -> FP (sitofp),
         if isinstance(lhs.type, ir.IntType) and rhs_fp_rank > 0:
             target_fp = rhs.type
             lhs_fp = self._llvm.ir_builder.sitofp(lhs, target_fp, "int_to_fp")
-            # Now if rhs is narrower/wider, adjust (rhs already target_fp here)
             return lhs_fp, rhs
 
         if isinstance(rhs.type, ir.IntType) and lhs_fp_rank > 0:
@@ -321,10 +327,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             one = ir.Constant(operand_val.type, 1)
 
-            # Perform the increment operation
             result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
 
-            # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
                 var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
@@ -368,19 +372,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.BinaryOp) -> None:
         """Translate binary operation expression."""
         if node.op_code == "=":
-            # Special case '=' because we don't want to emit the lhs as an
-            # expression.
-            # Assignment requires the lhs to be an identifier.
-            # This assumes we're building without RTTI because LLVM builds
-            # that way by default.
-            # If you build LLVM with RTTI, this can be changed to a
-            # dynamic_cast for automatic error checking.
             var_lhs = node.lhs
 
             if not isinstance(var_lhs, astx.VariableExprAST):
                 raise Exception("destination of '=' must be a variable")
 
-            # Codegen the rhs.
             self.visit(node.rhs)
             llvm_rhs = safe_pop(self.result_stack)
 
@@ -406,7 +402,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # automatic type promotion
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
         if node.op_code in ("&&", "and"):
@@ -419,8 +414,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
         if node.op_code == "+":
-            # note: it should be according the datatype,
-            #       e.g. for float it should be fadd
             if (
                 isinstance(llvm_lhs.type, ir.PointerType)
                 and isinstance(llvm_rhs.type, ir.PointerType)
@@ -436,62 +429,50 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "addtmp"
                 )
             else:
-                # there's more conditions to be handled
                 result = self._llvm.ir_builder.add(
                     llvm_lhs, llvm_rhs, "addtmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == "-":
-            # note: it should be according the datatype,
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
             else:
-                # note: be careful you should handle this as  INT32
                 result = self._llvm.ir_builder.sub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == "*":
-            # note: it should be according the datatype,
-            #       e.g. for float it should be fmul
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
             else:
-                # note: be careful you should handle this as INT32
                 result = self._llvm.ir_builder.mul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == "<":
-            # note: it should be according the datatype,
-            #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             else:
-                # handle it depend on datatype
                 result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             self.result_stack.append(result)
             return
         elif node.op_code == ">":
-            # note: it should be according the datatype,
-            #       e.g. for float it should be fcmp
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
             else:
-                # be careful we havn't  handled all the conditions
                 result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -520,16 +501,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "/":
-            # Check the datatype to decide between floating-point and integer
-            # division
             if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
-                # Floating-point division
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
             else:
-                # Assuming the division is signed by default. Use `udiv` for
-                # unsigned division.
                 result = self._llvm.ir_builder.sdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -537,14 +513,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
         elif node.op_code == "==":
-            # Handle string comparison for equality
             if (
                 isinstance(llvm_lhs.type, ir.PointerType)
                 and isinstance(llvm_rhs.type, ir.PointerType)
                 and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
                 and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
             ):
-                # String comparison
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "=="
                 )
@@ -560,14 +534,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
         elif node.op_code == "!=":
-            # Handle string comparison for inequality
             if (
                 isinstance(llvm_lhs.type, ir.PointerType)
                 and isinstance(llvm_rhs.type, ir.PointerType)
                 and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
                 and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
             ):
-                # String comparison
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "!="
                 )
@@ -593,7 +565,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             try:
                 result = self.result_stack.pop()
             except IndexError:
-                # some nodes doesn't add anything in the stack
                 pass
         if result is not None:
             self.result_stack.append(result)
@@ -619,7 +590,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             zero_val,
         )
 
-        # Create blocks for the then and else cases.
         then_bb = self._llvm.ir_builder.function.append_basic_block(
             "bb_if_then"
         )
@@ -632,7 +602,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.cbranch(cond_v, then_bb, else_bb)
 
-        # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
         self.visit(node.then)
         then_v = self.result_stack.pop()
@@ -641,10 +610,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.branch(merge_bb)
 
-        # Update reference to final block of 'then'
         then_bb = self._llvm.ir_builder.block
 
-        # Emit else block.
         self._llvm.ir_builder.position_at_start(else_bb)
         else_v = None
         if node.else_ is not None:
@@ -653,17 +620,77 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             else_v = ir.Constant(self._llvm.INT32_TYPE, 0)
 
-        # Update reference to final block of 'else'
         else_bb = self._llvm.ir_builder.block
         self._llvm.ir_builder.branch(merge_bb)
 
-        # Emit merge block and PHI node
         self._llvm.ir_builder.position_at_start(merge_bb)
         phi = self._llvm.ir_builder.phi(self._llvm.INT32_TYPE, "iftmp")
         phi.add_incoming(then_v, then_bb)
         phi.add_incoming(else_v, else_bb)
 
         self.result_stack.append(phi)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTime) -> None:
+        """Visit a LiteralTime node and process its string value."""
+        s = node.value.strip()
+
+        parts = s.split(":")
+        if len(parts) not in (2, TIME_PARTS_WITH_SECONDS):
+            raise Exception(
+                f"LiteralTime: invalid time format '{node.value}'. "
+                "Expected 'HH:MM' or 'HH:MM:SS'."
+            )
+
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except Exception as exc:
+            raise Exception(
+                f"LiteralTime: invalid hour/minutein '{node.value}'."
+            ) from exc
+
+        if len(parts) == TIME_PARTS_WITH_SECONDS:
+            sec_part = parts[2]
+            if "." in sec_part:
+                raise Exception(
+                    "LiteralTime: fractional seconds not supported "
+                    f"in '{node.value}'."
+                )
+            try:
+                second = int(sec_part)
+            except Exception as exc:
+                raise Exception(
+                    f"LiteralTime: invalid secondsin '{node.value}'."
+                ) from exc
+        else:
+            second = 0
+
+        if not (0 <= hour <= MAX_HOUR):
+            raise Exception(
+                f"LiteralTime: hour out of range in '{node.value}'."
+            )
+        if not (0 <= minute <= MAX_MINUTE):
+            raise Exception(
+                f"LiteralTime: minute out of range in '{node.value}'."
+            )
+        if not (0 <= second <= MAX_SECOND):
+            raise Exception(
+                f"LiteralTime: second out of range in '{node.value}'."
+            )
+
+        i32 = self._llvm.INT32_TYPE
+        time_ty = self._llvm.TIME_TYPE
+        const_time = ir.Constant(
+            time_ty,
+            [
+                ir.Constant(i32, hour),
+                ir.Constant(i32, minute),
+                ir.Constant(i32, second),
+            ],
+        )
+
+        self.result_stack.append(const_time)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.WhileStmt) -> None:
