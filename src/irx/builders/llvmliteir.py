@@ -46,6 +46,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    TIMESTAMP_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -161,6 +162,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        # Composite types
+        self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -1139,9 +1152,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
 
         i32 = self._llvm.INT32_TYPE
-        ts_ty = ir.LiteralStructType([i32, i32, i32, i32, i32, i32, i32])
         const_ts = ir.Constant(
-            ts_ty,
+            self._llvm.TIMESTAMP_TYPE,
             [
                 ir.Constant(i32, year),
                 ir.Constant(i32, month),
