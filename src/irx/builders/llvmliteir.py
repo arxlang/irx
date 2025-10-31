@@ -15,6 +15,7 @@ import xh
 
 from llvmlite import binding as llvm
 from llvmlite import ir
+from llvmlite.ir import DoubleType, FloatType, FP128Type, HalfType, VectorType
 from plum import dispatch
 from public import public
 
@@ -25,15 +26,11 @@ from irx.tools.typing import typechecked
 
 def is_fp_type(t: "ir.Type") -> bool:
     """Return True if t is any floating-point LLVM type."""
-    from llvmlite.ir import DoubleType, FloatType, FP128Type, HalfType
-
     return isinstance(t, (HalfType, FloatType, DoubleType, FP128Type))
 
 
 def is_vector(v: "ir.Value") -> bool:
     """Return True if v is an LLVM vector value."""
-    from llvmlite.ir import VectorType
-
     return isinstance(getattr(v, "type", None), VectorType)
 
 
@@ -364,6 +361,47 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         return lhs, rhs
 
+    def _get_fma_function(self, ty: ir.Type) -> ir.Function:
+        """Return (and cache) the llvm.fma.* intrinsic for a type."""
+        if isinstance(ty, ir.VectorType):
+            elem_ty = ty.element
+            count = ty.count
+        else:
+            elem_ty = ty
+            count = None
+
+        if isinstance(elem_ty, FloatType):
+            suffix = "f32"
+        elif isinstance(elem_ty, DoubleType):
+            suffix = "f64"
+        elif isinstance(elem_ty, HalfType):
+            suffix = "f16"
+        else:
+            raise Exception("FMA supports only floating-point operands")
+
+        if count is not None:
+            suffix = f"v{count}{suffix}"
+
+        name = f"llvm.fma.{suffix}"
+        if name in self._llvm.module.globals:
+            return self._llvm.module.get_global(name)
+
+        fn_ty = ir.FunctionType(ty, [ty, ty, ty])
+        fn = ir.Function(self._llvm.module, fn_ty, name)
+        fn.linkage = "external"
+        return fn
+
+    def _emit_fma(
+        self, lhs: ir.Value, rhs: ir.Value, addend: ir.Value
+    ) -> ir.Value:
+        """Emit a fused multiply-add, using intrinsic fallback if needed."""
+        builder = self._llvm.ir_builder
+        if hasattr(builder, "fma"):
+            return builder.fma(lhs, rhs, addend, name="vfma")
+
+        fma_fn = self._get_fma_function(lhs.type)
+        return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
         """Translate an ASTx expression."""
@@ -487,17 +525,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         f"FMA operand type mismatch: "
                         f"{llvm_lhs.type} vs {llvm_fma_rhs.type}"
                     )
-                if not hasattr(self._llvm.ir_builder, "fma"):
-                    raise Exception(
-                        "IRBuilder.fma not available; please lower via "
-                        "llvm.fma intrinsic"
-                    )
                 if set_fast:
                     self.set_fast_math(True)
                 try:
-                    result = self._llvm.ir_builder.fma(
-                        llvm_lhs, llvm_rhs, llvm_fma_rhs, name="vfma"
-                    )
+                    result = self._emit_fma(llvm_lhs, llvm_rhs, llvm_fma_rhs)
                 finally:
                     if set_fast:
                         self.set_fast_math(False)
