@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from llvmlite import ir
+from typing import Any, cast
 
 from irx.builders.llvmliteir import LLVMLiteIRVisitor
+from llvmlite import ir
 
 
 class _NoFmaBuilder:
@@ -40,10 +39,11 @@ def _prime_builder(visitor: LLVMLiteIRVisitor) -> None:
 
 
 def test_emit_fma_fallback_intrinsic() -> None:
+    """Ensure fallback uses llvm.fma intrinsic when builder lacks fma."""
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
     proxy = _NoFmaBuilder(visitor._llvm.ir_builder)
-    visitor._llvm.ir_builder = proxy  # type: ignore[assignment]
+    visitor._llvm.ir_builder = cast(ir.IRBuilder, proxy)
 
     ty = visitor._llvm.FLOAT_TYPE
     lhs = ir.Constant(ty, 1.0)
@@ -55,4 +55,3 @@ def test_emit_fma_fallback_intrinsic() -> None:
     assert inst.name == "vfma"
     assert "llvm.fma.f32" in proxy.called
     assert "llvm.fma.f32" in visitor._llvm.module.globals
-
