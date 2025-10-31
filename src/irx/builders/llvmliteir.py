@@ -6,6 +6,7 @@ import ctypes
 import os
 import tempfile
 
+from datetime import datetime
 from typing import Any, Callable, Optional, cast
 
 import astx
@@ -46,6 +47,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    TIMESTAMP_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
     POINTER_BITS: int
 
@@ -140,6 +142,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Initialize self."""
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
+        # Initialize native-sized types (size_t, pointer width)
+        self._init_native_size_types()
 
         # initialize the target registry etc.
         llvm.initialize()
@@ -167,7 +171,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
-        self._init_native_size_types()
+        # Composite types
+        self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+        # Platform-sized unsigned integer (assume 64-bit for CI targets)
+        self._llvm.SIZE_T_TYPE = ir.IntType(64)
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
@@ -1049,6 +1066,116 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Handle generic string literals - defaults to UTF-8."""
         utf8_literal = astx.LiteralUTF8String(value=expr.value)
         self.visit(utf8_literal)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTimestamp) -> None:
+        """Lower a LiteralTimestamp to a constant struct.
+
+        Layout:
+          { i32 year, i32 month, i32 day,
+            i32 hour, i32 minute, i32 second, i32 nanos }
+
+        Accepted formats (no timezone):
+          YYYY-MM-DDTHH:MM:SS[.fffffffff]
+          YYYY-MM-DD HH:MM:SS[.fffffffff]
+        """
+        s = node.value.strip()
+
+        # Split date and time by 'T' or space.
+        if "T" in s:
+            date_part, time_part = s.split("T", 1)
+        elif " " in s:
+            date_part, time_part = s.split(" ", 1)
+        else:
+            raise Exception(
+                "LiteralTimestamp: invalid format '"
+                f"{node.value}'. Expected 'YYYY-MM-DDTHH:MM:SS"
+                "[.fffffffff]' (or space instead of 'T')."
+            )
+
+        # Reject timezone suffixes for now.
+        if time_part.endswith("Z") or "+" in time_part or "-" in time_part[2:]:
+            raise Exception(
+                "LiteralTimestamp: timezone offsets not supported in '"
+                f"{node.value}'."
+            )
+
+        # Parse and validate date: YYYY-MM-DD
+        try:
+            y_str, m_str, d_str = date_part.split("-")
+            year = int(y_str)
+            month = int(m_str)
+            day = int(d_str)
+            # Validate real calendar date (handles month/day/leap years)
+            datetime(year, month, day)
+        except ValueError as exc:
+            raise Exception(
+                "LiteralTimestamp: invalid date in '"
+                f"{node.value}'. Expected valid 'YYYY-MM-DD'."
+            ) from exc
+        except Exception as exc:
+            raise Exception(
+                "LiteralTimestamp: invalid date part in '"
+                f"{node.value}'. Expected 'YYYY-MM-DD'."
+            ) from exc
+
+        # Parse time: HH:MM:SS(.fffffffff)?
+        # Named bounds to avoid magic numbers
+        NS_DIGITS = 9
+        MAX_HOUR = 23
+        MAX_MINUTE = 59
+        MAX_SECOND = 59
+
+        frac_ns = 0
+        try:
+            if "." in time_part:
+                hms, frac = time_part.split(".", 1)
+                if not frac.isdigit():
+                    raise ValueError("fractional seconds must be digits")
+                if len(frac) > NS_DIGITS:
+                    frac = frac[:NS_DIGITS]
+                frac_ns = int(frac.ljust(NS_DIGITS, "0"))
+            else:
+                hms = time_part
+
+            h_str, m_str, s_str = hms.split(":")
+            hour = int(h_str)
+            minute = int(m_str)
+            second = int(s_str)
+        except Exception as exc:
+            raise Exception(
+                "LiteralTimestamp: invalid time part in '"
+                f"{node.value}'. Expected 'HH:MM:SS'"
+                " (optionally with '.fffffffff')."
+            ) from exc
+
+        if not (0 <= hour <= MAX_HOUR):
+            raise Exception(
+                f"LiteralTimestamp: hour out of range in '{node.value}'."
+            )
+        if not (0 <= minute <= MAX_MINUTE):
+            raise Exception(
+                f"LiteralTimestamp: minute out of range in '{node.value}'."
+            )
+        if not (0 <= second <= MAX_SECOND):
+            raise Exception(
+                f"LiteralTimestamp: second out of range in '{node.value}'."
+            )
+
+        i32 = self._llvm.INT32_TYPE
+        const_ts = ir.Constant(
+            self._llvm.TIMESTAMP_TYPE,
+            [
+                ir.Constant(i32, year),
+                ir.Constant(i32, month),
+                ir.Constant(i32, day),
+                ir.Constant(i32, hour),
+                ir.Constant(i32, minute),
+                ir.Constant(i32, second),
+                ir.Constant(i32, frac_ns),
+            ],
+        )
+        self.result_stack.append(const_ts)
 
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
