@@ -8,6 +8,8 @@ import pytest
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 
+MAX_TIME_PARTS = 3
+
 
 @pytest.mark.parametrize(
     "time_str,expected_hour,expected_min,expected_sec",
@@ -32,6 +34,15 @@ def test_literal_time_basic(
 
     # Create time literal
     time_literal = astx.LiteralTime(time_str)
+
+    # Validate parsed components
+    parts = time_str.split(":")
+    assert int(parts[0]) == expected_hour
+    assert int(parts[1]) == expected_min
+    if len(parts) == MAX_TIME_PARTS:
+        assert int(parts[2]) == expected_sec
+    else:
+        assert expected_sec == 0
 
     # Create a function that returns the hour component
     proto = astx.FunctionPrototype(
@@ -73,25 +84,24 @@ def test_literal_time_invalid(
     invalid_time: str,
 ) -> None:
     """Test that invalid time formats raise exceptions."""
-    builder = builder_class()
-    module = builder.module()
-
-    time_literal = astx.LiteralTime(invalid_time)
-
-    proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
-    )
-    block = astx.Block()
-
-    time_decl = astx.VariableDeclaration(
-        name="t", type_=astx.Time(), value=time_literal
-    )
-    block.append(time_decl)
-    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-
-    fn = astx.FunctionDef(prototype=proto, body=block)
-    module.block.append(fn)
-
-    # Should raise an exception during translation
     with pytest.raises(Exception):
+        builder = builder_class()
+        module = builder.module()
+
+        time_literal = astx.LiteralTime(invalid_time)
+
+        proto = astx.FunctionPrototype(
+            name="main", args=astx.Arguments(), return_type=astx.Int32()
+        )
+        block = astx.Block()
+
+        time_decl = astx.VariableDeclaration(
+            name="t", type_=astx.Time(), value=time_literal
+        )
+        block.append(time_decl)
+        block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+        fn = astx.FunctionDef(prototype=proto, body=block)
+        module.block.append(fn)
+
         builder.translate(module)
