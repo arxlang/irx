@@ -49,6 +49,7 @@ class VariablesLLVM:
     UTF8_STRING_TYPE: ir.types.Type
     TIMESTAMP_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
+    POINTER_BITS: int
 
     context: ir.context.Context
     module: ir.module.Module
@@ -141,6 +142,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Initialize self."""
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
+        # Initialize native-sized types (size_t, pointer width)
+        self._init_native_size_types()
 
         # initialize the target registry etc.
         llvm.initialize()
