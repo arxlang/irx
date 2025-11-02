@@ -1602,7 +1602,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             raise Exception("Expected integer value")
         w = v.type.width
         if w < INT64_WIDTH:
-            arg = self._llvm.ir_builder.sext(v, self._llvm.INT64_TYPE)
+            # i1 uses zero-extension to print as 1/0, not -1/0
+            if w == 1:
+                arg = self._llvm.ir_builder.zext(v, self._llvm.INT64_TYPE)
+            else:
+                arg = self._llvm.ir_builder.sext(v, self._llvm.INT64_TYPE)
             return arg, "%lld"
         if w == INT64_WIDTH:
             return v, "%lld"
