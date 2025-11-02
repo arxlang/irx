@@ -1644,8 +1644,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         needed_i32 = self._llvm.ir_builder.call(
             snprintf, [null_ptr, zero_size, fmt_ptr, *args]
         )
+
+        # Guard: snprintf returns negative on error; clamp to 1
+        zero_i32 = ir.Constant(self._llvm.INT32_TYPE, 0)
+        min_needed = self._llvm.ir_builder.select(
+            self._llvm.ir_builder.icmp_signed("<", needed_i32, zero_i32),
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+            needed_i32,
+        )
         need_plus_1 = self._llvm.ir_builder.add(
-            needed_i32, ir.Constant(self._llvm.INT32_TYPE, 1)
+            min_needed, ir.Constant(self._llvm.INT32_TYPE, 1)
         )
         need_szt = self._llvm.ir_builder.zext(
             need_plus_1, self._llvm.SIZE_T_TYPE
