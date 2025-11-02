@@ -7,6 +7,7 @@ import os
 import tempfile
 
 from datetime import datetime
+from datetime import time as _time
 from typing import Any, Callable, Optional, cast
 
 import astx
@@ -48,6 +49,7 @@ class VariablesLLVM:
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIMESTAMP_TYPE: ir.types.Type
+    DATETIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
     POINTER_BITS: int
 
@@ -175,6 +177,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
             [
                 self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+        self._llvm.DATETIME_TYPE = ir.LiteralStructType(
+            [
                 self._llvm.INT32_TYPE,
                 self._llvm.INT32_TYPE,
                 self._llvm.INT32_TYPE,
@@ -1176,6 +1188,120 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             ],
         )
         self.result_stack.append(const_ts)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralDateTime) -> None:
+        """Lower a LiteralDateTime to a constant struct.
+
+        Layout:
+          { i32 year, i32 month, i32 day, i32 hour, i32 minute, i32 second }
+
+        Accepted formats (no timezone, no fractional seconds):
+          YYYY-MM-DDTHH:MM
+          YYYY-MM-DDTHH:MM:SS
+          (space may be used instead of 'T')
+        """
+        s = node.value.strip()
+
+        # Split date and time by 'T' or space.
+        if "T" in s:
+            date_part, time_part = s.split("T", 1)
+        elif " " in s:
+            date_part, time_part = s.split(" ", 1)
+        else:
+            raise ValueError(
+                f"LiteralDateTime: invalid format '{node.value}'. "
+                "Expected 'YYYY-MM-DDTHH:MM[:SS]' (or space instead of 'T')."
+            )
+
+        # Disallow fractional seconds and timezone suffixes here.
+        if "." in time_part:
+            raise ValueError(
+                f"LiteralDateTime: fractional seconds not supported in "
+                f"'{node.value}'. Use LiteralTimestamp instead."
+            )
+        if time_part.endswith("Z") or "+" in time_part or "-" in time_part[2:]:
+            raise ValueError(
+                f"LiteralDateTime: timezone offsets not supported in "
+                f"'{node.value}'. Use LiteralTimestamp for timezones."
+            )
+
+        # Parse date: YYYY-MM-DD
+        try:
+            y_str, m_str, d_str = date_part.split("-")
+            year = int(y_str)
+            month = int(m_str)
+            day = int(d_str)
+        except Exception as exc:
+            raise ValueError(
+                f"LiteralDateTime: invalid date part in '{node.value}'. "
+                "Expected 'YYYY-MM-DD'."
+            ) from exc
+
+        # Validate i32 range for year
+        INT32_MIN, INT32_MAX = -(2**31), 2**31 - 1
+        if not (INT32_MIN <= year <= INT32_MAX):
+            raise ValueError(
+                f"LiteralDateTime: year out of 32-bit range in '{node.value}'."
+            )
+
+        # Parse time: HH:MM[:SS]
+        HOUR_MINUTE_ONLY = 2
+        HOUR_MINUTE_SECOND = 3
+        try:
+            parts = time_part.split(":")
+            if len(parts) not in (HOUR_MINUTE_ONLY, HOUR_MINUTE_SECOND):
+                raise ValueError("time must be HH:MM or HH:MM:SS")
+            hour = int(parts[0])
+            minute = int(parts[1])
+            second = int(parts[2]) if len(parts) == HOUR_MINUTE_SECOND else 0
+        except Exception as exc:
+            raise ValueError(
+                f"LiteralDateTime: invalid time part in '{node.value}'. "
+                "Expected 'HH:MM' or 'HH:MM:SS'."
+            ) from exc
+
+        # Named bounds for time validation
+        MAX_HOUR = 23
+        MAX_MINUTE_SECOND = 59
+        if not (0 <= hour <= MAX_HOUR):
+            raise ValueError(
+                f"LiteralDateTime: hour out of range in '{node.value}'."
+            )
+        if not (0 <= minute <= MAX_MINUTE_SECOND):
+            raise ValueError(
+                f"LiteralDateTime: minute out of range in '{node.value}'."
+            )
+        if not (0 <= second <= MAX_MINUTE_SECOND):
+            raise ValueError(
+                f"LiteralDateTime: second out of range in '{node.value}'."
+            )
+
+        # Validate calendar date and time (handles month/day/leap years)
+        try:
+            datetime(year, month, day)
+            _time(hour, minute, second)
+        except ValueError as exc:
+            raise ValueError(
+                f"LiteralDateTime: invalid calendar date/time in "
+                f"'{node.value}'."
+            ) from exc
+
+        # Build constant using shared DATETIME_TYPE
+        i32 = self._llvm.INT32_TYPE
+        const_dt = ir.Constant(
+            self._llvm.DATETIME_TYPE,
+            [
+                ir.Constant(i32, year),
+                ir.Constant(i32, month),
+                ir.Constant(i32, day),
+                ir.Constant(i32, hour),
+                ir.Constant(i32, minute),
+                ir.Constant(i32, second),
+            ],
+        )
+
+        self.result_stack.append(const_dt)
 
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
