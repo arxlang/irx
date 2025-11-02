@@ -56,6 +56,16 @@ def emit_int_div(
     )
 
 
+def splat_scalar(
+    ir_builder: "ir.IRBuilder", scalar: "ir.Value", vec_type: "ir.VectorType"
+) -> "ir.Value":
+    """Broadcast a scalar to a vector by inserting at index 0."""
+    undef = ir.Constant(vec_type, ir.Undefined)
+    return ir_builder.insertelement(
+        undef, scalar, ir.Constant(ir.IntType(32), 0)
+    )
+
+
 @typechecked
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
     """Implement a safe pop operation for lists."""
@@ -508,6 +518,22 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
+
+        # Scalar-vector promotion: one vector + matching scalar -> splat scalar
+        lhs_is_vec = is_vector(llvm_lhs)
+        rhs_is_vec = is_vector(llvm_rhs)
+        if lhs_is_vec and not rhs_is_vec:
+            # lhs is vector, rhs is scalar
+            if llvm_rhs.type == llvm_lhs.type.element:
+                llvm_rhs = splat_scalar(
+                    self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                )
+        elif rhs_is_vec and not lhs_is_vec:
+            # rhs is vector, lhs is scalar
+            if llvm_lhs.type == llvm_rhs.type.element:
+                llvm_lhs = splat_scalar(
+                    self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                )
 
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
