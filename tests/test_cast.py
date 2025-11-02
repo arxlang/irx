@@ -201,3 +201,58 @@ def test_cast_float_to_string(builder_class: Type[Builder]) -> None:
 
     expected_output = "42.000000"
     check_result("build", builder, module, expected_output=expected_output)
+
+
+@pytest.mark.parametrize(
+    "boolean_value, expected_output",
+    [
+        (True, "1"),
+        (False, "0"),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_cast_boolean_to_string(
+    builder_class: Type[Builder],
+    boolean_value: bool,
+    expected_output: str,
+) -> None:
+    """Cast a boolean to a string, verify it prints as 1/0 not -1/0."""
+    builder = builder_class()
+    module = builder.module()
+
+    # a: boolean = True/False
+    decl_a = astx.VariableDeclaration(
+        name="a",
+        type_=astx.Boolean(),
+        value=astx.LiteralBoolean(boolean_value),
+    )
+    a_ident = astx.Identifier("a")
+
+    # r: string = cast(a)
+    cast_to_str = Cast(value=a_ident, target_type=astx.String())
+    cast_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+
+    # print(r)
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+
+    # main returns int32 (exit code 0)
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(cast_var)
+    main_block.append(print_stmt)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output=expected_output)
