@@ -37,3 +37,15 @@ Once you have a copy of the source, you can install it with:
 ```bash
 $ poetry install
 ```
+
+> Note for contributors
+>
+> If you are setting up a development environment to run tests or contribute code, please follow the steps in the Contributing guide instead. The development workflow requires creating the Conda environment first, then installing Poetry dependencies:
+>
+> ```bash
+> mamba env create --file conda/dev.yaml
+> conda activate irx
+> poetry install
+> ```
+>
+> See the full instructions at: https://irx.arxlang.org/contributing/
