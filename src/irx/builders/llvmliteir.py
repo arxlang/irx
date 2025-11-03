@@ -1529,6 +1529,50 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.result_stack.append(const_dt)
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralList) -> None:
+        """Lower a LiteralList to LLVM IR (minimal support).
+
+        Supported cases:
+        - Empty list -> constant [0 x i32]
+        - Homogeneous integer constant lists -> constant [N x iX]
+
+        Otherwise raises to keep behavior explicit and aligned with
+        current test-suite conventions.
+        """
+        # Lower each element and collect the LLVM values
+        llvm_elems: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralList: invalid element lowering.")
+            llvm_elems.append(v)
+
+        n = len(llvm_elems)
+        # Empty list => [0 x i32] constant
+        # TODO: Infer element type from declared list type when available.
+        # Currently uses i32 as placeholder; update when non-int lists are supported.
+        if n == 0:
+            empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
+            self.result_stack.append(ir.Constant(empty_ty, []))
+            return
+
+        # Homogeneous integer constant lists => constant array
+        first_ty = llvm_elems[0].type
+        is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
+        homogeneous = all(v.type == first_ty for v in llvm_elems)
+        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
+        if is_ints and homogeneous and all_constants:
+            arr_ty = ir.ArrayType(first_ty, n)
+            const_arr = ir.Constant(arr_ty, llvm_elems)
+            self.result_stack.append(const_arr)
+            return
+
+        raise TypeError(
+            "LiteralList: only empty or homogeneous integer constants "
+            "are supported"
+        )
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
         func_name = "string_concat"
