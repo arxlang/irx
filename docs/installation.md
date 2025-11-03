@@ -40,7 +40,10 @@ $ poetry install
 
 > Note for contributors
 >
-> If you are setting up a development environment to run tests or contribute code, please follow the steps in the Contributing guide instead. The development workflow requires creating the Conda environment first, then installing Poetry dependencies:
+> If you are setting up a development environment to run tests or contribute
+> code, please follow the steps in the Contributing guide instead. The
+> development workflow requires creating the Conda environment first, then
+> installing Poetry dependencies:
 >
 > ```bash
 > mamba env create --file conda/dev.yaml
