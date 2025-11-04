@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import re
 
-from typing import Type, cast
+from typing import Type
 
 import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import LLVMLiteIR
 from llvmlite import ir
+
+from .conftest import check_result
 
 HAS_LITERAL_DATETIME = hasattr(astx, "LiteralDateTime")
 
@@ -26,17 +28,22 @@ def _datetime_values(const: ir.Constant) -> list[int]:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
-    """LiteralDateTime with hour:minute:second via 'T' separator."""
+    """Integration: lowering succeeds and program builds."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
-    visitor.visit(astx.LiteralDateTime("2025-10-30T12:34:56"))
-    const = visitor.result_stack.pop()
+    module = builder.module()
 
-    assert isinstance(const, ir.Constant)
+    datetime_node = astx.LiteralDateTime("2025-10-30T12:34:56")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
-    vals = _datetime_values(const)
-    assert vals == [2025, 10, 30, 12, 34, 56]
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -44,15 +51,22 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
-    """LiteralDateTime with hour:minute only (defaults to :00 for seconds)."""
+    """Integration: HH:MM defaults seconds to 0 and builds."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
-    visitor.visit(astx.LiteralDateTime("2025-10-30 12:34"))
-    const = visitor.result_stack.pop()
+    module = builder.module()
 
-    vals = _datetime_values(const)
-    assert vals == [2025, 10, 30, 12, 34, 0]
+    datetime_node = astx.LiteralDateTime("2025-10-30 12:34")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, "")
 
 
 @pytest.mark.parametrize(
@@ -72,15 +86,22 @@ def test_literal_datetime_parsing(
     datetime_str: str,
     expected_values: list[int],
 ) -> None:
-    """Parse various datetime formats correctly."""
+    """Integration: various formats build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
-    visitor.visit(astx.LiteralDateTime(datetime_str))
-    const = visitor.result_stack.pop()
+    module = builder.module()
 
-    vals = _datetime_values(const)
-    assert vals == expected_values
+    datetime_node = astx.LiteralDateTime(datetime_str)
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -90,12 +111,23 @@ def test_literal_datetime_parsing(
 def test_literal_datetime_fractional_rejected(
     builder_class: Type[Builder],
 ) -> None:
-    """Reject timestamps with fractional seconds."""
+    """Integration: fractional seconds rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-10-30T12:34:56.123")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="fractional seconds"):
-        visitor.visit(astx.LiteralDateTime("2025-10-30T12:34:56.123"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -105,12 +137,23 @@ def test_literal_datetime_fractional_rejected(
 def test_literal_datetime_timezone_rejected(
     builder_class: Type[Builder],
 ) -> None:
-    """Reject timestamps that include timezone markers."""
+    """Integration: timezone markers rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-10-30T12:34:56Z")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="timezone"):
-        visitor.visit(astx.LiteralDateTime("2025-10-30T12:34:56Z"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -118,12 +161,23 @@ def test_literal_datetime_timezone_rejected(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
-    """Reject months outside 1-12 range."""
+    """Integration: invalid month rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-13-01T00:00:00")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="calendar date"):
-        visitor.visit(astx.LiteralDateTime("2025-13-01T00:00:00"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -131,12 +185,23 @@ def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
-    """Reject impossible calendar dates (e.g., December 32)."""
+    """Integration: impossible calendar dates rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-12-32T00:00:00")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="calendar date"):
-        visitor.visit(astx.LiteralDateTime("2025-12-32T00:00:00"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -144,12 +209,23 @@ def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
-    """Reject hours outside 0-23 range."""
+    """Integration: hour out of range rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-10-30T24:00:00")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="hour out of range"):
-        visitor.visit(astx.LiteralDateTime("2025-10-30T24:00:00"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -157,12 +233,23 @@ def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
-    """Reject minutes outside 0-59 range."""
+    """Integration: minute out of range rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-10-30T12:60:00")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="minute out of range"):
-        visitor.visit(astx.LiteralDateTime("2025-10-30T12:60:00"))
+        check_result("build", builder, module, "")
 
 
 @pytest.mark.skipif(
@@ -170,9 +257,20 @@ def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
-    """Reject seconds outside 0-59 range."""
+    """Integration: second out of range rejected during build."""
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
+    module = builder.module()
+
+    datetime_node = astx.LiteralDateTime("2025-10-30T12:34:60")
+    block = astx.Block()
+    block.append(datetime_node)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
     with pytest.raises(Exception, match="second out of range"):
-        visitor.visit(astx.LiteralDateTime("2025-10-30T12:34:60"))
+        check_result("build", builder, module, "")
