@@ -1,6 +1,6 @@
-# Contributing
+# Contributing to IRx
 
-Please see the full contributing guide in the documentation:
+For the full contributing guide and development setup, see the docs page:
 
-- Development setup and guidelines: https://irx.arxlang.org/contributing/
-- Source file: `docs/contributing-guide.md`
+- Contributing guide: docs/contributing-guide.md
+- Online version: https://irx.arxlang.org/contributing/
