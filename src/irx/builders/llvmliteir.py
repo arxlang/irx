@@ -7,6 +7,7 @@ import os
 import tempfile
 
 from datetime import datetime
+from datetime import time as _time
 from typing import Any, Callable, Optional, cast
 
 import astx
@@ -48,6 +49,7 @@ class VariablesLLVM:
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIMESTAMP_TYPE: ir.types.Type
+    DATETIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
     POINTER_BITS: int
 
@@ -175,6 +177,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
             [
                 self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+        self._llvm.DATETIME_TYPE = ir.LiteralStructType(
+            [
                 self._llvm.INT32_TYPE,
                 self._llvm.INT32_TYPE,
                 self._llvm.INT32_TYPE,
