@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import re
 import tempfile
 
 from datetime import datetime
@@ -173,14 +174,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             codemodel="small"
         )
 
-        # Attach target triple and data layout to the module for correct sizes/ABI
-        try:
-            self._llvm.module.triple = self.target.triple  # type: ignore[attr-defined]
-        except Exception:
-            # Fallback to the default triple if attribute not available
-            self._llvm.module.triple = llvm.get_default_triple()
-        # target_data prints to a canonical data layout string
+        self._llvm.module.triple = self.target_machine.triple
         self._llvm.module.data_layout = str(self.target_machine.target_data)
+
+        if self._llvm.SIZE_T_TYPE is None:
+            dl_str = str(self.target_machine.target_data)
+            ptr_match = re.search(r"p(?:\d+)?:(\d+)", dl_str)
+            if ptr_match:
+                ptr_bits = int(ptr_match.group(1))
+                self._llvm.SIZE_T_TYPE = ir.IntType(ptr_bits)
+            else:
+                self._llvm.SIZE_T_TYPE = ir.IntType(
+                    ctypes.sizeof(ctypes.c_size_t) * 8
+                )
 
         self._add_builtins()
 
@@ -192,7 +198,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _init_native_size_types(self) -> None:
         """Initialize pointer/size_t types from host."""
         self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
-        self._llvm.SIZE_T_TYPE = ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
+        self._llvm.SIZE_T_TYPE = None
 
     def initialize(self) -> None:
         """Initialize self."""
