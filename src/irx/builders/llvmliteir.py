@@ -1405,8 +1405,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "total_len_with_null",
         )
 
-        # For simplicity, using alloca
-        result_ptr = builder.alloca(self._llvm.INT8_TYPE, total_len, "result")
+        # Allocate on heap to avoid use-after-return
+        malloc = self._create_malloc_decl()
+        total_len_szt = builder.zext(total_len, self._llvm.SIZE_T_TYPE)
+        result_ptr = builder.call(malloc, [total_len_szt], "result")
 
         self._generate_strcpy(builder, result_ptr, func.args[0])
 
