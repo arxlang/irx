@@ -173,6 +173,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             codemodel="small"
         )
 
+        # Attach target triple and data layout to the module for correct sizes/ABI
+        try:
+            self._llvm.module.triple = self.target.triple  # type: ignore[attr-defined]
+        except Exception:
+            # Fallback to the default triple if attribute not available
+            self._llvm.module.triple = llvm.get_default_triple()
+        # target_data prints to a canonical data layout string
+        self._llvm.module.data_layout = str(self.target_machine.target_data)
+
         self._add_builtins()
 
     def translate(self, node: astx.AST) -> str:
@@ -240,8 +249,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self._llvm.INT32_TYPE,
             ]
         )
-        # Platform-sized unsigned integer (assume 64-bit for CI targets)
-        self._llvm.SIZE_T_TYPE = ir.IntType(64)
+        # SIZE_T_TYPE already initialized based on host; do not override with a
+        # fixed width here to avoid mismatches on non-64-bit targets.
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host
