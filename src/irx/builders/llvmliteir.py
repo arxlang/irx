@@ -59,11 +59,13 @@ def emit_int_div(
 def splat_scalar(
     ir_builder: "ir.IRBuilder", scalar: "ir.Value", vec_type: "ir.VectorType"
 ) -> "ir.Value":
-    """Broadcast a scalar to a vector by inserting at index 0."""
-    undef = ir.Constant(vec_type, ir.Undefined)
-    return ir_builder.insertelement(
-        undef, scalar, ir.Constant(ir.IntType(32), 0)
-    )
+    """Broadcast a scalar to all lanes of a vector."""
+    zero_i32 = ir.Constant(ir.IntType(32), 0)
+    undef_vec = ir.Constant(vec_type, ir.Undefined)
+    v0 = ir_builder.insertelement(undef_vec, scalar, zero_i32)
+    mask_ty = ir.VectorType(ir.IntType(32), vec_type.count)
+    mask = ir.Constant(mask_ty, [0] * vec_type.count)
+    return ir_builder.shufflevector(v0, undef_vec, mask)
 
 
 @typechecked
@@ -523,17 +525,55 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         lhs_is_vec = is_vector(llvm_lhs)
         rhs_is_vec = is_vector(llvm_rhs)
         if lhs_is_vec and not rhs_is_vec:
-            # lhs is vector, rhs is scalar
-            if llvm_rhs.type == llvm_lhs.type.element:
+            elem_ty = llvm_lhs.type.element
+            if llvm_rhs.type == elem_ty:
                 llvm_rhs = splat_scalar(
                     self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
                 )
+            elif is_fp_type(elem_ty) and is_fp_type(llvm_rhs.type):
+                if isinstance(elem_ty, FloatType) and isinstance(
+                    llvm_rhs.type, DoubleType
+                ):
+                    llvm_rhs = self._llvm.ir_builder.fptrunc(
+                        llvm_rhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_rhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                    )
+                elif isinstance(elem_ty, DoubleType) and isinstance(
+                    llvm_rhs.type, FloatType
+                ):
+                    llvm_rhs = self._llvm.ir_builder.fpext(
+                        llvm_rhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_rhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                    )
         elif rhs_is_vec and not lhs_is_vec:
-            # rhs is vector, lhs is scalar
-            if llvm_lhs.type == llvm_rhs.type.element:
+            elem_ty = llvm_rhs.type.element
+            if llvm_lhs.type == elem_ty:
                 llvm_lhs = splat_scalar(
                     self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
                 )
+            elif is_fp_type(elem_ty) and is_fp_type(llvm_lhs.type):
+                if isinstance(elem_ty, FloatType) and isinstance(
+                    llvm_lhs.type, DoubleType
+                ):
+                    llvm_lhs = self._llvm.ir_builder.fptrunc(
+                        llvm_lhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_lhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                    )
+                elif isinstance(elem_ty, DoubleType) and isinstance(
+                    llvm_lhs.type, FloatType
+                ):
+                    llvm_lhs = self._llvm.ir_builder.fpext(
+                        llvm_lhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_lhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                    )
 
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
@@ -604,8 +644,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                             llvm_lhs, llvm_rhs, name="vfdivtmp"
                         )
                     else:
-                        # TODO: use more precise type info for unsigned!
-                        unsigned = False  # Or infer from type/var name/etc.
+                        unsigned = getattr(node, "unsigned", None)
+                        if unsigned is None:
+                            raise Exception(
+                                "Cannot infer integer division signedness "
+                                "for vector op"
+                            )
                         result = emit_int_div(
                             self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
                         )
