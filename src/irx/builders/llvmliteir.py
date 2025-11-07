@@ -62,10 +62,10 @@ def splat_scalar(
     """Broadcast a scalar to all lanes of a vector."""
     zero_i32 = ir.Constant(ir.IntType(32), 0)
     undef_vec = ir.Constant(vec_type, ir.Undefined)
-    v0 = ir_builder.insertelement(undef_vec, scalar, zero_i32)
+    v0 = ir_builder.insert_element(undef_vec, scalar, zero_i32)
     mask_ty = ir.VectorType(ir.IntType(32), vec_type.count)
     mask = ir.Constant(mask_ty, [0] * vec_type.count)
-    return ir_builder.shufflevector(v0, undef_vec, mask)
+    return ir_builder.shuffle_vector(v0, undef_vec, mask)
 
 
 @typechecked
