@@ -15,12 +15,57 @@ import xh
 
 from llvmlite import binding as llvm
 from llvmlite import ir
+from llvmlite.ir import DoubleType, FloatType, HalfType, VectorType
+
+try:  # FP128 may not exist depending on llvmlite build
+    from llvmlite.ir import FP128Type
+except ImportError:  # pragma: no cover - optional
+    FP128Type = None
 from plum import dispatch
 from public import public
 
 from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
+
+
+def is_fp_type(t: "ir.Type") -> bool:
+    """Return True if t is any floating-point LLVM type."""
+    fp_types = [HalfType, FloatType, DoubleType]
+    if FP128Type is not None:
+        fp_types.append(FP128Type)
+    return isinstance(t, tuple(fp_types))
+
+
+def is_vector(v: "ir.Value") -> bool:
+    """Return True if v is an LLVM vector value."""
+    return isinstance(getattr(v, "type", None), VectorType)
+
+
+def emit_int_div(
+    ir_builder: "ir.IRBuilder",
+    lhs: "ir.Value",
+    rhs: "ir.Value",
+    unsigned: bool,
+) -> "ir.Instruction":
+    """Emit signed or unsigned vector integer division."""
+    return (
+        ir_builder.udiv(lhs, rhs, name="vdivtmp")
+        if unsigned
+        else ir_builder.sdiv(lhs, rhs, name="vdivtmp")
+    )
+
+
+def splat_scalar(
+    ir_builder: "ir.IRBuilder", scalar: "ir.Value", vec_type: "ir.VectorType"
+) -> "ir.Value":
+    """Broadcast a scalar to all lanes of a vector."""
+    zero_i32 = ir.Constant(ir.IntType(32), 0)
+    undef_vec = ir.Constant(vec_type, ir.Undefined)
+    v0 = ir_builder.insert_element(undef_vec, scalar, zero_i32)
+    mask_ty = ir.VectorType(ir.IntType(32), vec_type.count)
+    mask = ir.Constant(mask_ty, [0] * vec_type.count)
+    return ir_builder.shuffle_vector(v0, undef_vec, mask)
 
 
 @typechecked
@@ -336,6 +381,47 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         return lhs, rhs
 
+    def _get_fma_function(self, ty: ir.Type) -> ir.Function:
+        """Return (and cache) the llvm.fma.* intrinsic for a type."""
+        if isinstance(ty, ir.VectorType):
+            elem_ty = ty.element
+            count = ty.count
+        else:
+            elem_ty = ty
+            count = None
+
+        if isinstance(elem_ty, FloatType):
+            suffix = "f32"
+        elif isinstance(elem_ty, DoubleType):
+            suffix = "f64"
+        elif isinstance(elem_ty, HalfType):
+            suffix = "f16"
+        else:
+            raise Exception("FMA supports only floating-point operands")
+
+        if count is not None:
+            suffix = f"v{count}{suffix}"
+
+        name = f"llvm.fma.{suffix}"
+        if name in self._llvm.module.globals:
+            return self._llvm.module.get_global(name)
+
+        fn_ty = ir.FunctionType(ty, [ty, ty, ty])
+        fn = ir.Function(self._llvm.module, fn_ty, name)
+        fn.linkage = "external"
+        return fn
+
+    def _emit_fma(
+        self, lhs: ir.Value, rhs: ir.Value, addend: ir.Value
+    ) -> ir.Value:
+        """Emit a fused multiply-add, using intrinsic fallback if needed."""
+        builder = self._llvm.ir_builder
+        if hasattr(builder, "fma"):
+            return builder.fma(lhs, rhs, addend, name="vfma")
+
+        fma_fn = self._get_fma_function(lhs.type)
+        return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
         """Translate an ASTx expression."""
@@ -435,7 +521,147 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # automatic type promotion
+        # Scalar-vector promotion: one vector + matching scalar -> splat scalar
+        lhs_is_vec = is_vector(llvm_lhs)
+        rhs_is_vec = is_vector(llvm_rhs)
+        if lhs_is_vec and not rhs_is_vec:
+            elem_ty = llvm_lhs.type.element
+            if llvm_rhs.type == elem_ty:
+                llvm_rhs = splat_scalar(
+                    self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                )
+            elif is_fp_type(elem_ty) and is_fp_type(llvm_rhs.type):
+                if isinstance(elem_ty, FloatType) and isinstance(
+                    llvm_rhs.type, DoubleType
+                ):
+                    llvm_rhs = self._llvm.ir_builder.fptrunc(
+                        llvm_rhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_rhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                    )
+                elif isinstance(elem_ty, DoubleType) and isinstance(
+                    llvm_rhs.type, FloatType
+                ):
+                    llvm_rhs = self._llvm.ir_builder.fpext(
+                        llvm_rhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_rhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
+                    )
+        elif rhs_is_vec and not lhs_is_vec:
+            elem_ty = llvm_rhs.type.element
+            if llvm_lhs.type == elem_ty:
+                llvm_lhs = splat_scalar(
+                    self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                )
+            elif is_fp_type(elem_ty) and is_fp_type(llvm_lhs.type):
+                if isinstance(elem_ty, FloatType) and isinstance(
+                    llvm_lhs.type, DoubleType
+                ):
+                    llvm_lhs = self._llvm.ir_builder.fptrunc(
+                        llvm_lhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_lhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                    )
+                elif isinstance(elem_ty, DoubleType) and isinstance(
+                    llvm_lhs.type, FloatType
+                ):
+                    llvm_lhs = self._llvm.ir_builder.fpext(
+                        llvm_lhs, elem_ty, "vec_promote_scalar"
+                    )
+                    llvm_lhs = splat_scalar(
+                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
+                    )
+
+        # If both operands are LLVM vectors, handle as vector ops
+        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
+            if llvm_lhs.type.count != llvm_rhs.type.count:
+                raise Exception(
+                    f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}"
+                )
+            if llvm_lhs.type.element != llvm_rhs.type.element:
+                raise Exception(
+                    f"Vector element type mismatch: "
+                    f"{llvm_lhs.type.element} vs {llvm_rhs.type.element}"
+                )
+            is_float_vec = is_fp_type(llvm_lhs.type.element)
+            op = node.op_code
+            set_fast = is_float_vec and getattr(node, "fast_math", False)
+            if op == "*" and is_float_vec and getattr(node, "fma", False):
+                if not hasattr(node, "fma_rhs"):
+                    raise Exception("FMA requires a third operand (fma_rhs)")
+                self.visit(node.fma_rhs)
+                llvm_fma_rhs = safe_pop(self.result_stack)
+                if llvm_fma_rhs.type != llvm_lhs.type:
+                    raise Exception(
+                        f"FMA operand type mismatch: "
+                        f"{llvm_lhs.type} vs {llvm_fma_rhs.type}"
+                    )
+                if set_fast:
+                    self.set_fast_math(True)
+                try:
+                    result = self._emit_fma(llvm_lhs, llvm_rhs, llvm_fma_rhs)
+                finally:
+                    if set_fast:
+                        self.set_fast_math(False)
+                self.result_stack.append(result)
+                return
+            if set_fast:
+                self.set_fast_math(True)
+            try:
+                if op == "+":
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fadd(
+                            llvm_lhs, llvm_rhs, name="vfaddtmp"
+                        )
+                    else:
+                        result = self._llvm.ir_builder.add(
+                            llvm_lhs, llvm_rhs, name="vaddtmp"
+                        )
+                elif op == "-":
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fsub(
+                            llvm_lhs, llvm_rhs, name="vfsubtmp"
+                        )
+                    else:
+                        result = self._llvm.ir_builder.sub(
+                            llvm_lhs, llvm_rhs, name="vsubtmp"
+                        )
+                elif op == "*":
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fmul(
+                            llvm_lhs, llvm_rhs, name="vfmultmp"
+                        )
+                    else:
+                        result = self._llvm.ir_builder.mul(
+                            llvm_lhs, llvm_rhs, name="vmultmp"
+                        )
+                elif op == "/":
+                    if is_float_vec:
+                        result = self._llvm.ir_builder.fdiv(
+                            llvm_lhs, llvm_rhs, name="vfdivtmp"
+                        )
+                    else:
+                        unsigned = getattr(node, "unsigned", None)
+                        if unsigned is None:
+                            raise Exception(
+                                "Cannot infer integer division signedness "
+                                "for vector op"
+                            )
+                        result = emit_int_div(
+                            self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
+                        )
+                else:
+                    raise Exception(f"Vector binop {op} not implemented.")
+            finally:
+                if set_fast:
+                    self.set_fast_math(False)
+            self.result_stack.append(result)
+            return
+
+        # Scalar Fallback: Original scalar promotion logic
         llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
 
         if node.op_code in ("&&", "and"):
