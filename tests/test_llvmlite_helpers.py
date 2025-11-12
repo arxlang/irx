@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
-
 from typing import Any, cast
+from unittest.mock import Mock
 
 from irx.builders.llvmliteir import (
     LLVMLiteIRVisitor,
@@ -12,7 +11,6 @@ from irx.builders.llvmliteir import (
     splat_scalar,
 )
 from llvmlite import ir
-from llvmlite.ir import DoubleType, FloatType
 
 
 class _NoFmaBuilder:
@@ -109,7 +107,7 @@ def test_get_size_t_type_from_triple_32bit() -> None:
     visitor.target_machine = mock_tm
     
     size_t_ty = visitor._get_size_t_type_from_triple()
-    assert size_t_ty.width == 32
+    assert size_t_ty.width == 32  # noqa: PLR2004
 
 
 def test_get_size_t_type_from_triple_fallback() -> None:
