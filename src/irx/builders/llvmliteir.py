@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ctypes
 import os
-import re
 import tempfile
 
 from datetime import datetime
@@ -178,15 +177,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.module.data_layout = str(self.target_machine.target_data)
 
         if self._llvm.SIZE_T_TYPE is None:
-            dl_str = str(self.target_machine.target_data)
-            ptr_match = re.search(r"p(?:\d+)?:(\d+)", dl_str)
-            if ptr_match:
-                ptr_bits = int(ptr_match.group(1))
-                self._llvm.SIZE_T_TYPE = ir.IntType(ptr_bits)
-            else:
-                self._llvm.SIZE_T_TYPE = ir.IntType(
-                    ctypes.sizeof(ctypes.c_size_t) * 8
-                )
+            self._llvm.SIZE_T_TYPE = self._get_size_t_type_from_triple()
 
         self._add_builtins()
 
@@ -199,6 +190,29 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Initialize pointer/size_t types from host."""
         self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
         self._llvm.SIZE_T_TYPE = None
+
+    def _get_size_t_type_from_triple(self) -> ir.IntType:
+        """Determine size_t type from target triple using LLVM API."""
+        triple = self.target_machine.triple.lower()
+
+        if any(
+            arch in triple
+            for arch in [
+                "x86_64",
+                "amd64",
+                "aarch64",
+                "arm64",
+                "ppc64",
+                "mips64",
+            ]
+        ):
+            return ir.IntType(64)
+        elif any(arch in triple for arch in ["i386", "i686", "arm", "mips"]):
+            if "64" in triple:
+                return ir.IntType(64)
+            return ir.IntType(32)
+
+        return ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
 
     def initialize(self) -> None:
         """Initialize self."""
