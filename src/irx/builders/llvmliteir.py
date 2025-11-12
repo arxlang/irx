@@ -647,7 +647,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             minute = int(parts[1])
         except Exception as exc:
             raise Exception(
-                f"LiteralTime: invalid hour/minutein '{node.value}'."
+                f"LiteralTime: invalid hour/minute in '{node.value}'."
             ) from exc
 
         if len(parts) == TIME_PARTS_WITH_SECONDS:
@@ -661,7 +661,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 second = int(sec_part)
             except Exception as exc:
                 raise Exception(
-                    f"LiteralTime: invalid secondsin '{node.value}'."
+                    f"LiteralTime: invalid seconds in '{node.value}'."
                 ) from exc
         else:
             second = 0
