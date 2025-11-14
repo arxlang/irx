@@ -11,7 +11,7 @@ from typing import Any, Dict, Sequence
 
 import astx
 
-from irx.tools.typing import typechecked
+from irx.tools.typing import skip_unused, typechecked
 
 
 @typechecked
@@ -45,6 +45,7 @@ class BuilderVisitor:
             self.visit(expr)
             return str(self.result)
         """
+        skip_unused(expr)
         raise Exception("Not implemented yet.")
 
 
@@ -75,9 +76,9 @@ class Builder(ABC):
         """Create a new ASTx Module."""
         return astx.Module()
 
-    def translate(self, expr: astx.AST) -> str:
+    def translate(self, node: astx.AST) -> str:
         """Transpile ASTx to LLVM-IR."""
-        return self.translator.translate(expr)
+        return self.translator.translate(node)
 
     @abstractmethod
     def build(
@@ -86,8 +87,11 @@ class Builder(ABC):
         output_file: str,  # noqa: F841, RUF100
     ) -> None:
         """Transpile ASTx to LLVM-IR and build an executable file."""
-        ...
+        skip_unused(expr, output_file)
 
     def run(self) -> str:
         """Run the generated executable."""
+        if not self.output_file:
+            raise RuntimeError("No built output to run.")
+
         return run_command([self.output_file])
