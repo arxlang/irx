@@ -427,6 +427,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         fma_fn = self._get_fma_function(lhs.type)
         return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
 
+    def _is_numeric_value(self, value: ir.Value) -> bool:
+        """Return True if value represents an int/float scalar or vector."""
+        if is_vector(value):
+            elem_ty = value.type.element
+            return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
+        base_ty = value.type
+        return isinstance(base_ty, ir.IntType) or is_fp_type(base_ty)
+
     def _unify_numeric_operands(
         self, lhs: ir.Value, rhs: ir.Value
     ) -> tuple[ir.Value, ir.Value]:
@@ -654,7 +662,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        llvm_lhs, llvm_rhs = self._unify_numeric_operands(llvm_lhs, llvm_rhs)
+        if self._is_numeric_value(llvm_lhs) and self._is_numeric_value(
+            llvm_rhs
+        ):
+            llvm_lhs, llvm_rhs = self._unify_numeric_operands(
+                llvm_lhs, llvm_rhs
+            )
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             if llvm_lhs.type.count != llvm_rhs.type.count:
