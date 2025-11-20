@@ -165,6 +165,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+        self._fast_math_enabled = False
 
         self.initialize()
 
@@ -420,7 +421,26 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return builder.fma(lhs, rhs, addend, name="vfma")
 
         fma_fn = self._get_fma_function(lhs.type)
-        return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+        inst = builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+        self._apply_fast_math(inst)
+        return inst
+
+    def set_fast_math(self, enabled: bool) -> None:
+        """Enable/disable fast-math flags for subsequent FP instructions."""
+        self._fast_math_enabled = enabled
+
+    def _apply_fast_math(self, inst: ir.Instruction) -> None:
+        """Attach fast-math flags when enabled and applicable."""
+        if not self._fast_math_enabled:
+            return
+        ty = inst.type
+        if isinstance(ty, ir.VectorType):
+            if not is_fp_type(ty.element):
+                return
+        elif not is_fp_type(ty):
+            return
+        if "fast" not in inst.flags:
+            inst.flags.append("fast")
 
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
@@ -616,6 +636,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fadd(
                             llvm_lhs, llvm_rhs, name="vfaddtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.add(
                             llvm_lhs, llvm_rhs, name="vaddtmp"
@@ -625,6 +646,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fsub(
                             llvm_lhs, llvm_rhs, name="vfsubtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.sub(
                             llvm_lhs, llvm_rhs, name="vsubtmp"
@@ -634,6 +656,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fmul(
                             llvm_lhs, llvm_rhs, name="vfmultmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.mul(
                             llvm_lhs, llvm_rhs, name="vmultmp"
@@ -643,6 +666,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fdiv(
                             llvm_lhs, llvm_rhs, name="vfdivtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         unsigned = getattr(node, "unsigned", None)
                         if unsigned is None:
@@ -690,6 +714,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fadd(
                     llvm_lhs, llvm_rhs, "addtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # there's more conditions to be handled
                 result = self._llvm.ir_builder.add(
@@ -703,6 +728,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # note: be careful you should handle this as  INT32
                 result = self._llvm.ir_builder.sub(
@@ -717,6 +743,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # note: be careful you should handle this as INT32
                 result = self._llvm.ir_builder.mul(
@@ -782,6 +809,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # Assuming the division is signed by default. Use `udiv` for
                 # unsigned division.
