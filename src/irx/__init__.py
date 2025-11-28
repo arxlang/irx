@@ -2,4 +2,8 @@
 
 __author__ = """Ivan Ogasawara"""
 __email__ = "ivan.ogasawara@gmail.com"
-__version__ = "0.1.0"  # semantic-release
+
+# Dynamically retrieve version from package metadata
+from importlib.metadata import version as _version
+
+__version__ = _version("irx")  # semantic-release
