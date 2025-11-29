@@ -8,6 +8,20 @@
       {
         "replacements": [
           {
+            "files": ["src/irx/__init__.py"],
+            "from": "return \".*\"  # semantic-release",
+            "to": "return \"${nextRelease.version}\"  # semantic-release",
+            "results": [
+              {
+                "file": "src/irx/__init__.py",
+                "hasChanged": true,
+                "numMatches": 1,
+                "numReplacements": 1
+              }
+            ],
+            "countMatches": true
+          },
+          {
             "files": ["pyproject.toml"],
             "from": "version = \".*\"  # semantic-release",
             "to": "version = \"${nextRelease.version}\"  # semantic-release",
@@ -51,7 +65,7 @@
         "assets": [
           "pyproject.toml",
           "docs/changelog.md",
-          "{{ cookiecutter.package_slug }}/src/__init__.py"
+          "src/irx/__init__.py"
         ],
         "message": "chore(release): ${nextRelease.version}"
       }
