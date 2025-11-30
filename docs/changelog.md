@@ -1,6 +1,23 @@
 # Release Notes
 ---
 
+# [1.5.0](https://github.com/arxlang/irx/compare/1.4.0...1.5.0) (2025-11-30)
+
+
+### Bug Fixes
+
+* replace alloca with malloc in strcat to avoid use-after-return ([#131](https://github.com/arxlang/irx/issues/131)) ([eb7886f](https://github.com/arxlang/irx/commit/eb7886f24919a67bf96d6e332cbe59e729aedb83))
+* use hybrid version approach with importlib and fallback ([#142](https://github.com/arxlang/irx/issues/142)) ([754ef42](https://github.com/arxlang/irx/commit/754ef429b25326c8b59f6136296640e65e2cbea6))
+* zero-extend i1 boolean for correct string printing ([#123](https://github.com/arxlang/irx/issues/123)) ([9177426](https://github.com/arxlang/irx/commit/9177426ab17e2520a5b7df92d11a4f4879bb23ab))
+
+
+### Features
+
+* Add casting numeric to string ([#93](https://github.com/arxlang/irx/issues/93)) ([c4e8953](https://github.com/arxlang/irx/commit/c4e89537d5135db836348dfcf53d3f727c04be97))
+* add LiteralDateTime  ([#124](https://github.com/arxlang/irx/issues/124)) ([7bd8f3e](https://github.com/arxlang/irx/commit/7bd8f3e85c5c5a374460cad0a3ee9124ba84a712))
+* Feature/literal timestamp v2 ([#120](https://github.com/arxlang/irx/issues/120)) ([cdbcee9](https://github.com/arxlang/irx/commit/cdbcee966b0cdac5b659121299e544100801ae0e))
+* guard against negative snprintf return in snprintf_heap ([#122](https://github.com/arxlang/irx/issues/122)) ([9635e59](https://github.com/arxlang/irx/commit/9635e5950d41fc31e2530b5f177156de84f27fe4))
+
 # [1.4.0](https://github.com/arxlang/irx/compare/1.3.1...1.4.0) (2025-08-20)
 
 
