@@ -80,7 +80,7 @@ def test_literal_list_mixed_int_widths_unsupported(
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    with pytest.raises(Exception, match="only empty or homogeneous integer"):
+    with pytest.raises(TypeError, match="only empty or homogeneous integer"):
         visitor.visit(
             astx.LiteralList(
                 elements=[astx.LiteralInt16(1), astx.LiteralInt32(2)]
@@ -100,9 +100,30 @@ def test_literal_list_non_integer_unsupported(
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    with pytest.raises(Exception, match="only empty or homogeneous integer"):
+    with pytest.raises(TypeError, match="only empty or homogeneous integer"):
         visitor.visit(
             astx.LiteralList(
                 elements=[astx.LiteralFloat32(1.0), astx.LiteralFloat32(2.0)]
+            )
+        )
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_list_nested_unsupported(
+    builder_class: Type[Builder],
+) -> None:
+    """Nested lists (list containing lists) are not yet supported."""
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    # Nested lists fail at AST construction time (before lowering)
+    with pytest.raises(TypeError, match="ListType.*missing.*argument"):
+        visitor.visit(
+            astx.LiteralList(
+                elements=[astx.LiteralList(elements=[])]
             )
         )
