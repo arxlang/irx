@@ -121,7 +121,7 @@ def test_literal_list_nested_unsupported(
     visitor.result_stack.clear()
 
     # Nested lists fail at AST construction time (before lowering)
-    with pytest.raises(TypeError, match=r"ListType.*missing.*argument"):
+    with pytest.raises(TypeError, match=r"missing.*argument.*element_types"):
         visitor.visit(
             astx.LiteralList(elements=[astx.LiteralList(elements=[])])
         )
