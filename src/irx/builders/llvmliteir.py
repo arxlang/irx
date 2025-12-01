@@ -1384,11 +1384,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             ) from exc
 
         if not (0 <= hour <= MAX_HOUR):
-            raise Exception("hour out of range")
+            raise Exception(f"LiteralTimestamp: hour out of range in '{node.value}'.")
         if not (0 <= minute <= MAX_MINUTE):
-            raise Exception("minute out of range")
+            raise Exception(f"LiteralTimestamp: minute out of range in '{node.value}'.")
         if not (0 <= second <= MAX_SECOND):
-            raise Exception("second out of range")
+            raise Exception(f"LiteralTimestamp: second out of range in '{node.value}'.")
 
         i32 = self._llvm.INT32_TYPE
         const_ts = ir.Constant(
