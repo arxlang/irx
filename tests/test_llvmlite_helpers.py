@@ -7,6 +7,7 @@ from typing import Any, cast
 from irx.builders.llvmliteir import (
     LLVMLiteIRVisitor,
     emit_int_div,
+    is_fp_type,
     splat_scalar,
 )
 from llvmlite import ir
@@ -95,3 +96,61 @@ def test_emit_int_div_signed_and_unsigned() -> None:
 
     assert getattr(signed, "opname", "") == "sdiv"
     assert getattr(unsigned, "opname", "") == "udiv"
+
+
+def test_unify_promotes_scalar_int_to_vector() -> None:
+    """Scalar ints splat to match vector operands and widen width."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    vec_ty = ir.VectorType(ir.IntType(32), 2)
+    vec = ir.Constant(vec_ty, [ir.Constant(ir.IntType(32), 1)] * 2)
+    scalar = ir.Constant(ir.IntType(16), 5)
+
+    promoted_vec, promoted_scalar = visitor._unify_numeric_operands(
+        vec, scalar
+    )
+
+    assert isinstance(promoted_vec.type, ir.VectorType)
+    assert isinstance(promoted_scalar.type, ir.VectorType)
+    assert promoted_vec.type == vec_ty
+    assert promoted_scalar.type == vec_ty
+
+
+def test_unify_vector_float_rank_matches_double() -> None:
+    """Float vectors upgrade to match double scalars."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    float_vec_ty = ir.VectorType(visitor._llvm.FLOAT_TYPE, 2)
+    float_vec = ir.Constant(
+        float_vec_ty,
+        [
+            ir.Constant(visitor._llvm.FLOAT_TYPE, 1.0),
+            ir.Constant(visitor._llvm.FLOAT_TYPE, 2.0),
+        ],
+    )
+    double_scalar = ir.Constant(visitor._llvm.DOUBLE_TYPE, 4.0)
+
+    widened_vec, widened_scalar = visitor._unify_numeric_operands(
+        float_vec, double_scalar
+    )
+
+    assert widened_vec.type.element == visitor._llvm.DOUBLE_TYPE
+    assert widened_scalar.type.element == visitor._llvm.DOUBLE_TYPE
+
+
+def test_unify_int_and_float_scalars_returns_float() -> None:
+    """Scalar int + float promotes to float for both operands."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    int_scalar = ir.Constant(visitor._llvm.INT32_TYPE, 7)
+    float_scalar = ir.Constant(visitor._llvm.FLOAT_TYPE, 1.25)
+
+    widened_int, widened_float = visitor._unify_numeric_operands(
+        int_scalar, float_scalar
+    )
+
+    assert is_fp_type(widened_int.type)
+    assert widened_float.type == visitor._llvm.FLOAT_TYPE
