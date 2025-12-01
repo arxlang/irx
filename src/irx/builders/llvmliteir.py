@@ -341,6 +341,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate an ASTx expression."""
         raise Exception("Not implemented yet.")
 
+    def is_fp(self, t: ir.Type) -> bool:
+        """Return True if the given LLVM IR type is a floating-point type."""
+        return isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType))
+
+    def is_int(self, t: ir.Type) -> bool:
+        """Return True if the given LLVM IR type is an integer type."""
+        return isinstance(t, ir.IntType)
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.UnaryOp) -> None:
         """Translate an ASTx UnaryOp expression."""
