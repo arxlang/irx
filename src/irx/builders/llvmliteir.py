@@ -342,11 +342,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         raise Exception("Not implemented yet.")
 
     def is_fp(self, t: ir.Type) -> bool:
-        """Return True if the given LLVM IR type is a floating-point type."""
+        """Return true if the given LLVM IR type is a floating-point type."""
         return isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType))
 
     def is_int(self, t: ir.Type) -> bool:
-        """Return True if the given LLVM IR type is an integer type."""
+        """Return true if the given LLVM IR type is an integer type."""
         return isinstance(t, ir.IntType)
 
     @dispatch  # type: ignore[no-redef]
