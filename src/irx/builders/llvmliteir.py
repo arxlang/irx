@@ -1384,11 +1384,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             ) from exc
 
         if not (0 <= hour <= MAX_HOUR):
-            raise Exception(f"LiteralTimestamp: hour out of range in '{node.value}'.")
+            raise Exception(
+                f"LiteralTimestamp: hour out of range in '{node.value}'."
+            )
         if not (0 <= minute <= MAX_MINUTE):
-            raise Exception(f"LiteralTimestamp: minute out of range in '{node.value}'.")
+            raise Exception(
+                f"LiteralTimestamp: minute out of range in '{node.value}'."
+            )
         if not (0 <= second <= MAX_SECOND):
-            raise Exception(f"LiteralTimestamp: second out of range in '{node.value}'.")
+            raise Exception(
+                f"LiteralTimestamp: second out of range in '{node.value}'."
+            )
 
         i32 = self._llvm.INT32_TYPE
         const_ts = ir.Constant(
@@ -1542,7 +1548,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         n = len(llvm_elems)
         # Empty list => [0 x i32] constant
         # TODO: Infer element type from declared list type when available.
-        # Currently uses i32 as placeholder; update when non-int lists are supported.
+        # Currently uses i32 as placeholder; update when non-int lists
+        # are supported.
         if n == 0:
             empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
             self.result_stack.append(ir.Constant(empty_ty, []))
@@ -1563,6 +1570,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "LiteralList: only empty or homogeneous integer constants "
             "are supported"
         )
+
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
         func_name = "string_concat"
