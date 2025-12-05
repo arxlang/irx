@@ -1333,7 +1333,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Reject timezone suffixes for now.
         if time_part.endswith("Z") or "+" in time_part or "-" in time_part[2:]:
-            # Match test expectation exactly
             raise Exception("timezone")
 
         # Parse and validate date: YYYY-MM-DD
@@ -1345,7 +1344,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # Validate real calendar date (handles month/day/leap years)
             datetime(year, month, day)
         except ValueError as exc:
-            # Match test expectation exactly
             raise Exception("invalid date") from exc
         except Exception as exc:
             raise Exception(
