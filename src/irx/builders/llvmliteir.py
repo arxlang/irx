@@ -1333,7 +1333,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Reject timezone suffixes for now.
         if time_part.endswith("Z") or "+" in time_part or "-" in time_part[2:]:
-            raise Exception("timezone")
+            raise Exception(
+                "LiteralTimestamp: timezone offsets not supported in '"
+                f"{node.value}'."
+            )
 
         # Parse and validate date: YYYY-MM-DD
         try:
@@ -1344,7 +1347,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # Validate real calendar date (handles month/day/leap years)
             datetime(year, month, day)
         except ValueError as exc:
-            raise Exception("invalid date") from exc
+            raise Exception(
+                "LiteralTimestamp: invalid date in '"
+                f"{node.value}'. Expected valid 'YYYY-MM-DD'."
+            ) from exc
         except Exception as exc:
             raise Exception(
                 "LiteralTimestamp: invalid date part in '"
