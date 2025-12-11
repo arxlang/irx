@@ -1242,6 +1242,67 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTuple) -> None:
+        """Lower a LiteralTuple to LLVM IR.
+
+        Notes
+        -----
+          - Tuples are heterogeneous and ordered,
+            so we model them as a struct, not an array.
+          - The constant path yields a struct *value*;
+            the non-constant path yields a pointer to the struct.
+        """
+        # Lower elements and collect LLVM values
+        llvm_vals: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            try:
+                v = self.result_stack.pop()
+            except IndexError:
+                v = None
+            if v is None:
+                raise Exception("LiteralTuple: failed to lower an element.")
+            llvm_vals.append(v)
+
+        n = len(llvm_vals)
+
+        # Empty tuple -> empty literal struct constant
+        if n == 0:
+            struct_ty = ir.LiteralStructType([])
+            const_empty = ir.Constant(struct_ty, [])
+            self.result_stack.append(const_empty)
+            return
+
+        elem_tys = [v.type for v in llvm_vals]
+        struct_ty = ir.LiteralStructType(elem_tys)
+
+        if all(isinstance(v, ir.Constant) for v in llvm_vals):
+            const_struct = ir.Constant(struct_ty, llvm_vals)
+            self.result_stack.append(const_struct)
+            return
+
+        entry_bb = self._llvm.ir_builder.function.entry_basic_block
+        cur_bb = self._llvm.ir_builder.block
+
+        self._llvm.ir_builder.position_at_start(entry_bb)
+        alloca = self._llvm.ir_builder.alloca(struct_ty, name="tuple.lit")
+
+        self._llvm.ir_builder.position_at_end(cur_bb)
+
+        i32 = self._llvm.INT32_TYPE
+        for idx, v in enumerate(llvm_vals):
+            # GEP to the field: [0, idx]
+            field_ptr = self._llvm.ir_builder.gep(
+                alloca,
+                [ir.Constant(i32, 0), ir.Constant(i32, idx)],
+                inbounds=True,
+            )
+            self._llvm.ir_builder.store(v, field_ptr)
+
+        # Push the pointer to the tuple struct
+        self.result_stack.append(alloca)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """Handle ASCII string literals."""
         string_value = expr.value
