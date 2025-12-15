@@ -422,6 +422,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         fma_fn = self._get_fma_function(lhs.type)
         return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
 
+    def set_fast_math(self, enable: bool) -> None:
+        """Enable or disable fast math flags on the IR builder."""
+        if enable:
+            self._llvm.ir_builder.set_fastmath_flags(["fast"])
+        else:
+            self._llvm.ir_builder.clear_fastmath_flags()
+
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
         """Translate an ASTx expression."""
