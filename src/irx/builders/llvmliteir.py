@@ -439,8 +439,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 return
         elif not is_fp_type(ty):
             return
-        if "fast" not in inst.flags:
-            inst.flags.append("fast")
+
+        flags = getattr(inst, "flags", None)
+        if flags is None:
+            return
+
+        if "fast" in flags:
+            return
+
+        try:
+            flags.append("fast")
+        except (AttributeError, TypeError):
+            return
 
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
