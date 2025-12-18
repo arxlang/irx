@@ -155,6 +155,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     _llvm: VariablesLLVM
 
     function_protos: dict[str, astx.FunctionPrototype]
+    struct_types: dict[str, ir.IdentifiedStructType]
+    struct_defs: dict[str, astx.StructDefStmt]
     result_stack: list[ir.Value | ir.Function] = []
 
     def __init__(self) -> None:
@@ -164,6 +166,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
+        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
+        self.struct_defs: dict[str, astx.StructDefStmt] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
 
         self.initialize()
@@ -1913,6 +1917,24 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.visit(node.body)
         self.result_stack.append(fn)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StructDefStmt) -> None:
+        """Translate ASTx StructDefStmt to LLVM-IR."""
+        if node.name in self.struct_types:
+            raise Exception(f"Struct '{node.name}' already defined.")
+
+        struct_type = self._llvm.module.context.get_identified_type(node.name)
+        self.struct_types[node.name] = struct_type
+        self.struct_defs[node.name] = node
+
+        field_types = []
+        for attr in node.attributes:
+            type_str = attr.type_.__class__.__name__.lower()
+            field_type = self._llvm.get_data_type(type_str)
+            field_types.append(field_type)
+
+        struct_type.set_body(*field_types)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.FunctionPrototype) -> None:
