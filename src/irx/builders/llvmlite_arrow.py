@@ -47,7 +47,9 @@ class LLVMLiteArrowIRVisitor(LLVMLiteIRVisitor):
     #     void (*release)(struct ArrowArray*);
     #     void* private_data;
     #   };
+
     def _init_arrow_types(self) -> None:
+        """Initialize Arrow C Data Interface types once per global context."""
         ctx = ir.global_context
         self._arrow_array_ty = ctx.get_identified_type("struct.ArrowArray")
 
