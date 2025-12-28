@@ -70,15 +70,22 @@ def splat_scalar(
 
 @typechecked
 def safe_pop(
-    lst: list[ir.Value | ir.Function], context: str = ""
+    lst: list[Any], context: str = ""
 ) -> Optional[ir.Value | ir.Function]:
-    """Implement a safe pop operation for lists."""
+    """Pop from result stack with optional context and type check."""
     try:
-        return lst.pop()
+        val = lst.pop()
     except IndexError:
         if context:
             raise IndexError(f"Popping from an empty stack: {context}")
         return None
+
+    if val is not None and not isinstance(val, (ir.Value, ir.Function)):
+        raise TypeError(
+            f"Unexpected stack value type {type(val)!r} at "
+            f"{context or 'safe_pop'}"
+        )
+    return val
 
 
 @typechecked
@@ -317,7 +324,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if name in self.function_protos:
             self.visit(self.function_protos[name])
-            return cast(ir.Function, safe_pop(self.result_stack, "get_function"))
+            return cast(
+                ir.Function, safe_pop(self.result_stack, "get_function")
+            )
 
         return None
 
@@ -655,7 +664,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 if not hasattr(node, "fma_rhs"):
                     raise Exception("FMA requires a third operand (fma_rhs)")
                 self.visit(node.fma_rhs)
-                llvm_fma_rhs = safe_pop(self.result_stack, "BinaryOp (fma_rhs)")
+                llvm_fma_rhs = safe_pop(
+                    self.result_stack, "BinaryOp (fma_rhs)"
+                )
                 if llvm_fma_rhs.type != llvm_lhs.type:
                     raise Exception(
                         f"FMA operand type mismatch: "
@@ -915,7 +926,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         result = None
         for node in block.nodes:
             self.visit(node)
-            result = safe_pop(self.result_stack)
+            if self.result_stack:
+                result = self.result_stack.pop()
         if result is not None:
             self.result_stack.append(result)
 
@@ -1089,7 +1101,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the start code first, without 'variable' in scope.
         self.visit(node.initializer)
-        initializer_val = safe_pop(self.result_stack, "ForCountLoop initializer")
+        initializer_val = safe_pop(
+            self.result_stack, "ForCountLoop initializer"
+        )
         if not initializer_val:
             raise Exception("codegen: Invalid start argument.")
 
@@ -2039,7 +2053,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit the initializer
         if node.value is not None:
             self.visit(node.value)
-            init_val = safe_pop(self.result_stack, "InlineVariableDeclaration initializer")
+            init_val = safe_pop(
+                self.result_stack, "InlineVariableDeclaration initializer"
+            )
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         # Default zero value based on type
@@ -2334,7 +2350,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit the initializer
         if node.value is not None:
             self.visit(node.value)
-            init_val = safe_pop(self.result_stack, "VariableDeclaration initializer")
+            init_val = safe_pop(
+                self.result_stack, "VariableDeclaration initializer"
+            )
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
 
