@@ -69,11 +69,15 @@ def splat_scalar(
 
 
 @typechecked
-def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
+def safe_pop(
+    lst: list[ir.Value | ir.Function], context: str = ""
+) -> Optional[ir.Value | ir.Function]:
     """Implement a safe pop operation for lists."""
     try:
         return lst.pop()
     except IndexError:
+        if context:
+            raise IndexError(f"Popping from an empty stack: {context}")
         return None
 
 
@@ -313,7 +317,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if name in self.function_protos:
             self.visit(self.function_protos[name])
-            return cast(ir.Function, self.result_stack.pop())
+            return cast(ir.Function, safe_pop(self.result_stack, "get_function"))
 
         return None
 
@@ -490,7 +494,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate an ASTx UnaryOp expression."""
         if node.op_code == "++":
             self.visit(node.operand)
-            operand_val = safe_pop(self.result_stack)
+            operand_val = safe_pop(self.result_stack, "UnaryOp (++) operand")
 
             one = ir.Constant(operand_val.type, 1)
 
@@ -508,7 +512,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         elif node.op_code == "--":
             self.visit(node.operand)
-            operand_val = safe_pop(self.result_stack)
+            operand_val = safe_pop(self.result_stack, "UnaryOp (--) operand")
             one = ir.Constant(operand_val.type, 1)
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
@@ -522,7 +526,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         elif node.op_code == "!":
             self.visit(node.operand)
-            val = safe_pop(self.result_stack)
+            val = safe_pop(self.result_stack, "UnaryOp operand")
             result = self._llvm.ir_builder.xor(
                 val, ir.Constant(val.type, 1), "nottmp"
             )
@@ -555,7 +559,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             # Codegen the rhs.
             self.visit(node.rhs)
-            llvm_rhs = safe_pop(self.result_stack)
+            llvm_rhs = safe_pop(self.result_stack, "BinaryOp (= rhs)")
 
             if not llvm_rhs:
                 raise Exception("codegen: Invalid rhs expression.")
@@ -571,10 +575,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
         self.visit(node.lhs)
-        llvm_lhs = safe_pop(self.result_stack)
+        llvm_lhs = safe_pop(self.result_stack, "BinaryOp (lhs)")
 
         self.visit(node.rhs)
-        llvm_rhs = safe_pop(self.result_stack)
+        llvm_rhs = safe_pop(self.result_stack, "BinaryOp (rhs)")
 
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
@@ -651,7 +655,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 if not hasattr(node, "fma_rhs"):
                     raise Exception("FMA requires a third operand (fma_rhs)")
                 self.visit(node.fma_rhs)
-                llvm_fma_rhs = safe_pop(self.result_stack)
+                llvm_fma_rhs = safe_pop(self.result_stack, "BinaryOp (fma_rhs)")
                 if llvm_fma_rhs.type != llvm_lhs.type:
                     raise Exception(
                         f"FMA operand type mismatch: "
@@ -911,11 +915,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         result = None
         for node in block.nodes:
             self.visit(node)
-            try:
-                result = self.result_stack.pop()
-            except IndexError:
-                # some nodes doesn't add anything in the stack
-                pass
+            result = safe_pop(self.result_stack)
         if result is not None:
             self.result_stack.append(result)
 
@@ -923,7 +923,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.IfStmt) -> None:
         """Translate IF statement."""
         self.visit(node.condition)
-        cond_v = self.result_stack.pop()
+        cond_v = safe_pop(self.result_stack, "IfStmt condition")
         if not cond_v:
             raise Exception("codegen: Invalid condition expression.")
 
@@ -956,7 +956,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit then value.
         self._llvm.ir_builder.position_at_start(then_bb)
         self.visit(node.then)
-        then_v = self.result_stack.pop()
+        then_v = safe_pop(self.result_stack, "IfStmt then block")
         if not then_v:
             raise Exception("codegen: `Then` expression is invalid.")
 
@@ -970,7 +970,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else_v = None
         if node.else_ is not None:
             self.visit(node.else_)
-            else_v = self.result_stack.pop()
+            else_v = safe_pop(self.result_stack, "IfStmt else block")
         else:
             else_v = ir.Constant(self._llvm.INT32_TYPE, 0)
 
@@ -1009,7 +1009,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the condition.
         self.visit(expr.condition)
-        cond_val = self.result_stack.pop()
+        cond_val = safe_pop(self.result_stack, "WhileStmt condition")
         if not cond_val:
             raise Exception("codegen: Invalid condition expression.")
 
@@ -1036,7 +1036,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = self.result_stack.pop()
+        body_val = safe_pop(self.result_stack, "WhileStmt body")
 
         if not body_val:
             return
@@ -1059,7 +1059,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Codegen the value expression on the right-hand side
         self.visit(expr.value)
-        llvm_value = safe_pop(self.result_stack)
+        llvm_value = safe_pop(self.result_stack, "VariableAssignment (value)")
 
         if not llvm_value:
             raise Exception("codegen: Invalid value in VariableAssignment.")
@@ -1089,7 +1089,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the start code first, without 'variable' in scope.
         self.visit(node.initializer)
-        initializer_val = self.result_stack.pop()
+        initializer_val = safe_pop(self.result_stack, "ForCountLoop initializer")
         if not initializer_val:
             raise Exception("codegen: Invalid start argument.")
 
@@ -1110,7 +1110,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit condition check (e.g., i < 10)
         self.visit(node.condition)
-        cond_val = self.result_stack.pop()
+        cond_val = safe_pop(self.result_stack, "ForCountLoop condition")
 
         # Create blocks for loop body and after loop
         loop_body_bb = self._llvm.ir_builder.function.append_basic_block(
@@ -1126,11 +1126,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        _body_val = self.result_stack.pop()
+        _body_val = safe_pop(self.result_stack, "ForCountLoop body")
 
         # Emit update expression
         self.visit(node.update)
-        update_val = self.result_stack.pop()
+        update_val = safe_pop(self.result_stack, "ForCountLoop update")
 
         # Store updated value
         self._llvm.ir_builder.store(update_val, var_addr)
@@ -1166,7 +1166,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the start code first, without 'variable' in scope.
         self.visit(node.start)
-        start_val = self.result_stack.pop()
+        start_val = safe_pop(self.result_stack, "ForRangeLoop start")
         if not start_val:
             raise Exception("codegen: Invalid start argument.")
         self._llvm.ir_builder.store(start_val, var_addr)
@@ -1182,7 +1182,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(node.body)
-        body_val = self.result_stack.pop()
+        body_val = safe_pop(self.result_stack, "ForRangeLoop body")
 
         if not body_val:
             return
@@ -1190,7 +1190,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit the step value.
         if node.step:
             self.visit(node.step)
-            step_val = self.result_stack.pop()
+            step_val = safe_pop(self.result_stack, "ForRangeLoop step")
             if not step_val:
                 return
         else:
@@ -1203,7 +1203,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Compute the end condition.
         self.visit(node.end)
-        end_cond = self.result_stack.pop()
+        end_cond = safe_pop(self.result_stack, "ForRangeLoop end")
         if not end_cond:
             return
 
@@ -1610,7 +1610,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         llvm_elems: list[ir.Value] = []
         for elem in node.elements:
             self.visit(elem)
-            v = self.result_stack.pop()
+            v = safe_pop(self.result_stack, "LiteralList element")
             if v is None:
                 raise Exception("LiteralList: invalid element lowering.")
             llvm_elems.append(v)
@@ -1941,7 +1941,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         llvm_args = []
         for arg in node.args:
             self.visit(arg)
-            llvm_arg = self.result_stack.pop()
+            llvm_arg = safe_pop(self.result_stack, "FunctionCall argument")
             if not llvm_arg:
                 raise Exception("codegen: Invalid callee argument.")
             llvm_args.append(llvm_arg)
@@ -2006,10 +2006,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx FunctionReturn to LLVM-IR."""
         if node.value is not None:
             self.visit(node.value)
-            try:
-                retval = self.result_stack.pop()
-            except IndexError:
-                retval = None
+            retval = safe_pop(self.result_stack, "FunctionReturn value")
         else:
             retval = None
 
@@ -2042,7 +2039,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit the initializer
         if node.value is not None:
             self.visit(node.value)
-            init_val = self.result_stack.pop()
+            init_val = safe_pop(self.result_stack, "InlineVariableDeclaration initializer")
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
         # Default zero value based on type
@@ -2176,7 +2173,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: system.Cast) -> None:
         """Translate Cast expression to LLVM-IR."""
         self.visit(node.value)
-        value = self.result_stack.pop()
+        value = safe_pop(self.result_stack, "Cast value")
         target_type_str = node.target_type.__class__.__name__.lower()
         target_type = self._llvm.get_data_type(target_type_str)
 
@@ -2300,7 +2297,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         else:
             # For variables and other expressions
             self.visit(node.message)
-            ptr = safe_pop(self.result_stack)
+            ptr = safe_pop(self.result_stack, "PrintExpr (message)")
             if not ptr:
                 raise Exception("Invalid message in PrintExpr")
 
@@ -2337,7 +2334,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit the initializer
         if node.value is not None:
             self.visit(node.value)
-            init_val = self.result_stack.pop()
+            init_val = safe_pop(self.result_stack, "VariableDeclaration initializer")
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
 
