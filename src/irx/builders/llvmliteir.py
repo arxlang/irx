@@ -155,6 +155,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     _llvm: VariablesLLVM
 
     function_protos: dict[str, astx.FunctionPrototype]
+    struct_types: dict[str, ir.IdentifiedStructType]
     result_stack: list[ir.Value | ir.Function] = []
 
     def __init__(self) -> None:
@@ -164,6 +165,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
+        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
 
         self.initialize()
@@ -2265,6 +2267,35 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """Translate ASTx Identifier to LLVM-IR."""
         if self.named_values.get(node.name):
             raise Exception(f"Identifier already declared: {node.name}")
+
+        if isinstance(node.type_, system.StructType):
+            struct_name = node.type_.struct_name
+            if struct_name not in self.struct_types:
+                raise Exception(f"Struct '{struct_name}' not defined.")
+
+            llvm_struct_type = self.struct_types[struct_name]
+            self._llvm.ir_builder.position_at_start(
+                self._llvm.ir_builder.function.entry_basic_block
+            )
+            alloca = self._llvm.ir_builder.alloca(
+                llvm_struct_type, None, node.name
+            )
+            self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
+
+            if node.value is not None:
+                raise Exception(
+                    "Struct initialization with values not yet supported."
+                )
+
+            zero_fields = [
+                ir.Constant(field_type, 0)
+                for field_type in llvm_struct_type.elements
+            ]
+            zero_init = ir.Constant(llvm_struct_type, zero_fields)
+            self._llvm.ir_builder.store(zero_init, alloca)
+
+            self.named_values[node.name] = alloca
+            return
 
         type_str = node.type_.__class__.__name__.lower()
 
