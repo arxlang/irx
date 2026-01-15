@@ -38,6 +38,8 @@ groups:
             type: string
             default: "-vvv -n auto"
         backend: bash
+        env:
+          PYTHONPATH: src
         run: |
           pytest \
             --cov=irx \
@@ -47,10 +49,12 @@ groups:
 
       notebooks:
         help: test jupyter notebooks
+        env:
+          PYTHONPATH: src
         run: pytest -vv --nbmake docs/tutorials
 
       ci:
-        help: run the sames tests executed on CI
+        help: run the same tests executed on CI
         hooks:
           pre-run:
             - task: tests.unit
