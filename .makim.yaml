@@ -49,6 +49,7 @@ groups:
 
       notebooks:
         help: test jupyter notebooks
+        backend: bash
         env:
           PYTHONPATH: src
         run: pytest -vv --nbmake docs/tutorials
