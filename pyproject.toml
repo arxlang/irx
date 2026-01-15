@@ -2,7 +2,7 @@
 name = "pyirx"
 version = "1.5.0"  # semantic-release
 description = "IRx"
-readme = "docs/index.md"
+readme = "README.md"
 authors = [
   {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"}
 ]
