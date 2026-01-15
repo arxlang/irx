@@ -42,7 +42,9 @@ jobs:
           poetry install --no-root
 
       - name: Test tutorials
-        run: makim --verbose tests.notebooks
+        run: |
+          export PYTHONPATH=$PWD/src
+          makim --verbose tests.notebooks
 
       - name: Generate documentation with changes from semantic-release
         run: makim --verbose docs.build
