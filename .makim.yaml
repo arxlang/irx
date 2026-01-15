@@ -50,9 +50,9 @@ groups:
       notebooks:
         help: test jupyter notebooks
         backend: bash
-        env:
-          PYTHONPATH: src
-        run: pytest -vv --nbmake docs/tutorials
+        run: |
+          pytest -vv --nbmake docs/tutorials \
+            --nbmake-kernel-env PYTHONPATH=src
 
       ci:
         help: run the same tests executed on CI
