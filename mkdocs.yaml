@@ -109,7 +109,10 @@ markdown_extensions:
       repo_url_shortener: true
   - pymdownx.saneheaders
   - pymdownx.snippets:
-      base_path: [docs, .]
+      base_path:
+        - !relative $config_dir
+      restrict_base_path: false
+      check_paths: true
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
