@@ -154,6 +154,8 @@ def test_unify_int_and_float_scalars_returns_float() -> None:
 
     assert is_fp_type(widened_int.type)
     assert widened_float.type == visitor._llvm.FLOAT_TYPE
+
+
 def test_set_fast_math_marks_float_ops() -> None:
     """set_fast_math should add fast flag to floating instructions."""
     visitor = LLVMLiteIRVisitor()
