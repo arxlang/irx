@@ -95,3 +95,23 @@ def test_emit_int_div_signed_and_unsigned() -> None:
 
     assert getattr(signed, "opname", "") == "sdiv"
     assert getattr(unsigned, "opname", "") == "udiv"
+
+
+def test_set_fast_math_marks_float_ops() -> None:
+    """set_fast_math should add fast flag to floating instructions."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    float_ty = visitor._llvm.FLOAT_TYPE
+    lhs = ir.Constant(float_ty, 1.0)
+    rhs = ir.Constant(float_ty, 2.0)
+
+    visitor.set_fast_math(True)
+    inst_fast = visitor._llvm.ir_builder.fadd(lhs, rhs)
+    visitor._apply_fast_math(inst_fast)
+    assert "fast" in inst_fast.flags
+
+    visitor.set_fast_math(False)
+    inst_normal = visitor._llvm.ir_builder.fadd(lhs, rhs)
+    visitor._apply_fast_math(inst_normal)
+    assert "fast" not in inst_normal.flags
