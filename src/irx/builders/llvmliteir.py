@@ -170,6 +170,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+        self._fast_math_enabled = False
 
         self.initialize()
 
@@ -425,7 +426,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return builder.fma(lhs, rhs, addend, name="vfma")
 
         fma_fn = self._get_fma_function(lhs.type)
-        return builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+        inst = builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+        self._apply_fast_math(inst)
+        return inst
+
+    def set_fast_math(self, enabled: bool) -> None:
+        """Enable/disable fast-math flags for subsequent FP instructions."""
+        self._fast_math_enabled = enabled
+
+    def _apply_fast_math(self, inst: ir.Instruction) -> None:
+        """Attach fast-math flags when enabled and applicable."""
+        if not self._fast_math_enabled:
+            return
+        ty = inst.type
+        if isinstance(ty, ir.VectorType):
+            if not is_fp_type(ty.element):
+                return
+        elif not is_fp_type(ty):
+            return
+
+        flags = getattr(inst, "flags", None)
+        if flags is None:
+            return
+
+        if "fast" in flags:
+            return
+
+        try:
+            flags.append("fast")
+        except (AttributeError, TypeError):
+            return
 
     def _is_numeric_value(self, value: ir.Value) -> bool:
         """Return True if value represents an int/float scalar or vector."""
@@ -709,6 +739,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fadd(
                             llvm_lhs, llvm_rhs, name="vfaddtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.add(
                             llvm_lhs, llvm_rhs, name="vaddtmp"
@@ -718,6 +749,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fsub(
                             llvm_lhs, llvm_rhs, name="vfsubtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.sub(
                             llvm_lhs, llvm_rhs, name="vsubtmp"
@@ -727,6 +759,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fmul(
                             llvm_lhs, llvm_rhs, name="vfmultmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         result = self._llvm.ir_builder.mul(
                             llvm_lhs, llvm_rhs, name="vmultmp"
@@ -736,6 +769,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         result = self._llvm.ir_builder.fdiv(
                             llvm_lhs, llvm_rhs, name="vfdivtmp"
                         )
+                        self._apply_fast_math(result)
                     else:
                         unsigned = getattr(node, "unsigned", None)
                         if unsigned is None:
@@ -779,10 +813,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self.result_stack.append(result)
                 return
 
-            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fadd(
                     llvm_lhs, llvm_rhs, "addtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # there's more conditions to be handled
                 result = self._llvm.ir_builder.add(
@@ -792,10 +827,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
         elif node.op_code == "-":
             # note: it should be according the datatype,
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # note: be careful you should handle this as  INT32
                 result = self._llvm.ir_builder.sub(
@@ -806,10 +842,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # note: be careful you should handle this as INT32
                 result = self._llvm.ir_builder.mul(
@@ -820,7 +857,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -834,7 +871,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -846,7 +883,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "<=":
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -857,7 +894,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == ">=":
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -870,11 +907,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
             # division
-            if self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 # Floating-point division
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
+                self._apply_fast_math(result)
             else:
                 # Assuming the division is signed by default. Use `udiv` for
                 # unsigned division.
@@ -896,7 +934,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "=="
                 )
-            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -919,7 +957,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "!="
                 )
-            elif self._llvm.FLOAT_TYPE in (llvm_lhs.type, llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
@@ -1621,6 +1659,52 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
         self.result_stack.append(const_dt)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralList) -> None:
+        """Lower a LiteralList to LLVM IR (minimal support).
+
+        Supported cases:
+        - Empty list -> constant [0 x i32]
+        - Homogeneous integer constant lists -> constant [N x iX]
+
+        Otherwise raises to keep behavior explicit and aligned with
+        current test-suite conventions.
+        """
+        # Lower each element and collect the LLVM values
+        llvm_elems: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralList: invalid element lowering.")
+            llvm_elems.append(v)
+
+        n = len(llvm_elems)
+        # Empty list => [0 x i32] constant
+        # TODO: Infer element type from declared list type when available.
+        # Currently uses i32 as placeholder; update when non-int lists
+        # are supported.
+        if n == 0:
+            empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
+            self.result_stack.append(ir.Constant(empty_ty, []))
+            return
+
+        # Homogeneous integer constant lists => constant array
+        first_ty = llvm_elems[0].type
+        is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
+        homogeneous = all(v.type == first_ty for v in llvm_elems)
+        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
+        if is_ints and homogeneous and all_constants:
+            arr_ty = ir.ArrayType(first_ty, n)
+            const_arr = ir.Constant(arr_ty, llvm_elems)
+            self.result_stack.append(const_arr)
+            return
+
+        raise TypeError(
+            "LiteralList: only empty or homogeneous integer constants "
+            "are supported"
+        )
 
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
