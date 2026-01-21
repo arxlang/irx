@@ -128,7 +128,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
 
-        # SINGLE STRING REPRESENTATION
+        # ✅ SINGLE STRING REPRESENTATION
         self._llvm.STRING_PTR_TYPE = ir.IntType(8).as_pointer()
 
         self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
@@ -137,7 +137,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.SIZE_T_TYPE = ir.IntType(64)
 
-    
+    # ------------------------------------------------------------
+    # STRING HELPERS (ALL i8*)
+    # ------------------------------------------------------------
 
     def _create_strlen_inline(self) -> ir.Function:
         name = "strlen_inline"
