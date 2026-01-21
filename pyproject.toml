@@ -2,7 +2,7 @@
 name = "pyirx"
 version = "1.5.0"  # semantic-release
 description = "IRx"
-readme = "README.md"
+readme = "docs/index.md"
 authors = [
   {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"}
 ]
@@ -29,7 +29,7 @@ exclude = [
   ".env*",
 ]
 packages = [
-  {include = "irx", from = "src"},
+  {include = "irx", from="src"},
 ]
 include = ["src/irx/py.typed"]
 
@@ -60,12 +60,11 @@ pytest-xdist = "^3.8.0"
 
 [tool.pytest.ini_options]
 testpaths = [
-  "tests",
+    "tests",
 ]
-pythonpath = ["src"]
 filterwarnings = [
-  "error::RuntimeWarning",
-  "error::typeguard.TypeHintWarning",
+    "error::RuntimeWarning",
+    "error::typeguard.TypeHintWarning",
 ]
 
 [tool.bandit]
@@ -87,33 +86,34 @@ line-length = 79
 force-exclude = true
 src = ["./"]
 exclude = [
-  "docs",
+  'docs',
 ]
 fix = true
 
 [tool.ruff.lint]
 ignore = [
-  "F811",
-  "PLR0911",
-  "PLR0912",
-  "PLR0913",
-  "RUF012",
-  "PLR0915",
+  "F811",  # redefined-while-unused
+  "PLR0911",  # Too many return statements
+  "PLR0912",  # Too many branches
+  "PLR0913",  # Too many arguments in a function definition
+  "RUF012",  # mutable-class-default
+  "PLR0915",  # Too many statements
 ]
 select = [
-  "E",
-  "F",
-  "D",
-  "YTT",
-  "PL",
-  "RUF",
-  "I001",
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "D",   # pydocstyle
+  "YTT", # flake8-2020
+  "PL",  # PL
+  "RUF", # Ruff-specific rules
+  "I001", # isort
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.ruff.lint.isort]
+# Use a single line between direct and from import
 lines-between-types = 1
 
 [tool.ruff.format]
