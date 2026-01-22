@@ -31,7 +31,7 @@ jobs:
           python-version: "3.9"
 
       - name: Install deps
-        run: poetry install
+        run: poetry install --no-root
 
       - name: Run semantic release (for tests)
         if: ${{ github.event_name != 'workflow_dispatch' }}

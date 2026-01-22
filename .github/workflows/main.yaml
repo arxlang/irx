@@ -79,7 +79,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry check
-          poetry install
+          poetry install --no-root
 
       - name: Run tests
         run: makim tests.unit

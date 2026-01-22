@@ -1,8 +1,8 @@
 site_name: IRx
 site_url: https://irx.arxlang.org
 repo_url: https://github.com/arxlang/irx
-docs_dir: ./docs
-site_dir: ./build
+docs_dir: docs
+site_dir: build
 
 nav:
   - index.md
@@ -57,8 +57,6 @@ plugins:
   - gen-files:
       scripts:
         - scripts/gen_ref_nav.py
-  - literate-nav:
-      nav_file: SUMMARY.md
   - mkdocstrings:
       enable_inventory: true
       handlers:
@@ -105,8 +103,8 @@ markdown_extensions:
   - md_in_html
   - meta
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
       options:
         custom_icons:
           - docs/static/icons
@@ -119,7 +117,10 @@ markdown_extensions:
       provider: github
       repo_url_shortener: true
   - pymdownx.saneheaders
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      base_path: [docs, .]
+      restrict_base_path: false
+      check_paths: false
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
