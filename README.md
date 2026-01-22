@@ -35,13 +35,12 @@ via `clang`.
 
 ### Requirements
 
-- Python **3.9 – 3.13**.
+- Python **3.10 – 3.13**.
 - A recent **LLVM/Clang** toolchain available on `PATH`.
 - A working **C standard library** (e.g., system libc) for linking calls like
   `puts`.
 - Python deps: `llvmlite`, `pytest`, etc. (see `pyproject.toml` /
   `requirements.txt`).
-
   - Note: llvmlite has **specific Python/LLVM compatibility windows**; see its
     docs.
 
@@ -116,7 +115,6 @@ builder.run()                   # executes ./hello (or hello.exe on Windows)
   - `run()` — execute the produced binary.
 
 - **`LLVMLiteIRVisitor` (codegen)**
-
   - Uses `@dispatch` to visit each ASTx node type.
   - Maintains a **value stack** (`result_stack`) and **symbol table**
     (`named_values`).

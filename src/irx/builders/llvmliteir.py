@@ -179,6 +179,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             codemodel="small"
         )
 
+        self._llvm.module.triple = self.target_machine.triple
+        self._llvm.module.data_layout = str(self.target_machine.target_data)
+
+        if self._llvm.SIZE_T_TYPE is None:
+            self._llvm.SIZE_T_TYPE = self._get_size_t_type_from_triple()
+
         self._add_builtins()
 
     def translate(self, node: astx.AST) -> str:
@@ -189,7 +195,30 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _init_native_size_types(self) -> None:
         """Initialize pointer/size_t types from host."""
         self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
-        self._llvm.SIZE_T_TYPE = ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
+        self._llvm.SIZE_T_TYPE = None
+
+    def _get_size_t_type_from_triple(self) -> ir.IntType:
+        """Determine size_t type from target triple using LLVM API."""
+        triple = self.target_machine.triple.lower()
+
+        if any(
+            arch in triple
+            for arch in [
+                "x86_64",
+                "amd64",
+                "aarch64",
+                "arm64",
+                "ppc64",
+                "mips64",
+            ]
+        ):
+            return ir.IntType(64)
+        elif any(arch in triple for arch in ["i386", "i686", "arm", "mips"]):
+            if "64" in triple:
+                return ir.IntType(64)
+            return ir.IntType(32)
+
+        return ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
 
     def initialize(self) -> None:
         """Initialize self."""
@@ -198,10 +227,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Initialize native-sized types (size_t, pointer width)
         self._init_native_size_types()
 
-        # initialize the target registry etc.
-        llvm.initialize()
-        llvm.initialize_all_asmprinters()
+        # Initialize LLVM targets
         llvm.initialize_all_targets()
+        llvm.initialize_all_asmprinters()
         llvm.initialize_native_target()
         llvm.initialize_native_asmparser()
         llvm.initialize_native_asmprinter()
@@ -246,8 +274,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self._llvm.INT32_TYPE,
             ]
         )
-        # Platform-sized unsigned integer (assume 64-bit for CI targets)
-        self._llvm.SIZE_T_TYPE = ir.IntType(64)
+        # SIZE_T_TYPE already initialized based on host; do not override with a
+        # fixed width here to avoid mismatches on non-64-bit targets.
 
     def _add_builtins(self) -> None:
         # The C++ tutorial adds putchard() simply by defining it in the host

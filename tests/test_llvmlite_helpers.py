@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, cast
+from unittest.mock import Mock
 
 from irx.builders.llvmliteir import (
     LLVMLiteIRVisitor,
@@ -154,6 +155,64 @@ def test_unify_int_and_float_scalars_returns_float() -> None:
 
     assert is_fp_type(widened_int.type)
     assert widened_float.type == visitor._llvm.FLOAT_TYPE
+def test_get_size_t_type_from_triple_32bit() -> None:
+    """Test _get_size_t_type_from_triple for 32-bit architectures."""
+    visitor = LLVMLiteIRVisitor()
+
+    mock_tm = Mock()
+    mock_tm.triple = "i386-unknown-linux-gnu"
+    visitor.target_machine = mock_tm
+
+    size_t_ty = visitor._get_size_t_type_from_triple()
+    assert size_t_ty.width == 32  # noqa: PLR2004
+
+
+def test_get_size_t_type_from_triple_fallback() -> None:
+    """Test _get_size_t_type_from_triple fallback for unknown architectures."""
+    visitor = LLVMLiteIRVisitor()
+
+    mock_tm = Mock()
+    mock_tm.triple = "unknown-arch-unknown-os"
+    visitor.target_machine = mock_tm
+
+    size_t_ty = visitor._get_size_t_type_from_triple()
+    assert isinstance(size_t_ty, ir.IntType)
+    assert size_t_ty.width in (32, 64)
+
+
+def test_scalar_vector_float_conversion_fptrunc() -> None:
+    """Test scalar-vector promotion with float truncation."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    double_ty = visitor._llvm.DOUBLE_TYPE
+    float_ty = visitor._llvm.FLOAT_TYPE
+    vec_ty = ir.VectorType(float_ty, 2)
+
+    scalar = ir.Constant(double_ty, 3.14)
+    converted = visitor._llvm.ir_builder.fptrunc(scalar, float_ty, "test")
+    result = splat_scalar(visitor._llvm.ir_builder, converted, vec_ty)
+
+    assert isinstance(result.type, ir.VectorType)
+    assert result.type.element == float_ty
+
+
+def test_scalar_vector_float_conversion_fpext() -> None:
+    """Test scalar-vector promotion with float extension."""
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+
+    float_ty = visitor._llvm.FLOAT_TYPE
+    double_ty = visitor._llvm.DOUBLE_TYPE
+    vec_ty = ir.VectorType(double_ty, 2)
+
+    scalar = ir.Constant(float_ty, 3.14)
+
+    converted = visitor._llvm.ir_builder.fpext(scalar, double_ty, "test")
+    result = splat_scalar(visitor._llvm.ir_builder, converted, vec_ty)
+
+    assert isinstance(result.type, ir.VectorType)
+    assert result.type.element == double_ty
 
 
 def test_set_fast_math_marks_float_ops() -> None:
