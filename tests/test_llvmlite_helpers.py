@@ -97,6 +97,7 @@ def test_emit_int_div_signed_and_unsigned() -> None:
     assert getattr(signed, "opname", "") == "sdiv"
     assert getattr(unsigned, "opname", "") == "udiv"
 
+
 def test_get_size_t_type_from_triple_32bit() -> None:
     """Test _get_size_t_type_from_triple for 32-bit architectures."""
     visitor = LLVMLiteIRVisitor()
@@ -155,6 +156,7 @@ def test_scalar_vector_float_conversion_fpext() -> None:
 
     assert isinstance(result.type, ir.VectorType)
     assert result.type.element == double_ty
+
 
 def test_set_fast_math_marks_float_ops() -> None:
     """set_fast_math should add fast flag to floating instructions."""
