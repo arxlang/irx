@@ -324,9 +324,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if name in self.function_protos:
             self.visit(self.function_protos[name])
-            return cast(
-                ir.Function, safe_pop(self.result_stack, "get_function")
-            )
+            fn = safe_pop(self.result_stack, "get_function")
+
+            if not isinstance(fn, ir.Function):
+                raise TypeError(f"Expected ir.Function, got {type(fn)!r}")
+            return fn
 
         return None
 
@@ -926,8 +928,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         result = None
         for node in block.nodes:
             self.visit(node)
-            if self.result_stack:
-                result = self.result_stack.pop()
+            result = safe_pop(self.result_stack)
         if result is not None:
             self.result_stack.append(result)
 
