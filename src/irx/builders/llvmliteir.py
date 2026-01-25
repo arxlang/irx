@@ -90,9 +90,7 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
-    STRING_TYPE: ir.types.Type
-    ASCII_STRING_TYPE: ir.types.Type
-    UTF8_STRING_TYPE: ir.types.Type
+
     TIMESTAMP_TYPE: ir.types.Type
     DATETIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
@@ -134,11 +132,11 @@ class VariablesLLVM:
         elif type_name == "char":
             return self.INT8_TYPE
         elif type_name == "string":
-            return self.STRING_TYPE
+            return ir.IntType(8).as_pointer()
         elif type_name == "stringascii":
-            return self.ASCII_STRING_TYPE
+            return ir.IntType(8).as_pointer()
         elif type_name == "utf8string":
-            return self.UTF8_STRING_TYPE
+            return ir.IntType(8).as_pointer()
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -214,11 +212,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
-        self._llvm.STRING_TYPE = ir.LiteralStructType(
-            [ir.IntType(32), ir.IntType(8).as_pointer()]
-        )
-        self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
-        self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+
         # Composite types
         self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
             [
@@ -1620,8 +1614,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return self._llvm.module.get_global(func_name)
 
         func_type = ir.FunctionType(
-            self._llvm.ASCII_STRING_TYPE,
-            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+            ir.IntType(8).as_pointer(),
+            [ir.IntType(8).as_pointer(), ir.IntType(8).as_pointer()],
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
 
@@ -1636,7 +1630,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Function signature: string_length(char* str) -> i32
         func_type = ir.FunctionType(
-            self._llvm.INT32_TYPE, [self._llvm.ASCII_STRING_TYPE]
+            self._llvm.INT32_TYPE, [ir.IntType(8).as_pointer()]
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
         func.linkage = "external"
@@ -1651,7 +1645,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Function signature: string_equals(char* str1, char* str2) -> i1
         func_type = ir.FunctionType(
             self._llvm.BOOLEAN_TYPE,
-            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+            [ir.IntType(8).as_pointer(), ir.IntType(8).as_pointer()],
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
         func.linkage = "external"
@@ -1665,9 +1659,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # string_substring(char* str, i32 start, i32 length) -> char*
         func_type = ir.FunctionType(
-            self._llvm.ASCII_STRING_TYPE,
+            ir.IntType(8).as_pointer(),
             [
-                self._llvm.ASCII_STRING_TYPE,
+                ir.IntType(8).as_pointer(),
                 self._llvm.INT32_TYPE,
                 self._llvm.INT32_TYPE,
             ],
@@ -2210,10 +2204,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     value, target_type, "cast_fp_down"
                 )
 
-        elif target_type in (
-            self._llvm.ASCII_STRING_TYPE,
-            self._llvm.STRING_TYPE,
-        ):
+        elif isinstance(
+            target_type, ir.PointerType
+        ) and target_type.pointee == ir.IntType(8):
             if isinstance(value.type, ir.IntType):
                 arg, fmt_str = self._normalize_int_for_printf(value)
                 fmt_gv = self._get_or_create_format_global(fmt_str)
