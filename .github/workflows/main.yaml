@@ -61,6 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Clean Conda cache (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          rm -rf "$CONDA_PKGS_DIR" 2>/dev/null || true
+          rm -rf "$HOME/.conda/envs" 2>/dev/null || true
+
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
@@ -70,6 +76,11 @@ jobs:
           auto-update-conda: true
           conda-solver: libmamba
           python-version: ${{ matrix.python_version }}
+
+      - name: Clean distutils conflict (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          find "$CONDA_PREFIX" -name "distutils-precedence.pth" -delete 2>/dev/null || true
 
       - name: Install dependencies
         run: |

@@ -6,7 +6,7 @@ readme = "docs/index.md"
 authors = [
   {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"}
 ]
-license = "BSD 3 Clause"
+license = "BSD-3-Clause"
 requires-python = ">=3.9,<4"
 dependencies = [
   "atpublic >= 4.0",
