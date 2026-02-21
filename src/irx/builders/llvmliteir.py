@@ -48,7 +48,7 @@ def is_vector(v: "ir.Value") -> bool:
 
 
 def emit_int_div(
-    ir_builder: "ir.IRBuilder",
+    ir_builder: "ir.IRBuilder",  
     lhs: "ir.Value",
     rhs: "ir.Value",
     unsigned: bool,
