@@ -38,7 +38,7 @@ def is_fp_type(t: "ir.Type") -> bool:
 
 
 def is_int_type(t: "ir.Type") -> bool:
-    """Return True if t is any integer LLVM type."""
+    """Return True if t is any scalar integer LLVM type."""
     return isinstance(t, ir.IntType)
 
 
@@ -2198,16 +2198,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.trunc(
                     value, target_type, "cast_int_down"
                 )
-        elif is_int_type(value.type) and isinstance(
-            target_type, ir.FloatType
-        ):
+        elif is_int_type(value.type) and is_fp_type(target_type):
             result = self._llvm.ir_builder.sitofp(
                 value, target_type, "cast_int_to_fp"
             )
 
-        elif isinstance(value.type, ir.FloatType) and is_int_type(
-            target_type
-        ):
+        elif is_fp_type(value.type) and is_int_type(target_type):
             result = self._llvm.ir_builder.fptosi(
                 value, target_type, "cast_fp_to_int"
             )
