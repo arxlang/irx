@@ -17,8 +17,6 @@ jobs:
       vmImage: "macOS-latest"
     strategy:
       matrix:
-        Python39:
-          python_version: "3.9"
         Python310:
           python_version: "3.10"
         Python311:
