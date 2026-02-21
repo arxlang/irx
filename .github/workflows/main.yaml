@@ -107,7 +107,7 @@ jobs:
           activate-environment: irx
           auto-update-conda: true
           conda-solver: libmamba
-          python-version: "3.13"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
