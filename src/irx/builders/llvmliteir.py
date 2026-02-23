@@ -8,7 +8,7 @@ import tempfile
 
 from datetime import datetime
 from datetime import time as _time
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional
 
 import astx
 import xh
