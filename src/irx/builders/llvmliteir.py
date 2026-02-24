@@ -193,6 +193,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Initialize native-sized types (size_t, pointer width)
         self._init_native_size_types()
 
+        # Initialize LLVM targets
+        llvm.initialize_all_targets()
+        llvm.initialize_all_asmprinters()
+        llvm.initialize_native_target()
+        llvm.initialize_native_asmparser()
+        llvm.initialize_native_asmprinter()
+
         # Create a new builder for the module.
         self._llvm.ir_builder = ir.IRBuilder()
 
