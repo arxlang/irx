@@ -66,19 +66,19 @@ Ready to contribute? Here’s how to set up `irx` for local development.
 1.  Fork the `irx` repo on GitHub.
 2.  Clone your fork locally:
 
-```bash
-$ git clone git@github.com:your_name_here/irx.git
-$ cd irx/
-```
+    ```bash
+    $ git clone git@github.com:your_name_here/irx.git
+    $ cd irx/
+    ```
 
 3.  Create a new virtual environment and install your local copy into that:
 
-```bash
-# note: you can use mamba or conda or micromamba
-$ mamba env create --file conda/dev.yaml
-$ conda activate irx
-$ poetry install
-```
+    ```bash
+    # note: you can use mamba or conda or micromamba
+    $ mamba env create --file conda/dev.yaml
+    $ conda activate irx
+    $ poetry install
+    ```
 
 4.  Create a branch for local development:
 
