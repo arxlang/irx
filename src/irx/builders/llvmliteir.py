@@ -21,6 +21,7 @@ try:  # FP128 may not exist depending on llvmlite build
     from llvmlite.ir import FP128Type
 except ImportError:  # pragma: no cover - optional
     FP128Type = None
+
 from plum import dispatch
 from public import public
 
