@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Optional, cast
 from unittest.mock import Mock
 
 from irx.builders.llvmliteir import (
@@ -29,7 +29,7 @@ class _NoFmaBuilder:
         self,
         fn: ir.Function,
         args: list[ir.Value],
-        name: str | None = None,
+        name: Optional[str] = None,
     ) -> ir.Instruction:
         self.called.append(fn.name)
         return self._real.call(fn, args, name=name)
