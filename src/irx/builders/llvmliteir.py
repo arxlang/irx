@@ -21,6 +21,7 @@ try:  # FP128 may not exist depending on llvmlite build
     from llvmlite.ir import FP128Type
 except ImportError:  # pragma: no cover - optional
     FP128Type = None
+
 from plum import dispatch
 from public import public
 
@@ -40,6 +41,11 @@ def is_fp_type(t: "ir.Type") -> bool:
     if FP128Type is not None:
         fp_types.append(FP128Type)
     return isinstance(t, tuple(fp_types))
+
+
+def is_int_type(t: "ir.Type") -> bool:
+    """Return True if t is any scalar integer LLVM type."""
+    return isinstance(t, ir.IntType)
 
 
 def is_vector(v: "ir.Value") -> bool:
@@ -381,9 +387,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return lhs, rhs
 
         # perform sign extension (for integer operands)
-        if isinstance(lhs.type, ir.IntType) and isinstance(
-            rhs.type, ir.IntType
-        ):
+        if is_int_type(lhs.type) and is_int_type(rhs.type):
             if lhs.type.width < rhs.type.width:
                 lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
             elif lhs.type.width > rhs.type.width:
@@ -402,13 +406,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return lhs, rhs
 
         # If one is int and other is FP, convert int -> FP (sitofp),
-        if isinstance(lhs.type, ir.IntType) and rhs_fp_rank > 0:
+        if is_int_type(lhs.type) and rhs_fp_rank > 0:
             target_fp = rhs.type
             lhs_fp = self._llvm.ir_builder.sitofp(lhs, target_fp, "int_to_fp")
             # Now if rhs is narrower/wider, adjust (rhs already target_fp here)
             return lhs_fp, rhs
 
-        if isinstance(rhs.type, ir.IntType) and lhs_fp_rank > 0:
+        if is_int_type(rhs.type) and lhs_fp_rank > 0:
             target_fp = lhs.type
             rhs_fp = self._llvm.ir_builder.sitofp(rhs, target_fp, "int_to_fp")
             return lhs, rhs_fp
@@ -1020,7 +1024,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not cond_v:
             raise Exception("codegen: Invalid condition expression.")
 
-        if isinstance(cond_v.type, (ir.FloatType, ir.DoubleType)):
+        if is_fp_type(cond_v.type):
             cmp_instruction = self._llvm.ir_builder.fcmp_ordered
             zero_val = ir.Constant(cond_v.type, 0.0)
         else:
@@ -1107,7 +1111,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             raise Exception("codegen: Invalid condition expression.")
 
         # Convert condition to a bool by comparing non-equal to 0.
-        if isinstance(cond_val.type, (ir.FloatType, ir.DoubleType)):
+        if is_fp_type(cond_val.type):
             cmp_instruction = self._llvm.ir_builder.fcmp_ordered
             zero_val = ir.Constant(cond_val.type, 0.0)
         else:
@@ -1305,7 +1309,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
         self._llvm.ir_builder.store(next_var, var_addr)
 
-        if isinstance(end_cond.type, (ir.FloatType, ir.DoubleType)):
+        if is_fp_type(end_cond.type):
             cmp_instruction = self._llvm.ir_builder.fcmp_ordered
             cmp_op = (
                 "<"
@@ -1720,7 +1724,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Homogeneous integer constant lists => constant array
         first_ty = llvm_elems[0].type
-        is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
+        is_ints = all(is_int_type(v.type) for v in llvm_elems)
         homogeneous = all(v.type == first_ty for v in llvm_elems)
         all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
         if is_ints and homogeneous and all_constants:
@@ -2110,15 +2114,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             fn_return_type = (
                 self._llvm.ir_builder.function.function_type.return_type
             )
-            if (
-                isinstance(fn_return_type, ir.IntType)
-                and fn_return_type.width == 1
-            ):
+            if is_int_type(fn_return_type) and fn_return_type.width == 1:
                 # Force cast retval to i1 if not already
-                if (
-                    isinstance(retval.type, ir.IntType)
-                    and retval.type.width != 1
-                ):
+                if is_int_type(retval.type) and retval.type.width != 1:
                     retval = self._llvm.ir_builder.trunc(retval, ir.IntType(1))
             self._llvm.ir_builder.ret(retval)
             return
@@ -2157,7 +2155,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _normalize_int_for_printf(self, v: ir.Value) -> tuple[ir.Value, str]:
         """Promote/truncate integer to match printf format."""
         INT64_WIDTH = 64
-        if not isinstance(v.type, ir.IntType):
+        if not is_int_type(v.type):
             raise Exception("Expected integer value")
         w = v.type.width
         if w < INT64_WIDTH:
@@ -2279,9 +2277,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         result: ir.Value
 
-        if isinstance(value.type, ir.IntType) and isinstance(
-            target_type, ir.IntType
-        ):
+        if is_int_type(value.type) and is_int_type(target_type):
             if value.type.width < target_type.width:
                 result = self._llvm.ir_builder.sext(
                     value, target_type, "cast_int_up"
@@ -2290,16 +2286,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.trunc(
                     value, target_type, "cast_int_down"
                 )
-        elif isinstance(value.type, ir.IntType) and isinstance(
-            target_type, ir.FloatType
-        ):
+        elif is_int_type(value.type) and is_fp_type(target_type):
             result = self._llvm.ir_builder.sitofp(
                 value, target_type, "cast_int_to_fp"
             )
 
-        elif isinstance(value.type, ir.FloatType) and isinstance(
-            target_type, ir.IntType
-        ):
+        elif is_fp_type(value.type) and is_int_type(target_type):
             result = self._llvm.ir_builder.fptosi(
                 value, target_type, "cast_fp_to_int"
             )
@@ -2335,7 +2327,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ASCII_STRING_TYPE,
             self._llvm.STRING_TYPE,
         ):
-            if isinstance(value.type, ir.IntType):
+            if is_int_type(value.type):
                 arg, fmt_str = self._normalize_int_for_printf(value)
                 fmt_gv = self._get_or_create_format_global(fmt_str)
                 ptr = self._snprintf_heap(fmt_gv, [arg])
