@@ -155,6 +155,8 @@ def test_unify_int_and_float_scalars_returns_float() -> None:
 
     assert is_fp_type(widened_int.type)
     assert widened_float.type == visitor._llvm.FLOAT_TYPE
+
+
 def test_get_size_t_type_from_triple_32bit() -> None:
     """Test _get_size_t_type_from_triple for 32-bit architectures."""
     visitor = LLVMLiteIRVisitor()
