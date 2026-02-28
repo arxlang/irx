@@ -47,3 +47,10 @@ class Cast(astx.Expr):
         key = f"Cast[{self.target_type}]"
         value = self.value.get_struct(simplified)
         return self._prepare_struct(key, value, simplified)
+
+
+class StructType(astx.DataType):
+    """Type reference for previously defined structs."""
+
+    def __init__(self, struct_name: str) -> None:
+        self.struct_name = struct_name
