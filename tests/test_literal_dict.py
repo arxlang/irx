@@ -13,6 +13,9 @@ from llvmlite import ir
 
 HAS_LITERAL_DICT = hasattr(astx, "LiteralDict")
 
+EXPECTED_DICT_LENGTH = 2
+EXPECTED_STRUCT_FIELDS = 2
+
 
 @pytest.mark.skipif(
     not HAS_LITERAL_DICT, reason="astx.LiteralDict not available"
@@ -57,12 +60,12 @@ def test_literal_dict_homogeneous_int_constants(
 
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 2
+    assert const.type.count == EXPECTED_DICT_LENGTH
 
     # Check element struct type
     assert isinstance(const.type.element, ir.LiteralStructType)
     struct_ty = const.type.element
-    assert len(struct_ty.elements) == 2
+    assert len(struct_ty.elements) == EXPECTED_STRUCT_FIELDS
     assert all(isinstance(t, ir.IntType) for t in struct_ty.elements)
 
 
@@ -101,14 +104,14 @@ def test_literal_dict_non_constant_unsupported(
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    # Use a variable to simulate non-constant
     var = astx.Variable(name="x")
 
     with pytest.raises(TypeError, match="only empty or all-constant"):
         visitor.visit(
             astx.LiteralDict(
-                elements={
-                    var: astx.LiteralInt32(10),
-                }
+                elements=cast(
+                    dict[astx.Literal, astx.Literal],
+                    {var: astx.LiteralInt32(10)},
+                )
             )
         )
