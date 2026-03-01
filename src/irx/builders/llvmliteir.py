@@ -1644,7 +1644,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "LiteralList: only empty or homogeneous integer constants "
             "are supported"
         )
-    
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralDict) -> None:
         """Lower a LiteralDict to LLVM IR (minimal support).
