@@ -1644,6 +1644,86 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "LiteralList: only empty or homogeneous integer constants "
             "are supported"
         )
+    
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralDict) -> None:
+        """Lower a LiteralDict to LLVM IR (minimal support).
+
+        Supported cases:
+        - Empty dict -> constant [0 x {i32, i32}] (placeholder types)
+        - All-constant key/value pairs -> constant [N x {K, V}]
+
+        Otherwise raises to keep behavior explicit and aligned with
+        current project philosophy.
+        """
+
+        # 1) Collect lowered key/value LLVM values
+        llvm_pairs: list[tuple[ir.Value, ir.Value]] = []
+
+        for key_node, value_node in node.elements.items():
+            # Lower key
+            self.visit(key_node)
+            key_val = self.result_stack.pop()
+            if key_val is None:
+                raise Exception("LiteralDict: failed to lower key.")
+
+            # Lower value
+            self.visit(value_node)
+            val_val = self.result_stack.pop()
+            if val_val is None:
+                raise Exception("LiteralDict: failed to lower value.")
+
+            llvm_pairs.append((key_val, val_val))
+
+        n = len(llvm_pairs)
+
+        # 2) Empty dict -> constant empty array with placeholder struct type
+        if n == 0:
+            # Placeholder element types (same philosophy as LiteralList)
+            pair_ty = ir.LiteralStructType(
+                [self._llvm.INT32_TYPE, self._llvm.INT32_TYPE]
+            )
+            arr_ty = ir.ArrayType(pair_ty, 0)
+            self.result_stack.append(ir.Constant(arr_ty, []))
+            return
+
+        # 3) Check constant fast-path
+        all_constants = all(
+            isinstance(k, ir.Constant) and isinstance(v, ir.Constant)
+            for k, v in llvm_pairs
+        )
+
+        if all_constants:
+            # Infer struct type from first pair
+            first_key_ty = llvm_pairs[0][0].type
+            first_val_ty = llvm_pairs[0][1].type
+
+            pair_ty = ir.LiteralStructType([first_key_ty, first_val_ty])
+            arr_ty = ir.ArrayType(pair_ty, n)
+
+            struct_consts: list[ir.Constant] = []
+
+            for key_val, val_val in llvm_pairs:
+                # Ensure homogeneous types
+                if key_val.type != first_key_ty or val_val.type != first_val_ty:
+                    raise TypeError(
+                        "LiteralDict: heterogeneous constant key/value types "
+                        "are not yet supported"
+                    )
+
+                struct_consts.append(
+                    ir.Constant(pair_ty, [key_val, val_val])
+                )
+
+            const_arr = ir.Constant(arr_ty, struct_consts)
+            self.result_stack.append(const_arr)
+            return
+
+        # 4) Non-constant path not yet supported
+        raise TypeError(
+            "LiteralDict: only empty or all-constant dictionaries "
+            "are supported in this version"
+        )
 
     def _create_string_concat_function(self) -> ir.Function:
         """Create a string concatenation function."""
