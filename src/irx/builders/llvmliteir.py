@@ -1656,7 +1656,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         Otherwise raises to keep behavior explicit and aligned with
         current project philosophy.
         """
-
         # 1) Collect lowered key/value LLVM values
         llvm_pairs: list[tuple[ir.Value, ir.Value]] = []
 
@@ -1705,15 +1704,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             for key_val, val_val in llvm_pairs:
                 # Ensure homogeneous types
-                if key_val.type != first_key_ty or val_val.type != first_val_ty:
+                if (
+                    key_val.type != first_key_ty
+                    or val_val.type != first_val_ty
+                ):
                     raise TypeError(
                         "LiteralDict: heterogeneous constant key/value types "
                         "are not yet supported"
                     )
 
-                struct_consts.append(
-                    ir.Constant(pair_ty, [key_val, val_val])
-                )
+                struct_consts.append(ir.Constant(pair_ty, [key_val, val_val]))
 
             const_arr = ir.Constant(arr_ty, struct_consts)
             self.result_stack.append(const_arr)
