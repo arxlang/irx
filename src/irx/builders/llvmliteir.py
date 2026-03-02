@@ -1159,44 +1159,163 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self.result_stack.append(result)
 
+    # @dispatch  # type: ignore[no-redef]
+    # def visit(self, node: astx.ForRangeLoopStmt) -> None:
+    #     """Translate ASTx For Range Loop to LLVM-IR."""
+    #     saved_block = self._llvm.ir_builder.block
+
+    #     var_addr = self.create_entry_block_alloca(
+    #         "for_count_loop",
+    #         node.variable.type_.__class__.__name__.lower(),
+    #     )
+
+    #     self._llvm.ir_builder.position_at_end(saved_block)
+
+    #     # initialize start value
+    #     self.visit(node.start)
+    #     start_val = self.result_stack.pop()
+    #     if not start_val:
+    #         raise Exception("codegen: Invalid start argument.")
+
+    #     self._llvm.ir_builder.store(start_val, var_addr)
+
+    #     # create blocks
+    #     func = self._llvm.ir_builder.function
+
+    #     header_bb = func.append_basic_block("for.header")
+    #     body_bb = func.append_basic_block("for.body")
+    #     after_bb = func.append_basic_block("for.after")
+
+    #     # jump to header
+    #     self._llvm.ir_builder.branch(header_bb)
+
+    #     # LOOP HEADER  (condition checked before body)
+    #     self._llvm.ir_builder.position_at_start(header_bb)
+
+    #     cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
+
+    #     self.visit(node.end)
+    #     end_val = self.result_stack.pop()
+    #     if not end_val:
+    #         raise Exception("codegen: Invalid end argument.")
+
+    #     if node.step:
+    #         self.visit(node.step)
+    #         step_val = self.result_stack.pop()
+    #         if not step_val:
+    #             raise Exception("codegen: Invalid step argument.")
+    #     else:
+    #         step_val = ir.Constant(
+    #             self._llvm.get_data_type(
+    #                 node.variable.type_.__class__.__name__.lower()
+    #             ),
+    #             1,
+    #         )
+
+    #     # comparison
+    #     if is_fp_type(cur_var.type):
+    #         cmp_instruction = self._llvm.ir_builder.fcmp_ordered
+    #         cmp_op = (
+    #             "<"
+    #             if isinstance(step_val, ir.Constant) and step_val.constant > 0
+    #             else ">"
+    #         )
+    #     else:
+    #         cmp_instruction = self._llvm.ir_builder.icmp_signed
+    #         cmp_op = (
+    #             "<"
+    #             if isinstance(step_val, ir.Constant) and step_val.constant > 0
+    #             else ">"
+    #         )
+
+    #     loop_cond = cmp_instruction(
+    #         cmp_op,
+    #         cur_var,
+    #         end_val,
+    #         "loopcond",
+    #     )
+
+    #     # condition decides entry into body
+    #     self._llvm.ir_builder.cbranch(loop_cond, body_bb, after_bb)
+
+    #     # LOOP BODY
+    #     self._llvm.ir_builder.position_at_start(body_bb)
+
+    #     old_val = self.named_values.get(node.variable.name)
+    #     self.named_values[node.variable.name] = var_addr
+
+    #     self.visit(node.body)
+    #     _ = self.result_stack.pop()
+
+    #     # increment
+    #     cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
+    #     next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
+    #     self._llvm.ir_builder.store(next_var, var_addr)
+
+    #     self._llvm.ir_builder.branch(header_bb)
+
+    #     # AFTER LOOP
+    #     self._llvm.ir_builder.position_at_start(after_bb)
+
+    #     if old_val:
+    #         self.named_values[node.variable.name] = old_val
+    #     else:
+    #         self.named_values.pop(node.variable.name, None)
+
+    #     result = ir.Constant(
+    #         self._llvm.get_data_type(
+    #             node.variable.type_.__class__.__name__.lower()
+    #         ),
+    #         0,
+    #     )
+
+    #     self.result_stack.append(result)
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
         """Translate ASTx For Range Loop to LLVM-IR."""
         saved_block = self._llvm.ir_builder.block
+
         var_addr = self.create_entry_block_alloca(
-            "for_count_loop", node.variable.type_.__class__.__name__.lower()
+            "for_count_loop",
+            node.variable.type_.__class__.__name__.lower(),
         )
+
         self._llvm.ir_builder.position_at_end(saved_block)
 
-        # Emit the start code first, without 'variable' in scope.
+        # initialize start value
         self.visit(node.start)
         start_val = self.result_stack.pop()
         if not start_val:
             raise Exception("codegen: Invalid start argument.")
+
         self._llvm.ir_builder.store(start_val, var_addr)
 
-        # Create and jump to the loop block
-        loop_bb = self._llvm.ir_builder.function.append_basic_block("loop")
-        self._llvm.ir_builder.branch(loop_bb)
-        self._llvm.ir_builder.position_at_start(loop_bb)
+        # create blocks
+        func = self._llvm.ir_builder.function
 
-        # Store current var in scope
-        old_val = self.named_values.get(node.variable.name)
-        self.named_values[node.variable.name] = var_addr
+        header_bb = func.append_basic_block("for.header")
+        body_bb = func.append_basic_block("for.body")
+        after_bb = func.append_basic_block("for.after")
 
-        # Emit the body of the loop.
-        self.visit(node.body)
-        body_val = self.result_stack.pop()
+        # jump to header
+        self._llvm.ir_builder.branch(header_bb)
 
-        if not body_val:
-            return
+        # LOOP HEADER  (condition checked before body)
+        self._llvm.ir_builder.position_at_start(header_bb)
 
-        # Emit the step value.
+        cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
+
+        self.visit(node.end)
+        end_val = self.result_stack.pop()
+        if not end_val:
+            raise Exception("codegen: Invalid end argument.")
+
         if node.step:
             self.visit(node.step)
             step_val = self.result_stack.pop()
             if not step_val:
-                return
+                raise Exception("codegen: Invalid step argument.")
         else:
             step_val = ir.Constant(
                 self._llvm.get_data_type(
@@ -1205,18 +1324,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 1,
             )
 
-        # Compute the end condition.
-        self.visit(node.end)
-        end_cond = self.result_stack.pop()
-        if not end_cond:
-            return
-
-        # Increment loop variable: i = i + step
-        cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
-        next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
-        self._llvm.ir_builder.store(next_var, var_addr)
-
-        if is_fp_type(end_cond.type):
+        # comparison
+        if is_fp_type(cur_var.type):
             cmp_instruction = self._llvm.ir_builder.fcmp_ordered
             cmp_op = (
                 "<"
@@ -1231,37 +1340,47 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 else ">"
             )
 
-        end_cond = cmp_instruction(
+        loop_cond = cmp_instruction(
             cmp_op,
             cur_var,
-            end_cond,
+            end_val,
             "loopcond",
         )
 
-        # Create the "after loop" block and insert it.
-        after_bb = self._llvm.ir_builder.function.append_basic_block(
-            "afterloop"
-        )
+        # condition decides entry into body
+        self._llvm.ir_builder.cbranch(loop_cond, body_bb, after_bb)
 
-        # Insert the conditional branch into the end of loop_bb.
-        self._llvm.ir_builder.cbranch(end_cond, loop_bb, after_bb)
+        # LOOP BODY
+        self._llvm.ir_builder.position_at_start(body_bb)
 
-        # Any new code will be inserted in after_bb.
+        old_val = self.named_values.get(node.variable.name)
+        self.named_values[node.variable.name] = var_addr
+
+        self.visit(node.body)
+        _ = self.result_stack.pop()
+
+        # increment
+        cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
+        next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
+        self._llvm.ir_builder.store(next_var, var_addr)
+
+        self._llvm.ir_builder.branch(header_bb)
+
+        # AFTER LOOP
         self._llvm.ir_builder.position_at_start(after_bb)
 
-        # Restore the unshadowed variable.
         if old_val:
             self.named_values[node.variable.name] = old_val
         else:
             self.named_values.pop(node.variable.name, None)
 
-        # for node always returns 0.0.
         result = ir.Constant(
             self._llvm.get_data_type(
                 node.variable.type_.__class__.__name__.lower()
             ),
             0,
         )
+
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
