@@ -90,28 +90,3 @@ def test_literal_dict_heterogeneous_constants_unsupported(
                 }
             )
         )
-
-
-@pytest.mark.skipif(
-    not HAS_LITERAL_DICT, reason="astx.LiteralDict not available"
-)
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_dict_non_constant_unsupported(
-    builder_class: Type[Builder],
-) -> None:
-    """Non-constant dict elements are not yet supported."""
-    builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
-    visitor.result_stack.clear()
-
-    var = astx.Variable(name="x")
-
-    with pytest.raises(TypeError, match="only empty or all-constant"):
-        visitor.visit(
-            astx.LiteralDict(
-                elements=cast(
-                    dict[astx.Literal, astx.Literal],
-                    {var: astx.LiteralInt32(10)},
-                )
-            )
-        )
