@@ -1959,7 +1959,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
 
         # Sort elements deterministically for stable IR output
-        def _sort_key(lit: astx.Literal) -> tuple:
+        def _sort_key(lit: astx.Literal) -> tuple[str, Any]:
             tname = type(lit).__name__
             val = getattr(lit, "value", None)
             return (tname, val if isinstance(val, (int, float, str)) else repr(lit))
