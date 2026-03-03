@@ -1,4 +1,6 @@
-"""Tests for string operations."""
+"""
+title: Tests for string operations.
+"""
 
 from typing import Type
 
@@ -16,7 +18,14 @@ from .conftest import check_result
 def test_string_literal_utf8_with_print(
     builder_class: Type[Builder],
 ) -> None:
-    """Test UTF-8 string literal by printing to stdout."""
+    """
+    title: Test UTF-8 string literal by printing to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -46,7 +55,14 @@ def test_string_literal_utf8_with_print(
 def test_string_literal_utf8_char_with_print(
     builder_class: Type[Builder],
 ) -> None:
-    """Test UTF-8 char literal by printing to stdout."""
+    """
+    title: Test UTF-8 char literal by printing to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -76,7 +92,14 @@ def test_string_literal_utf8_char_with_print(
 def test_string_literal_generic_with_print(
     builder_class: Type[Builder],
 ) -> None:
-    """Test generic string literal by printing to stdout."""
+    """
+    title: Test generic string literal by printing to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -117,7 +140,20 @@ def test_string_concatenation_with_print(
     rhs_str: str,
     expected: str,
 ) -> None:
-    """Test string concatenation by printing result to stdout."""
+    """
+    title: Test string concatenation by printing result to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      lhs_str:
+        type: str
+      rhs_str:
+        type: str
+      expected:
+        type: str
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -161,7 +197,22 @@ def test_string_comparison_with_print(
     rhs_str: str,
     expected_result: bool,
 ) -> None:
-    """Test string comparison operations by printing result to stdout."""
+    """
+    title: Test string comparison operations by printing result to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      lhs_str:
+        type: str
+      op:
+        type: str
+      rhs_str:
+        type: str
+      expected_result:
+        type: bool
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -193,7 +244,14 @@ def test_string_comparison_with_print(
 def test_empty_string_with_print(
     builder_class: Type[Builder],
 ) -> None:
-    """Test empty string by printing to stdout."""
+    """
+    title: Test empty string by printing to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -223,7 +281,14 @@ def test_empty_string_with_print(
 def test_string_with_special_characters_with_print(
     builder_class: Type[Builder],
 ) -> None:
-    """Test string with special characters by printing to stdout."""
+    """
+    title: Test string with special characters by printing to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 

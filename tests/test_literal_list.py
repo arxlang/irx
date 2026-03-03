@@ -1,4 +1,6 @@
-"""Tests for LiteralList lowering using project conventions."""
+"""
+title: Tests for LiteralList lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,16 @@ HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
 
 
 def _array_i32_values(const: ir.Constant) -> list[int]:
-    """Extract i32-like values from array constant via regex (suite style)."""
+    """
+    title: Extract i32-like values from array constant via regex (suite style).
+
+    Parameters
+    ----------
+      const:
+        type: ir.Constant
+    returns:
+      type: list[int]
+    """
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
 
 
@@ -26,7 +37,14 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_empty(builder_class: Type[Builder]) -> None:
-    """Empty list lowers to constant [0 x i32]."""
+    """
+    title: Empty list lowers to constant [0 x i32].
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -45,7 +63,14 @@ def test_literal_list_empty(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_homogeneous_ints(builder_class: Type[Builder]) -> None:
-    """Homogeneous integer constants lower to constant array [N x i32]."""
+    """
+    title: Homogeneous integer constants lower to constant array [N x i32].
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -75,7 +100,14 @@ def test_literal_list_homogeneous_ints(builder_class: Type[Builder]) -> None:
 def test_literal_list_mixed_int_widths_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Mixed-width integer lists are not yet supported."""
+    """
+    title: Mixed-width integer lists are not yet supported.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -95,7 +127,14 @@ def test_literal_list_mixed_int_widths_unsupported(
 def test_literal_list_non_integer_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Non-integer homogeneous lists are not yet supported."""
+    """
+    title: Non-integer homogeneous lists are not yet supported.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -115,7 +154,14 @@ def test_literal_list_non_integer_unsupported(
 def test_literal_list_nested_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Nested lists (list containing lists) are not yet supported."""
+    """
+    title: Nested lists (list containing lists) are not yet supported.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()

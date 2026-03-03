@@ -1,4 +1,6 @@
-"""Targeted helper coverage for LLVMLiteIRVisitor."""
+"""
+title: Targeted helper coverage for LLVMLiteIRVisitor.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +16,9 @@ from llvmlite import ir
 
 
 class _NoFmaBuilder:
-    """Proxy IRBuilder that hides fma to exercise intrinsic fallback."""
+    """
+    title: Proxy IRBuilder that hides fma to exercise intrinsic fallback.
+    """
 
     def __init__(self, real: ir.IRBuilder) -> None:
         self._real = real
@@ -44,7 +48,9 @@ def _prime_builder(visitor: LLVMLiteIRVisitor) -> None:
 
 
 def test_emit_fma_fallback_intrinsic() -> None:
-    """Ensure fallback uses llvm.fma intrinsic when builder lacks fma."""
+    """
+    title: Ensure fallback uses llvm.fma intrinsic when builder lacks fma.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
     proxy = _NoFmaBuilder(visitor._llvm.ir_builder)
@@ -63,7 +69,9 @@ def test_emit_fma_fallback_intrinsic() -> None:
 
 
 def test_splat_scalar_broadcasts_all_lanes() -> None:
-    """splat_scalar should broadcast the scalar into every lane."""
+    """
+    title: splat_scalar should broadcast the scalar into every lane.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -82,7 +90,9 @@ def test_splat_scalar_broadcasts_all_lanes() -> None:
 
 
 def test_emit_int_div_signed_and_unsigned() -> None:
-    """emit_int_div should honour the unsigned flag."""
+    """
+    title: emit_int_div should honour the unsigned flag.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -99,7 +109,9 @@ def test_emit_int_div_signed_and_unsigned() -> None:
 
 
 def test_get_size_t_type_from_triple_32bit() -> None:
-    """Test _get_size_t_type_from_triple for 32-bit architectures."""
+    """
+    title: Test _get_size_t_type_from_triple for 32-bit architectures.
+    """
     visitor = LLVMLiteIRVisitor()
 
     mock_tm = Mock()
@@ -111,7 +123,10 @@ def test_get_size_t_type_from_triple_32bit() -> None:
 
 
 def test_get_size_t_type_from_triple_fallback() -> None:
-    """Test _get_size_t_type_from_triple fallback for unknown architectures."""
+    """
+    title: >-
+      Test _get_size_t_type_from_triple fallback for unknown architectures.
+    """
     visitor = LLVMLiteIRVisitor()
 
     mock_tm = Mock()
@@ -124,7 +139,9 @@ def test_get_size_t_type_from_triple_fallback() -> None:
 
 
 def test_scalar_vector_float_conversion_fptrunc() -> None:
-    """Test scalar-vector promotion with float truncation."""
+    """
+    title: Test scalar-vector promotion with float truncation.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -141,7 +158,9 @@ def test_scalar_vector_float_conversion_fptrunc() -> None:
 
 
 def test_scalar_vector_float_conversion_fpext() -> None:
-    """Test scalar-vector promotion with float extension."""
+    """
+    title: Test scalar-vector promotion with float extension.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -159,7 +178,9 @@ def test_scalar_vector_float_conversion_fpext() -> None:
 
 
 def test_set_fast_math_marks_float_ops() -> None:
-    """set_fast_math should add fast flag to floating instructions."""
+    """
+    title: set_fast_math should add fast flag to floating instructions.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 

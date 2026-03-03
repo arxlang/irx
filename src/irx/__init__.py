@@ -1,10 +1,18 @@
-"""Top-level package for IRx."""
+"""
+title: Top-level package for IRx.
+"""
 
 from importlib import metadata as importlib_metadata
 
 
 def get_version() -> str:
-    """Return the program version."""
+    """
+    title: Return the program version.
+
+    Returns
+    -------
+      type: str
+    """
     try:
         return importlib_metadata.version(__name__)
     except importlib_metadata.PackageNotFoundError:  # pragma: no cover

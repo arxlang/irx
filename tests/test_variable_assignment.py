@@ -1,4 +1,6 @@
-"""Test For VariableAssignment."""
+"""
+title: Test For VariableAssignment.
+"""
 
 from typing import Type
 
@@ -32,7 +34,18 @@ def test_variable_assignment(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test VariableAssignment by reassigning and returning."""
+    """
+    title: Test VariableAssignment by reassigning and returning.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 

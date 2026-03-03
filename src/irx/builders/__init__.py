@@ -1,1 +1,3 @@
-"""Module for ASTx builders."""
+"""
+title: Module for ASTx builders.
+"""

@@ -1,4 +1,6 @@
-"""Tests for the PrintExpr node."""
+"""
+title: Tests for the PrintExpr node.
+"""
 
 from typing import Type
 
@@ -40,7 +42,22 @@ def test_print_expr(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test the PrintExpr node."""
+    """
+    title: Test the PrintExpr node.
+
+    Parameters
+    ----------
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 

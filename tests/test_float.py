@@ -1,4 +1,6 @@
-"""Tests for float."""
+"""
+title: Tests for float.
+"""
 
 from typing import Type
 
@@ -29,7 +31,22 @@ def test_float_operations_with_print(
     rhs: float,
     expected: float,
 ) -> None:
-    """Test float operations by printing result to stdout."""
+    """
+    title: Test float operations by printing result to stdout.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      lhs:
+        type: float
+      op:
+        type: str
+      rhs:
+        type: float
+      expected:
+        type: float
+    """
     builder = builder_class()
     module = builder.module()
 

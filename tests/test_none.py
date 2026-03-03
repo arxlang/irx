@@ -1,4 +1,6 @@
-"""Tests for None / void type."""
+"""
+title: Tests for None / void type.
+"""
 
 from typing import Type
 
@@ -16,7 +18,14 @@ from .conftest import check_result
 def test_none_as_placeholder_in_expression(
     builder_class: Type[Builder],
 ) -> None:
-    """Ensure LiteralNone pushes None on result stack without emitting IR."""
+    """
+    title: Ensure LiteralNone pushes None on result stack without emitting IR.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 

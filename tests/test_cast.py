@@ -1,4 +1,6 @@
-"""Tests for the Casting."""
+"""
+title: Tests for the Casting.
+"""
 
 from typing import Type
 
@@ -41,7 +43,24 @@ def test_cast_basic(
     literal_type_from: type,
     int_type_to: type,
 ) -> None:
-    """Test casting int types between different widths."""
+    """
+    title: Test casting int types between different widths.
+
+    Parameters
+    ----------
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type_from:
+        type: type
+      literal_type_from:
+        type: type
+      int_type_to:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -76,7 +95,14 @@ def test_cast_basic(
     ],
 )
 def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
-    """Test casting int -> float -> int, returning int result."""
+    """
+    title: Test casting int -> float -> int, returning int result.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -124,7 +150,14 @@ def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
     ],
 )
 def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
-    """Cast an integer to a string, print it, and return 0."""
+    """
+    title: Cast an integer to a string, print it, and return 0.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -167,7 +200,14 @@ def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
     ],
 )
 def test_cast_float_to_string(builder_class: Type[Builder]) -> None:
-    """Cast a float to a string, print it, and return 0."""
+    """
+    title: Cast a float to a string, print it, and return 0.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -221,7 +261,18 @@ def test_cast_boolean_to_string(
     boolean_value: bool,
     expected_output: str,
 ) -> None:
-    """Cast a boolean to a string, verify it prints as 1/0 not -1/0."""
+    """
+    title: Cast a boolean to a string, verify it prints as 1/0 not -1/0.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      boolean_value:
+        type: bool
+      expected_output:
+        type: str
+    """
     builder = builder_class()
     module = builder.module()
 

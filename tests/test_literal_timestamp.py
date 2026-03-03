@@ -1,4 +1,6 @@
-"""Tests for LiteralTimestamp lowering using project conventions."""
+"""
+title: Tests for LiteralTimestamp lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +20,16 @@ NANOS_PER_MILLISECOND = 123_000_000
 
 
 def _timestamp_values(const: ir.Constant) -> list[int]:
-    """Extract i32 values from the literal struct constant."""
+    """
+    title: Extract i32 values from the literal struct constant.
+
+    Parameters
+    ----------
+      const:
+        type: ir.Constant
+    returns:
+      type: list[int]
+    """
     return [int(v) for v in re.findall(r"i32\s+(-?\d+)", str(const))]
 
 
@@ -27,7 +38,14 @@ def _timestamp_values(const: ir.Constant) -> list[int]:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_timestamp_basic(builder_class: Type[Builder]) -> None:
-    """LiteralTimestamp with fractional seconds via 'T' separator."""
+    """
+    title: LiteralTimestamp with fractional seconds via 'T' separator.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -49,7 +67,14 @@ def test_literal_timestamp_basic(builder_class: Type[Builder]) -> None:
 def test_literal_timestamp_fraction_truncated(
     builder_class: Type[Builder],
 ) -> None:
-    """Fractions longer than 9 digits are truncated to nanoseconds."""
+    """
+    title: Fractions longer than 9 digits are truncated to nanoseconds.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -65,7 +90,14 @@ def test_literal_timestamp_fraction_truncated(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_timestamp_invalid_date(builder_class: Type[Builder]) -> None:
-    """Reject impossible calendar dates (e.g., February 30)."""
+    """
+    title: Reject impossible calendar dates (e.g., February 30).
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -80,7 +112,14 @@ def test_literal_timestamp_invalid_date(builder_class: Type[Builder]) -> None:
 def test_literal_timestamp_timezone_rejected(
     builder_class: Type[Builder],
 ) -> None:
-    """Reject timestamps that include timezone markers."""
+    """
+    title: Reject timestamps that include timezone markers.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()

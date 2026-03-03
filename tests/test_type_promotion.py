@@ -1,4 +1,6 @@
-"""Tests for type promotion functionality."""
+"""
+title: Tests for type promotion functionality.
+"""
 
 import pytest
 
@@ -8,9 +10,13 @@ from llvmlite import ir
 
 @pytest.fixture
 def visitor() -> LLVMLiteIRVisitor:
-    """Create a LLVMLiteIRVisitor with a dummy module, function, and block.
+    """
+    title: Create a LLVMLiteIRVisitor with a dummy module, function, and block.
+    summary: This ensures a valid IRBuilder context.
 
-    This ensures a valid IRBuilder context.
+    Returns
+    -------
+      type: LLVMLiteIRVisitor
     """
     v = LLVMLiteIRVisitor()
     dummy_module = ir.Module("dummy")
@@ -22,7 +28,14 @@ def visitor() -> LLVMLiteIRVisitor:
 
 
 def test_same_type(visitor: LLVMLiteIRVisitor) -> None:
-    """Test promotion in case of same type (no promotion)."""
+    """
+    title: Test promotion in case of same type (no promotion).
+
+    Parameters
+    ----------
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     a = ir.Constant(ir.IntType(32), 5)
     b = ir.Constant(ir.IntType(32), 10)
     a_promoted, b_promoted = visitor.promote_operands(a, b)
@@ -31,7 +44,14 @@ def test_same_type(visitor: LLVMLiteIRVisitor) -> None:
 
 
 def test_integer_promotion(visitor: LLVMLiteIRVisitor) -> None:
-    """Test integer type promotion."""
+    """
+    title: Test integer type promotion.
+
+    Parameters
+    ----------
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     a = ir.Constant(ir.IntType(16), 5)
     b = ir.Constant(ir.IntType(32), 10)
     a_promoted, b_promoted = visitor.promote_operands(a, b)
@@ -40,7 +60,14 @@ def test_integer_promotion(visitor: LLVMLiteIRVisitor) -> None:
 
 
 def test_float_promotion(visitor: LLVMLiteIRVisitor) -> None:
-    """Test floating-point type promotion."""
+    """
+    title: Test floating-point type promotion.
+
+    Parameters
+    ----------
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     a = ir.Constant(ir.FloatType(), 3.14)
     b = ir.Constant(ir.DoubleType(), 3.14)
     a_promoted, b_promoted = visitor.promote_operands(a, b)
@@ -51,7 +78,14 @@ def test_float_promotion(visitor: LLVMLiteIRVisitor) -> None:
 def test_same_type_returns_original_operands(
     visitor: LLVMLiteIRVisitor,
 ) -> None:
-    """Test returning original operands in case of same type."""
+    """
+    title: Test returning original operands in case of same type.
+
+    Parameters
+    ----------
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     a = ir.Constant(ir.IntType(8), 2)
     b = ir.Constant(ir.IntType(8), 3)
     a_promoted, b_promoted = visitor.promote_operands(a, b)

@@ -1,4 +1,6 @@
-"""Test irx with a fibonnaci function."""
+"""
+title: Test irx with a fibonnaci function.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +35,18 @@ def test_function_call_fibonacci(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test the FunctionCall class with Fibonacci."""
+    """
+    title: Test the FunctionCall class with Fibonacci.
+
+    Parameters
+    ----------
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 

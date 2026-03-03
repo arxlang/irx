@@ -1,4 +1,6 @@
-"""Test For Loop statements."""
+"""
+title: Test For Loop statements.
+"""
 
 from typing import Type
 
@@ -40,7 +42,22 @@ def test_for_range(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test For Range statement."""
+    """
+    title: Test For Range statement.
+
+    Parameters
+    ----------
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
 
     # `for` statement
@@ -102,7 +119,22 @@ def test_for_count(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test the For Count statement."""
+    """
+    title: Test the For Count statement.
+
+    Parameters
+    ----------
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
 
     init_a = astx.InlineVariableDeclaration(

@@ -1,4 +1,6 @@
-"""Test While Loop statements."""
+"""
+title: Test While Loop statements.
+"""
 
 from typing import Type
 
@@ -40,7 +42,22 @@ def test_while_expr(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test the While expression translation."""
+    """
+    title: Test the While expression translation.
+
+    Parameters
+    ----------
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
 
     # Identifier declaration and initialization: int a = 0
