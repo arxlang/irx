@@ -8,9 +8,7 @@ from importlib import metadata as importlib_metadata
 def get_version() -> str:
     """
     title: Return the program version.
-
-    Returns
-    -------
+    returns:
       type: str
     """
     try:

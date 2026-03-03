@@ -22,9 +22,7 @@ def run_command(command: Sequence[str]) -> str:
     title: Run a shell command and return its stdout as a string.
     summary: >-
       Raises CalledProcessError if the command exits with a non-zero status.
-
-    Parameters
-    ----------
+    parameters:
       command:
         type: Sequence[str]
     returns:
@@ -50,9 +48,7 @@ class BuilderVisitor:
     def translate(self, expr: astx.AST) -> str:
         """
         title: Translate an ASTx expression to string.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.AST
         returns:
@@ -94,9 +90,7 @@ class Builder(ABC):
     def module(self) -> astx.Module:
         """
         title: Create a new ASTx Module.
-
-        Returns
-        -------
+        returns:
           type: astx.Module
         """
         return astx.Module()
@@ -104,9 +98,7 @@ class Builder(ABC):
     def translate(self, expr: astx.AST) -> str:
         """
         title: Transpile ASTx to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.AST
         returns:
@@ -122,9 +114,7 @@ class Builder(ABC):
     ) -> None:
         """
         title: Transpile ASTx to LLVM-IR and build an executable file.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.AST
           output_file:
@@ -135,9 +125,7 @@ class Builder(ABC):
     def run(self) -> str:
         """
         title: Run the generated executable.
-
-        Returns
-        -------
+        returns:
           type: str
         """
         return run_command([self.output_file])
