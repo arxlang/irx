@@ -11,15 +11,10 @@ from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from llvmlite import ir
 
-HAS_LITERAL_DICT = hasattr(astx, "LiteralDict")
-
 EXPECTED_DICT_LENGTH = 2
 EXPECTED_STRUCT_FIELDS = 2
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_DICT, reason="astx.LiteralDict not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
     """Empty dict lowers to constant [0 x {i32, i32}]."""
@@ -35,9 +30,6 @@ def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
     assert const.type.count == 0
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_DICT, reason="astx.LiteralDict not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_homogeneous_int_constants(
     builder_class: Type[Builder],
@@ -69,9 +61,6 @@ def test_literal_dict_homogeneous_int_constants(
     assert all(isinstance(t, ir.IntType) for t in struct_ty.elements)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_DICT, reason="astx.LiteralDict not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_heterogeneous_constants_unsupported(
     builder_class: Type[Builder],
