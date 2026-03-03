@@ -45,9 +45,7 @@ def test_if_else_stmt(
 ) -> None:
     """
     title: Test an If statement with an else branch.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:
@@ -121,9 +119,7 @@ def test_if_only_stmt(
 ) -> None:
     """
     title: Test an If statement without an else branch.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

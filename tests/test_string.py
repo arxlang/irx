@@ -20,9 +20,7 @@ def test_string_literal_utf8_with_print(
 ) -> None:
     """
     title: Test UTF-8 string literal by printing to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -57,9 +55,7 @@ def test_string_literal_utf8_char_with_print(
 ) -> None:
     """
     title: Test UTF-8 char literal by printing to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -94,9 +90,7 @@ def test_string_literal_generic_with_print(
 ) -> None:
     """
     title: Test generic string literal by printing to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -142,9 +136,7 @@ def test_string_concatenation_with_print(
 ) -> None:
     """
     title: Test string concatenation by printing result to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       lhs_str:
@@ -199,9 +191,7 @@ def test_string_comparison_with_print(
 ) -> None:
     """
     title: Test string comparison operations by printing result to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       lhs_str:
@@ -246,9 +236,7 @@ def test_empty_string_with_print(
 ) -> None:
     """
     title: Test empty string by printing to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -283,9 +271,7 @@ def test_string_with_special_characters_with_print(
 ) -> None:
     """
     title: Test string with special characters by printing to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """

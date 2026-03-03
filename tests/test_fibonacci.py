@@ -37,9 +37,7 @@ def test_function_call_fibonacci(
 ) -> None:
     """
     title: Test the FunctionCall class with Fibonacci.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       int_type:

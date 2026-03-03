@@ -20,9 +20,7 @@ TEST_RESET_VALUE = 7
 def register_table() -> RegisterTable:
     """
     title: Fixture providing a fresh RegisterTable instance.
-
-    Returns
-    -------
+    returns:
       type: RegisterTable
     """
     return RegisterTable()
@@ -31,9 +29,7 @@ def register_table() -> RegisterTable:
 def test_initial_state(register_table: RegisterTable) -> None:
     """
     title: Test initialization creates empty stack.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -43,9 +39,7 @@ def test_initial_state(register_table: RegisterTable) -> None:
 def test_append_operation(register_table: RegisterTable) -> None:
     """
     title: Test append adds new context level.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -59,9 +53,7 @@ def test_append_operation(register_table: RegisterTable) -> None:
 def test_increase_operation(register_table: RegisterTable) -> None:
     """
     title: Test increase modifies current context.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -78,9 +70,7 @@ def test_increase_operation(register_table: RegisterTable) -> None:
 def test_last_property(register_table: RegisterTable) -> None:
     """
     title: Test last property returns top value.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -97,9 +87,7 @@ def test_last_property(register_table: RegisterTable) -> None:
 def test_pop_operation(register_table: RegisterTable) -> None:
     """
     title: Test pop removes current context.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -115,9 +103,7 @@ def test_pop_operation(register_table: RegisterTable) -> None:
 def test_redefine_operation(register_table: RegisterTable) -> None:
     """
     title: Test redefine overwrites current context.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -134,9 +120,7 @@ def test_redefine_operation(register_table: RegisterTable) -> None:
 def test_reset_operation(register_table: RegisterTable) -> None:
     """
     title: Test reset clears current context.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """
@@ -153,9 +137,7 @@ def test_reset_operation(register_table: RegisterTable) -> None:
 def test_nested_context_operations(register_table: RegisterTable) -> None:
     """
     title: Test complex nested context scenarios.
-
-    Parameters
-    ----------
+    parameters:
       register_table:
         type: RegisterTable
     """

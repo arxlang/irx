@@ -21,9 +21,7 @@ HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
 def _array_i32_values(const: ir.Constant) -> list[int]:
     """
     title: Extract i32-like values from array constant via regex (suite style).
-
-    Parameters
-    ----------
+    parameters:
       const:
         type: ir.Constant
     returns:
@@ -39,9 +37,7 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
 def test_literal_list_empty(builder_class: Type[Builder]) -> None:
     """
     title: Empty list lowers to constant [0 x i32].
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -65,9 +61,7 @@ def test_literal_list_empty(builder_class: Type[Builder]) -> None:
 def test_literal_list_homogeneous_ints(builder_class: Type[Builder]) -> None:
     """
     title: Homogeneous integer constants lower to constant array [N x i32].
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -102,9 +96,7 @@ def test_literal_list_mixed_int_widths_unsupported(
 ) -> None:
     """
     title: Mixed-width integer lists are not yet supported.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -129,9 +121,7 @@ def test_literal_list_non_integer_unsupported(
 ) -> None:
     """
     title: Non-integer homogeneous lists are not yet supported.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -156,9 +146,7 @@ def test_literal_list_nested_unsupported(
 ) -> None:
     """
     title: Nested lists (list containing lists) are not yet supported.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """

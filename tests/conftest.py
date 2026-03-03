@@ -19,9 +19,7 @@ TEST_DATA_PATH = Path(__file__).parent / "data"
 def similarity(text_a: str, text_b: str) -> float:
     """
     title: Calculate the similarity between two strings.
-
-    Parameters
-    ----------
+    parameters:
       text_a:
         type: str
       text_b:
@@ -43,9 +41,7 @@ def check_result(
 ) -> None:
     """
     title: Check the result for translation or build.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       builder:

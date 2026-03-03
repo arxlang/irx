@@ -45,9 +45,7 @@ def test_cast_basic(
 ) -> None:
     """
     title: Test casting int types between different widths.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:
@@ -97,9 +95,7 @@ def test_cast_basic(
 def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
     """
     title: Test casting int -> float -> int, returning int result.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -152,9 +148,7 @@ def test_cast_int_to_float_and_back(builder_class: Type[Builder]) -> None:
 def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
     """
     title: Cast an integer to a string, print it, and return 0.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -202,9 +196,7 @@ def test_cast_int_to_string(builder_class: Type[Builder]) -> None:
 def test_cast_float_to_string(builder_class: Type[Builder]) -> None:
     """
     title: Cast a float to a string, print it, and return 0.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -263,9 +255,7 @@ def test_cast_boolean_to_string(
 ) -> None:
     """
     title: Cast a boolean to a string, verify it prints as 1/0 not -1/0.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       boolean_value:

@@ -24,9 +24,7 @@ __all__ = ["typechecked"]
 def skip_unused(*args: Any, **kwargs: Any) -> None:
     """
     title: Referencing variables to pacify static analyzers.
-
-    Parameters
-    ----------
+    parameters:
       args:
         type: Any
         variadic: positional
@@ -44,9 +42,7 @@ def skip_unused(*args: Any, **kwargs: Any) -> None:
 def copy_type(f: _T) -> Callable[[Any], _T]:
     """
     title: Copy types for args, kwargs from parent class.
-
-    Parameters
-    ----------
+    parameters:
       f:
         type: _T
     returns:

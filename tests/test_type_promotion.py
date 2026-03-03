@@ -13,9 +13,7 @@ def visitor() -> LLVMLiteIRVisitor:
     """
     title: Create a LLVMLiteIRVisitor with a dummy module, function, and block.
     summary: This ensures a valid IRBuilder context.
-
-    Returns
-    -------
+    returns:
       type: LLVMLiteIRVisitor
     """
     v = LLVMLiteIRVisitor()
@@ -30,9 +28,7 @@ def visitor() -> LLVMLiteIRVisitor:
 def test_same_type(visitor: LLVMLiteIRVisitor) -> None:
     """
     title: Test promotion in case of same type (no promotion).
-
-    Parameters
-    ----------
+    parameters:
       visitor:
         type: LLVMLiteIRVisitor
     """
@@ -46,9 +42,7 @@ def test_same_type(visitor: LLVMLiteIRVisitor) -> None:
 def test_integer_promotion(visitor: LLVMLiteIRVisitor) -> None:
     """
     title: Test integer type promotion.
-
-    Parameters
-    ----------
+    parameters:
       visitor:
         type: LLVMLiteIRVisitor
     """
@@ -62,9 +56,7 @@ def test_integer_promotion(visitor: LLVMLiteIRVisitor) -> None:
 def test_float_promotion(visitor: LLVMLiteIRVisitor) -> None:
     """
     title: Test floating-point type promotion.
-
-    Parameters
-    ----------
+    parameters:
       visitor:
         type: LLVMLiteIRVisitor
     """
@@ -80,9 +72,7 @@ def test_same_type_returns_original_operands(
 ) -> None:
     """
     title: Test returning original operands in case of same type.
-
-    Parameters
-    ----------
+    parameters:
       visitor:
         type: LLVMLiteIRVisitor
     """

@@ -44,9 +44,7 @@ def test_unary_op_increment_decrement(
 ) -> None:
     """
     title: Test ASTx UnaryOp for increment and decrement operations.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

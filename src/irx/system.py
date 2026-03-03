@@ -23,9 +23,7 @@ class PrintExpr(astx.Expr):
     def __init__(self, message: astx.Expr) -> None:
         """
         title: Initialize the PrintExpr.
-
-        Parameters
-        ----------
+        parameters:
           message:
             type: astx.Expr
         """
@@ -35,9 +33,7 @@ class PrintExpr(astx.Expr):
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
         title: Return the AST structure of the object.
-
-        Parameters
-        ----------
+        parameters:
           simplified:
             type: bool
         returns:
@@ -62,9 +58,7 @@ class Cast(astx.Expr):
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
         title: Return the structured representation of the cast expression.
-
-        Parameters
-        ----------
+        parameters:
           simplified:
             type: bool
         returns:

@@ -23,9 +23,7 @@ HAS_LITERAL_DATETIME = hasattr(astx, "LiteralDateTime")
 def _datetime_values(const: ir.Constant) -> list[int]:
     """
     title: Extract i32 values from the literal struct constant.
-
-    Parameters
-    ----------
+    parameters:
       const:
         type: ir.Constant
     returns:
@@ -41,9 +39,7 @@ def _datetime_values(const: ir.Constant) -> list[int]:
 def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
     """
     title: Integration - lowering succeeds and program builds.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -71,9 +67,7 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
 def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
     """
     title: Integration - HH:MM defaults seconds to 0 and builds.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -113,9 +107,7 @@ def test_literal_datetime_parsing(
 ) -> None:
     """
     title: Integration - various formats build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       datetime_str:
@@ -149,9 +141,7 @@ def test_literal_datetime_fractional_rejected(
 ) -> None:
     """
     title: Integration - fractional seconds rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -182,9 +172,7 @@ def test_literal_datetime_timezone_rejected(
 ) -> None:
     """
     title: Integration - timezone markers rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -213,9 +201,7 @@ def test_literal_datetime_timezone_rejected(
 def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
     """
     title: Integration - invalid month rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -244,9 +230,7 @@ def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
 def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
     """
     title: Integration - impossible calendar dates rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -275,9 +259,7 @@ def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
 def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
     """
     title: Integration - hour out of range rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -306,9 +288,7 @@ def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
 def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
     """
     title: Integration - minute out of range rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -337,9 +317,7 @@ def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
 def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
     """
     title: Integration - second out of range rejected during build.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """

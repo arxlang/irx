@@ -44,9 +44,7 @@ def test_print_expr(
 ) -> None:
     """
     title: Test the PrintExpr node.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

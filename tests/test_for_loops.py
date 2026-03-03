@@ -44,9 +44,7 @@ def test_for_range(
 ) -> None:
     """
     title: Test For Range statement.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:
@@ -121,9 +119,7 @@ def test_for_count(
 ) -> None:
     """
     title: Test the For Count statement.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

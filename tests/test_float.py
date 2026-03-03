@@ -33,9 +33,7 @@ def test_float_operations_with_print(
 ) -> None:
     """
     title: Test float operations by printing result to stdout.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       lhs:

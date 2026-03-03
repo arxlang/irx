@@ -16,9 +16,7 @@ from .conftest import check_result
 def make_fn_add(int_type: type, literal_type: type) -> astx.AST:
     """
     title: Create a fixture for a function add.
-
-    Parameters
-    ----------
+    parameters:
       int_type:
         type: type
       literal_type:
@@ -69,9 +67,7 @@ def test_module_fn_main(
 ) -> None:
     """
     title: Test ASTx Module with a main function and a function called add.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

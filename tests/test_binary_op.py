@@ -31,9 +31,7 @@ def test_binary_op_literals(
 ) -> None:
     """
     title: Test ASTx Module with a function called add.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       int_type:
@@ -96,9 +94,7 @@ def test_binary_op_basic(
 ) -> None:
     """
     title: Test ASTx Module with a function called add.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:
@@ -150,9 +146,7 @@ def test_binary_op_basic(
 def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
     """
     title: Verify string '!=' uses strcmp_inline + xor 1 path.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
     """
@@ -197,9 +191,7 @@ def test_binary_op_logical_and_or(
 ) -> None:
     """
     title: Verify '&&' and '||' for integer booleans (0/1).
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       int_type:

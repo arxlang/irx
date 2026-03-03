@@ -36,9 +36,7 @@ def test_variable_assignment(
 ) -> None:
     """
     title: Test VariableAssignment by reassigning and returning.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       int_type:

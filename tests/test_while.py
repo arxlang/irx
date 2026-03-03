@@ -44,9 +44,7 @@ def test_while_expr(
 ) -> None:
     """
     title: Test the While expression translation.
-
-    Parameters
-    ----------
+    parameters:
       action:
         type: str
       expected_file:

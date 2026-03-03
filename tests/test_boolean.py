@@ -35,9 +35,7 @@ def test_boolean_operations(
 ) -> None:
     """
     title: Test literal Boolean AND/OR operations.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       lhs:
@@ -103,9 +101,7 @@ def test_boolean_comparison(
 ) -> None:
     """
     title: Test integer comparisons.
-
-    Parameters
-    ----------
+    parameters:
       builder_class:
         type: Type[Builder]
       int_type:

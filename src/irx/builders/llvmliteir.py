@@ -35,9 +35,7 @@ from irx.tools.typing import typechecked
 def is_fp_type(t: "ir.Type") -> bool:
     """
     title: Return True if t is any floating-point LLVM type.
-
-    Parameters
-    ----------
+    parameters:
       t:
         type: ir.Type
     returns:
@@ -52,9 +50,7 @@ def is_fp_type(t: "ir.Type") -> bool:
 def is_int_type(t: "ir.Type") -> bool:
     """
     title: Return True if t is any scalar integer LLVM type.
-
-    Parameters
-    ----------
+    parameters:
       t:
         type: ir.Type
     returns:
@@ -66,9 +62,7 @@ def is_int_type(t: "ir.Type") -> bool:
 def is_vector(v: "ir.Value") -> bool:
     """
     title: Return True if v is an LLVM vector value.
-
-    Parameters
-    ----------
+    parameters:
       v:
         type: ir.Value
     returns:
@@ -85,9 +79,7 @@ def emit_int_div(
 ) -> "ir.Instruction":
     """
     title: Emit signed or unsigned vector integer division.
-
-    Parameters
-    ----------
+    parameters:
       ir_builder:
         type: ir.IRBuilder
       lhs:
@@ -111,9 +103,7 @@ def splat_scalar(
 ) -> "ir.Value":
     """
     title: Broadcast a scalar to all lanes of a vector.
-
-    Parameters
-    ----------
+    parameters:
       ir_builder:
         type: ir.IRBuilder
       scalar:
@@ -135,9 +125,7 @@ def splat_scalar(
 def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
     """
     title: Implement a safe pop operation for lists.
-
-    Parameters
-    ----------
+    parameters:
       lst:
         type: list[ir.Value | ir.Function]
     returns:
@@ -180,9 +168,7 @@ class VariablesLLVM:
     def get_data_type(self, type_name: str) -> ir.types.Type:
         """
         title: Get the LLVM data type for the given type name.
-
-        Parameters
-        ----------
+        parameters:
           type_name:
             type: str
             description: The name of the type.
@@ -264,9 +250,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def translate(self, node: astx.AST) -> str:
         """
         title: Translate an ASTx expression to string.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.AST
         returns:
@@ -285,9 +269,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _get_size_t_type_from_triple(self) -> ir.IntType:
         """
         title: Determine size_t type from target triple using LLVM API.
-
-        Returns
-        -------
+        returns:
           type: ir.IntType
         """
         triple = self.target_machine.triple.lower()
@@ -401,9 +383,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def get_function(self, name: str) -> Optional[ir.Function]:
         """
         title: Put the function defined by the given name to result stack.
-
-        Parameters
-        ----------
+        parameters:
           name:
             type: str
             description: Function name.
@@ -425,9 +405,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         title: Create an alloca instruction in the entry block of the function.
         summary: This is used for mutable variables, etc.
-
-        Parameters
-        ----------
+        parameters:
           var_name:
             type: str
             description: The variable name.
@@ -450,9 +428,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def fp_rank(self, t: ir.Type) -> int:
         """
         title: Rank floating-point types half, float, double.
-
-        Parameters
-        ----------
+        parameters:
           t:
             type: ir.Type
         returns:
@@ -471,9 +447,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> tuple[ir.Value, ir.Value]:
         """
         title: Promote two LLVM IR numeric operands to a common type.
-
-        Parameters
-        ----------
+        parameters:
           lhs:
             type: ir.Value
             description: The left-hand operand.
@@ -523,9 +497,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _get_fma_function(self, ty: ir.Type) -> ir.Function:
         """
         title: Return (and cache) the llvm.fma.* intrinsic for a type.
-
-        Parameters
-        ----------
+        parameters:
           ty:
             type: ir.Type
         returns:
@@ -564,9 +536,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> ir.Value:
         """
         title: Emit a fused multiply-add, using intrinsic fallback if needed.
-
-        Parameters
-        ----------
+        parameters:
           lhs:
             type: ir.Value
           rhs:
@@ -588,9 +558,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def set_fast_math(self, enabled: bool) -> None:
         """
         title: Enable/disable fast-math flags for subsequent FP instructions.
-
-        Parameters
-        ----------
+        parameters:
           enabled:
             type: bool
         """
@@ -599,9 +567,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _apply_fast_math(self, inst: ir.Instruction) -> None:
         """
         title: Attach fast-math flags when enabled and applicable.
-
-        Parameters
-        ----------
+        parameters:
           inst:
             type: ir.Instruction
         """
@@ -630,9 +596,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.AST) -> None:
         """
         title: Translate an ASTx expression.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.AST
         """
@@ -642,9 +606,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.UnaryOp) -> None:
         """
         title: Translate an ASTx UnaryOp expression.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.UnaryOp
         """
@@ -701,9 +663,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.BinaryOp) -> None:
         """
         title: Translate binary operation expression.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.BinaryOp
         """
@@ -1076,9 +1036,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, block: astx.Block) -> None:
         """
         title: Translate ASTx Block to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           block:
             type: astx.Block
         """
@@ -1097,9 +1055,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.IfStmt) -> None:
         """
         title: Translate IF statement.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.IfStmt
         """
@@ -1171,9 +1127,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.WhileStmt) -> None:
         """
         title: Translate ASTx While Loop to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.WhileStmt
         """
@@ -1243,9 +1197,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.VariableAssignment) -> None:
         """
         title: Translate variable assignment expression.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.VariableAssignment
         """
@@ -1277,9 +1229,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """
         title: Translate ASTx For Range Loop to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.ForCountLoopStmt
         """
@@ -1361,9 +1311,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
         """
         title: Translate ASTx For Range Loop to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.ForRangeLoopStmt
         """
@@ -1480,9 +1428,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.Module) -> None:
         """
         title: Translate ASTx Module to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.Module
         """
@@ -1493,9 +1439,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt32) -> None:
         """
         title: Translate ASTx LiteralInt32 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralInt32
         """
@@ -1506,9 +1450,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralFloat32) -> None:
         """
         title: Translate ASTx LiteralFloat32 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.LiteralFloat32
         """
@@ -1519,9 +1461,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralFloat16) -> None:
         """
         title: Translate ASTx LiteralFloat16 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralFloat16
         """
@@ -1532,9 +1472,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralNone) -> None:
         """
         title: Translate ASTx LiteralNone to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.LiteralNone
         """
@@ -1544,9 +1482,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralBoolean) -> None:
         """
         title: Translate ASTx LiteralBoolean to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralBoolean
         """
@@ -1557,9 +1493,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt64) -> None:
         """
         title: Translate ASTx LiteralInt64 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralInt64
         """
@@ -1570,9 +1504,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt8) -> None:
         """
         title: Translate ASTx LiteralInt8 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralInt8
         """
@@ -1583,9 +1515,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
         title: Handle ASCII string literals.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.LiteralUTF8Char
         """
@@ -1618,9 +1548,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralUTF8String) -> None:
         """
         title: Handle UTF-8 string literals.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.LiteralUTF8String
         """
@@ -1655,9 +1583,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, expr: astx.LiteralString) -> None:
         """
         title: Handle generic string literals - defaults to UTF-8.
-
-        Parameters
-        ----------
+        parameters:
           expr:
             type: astx.LiteralString
         """
@@ -1672,9 +1598,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           Layout is { i32 year, i32 month, i32 day, i32 hour, i32 minute, i32
           second, i32 nanos }. Accepted formats (no timezone) are YYYY-MM-
           DDTHH:MM:SS[.fffffffff] and YYYY-MM-DD HH:MM:SS[.fffffffff].
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralTimestamp
         """
@@ -1785,9 +1709,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           second }. Accepted formats (no timezone, no fractional seconds) are
           YYYY-MM-DDTHH:MM and YYYY-MM-DDTHH:MM:SS (space may be used instead
           of T).
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralDateTime
         """
@@ -1901,9 +1823,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           Supported cases are empty list (constant [0 x i32]) and homogeneous
           integer constant lists (constant [N x iX]). Otherwise raises to keep
           behavior explicit and aligned with current test-suite conventions.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralList
         """
@@ -1945,9 +1865,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "string_concat"
@@ -1966,9 +1884,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_string_length_function(self) -> ir.Function:
         """
         title: Create a string length function.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "string_length"
@@ -1986,9 +1902,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_string_equals_function(self) -> ir.Function:
         """
         title: Create a string equality comparison function.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "string_equals"
@@ -2007,9 +1921,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_string_substring_function(self) -> ir.Function:
         """
         title: Create a string substring function.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "string_substring"
@@ -2034,9 +1946,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> ir.Value:
         """
         title: Handle string concatenation operation using inline function.
-
-        Parameters
-        ----------
+        parameters:
           lhs:
             type: ir.Value
           rhs:
@@ -2052,9 +1962,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_strcat_inline(self) -> ir.Function:
         """
         title: Create an inline string concatenation function in LLVM IR.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "strcat_inline"
@@ -2103,9 +2011,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> None:
         """
         title: Generate inline string copy code.
-
-        Parameters
-        ----------
+        parameters:
           builder:
             type: ir.IRBuilder
           dest:
@@ -2143,9 +2049,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_strcmp_inline(self) -> ir.Function:
         """
         title: Create an inline strcmp function in LLVM IR.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "strcmp_inline"
@@ -2219,9 +2123,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_strlen_inline(self) -> ir.Function:
         """
         title: Create an inline strlen function in LLVM IR.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         func_name = "strlen_inline"
@@ -2273,9 +2175,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> ir.Value:
         """
         title: Handle string comparison operations using inline functions.
-
-        Parameters
-        ----------
+        parameters:
           lhs:
             type: ir.Value
           rhs:
@@ -2307,9 +2207,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.FunctionCall) -> None:
         """
         title: Translate Function FunctionCall.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.FunctionCall
         """
@@ -2338,9 +2236,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.FunctionDef) -> None:
         """
         title: Translate ASTx Function to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.FunctionDef
         """
@@ -2376,9 +2272,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.FunctionPrototype) -> None:
         """
         title: Translate ASTx Function Prototype to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.FunctionPrototype
         """
@@ -2404,9 +2298,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.FunctionReturn) -> None:
         """
         title: Translate ASTx FunctionReturn to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.FunctionReturn
         """
@@ -2435,9 +2327,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """
         title: Translate an ASTx InlineVariableDeclaration expression.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.InlineVariableDeclaration
         """
@@ -2471,9 +2361,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _normalize_int_for_printf(self, v: ir.Value) -> tuple[ir.Value, str]:
         """
         title: Promote/truncate integer to match printf format.
-
-        Parameters
-        ----------
+        parameters:
           v:
             type: ir.Value
         returns:
@@ -2499,9 +2387,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_malloc_decl(self) -> ir.Function:
         """
         title: Declare malloc.
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         name = "malloc"
@@ -2519,9 +2405,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     ) -> ir.Value:
         """
         title: Format into a heap buffer and return i8* (char*).
-
-        Parameters
-        ----------
+        parameters:
           fmt_gv:
             type: ir.GlobalVariable
           args:
@@ -2572,9 +2456,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _create_snprintf_decl(self) -> ir.Function:
         """
         title: Declare (or return) the external snprintf (varargs).
-
-        Returns
-        -------
+        returns:
           type: ir.Function
         """
         name = "snprintf"
@@ -2597,9 +2479,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
         """
         title: Create a constant global format string.
-
-        Parameters
-        ----------
+        parameters:
           fmt:
             type: str
         returns:
@@ -2624,9 +2504,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: system.Cast) -> None:
         """
         title: Translate Cast expression to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: system.Cast
         """
@@ -2724,9 +2602,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: system.PrintExpr) -> None:
         """
         title: Generate LLVM IR for a PrintExpr node.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: system.PrintExpr
         """
@@ -2775,9 +2651,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.Identifier) -> None:
         """
         title: Translate ASTx Identifier to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.Identifier
         """
@@ -2793,9 +2667,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Translate ASTx VariableDeclaration to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.VariableDeclaration
         """
@@ -2866,9 +2738,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt16) -> None:
         """
         title: Translate ASTx LiteralInt16 to LLVM-IR.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.LiteralInt16
         """
@@ -2893,9 +2763,7 @@ class LLVMLiteIR(Builder):
         """
         title: >-
           Transpile the ASTx to LLVM-IR and build it to an executable file.
-
-        Parameters
-        ----------
+        parameters:
           node:
             type: astx.AST
           output_file:
