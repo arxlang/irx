@@ -1962,7 +1962,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         def _sort_key(lit: astx.Literal) -> tuple[str, Any]:
             tname = type(lit).__name__
             val = getattr(lit, "value", None)
-            return (tname, val if isinstance(val, (int, float, str)) else repr(lit))
+            return (
+                tname,
+                val if isinstance(val, (int, float, str)) else repr(lit),
+            )
 
         elems_sorted = sorted(node.elements, key=_sort_key)
 
