@@ -1943,16 +1943,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    def _ensure_function_context(self) -> None:
+        """Ensure tuple lowering occurs inside a function."""
+        if self._llvm.ir_builder.function is None:
+            raise RuntimeError(
+                "LiteralTuple must be lowered inside a function"
+            )
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralTuple) -> None:
         """Lower a LiteralTuple to LLVM IR.
 
         Representation
         --------------
-        - Empty tuple           -> constant ``{}`` (empty literal struct).
-        - All-constant elements -> constant literal struct ``{T0, T1, …}``.
-        - Otherwise             -> alloca of the struct in the function
-          entry block with each field stored; pushes the *pointer*.
+        Always materialises an ``alloca`` in the function entry block and
+        stores each element.  The *pointer* is pushed onto the result
+        stack, giving downstream code a uniform aggregate representation
+        (GEP + load) regardless of whether elements are constant.
 
         Tuples are heterogeneous and ordered, so they are modelled as a
         literal struct rather than an array.
@@ -1966,38 +1973,29 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 raise Exception("LiteralTuple: failed to lower an element.")
             llvm_vals.append(v)
 
-        n = len(llvm_vals)
-
-        # 2) Empty tuple -> constant {} (empty struct)
-        if n == 0:
-            struct_ty = ir.LiteralStructType([])
-            self.result_stack.append(ir.Constant(struct_ty, []))
-            return
-
-        # 3) Build the struct type from element value types
+        # 2) Build the struct type from element value types
         elem_tys = [v.type for v in llvm_vals]
         struct_ty = ir.LiteralStructType(elem_tys)
 
-        # 4) All-constant fast path -> constant struct
-        if all(isinstance(v, ir.Constant) for v in llvm_vals):
-            self.result_stack.append(ir.Constant(struct_ty, llvm_vals))
-            return
+        # 3) Guard: must be inside a function to use alloca
+        self._ensure_function_context()
 
-        # 5) Non-constant path: alloca + store each field
-        entry_bb = self._llvm.ir_builder.function.entry_basic_block
-        cur_bb = self._llvm.ir_builder.block
-        self._llvm.ir_builder.position_at_start(entry_bb)
-        alloca = self._llvm.ir_builder.alloca(struct_ty, name="tuple.lit")
-        self._llvm.ir_builder.position_at_end(cur_bb)
+        # 4) Alloca in the entry block, store each element, push pointer
+        builder = self._llvm.ir_builder
+        entry_bb = builder.function.entry_basic_block
+        cur_bb = builder.block
+        builder.position_at_start(entry_bb)
+        alloca = builder.alloca(struct_ty, name="tuple.lit")
+        builder.position_at_end(cur_bb)
 
         i32 = ir.IntType(32)
         for idx, v in enumerate(llvm_vals):
-            field_ptr = self._llvm.ir_builder.gep(
+            field_ptr = builder.gep(
                 alloca,
                 [ir.Constant(i32, 0), ir.Constant(i32, idx)],
                 inbounds=True,
             )
-            self._llvm.ir_builder.store(v, field_ptr)
+            builder.store(v, field_ptr)
 
         self.result_stack.append(alloca)
 
