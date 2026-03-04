@@ -258,6 +258,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: dict[str, astx.FunctionPrototype]
       result_stack:
         type: list[ir.Value | ir.Function]
+      _fast_math_enabled:
+        type: bool
+      target:
+        type: llvm.TargetRef
+      target_machine:
+        type: llvm.TargetMachine
     """
 
     # AllocaInst
@@ -278,13 +284,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values: dict[str, Any] = {}
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
-        self._fast_math_enabled = False
+        self._fast_math_enabled: bool = False
 
         self.initialize()
 
-        self.target = llvm.Target.from_default_triple()
-        self.target_machine = self.target.create_target_machine(
-            codemodel="small"
+        self.target: llvm.TargetRef = llvm.Target.from_default_triple()
+        self.target_machine: llvm.TargetMachine = (
+            self.target.create_target_machine(codemodel="small")
         )
 
         self._llvm.module.triple = self.target_machine.triple
@@ -2798,6 +2804,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 class LLVMLiteIR(Builder):
     """
     title: LLVM-IR transpiler and compiler.
+    attributes:
+      translator:
+        type: LLVMLiteIRVisitor
     """
 
     def __init__(self) -> None:

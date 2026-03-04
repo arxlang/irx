@@ -18,10 +18,13 @@ class PrintExpr(astx.Expr):
     attributes:
       message:
         type: astx.Expr
+      _name:
+        type: str
     """
 
     message: astx.Expr
     _counter = itertools.count()
+    _name: str = ""
 
     def __init__(self, message: astx.Expr) -> None:
         """
@@ -30,8 +33,8 @@ class PrintExpr(astx.Expr):
           message:
             type: astx.Expr
         """
-        self.message = message
-        self._name = f"print_msg_{next(PrintExpr._counter)}"
+        self.message: astx.Expr = message
+        self._name: str = f"print_msg_{next(PrintExpr._counter)}"
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
@@ -52,11 +55,19 @@ class Cast(astx.Expr):
     """
     title: Cast AST node for type conversions.
     summary: Represents a cast of `value` to a specified `target_type`.
+    attributes:
+      value:
+        type: astx.AST
+      target_type:
+        type: Any
     """
 
+    value: astx.AST = astx.LiteralNone()
+    target_type: Any = astx.LiteralNone()
+
     def __init__(self, value: astx.AST, target_type: Any) -> None:
-        self.value = value
-        self.target_type = target_type
+        self.value: astx.AST = value
+        self.target_type: Any = target_type
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
