@@ -1,4 +1,6 @@
-"""Test RegisterTable functionality."""
+"""
+title: Test RegisterTable functionality.
+"""
 
 import pytest
 
@@ -16,17 +18,31 @@ TEST_RESET_VALUE = 7
 
 @pytest.fixture
 def register_table() -> RegisterTable:
-    """Fixture providing a fresh RegisterTable instance."""
+    """
+    title: Fixture providing a fresh RegisterTable instance.
+    returns:
+      type: RegisterTable
+    """
     return RegisterTable()
 
 
 def test_initial_state(register_table: RegisterTable) -> None:
-    """Test initialization creates empty stack."""
+    """
+    title: Test initialization creates empty stack.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     assert register_table.stack == []
 
 
 def test_append_operation(register_table: RegisterTable) -> None:
-    """Test append adds new context level."""
+    """
+    title: Test append adds new context level.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     assert register_table.stack == [INITIAL_VALUE]
 
@@ -35,7 +51,12 @@ def test_append_operation(register_table: RegisterTable) -> None:
 
 
 def test_increase_operation(register_table: RegisterTable) -> None:
-    """Test increase modifies current context."""
+    """
+    title: Test increase modifies current context.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     new_value = register_table.increase(TEST_INCREMENT_1)
     assert new_value == TEST_INCREMENT_1
@@ -47,7 +68,12 @@ def test_increase_operation(register_table: RegisterTable) -> None:
 
 
 def test_last_property(register_table: RegisterTable) -> None:
-    """Test last property returns top value."""
+    """
+    title: Test last property returns top value.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     register_table.increase(TEST_VALUE_1)
     assert register_table.last == TEST_VALUE_1
@@ -59,7 +85,12 @@ def test_last_property(register_table: RegisterTable) -> None:
 
 
 def test_pop_operation(register_table: RegisterTable) -> None:
-    """Test pop removes current context."""
+    """
+    title: Test pop removes current context.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     register_table.append()
     register_table.increase(3)
@@ -70,7 +101,12 @@ def test_pop_operation(register_table: RegisterTable) -> None:
 
 
 def test_redefine_operation(register_table: RegisterTable) -> None:
-    """Test redefine overwrites current context."""
+    """
+    title: Test redefine overwrites current context.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     register_table.increase(2)
     register_table.redefine(10)
@@ -82,7 +118,12 @@ def test_redefine_operation(register_table: RegisterTable) -> None:
 
 
 def test_reset_operation(register_table: RegisterTable) -> None:
-    """Test reset clears current context."""
+    """
+    title: Test reset clears current context.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     register_table.append()
     register_table.increase(7)
     register_table.reset()
@@ -94,7 +135,12 @@ def test_reset_operation(register_table: RegisterTable) -> None:
 
 
 def test_nested_context_operations(register_table: RegisterTable) -> None:
-    """Test complex nested context scenarios."""
+    """
+    title: Test complex nested context scenarios.
+    parameters:
+      register_table:
+        type: RegisterTable
+    """
     # Enter global scope
     register_table.append()
     register_table.increase(TEST_VALUE_1)

@@ -66,42 +66,42 @@ Ready to contribute? Here’s how to set up `irx` for local development.
 1.  Fork the `irx` repo on GitHub.
 2.  Clone your fork locally:
 
-```bash
-$ git clone git@github.com:your_name_here/irx.git
-$ cd irx/
-```
+    ```bash
+    $ git clone git@github.com:your_name_here/irx.git
+    $ cd irx/
+    ```
 
 3.  Create a new virtual environment and install your local copy into that:
 
-```bash
-# note: you can use mamba or conda or micromamba
-$ mamba env create --file conda/dev.yaml
-$ conda activate irx
-$ poetry install
-```
+    ```bash
+    # note: you can use mamba or conda or micromamba
+    $ mamba env create --file conda/dev.yaml
+    $ conda activate irx
+    $ poetry install
+    ```
 
 4.  Create a branch for local development:
 
-```bash
-$ git checkout -b name-of-your-bugfix-or-feature
-# Now you can make your changes locally.
-```
+    ```bash
+    $ git checkout -b name-of-your-bugfix-or-feature
+    # Now you can make your changes locally.
+    ```
 
 5.  When you’re done making changes, check that your changes pass the linter and
     the tests:
 
-```bash
-$ makim tests.linter
-$ makim tests.unittest
-```
+    ```bash
+    $ makim tests.linter
+    $ makim tests.unittest
+    ```
 
 6.  Commit your changes and push your branch to GitHub:
 
-```bash
-$ git add .
-$ git commit -m "Your detailed description of your changes."
-$ git push origin name-of-your-bugfix-or-feature
-```
+    ```bash
+    $ git add .
+    $ git commit -m "Your detailed description of your changes."
+    $ git push origin name-of-your-bugfix-or-feature
+    ```
 
 7.  Submit a pull request through the GitHub website.
 

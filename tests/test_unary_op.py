@@ -1,4 +1,6 @@
-"""Tests for the UnaryOp."""
+"""
+title: Tests for the UnaryOp.
+"""
 
 from typing import Type
 
@@ -40,7 +42,20 @@ def test_unary_op_increment_decrement(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx UnaryOp for increment and decrement operations."""
+    """
+    title: Test ASTx UnaryOp for increment and decrement operations.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 

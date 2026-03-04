@@ -1,4 +1,6 @@
-"""Tests for LiteralDateTime lowering using project conventions."""
+"""
+title: Tests for LiteralDateTime lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +21,14 @@ HAS_LITERAL_DATETIME = hasattr(astx, "LiteralDateTime")
 
 
 def _datetime_values(const: ir.Constant) -> list[int]:
-    """Extract i32 values from the literal struct constant."""
+    """
+    title: Extract i32 values from the literal struct constant.
+    parameters:
+      const:
+        type: ir.Constant
+    returns:
+      type: list[int]
+    """
     return [int(v) for v in re.findall(r"i32\s+(-?\d+)", str(const))]
 
 
@@ -28,7 +37,12 @@ def _datetime_values(const: ir.Constant) -> list[int]:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
-    """Integration: lowering succeeds and program builds."""
+    """
+    title: Integration - lowering succeeds and program builds.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -51,7 +65,12 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
-    """Integration: HH:MM defaults seconds to 0 and builds."""
+    """
+    title: Integration - HH:MM defaults seconds to 0 and builds.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -86,7 +105,16 @@ def test_literal_datetime_parsing(
     datetime_str: str,
     expected_values: list[int],
 ) -> None:
-    """Integration: various formats build."""
+    """
+    title: Integration - various formats build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      datetime_str:
+        type: str
+      expected_values:
+        type: list[int]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -111,7 +139,12 @@ def test_literal_datetime_parsing(
 def test_literal_datetime_fractional_rejected(
     builder_class: Type[Builder],
 ) -> None:
-    """Integration: fractional seconds rejected during build."""
+    """
+    title: Integration - fractional seconds rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -137,7 +170,12 @@ def test_literal_datetime_fractional_rejected(
 def test_literal_datetime_timezone_rejected(
     builder_class: Type[Builder],
 ) -> None:
-    """Integration: timezone markers rejected during build."""
+    """
+    title: Integration - timezone markers rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -161,7 +199,12 @@ def test_literal_datetime_timezone_rejected(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
-    """Integration: invalid month rejected during build."""
+    """
+    title: Integration - invalid month rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -185,7 +228,12 @@ def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
-    """Integration: impossible calendar dates rejected during build."""
+    """
+    title: Integration - impossible calendar dates rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -209,7 +257,12 @@ def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
-    """Integration: hour out of range rejected during build."""
+    """
+    title: Integration - hour out of range rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -233,7 +286,12 @@ def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
-    """Integration: minute out of range rejected during build."""
+    """
+    title: Integration - minute out of range rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -257,7 +315,12 @@ def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
-    """Integration: second out of range rejected during build."""
+    """
+    title: Integration - second out of range rejected during build.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 

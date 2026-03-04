@@ -1,4 +1,6 @@
-"""Symbol Table classes."""
+"""
+title: Symbol Table classes.
+"""
 
 from typing import List
 
