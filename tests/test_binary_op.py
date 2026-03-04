@@ -1,4 +1,6 @@
-"""Tests for the BinaryOp."""
+"""
+title: Tests for the BinaryOp.
+"""
 
 from typing import Type
 
@@ -27,7 +29,16 @@ def test_binary_op_literals(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx Module with a function called add."""
+    """
+    title: Test ASTx Module with a function called add.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -81,7 +92,20 @@ def test_binary_op_basic(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx Module with a function called add."""
+    """
+    title: Test ASTx Module with a function called add.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -120,7 +144,12 @@ def test_binary_op_basic(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
-    """Verify string '!=' uses strcmp_inline + xor 1 path."""
+    """
+    title: Verify string '!=' uses strcmp_inline + xor 1 path.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -160,7 +189,22 @@ def test_binary_op_logical_and_or(
     b_val: int,
     expect: str,
 ) -> None:
-    """Verify '&&' and '||' for integer booleans (0/1)."""
+    """
+    title: Verify '&&' and '||' for integer booleans (0/1).
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+      a_val:
+        type: int
+      b_val:
+        type: int
+      expect:
+        type: str
+    """
     builder = builder_class()
     module = builder.module()
 

@@ -1,4 +1,6 @@
-"""General configuration module for pytest."""
+"""
+title: General configuration module for pytest.
+"""
 
 import os
 import tempfile
@@ -15,7 +17,16 @@ TEST_DATA_PATH = Path(__file__).parent / "data"
 
 
 def similarity(text_a: str, text_b: str) -> float:
-    """Calculate the similarity between two strings."""
+    """
+    title: Calculate the similarity between two strings.
+    parameters:
+      text_a:
+        type: str
+      text_b:
+        type: str
+    returns:
+      type: float
+    """
     return SequenceMatcher(None, text_a, text_b).ratio()
 
 
@@ -28,7 +39,24 @@ def check_result(
     similarity_factor: float = 0.35,  # TODO: change it to 0.95
     tolerance: float = 1e-4,
 ) -> None:
-    """Check the result for translation or build."""
+    """
+    title: Check the result for translation or build.
+    parameters:
+      action:
+        type: str
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+      expected_file:
+        type: str
+      expected_output:
+        type: Optional[str]
+      similarity_factor:
+        type: float
+      tolerance:
+        type: float
+    """
     if action == "build":
         filename_exe = ""
         with tempfile.NamedTemporaryFile(

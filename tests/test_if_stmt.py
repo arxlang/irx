@@ -1,4 +1,6 @@
-"""Test If statements with and without else."""
+"""
+title: Test If statements with and without else.
+"""
 
 from typing import Type
 
@@ -41,7 +43,20 @@ def test_if_else_stmt(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test an If statement with an else branch."""
+    """
+    title: Test an If statement with an else branch.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -102,7 +117,20 @@ def test_if_only_stmt(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test an If statement without an else branch."""
+    """
+    title: Test an If statement without an else branch.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
