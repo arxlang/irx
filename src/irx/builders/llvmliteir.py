@@ -1916,6 +1916,52 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralSet) -> None:
+        """
+        title: Lower LiteralSet to LLVM IR
+        parameters:
+          node:
+            type: astx.LiteralSet
+        """
+
+        # Ensure deterministic ordering since Python sets are unordered
+        sorted_elems = sorted(node.elements, key=str)
+
+        # Lower each element
+        llvm_elems: list[ir.Value] = []
+        for elem in sorted_elems:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralSet: invalid element lowering.")
+            llvm_elems.append(v)
+
+        n = len(llvm_elems)
+
+        # Empty set -> constant [0 x i32]
+        if n == 0:
+            empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
+            self.result_stack.append(ir.Constant(empty_ty, []))
+            return
+
+        # Homogeneous integer constant sets
+        first_ty = llvm_elems[0].type
+        is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
+        homogeneous = all(v.type == first_ty for v in llvm_elems)
+        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
+
+        if is_ints and homogeneous and all_constants:
+            arr_ty = ir.ArrayType(first_ty, n)
+            const_arr = ir.Constant(arr_ty, llvm_elems)
+            self.result_stack.append(const_arr)
+            return
+
+        raise TypeError(
+            "LiteralSet: only empty or homogeneous integer constants "
+            "are supported"
+        )
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
