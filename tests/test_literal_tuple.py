@@ -199,15 +199,28 @@ def test_literal_tuple_global_value_constant(
     tuple_node = astx.LiteralTuple(
         elements=(MockGlobalNode(), MockGlobalNode())
     )
-    visitor.visit(tuple_node)
 
-    # Restore original visitor function
-    visitor.visit = original_visit  # type: ignore
+    try:
+        visitor.visit(tuple_node)
+    finally:
+        # Restore original visitor function
+        visitor.visit = original_visit  # type: ignore
 
     const = visitor.result_stack.pop()
 
     assert isinstance(const, ir.Constant)
+    assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 2  # noqa: PLR2004
+
+    # gv1 and gv2 are i32*, so treating them as first-class
+    # transforms them to i32**
+    ptr_type_str = str(i32.as_pointer().as_pointer())
+    assert [str(t) for t in const.type.elements] == [
+        ptr_type_str,
+        ptr_type_str,
+    ]
+    s = str(const)
+    assert '@"mock_gv_1"' in s and '@"mock_gv_2"' in s
     assert not visitor.result_stack
 
 
@@ -255,7 +268,8 @@ def test_literal_tuple_builder_guard(
 
     tuple_node = astx.LiteralTuple(elements=(MockDynNode(),))
 
-    with pytest.raises(Exception, match="global initializer context"):
-        visitor.visit(tuple_node)
-
-    visitor.visit = original_visit  # type: ignore
+    try:
+        with pytest.raises(Exception, match="global initializer context"):
+            visitor.visit(tuple_node)
+    finally:
+        visitor.visit = original_visit  # type: ignore

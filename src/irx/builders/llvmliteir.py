@@ -1953,7 +1953,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         def _is_const_like(v: ir.Value) -> bool:
             """
-            title: Determine if value can participate in constant initializer.
+            title: Determine if it can participate in a constant initializer.
             parameters:
               v:
                 type: ir.Value
@@ -1962,10 +1962,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             """
             return isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function))
 
-        elem_tys = [v.type for v in llvm_vals]
+        def _coerce_value(v: ir.Value, ty: ir.Type) -> ir.Value:
+            """
+            title: Coerce a value to the expected LLVM IR type.
+            parameters:
+              v:
+                type: ir.Value
+              ty:
+                type: ir.Type
+            returns:
+              type: ir.Value
+            """
+            if v.type == ty:
+                return v
+            if isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function)):
+                return ir.Constant.bitcast(v, ty)
+            return self._llvm.ir_builder.bitcast(v, ty)
+
+        elem_tys = [
+            v.type.as_pointer()
+            if isinstance(v, (ir.Function, ir.GlobalValue))
+            else v.type
+            for v in llvm_vals
+        ]
         struct_ty = ir.LiteralStructType(elem_tys)
 
         if all(_is_const_like(v) for v in llvm_vals):
+            for i, (v, ty) in enumerate(zip(llvm_vals, elem_tys)):
+                if v.type != ty:
+                    llvm_vals[i] = _coerce_value(v, ty)
+
             try:
                 const_struct = ir.Constant(struct_ty, llvm_vals)
             except TypeError:
@@ -1990,7 +2016,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         val = ir.Constant.undef(struct_ty)
         for idx, v in enumerate(llvm_vals):
-            val = self._llvm.ir_builder.insert_value(val, v, idx)
+            exp_ty = elem_tys[idx]
+            coerced_v = v
+            if v.type != exp_ty:
+                coerced_v = _coerce_value(v, exp_ty)
+            val = self._llvm.ir_builder.insert_value(val, coerced_v, idx)
 
         self.result_stack.append(val)
 
