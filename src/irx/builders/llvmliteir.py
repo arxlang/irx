@@ -1633,6 +1633,61 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt8) -> None:
+        """
+        title: Translate ASTx LiteralUInt8 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt8
+        """
+        result = ir.Constant(self._llvm.INT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt16) -> None:
+        """
+        title: Translate ASTx LiteralUInt16 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt16
+        """
+        result = ir.Constant(self._llvm.INT16_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt32) -> None:
+        """
+        title: Translate ASTx LiteralUInt32 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt32
+        """
+        result = ir.Constant(self._llvm.INT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt64) -> None:
+        """
+        title: Translate ASTx LiteralUInt64 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt64
+        """
+        result = ir.Constant(self._llvm.INT64_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt128) -> None:
+        """
+        title: Translate ASTx LiteralUInt128 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt128
+        """
+        result = ir.Constant(ir.IntType(128), node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
         title: Handle ASCII string literals.
