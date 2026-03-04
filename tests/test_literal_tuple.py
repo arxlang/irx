@@ -11,8 +11,6 @@ from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from llvmlite import ir
 
-HAS_LITERAL_TUPLE = hasattr(astx, "LiteralTuple")
-
 
 def _assert_unpacked_literal_struct(alloca: ir.AllocaInstr) -> None:
     """Assert alloca points to an unpacked literal struct."""
@@ -35,9 +33,6 @@ def _setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
     visitor._llvm.ir_builder.position_at_end(bb)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
     """Empty tuple lowers to alloca of {} (empty literal struct)."""
@@ -54,9 +49,6 @@ def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
     _assert_empty_stack(visitor)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_homogeneous_ints(
     builder_class: Type[Builder],
@@ -89,9 +81,6 @@ def test_literal_tuple_homogeneous_ints(
     _assert_empty_stack(visitor)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_heterogeneous(
     builder_class: Type[Builder],
@@ -122,9 +111,6 @@ def test_literal_tuple_heterogeneous(
     _assert_empty_stack(visitor)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_single_element(
     builder_class: Type[Builder],
