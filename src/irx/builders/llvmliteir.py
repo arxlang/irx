@@ -1975,16 +1975,28 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             """
             if v.type == ty:
                 return v
-            if isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function)):
-                return ir.Constant.bitcast(v, ty)
-            return self._llvm.ir_builder.bitcast(v, ty)
+            if isinstance(v.type, ir.PointerType) and isinstance(
+                ty, ir.PointerType
+            ):
+                if isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function)):
+                    return ir.Constant.bitcast(v, ty)
+                return self._llvm.ir_builder.bitcast(v, ty)
+            raise TypeError(
+                f"Unsupported coercion from {v.type} to {ty} for tuple element"
+            )
 
-        elem_tys = [
-            v.type.as_pointer()
-            if isinstance(v, (ir.Function, ir.GlobalValue))
-            else v.type
-            for v in llvm_vals
-        ]
+        def _elem_type_for_tuple(v: ir.Value) -> ir.Type:
+            """
+            title: Compute tuple element LLVM type natively.
+            parameters:
+              v:
+                type: ir.Value
+            returns:
+              type: ir.Type
+            """
+            return v.type
+
+        elem_tys = [_elem_type_for_tuple(v) for v in llvm_vals]
         struct_ty = ir.LiteralStructType(elem_tys)
 
         if all(_is_const_like(v) for v in llvm_vals):

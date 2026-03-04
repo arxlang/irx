@@ -212,9 +212,8 @@ def test_literal_tuple_global_value_constant(
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 2  # noqa: PLR2004
 
-    # gv1 and gv2 are i32*, so treating them as first-class
-    # transforms them to i32**
-    ptr_type_str = str(i32.as_pointer().as_pointer())
+    # gv1 and gv2 are i32*, embedding directly produces i32* fields.
+    ptr_type_str = str(i32.as_pointer())
     assert [str(t) for t in const.type.elements] == [
         ptr_type_str,
         ptr_type_str,
@@ -249,12 +248,10 @@ def test_literal_tuple_builder_guard(
         pass
 
     i32 = ir.IntType(32)
-    dummy_val = ir.Argument(
-        ir.Function(
-            visitor._llvm.module, ir.FunctionType(i32, [i32]), name="dummy"
-        ),
-        i32,
+    f = ir.Function(
+        visitor._llvm.module, ir.FunctionType(i32, [i32]), name="dummy"
     )
+    dummy_val = f.args[0]
 
     original_visit = visitor.visit
 
