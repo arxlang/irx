@@ -1916,6 +1916,59 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTuple) -> None:
+        """
+        title: Lower a LiteralTuple to LLVM IR.
+        summary: >-
+          Representation:
+          - If all elements lower to LLVM constants -> constant literal struct
+          - Otherwise -> alloca of the struct in the function entry, store each field.
+        parameters:
+          node:
+            type: astx.LiteralTuple
+        """
+        llvm_vals: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralTuple: failed to lower an element.")
+            llvm_vals.append(v)
+
+        n = len(llvm_vals)
+        if n == 0:
+            struct_ty = ir.LiteralStructType([])
+            const_empty = ir.Constant(struct_ty, [])
+            self.result_stack.append(const_empty)
+            return
+
+        elem_tys = [v.type for v in llvm_vals]
+        struct_ty = ir.LiteralStructType(elem_tys)
+
+        if all(isinstance(v, ir.Constant) for v in llvm_vals):
+            const_struct = ir.Constant(struct_ty, llvm_vals)
+            self.result_stack.append(const_struct)
+            return
+
+        entry_bb = self._llvm.ir_builder.function.entry_basic_block
+        cur_bb = self._llvm.ir_builder.block
+
+        self._llvm.ir_builder.position_at_start(entry_bb)
+        alloca = self._llvm.ir_builder.alloca(struct_ty, name="tuple.lit")
+        self._llvm.ir_builder.position_at_end(cur_bb)
+
+        i32 = self._llvm.INT32_TYPE
+        for idx, v in enumerate(llvm_vals):
+            field_ptr = self._llvm.ir_builder.gep(
+                alloca,
+                [ir.Constant(i32, 0), ir.Constant(i32, idx)],
+                inbounds=True,
+            )
+            self._llvm.ir_builder.store(v, field_ptr)
+
+        self.result_stack.append(alloca)
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
