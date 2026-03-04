@@ -18,6 +18,9 @@ from llvmlite import ir
 class _NoFmaBuilder:
     """
     title: Proxy IRBuilder that hides fma to exercise intrinsic fallback.
+    parameters:
+      real:
+        type: ir.IRBuilder
     """
 
     def __init__(self, real: ir.IRBuilder) -> None:
