@@ -8,7 +8,7 @@ import tempfile
 
 from datetime import datetime
 from datetime import time as _time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 import astx
 import xh
@@ -324,11 +324,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if name in self.function_protos:
             self.visit(self.function_protos[name])
-            fn = safe_pop(self.result_stack, "get_function")
-
-            if not isinstance(fn, ir.Function):
-                raise TypeError(f"Expected ir.Function, got {type(fn)!r}")
-            return fn
+            return cast(ir.Function, self.result_stack.pop())
 
         return None
 
