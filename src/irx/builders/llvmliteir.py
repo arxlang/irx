@@ -1922,8 +1922,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         title: Lower a LiteralTuple to LLVM IR.
         summary: >-
           Representation: - If all elements lower to LLVM constants -> constant
-          literal struct - Otherwise -> alloca of the struct in the function
-          entry, store each field.
+          literal struct - Otherwise -> first-class struct built from
+          insertvalue.
         parameters:
           node:
             type: astx.LiteralTuple
@@ -1951,23 +1951,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(const_struct)
             return
 
-        entry_bb = self._llvm.ir_builder.function.entry_basic_block
-        cur_bb = self._llvm.ir_builder.block
-
-        self._llvm.ir_builder.position_at_start(entry_bb)
-        alloca = self._llvm.ir_builder.alloca(struct_ty, name="tuple.lit")
-        self._llvm.ir_builder.position_at_end(cur_bb)
-
-        i32 = self._llvm.INT32_TYPE
+        val = ir.Constant(struct_ty, ir.Undefined)
         for idx, v in enumerate(llvm_vals):
-            field_ptr = self._llvm.ir_builder.gep(
-                alloca,
-                [ir.Constant(i32, 0), ir.Constant(i32, idx)],
-                inbounds=True,
-            )
-            self._llvm.ir_builder.store(v, field_ptr)
+            val = self._llvm.ir_builder.insert_value(val, v, idx)
 
-        self.result_stack.append(alloca)
+        self.result_stack.append(val)
 
     def _create_string_concat_function(self) -> ir.Function:
         """

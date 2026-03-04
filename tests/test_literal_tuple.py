@@ -37,6 +37,7 @@ def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
     assert not const.type.elements
+    assert not visitor.result_stack
 
 
 @pytest.mark.skipif(
@@ -70,6 +71,8 @@ def test_literal_tuple_homogeneous_constants(
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 3  # noqa: PLR2004
+    assert [str(t) for t in const.type.elements] == ["i32", "i32", "i32"]
+    assert not visitor.result_stack
 
 
 @pytest.mark.skipif(
@@ -102,6 +105,8 @@ def test_literal_tuple_heterogeneous_constants(
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 2  # noqa: PLR2004
+    assert [str(t) for t in const.type.elements] == ["i32", "float"]
+    assert not visitor.result_stack
 
 
 @pytest.mark.skipif(
@@ -125,3 +130,5 @@ def test_literal_tuple_single_element(builder_class: Type[Builder]) -> None:
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 1
+    assert [str(t) for t in const.type.elements] == ["i1"]
+    assert not visitor.result_stack
