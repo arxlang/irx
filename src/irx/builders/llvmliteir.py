@@ -1929,11 +1929,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.LiteralTuple
         """
         llvm_vals: list[ir.Value] = []
-        for elem in node.elements:
+        for idx, elem in enumerate(node.elements):
             self.visit(elem)
-            v = self.result_stack.pop()
+            try:
+                v = self.result_stack.pop()
+            except IndexError as exc:
+                raise Exception(
+                    f"LiteralTuple: failed to lower element at index {idx} "
+                    f"({type(elem).__name__})."
+                ) from exc
             if v is None:
-                raise Exception("LiteralTuple: failed to lower an element.")
+                raise Exception(
+                    f"LiteralTuple: element at index {idx} evaluated to None."
+                )
             llvm_vals.append(v)
 
         n = len(llvm_vals)
@@ -1957,7 +1965,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         ):
             raise Exception("Non-constant tuple requires a function context.")
 
-        val = ir.Constant(struct_ty, ir.Undefined)
+        val = ir.Constant.undef(struct_ty)
         for idx, v in enumerate(llvm_vals):
             val = self._llvm.ir_builder.insert_value(val, v, idx)
 
