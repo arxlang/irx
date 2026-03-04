@@ -69,7 +69,7 @@ def test_literal_tuple_homogeneous_constants(
 
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
-    assert len(const.type.elements) == 3
+    assert len(const.type.elements) == 3  # noqa: PLR2004
 
 
 @pytest.mark.skipif(
@@ -101,7 +101,7 @@ def test_literal_tuple_heterogeneous_constants(
 
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
-    assert len(const.type.elements) == 2
+    assert len(const.type.elements) == 2  # noqa: PLR2004
 
 
 @pytest.mark.skipif(
@@ -110,7 +110,7 @@ def test_literal_tuple_heterogeneous_constants(
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_single_element(builder_class: Type[Builder]) -> None:
     """
-    title: Single-element tuple lowers to single-field struct.
+    title: Single element tuple lowers to single field struct.
     parameters:
       builder_class:
         type: Type[Builder]
