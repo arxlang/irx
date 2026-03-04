@@ -34,14 +34,14 @@ def _make_visitor_in_function() -> LLVMLiteIRVisitor:
     """
     title: Return a visitor whose ir_builder is inside a live basic block.
     summary: >-
-      _coerce_to and the alloca path both need an active insertion point.
-      We create a dummy function and position the builder at its entry block
-      so instructions can be emitted without an AssertionError from llvmlite.
+      _coerce_to and the alloca path both need an active insertion point. We
+      create a dummy function and position the builder at its entry block so
+      instructions can be emitted without an AssertionError from llvmlite.
     returns:
       type: LLVMLiteIRVisitor
     """
     builder = LLVMLiteIR()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = builder.translator
     visitor.result_stack.clear()
 
     # Create a dummy void() function to give the builder a valid block
@@ -119,8 +119,8 @@ def test_literal_list_mixed_int_widths_widens(
     """
     title: Mixed-width integer list widens all elements to the widest type.
     summary: >-
-      [i16(1), i32(2)] should produce a constant [2 x i32] where the i16
-      has been sign-extended.  Requires a live IR builder block.
+      [i16(1), i32(2)] should produce a constant [2 x i32] where the i16 has
+      been sign-extended.  Requires a live IR builder block.
     parameters:
       builder_class:
         type: type[Builder]
@@ -128,9 +128,7 @@ def test_literal_list_mixed_int_widths_widens(
     visitor = _make_visitor_in_function()
 
     visitor.visit(
-        astx.LiteralList(
-            elements=[astx.LiteralInt16(1), astx.LiteralInt32(2)]
-        )
+        astx.LiteralList(elements=[astx.LiteralInt16(1), astx.LiteralInt32(2)])
     )
     const = visitor.result_stack.pop()
 
@@ -184,8 +182,7 @@ def test_literal_list_mixed_int_and_float_promotes(
 ) -> None:
     """
     title: Mixed int+float list promotes the integer to float.
-    summary: >-
-      [i32(1), float(2.0)] should produce a constant [2 x float].
+    summary: '[i32(1), float(2.0)] should produce a constant [2 x float].'
     parameters:
       builder_class:
         type: Type[Builder]
@@ -215,8 +212,8 @@ def test_literal_list_incompatible_types_raises(
     """
     title: Incompatible types (e.g. pointer + int) raise TypeError.
     summary: >-
-      Mixing a string (i8*) with an integer has no valid common type and
-      must raise TypeError.
+      Mixing a string (i8*) with an integer has no valid common type and must
+      raise TypeError.
     parameters:
       builder_class:
         type: Type[Builder]
