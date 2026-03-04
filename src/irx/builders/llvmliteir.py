@@ -1951,19 +1951,42 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(const_empty)
             return
 
+        def _is_const_like(v: ir.Value) -> bool:
+            """
+            title: Determine if value can participate in constant initializer.
+            parameters:
+              v:
+                type: ir.Value
+            returns:
+              type: bool
+            """
+            return isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function))
+
         elem_tys = [v.type for v in llvm_vals]
         struct_ty = ir.LiteralStructType(elem_tys)
 
-        if all(isinstance(v, ir.Constant) for v in llvm_vals):
-            const_struct = ir.Constant(struct_ty, llvm_vals)
-            self.result_stack.append(const_struct)
-            return
+        if all(_is_const_like(v) for v in llvm_vals):
+            try:
+                const_struct = ir.Constant(struct_ty, llvm_vals)
+            except TypeError:
+                pass
+            else:
+                self.result_stack.append(const_struct)
+                return
 
-        if (
-            getattr(self._llvm, "ir_builder", None) is None
-            or self._llvm.ir_builder.block is None
-        ):
-            raise Exception("Non-constant tuple requires a function context.")
+        has_builder = getattr(self._llvm, "ir_builder", None) is not None
+        has_block = (
+            has_builder
+            and getattr(self._llvm.ir_builder, "block", None) is not None
+        )
+
+        if not has_builder or not has_block:
+            loc_msg = (
+                "global initializer context"
+                if not has_builder
+                else "unpositioned builder context"
+            )
+            raise Exception(f"Non-constant tuple literal used in {loc_msg}.")
 
         val = ir.Constant.undef(struct_ty)
         for idx, v in enumerate(llvm_vals):

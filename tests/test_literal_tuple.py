@@ -150,3 +150,112 @@ def test_literal_tuple_single_element(builder_class: Type[Builder]) -> None:
     )
     assert str(const) == str(expected)
     assert not visitor.result_stack
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_tuple_global_value_constant(
+    builder_class: Type[Builder],
+) -> None:
+    """
+    title: Tuple containing GlobalValues is treated as a constant initializer.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    # Mock elements that lower to GlobalVariables
+    class MockGlobalNode(astx.LiteralNone):
+        pass
+
+    i32 = ir.IntType(32)
+    # Create two global variables without an explicit ir_builder function body
+    gv1 = ir.GlobalVariable(visitor._llvm.module, i32, name="mock_gv_1")
+    gv2 = ir.GlobalVariable(visitor._llvm.module, i32, name="mock_gv_2")
+
+    def mock_visit(node: MockGlobalNode) -> None:
+        if not hasattr(mock_visit, "toggle"):
+            mock_visit.toggle = True  # type: ignore
+            visitor.result_stack.append(gv1)
+        else:
+            visitor.result_stack.append(gv2)
+
+    original_visit = visitor.visit
+
+    def proxy_visit(node: object) -> None:
+        if isinstance(node, MockGlobalNode):
+            mock_visit(node)
+        else:
+            original_visit(node)
+
+    # We patch visitor.visit locally for this test execution only
+    visitor.visit = proxy_visit  # type: ignore
+
+    tuple_node = astx.LiteralTuple(
+        elements=(MockGlobalNode(), MockGlobalNode())
+    )
+    visitor.visit(tuple_node)
+
+    # Restore original visitor function
+    visitor.visit = original_visit  # type: ignore
+
+    const = visitor.result_stack.pop()
+
+    assert isinstance(const, ir.Constant)
+    assert len(const.type.elements) == 2  # noqa: PLR2004
+    assert not visitor.result_stack
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_TUPLE, reason="astx.LiteralTuple not available"
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_tuple_builder_guard(
+    builder_class: Type[Builder],
+) -> None:
+    """
+    title: Exception is raised if builder is not ready for dynamic tuple.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    # Intentionally wipe builder context
+    visitor._llvm.ir_builder = None
+
+    # Mock node that generates a non-constant instruction
+    class MockDynNode(astx.LiteralNone):
+        pass
+
+    i32 = ir.IntType(32)
+    dummy_val = ir.Argument(
+        ir.Function(
+            visitor._llvm.module, ir.FunctionType(i32, [i32]), name="dummy"
+        ),
+        i32,
+    )
+
+    original_visit = visitor.visit
+
+    def proxy_visit(node: object) -> None:
+        if isinstance(node, MockDynNode):
+            visitor.result_stack.append(dummy_val)
+        else:
+            original_visit(node)
+
+    visitor.visit = proxy_visit  # type: ignore
+
+    tuple_node = astx.LiteralTuple(elements=(MockDynNode(),))
+
+    with pytest.raises(Exception, match="global initializer context"):
+        visitor.visit(tuple_node)
+
+    visitor.visit = original_visit  # type: ignore
