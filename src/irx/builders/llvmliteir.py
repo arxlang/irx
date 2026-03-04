@@ -1951,6 +1951,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(const_struct)
             return
 
+        if (
+            getattr(self._llvm, "ir_builder", None) is None
+            or self._llvm.ir_builder.block is None
+        ):
+            raise Exception("Non-constant tuple requires a function context.")
+
         val = ir.Constant(struct_ty, ir.Undefined)
         for idx, v in enumerate(llvm_vals):
             val = self._llvm.ir_builder.insert_value(val, v, idx)
