@@ -1921,9 +1921,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         title: Lower a LiteralTuple to LLVM IR.
         summary: >-
-          Representation: - If all elements lower to LLVM constants ->
-          constant literal struct - Otherwise -> alloca of the struct in
-          the function entry, store each field.
+          Representation: - If all elements lower to LLVM constants -> constant
+          literal struct - Otherwise -> alloca of the struct in the function
+          entry, store each field.
         parameters:
           node:
             type: astx.LiteralTuple
