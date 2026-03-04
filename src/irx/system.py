@@ -12,12 +12,12 @@ import astx
 class PrintExpr(astx.Expr):
     """
     title: PrintExpr AST class.
-    parameters:
-      message:
-        type: astx.Expr
     notes: >-
       It would be nice to support more arguments similar to the ones supported
       by Python (*args, sep=' ', end='', file=None, flush=False).
+    attributes:
+      message:
+        type: astx.Expr
     """
 
     message: astx.Expr
@@ -52,11 +52,6 @@ class Cast(astx.Expr):
     """
     title: Cast AST node for type conversions.
     summary: Represents a cast of `value` to a specified `target_type`.
-    parameters:
-      value:
-        type: astx.AST
-      target_type:
-        type: Any
     """
 
     def __init__(self, value: astx.AST, target_type: Any) -> None:

@@ -64,6 +64,15 @@ class BuilderVisitor:
 class Builder(ABC):
     """
     title: ASTx Builder.
+    attributes:
+      translator:
+        type: BuilderVisitor
+      tmp_path:
+        type: str
+      output_file:
+        type: str
+      sh_args:
+        type: Dict[str, Any]
     """
 
     translator: BuilderVisitor

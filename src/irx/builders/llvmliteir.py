@@ -141,6 +141,45 @@ def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
 class VariablesLLVM:
     """
     title: Store all the LLVM variables used for code generation.
+    attributes:
+      FLOAT_TYPE:
+        type: ir.types.Type
+      FLOAT16_TYPE:
+        type: ir.types.Type
+      DOUBLE_TYPE:
+        type: ir.types.Type
+      INT8_TYPE:
+        type: ir.types.Type
+      INT64_TYPE:
+        type: ir.types.Type
+      INT16_TYPE:
+        type: ir.types.Type
+      INT32_TYPE:
+        type: ir.types.Type
+      VOID_TYPE:
+        type: ir.types.Type
+      BOOLEAN_TYPE:
+        type: ir.types.Type
+      STRING_TYPE:
+        type: ir.types.Type
+      ASCII_STRING_TYPE:
+        type: ir.types.Type
+      UTF8_STRING_TYPE:
+        type: ir.types.Type
+      TIMESTAMP_TYPE:
+        type: ir.types.Type
+      DATETIME_TYPE:
+        type: ir.types.Type
+      SIZE_T_TYPE:
+        type: ir.types.Type
+      POINTER_BITS:
+        type: int
+      context:
+        type: ir.context.Context
+      module:
+        type: ir.module.Module
+      ir_builder:
+        type: ir.builder.IRBuilder
     """
 
     FLOAT_TYPE: ir.types.Type
@@ -210,6 +249,15 @@ class VariablesLLVM:
 class LLVMLiteIRVisitor(BuilderVisitor):
     """
     title: LLVM-IR Translator.
+    attributes:
+      named_values:
+        type: dict[str, Any]
+      _llvm:
+        type: VariablesLLVM
+      function_protos:
+        type: dict[str, astx.FunctionPrototype]
+      result_stack:
+        type: list[ir.Value | ir.Function]
     """
 
     # AllocaInst
