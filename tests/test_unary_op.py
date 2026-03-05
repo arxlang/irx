@@ -60,13 +60,22 @@ def test_unary_op_increment_decrement(
     module = builder.module()
 
     decl_a = astx.VariableDeclaration(
-        name="a", type_=int_type(), value=literal_type(5)
+        name="a",
+        type_=int_type(),
+        value=literal_type(5),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.VariableDeclaration(
-        name="b", type_=int_type(), value=literal_type(10)
+        name="b",
+        type_=int_type(),
+        value=literal_type(10),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_c = astx.VariableDeclaration(
-        name="c", type_=int_type(), value=literal_type(0)
+        name="c",
+        type_=int_type(),
+        value=literal_type(0),
+        mutability=astx.MutabilityKind.mutable,
     )
 
     var_a = astx.Identifier("a")

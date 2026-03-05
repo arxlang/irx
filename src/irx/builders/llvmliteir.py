@@ -258,6 +258,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: dict[str, astx.FunctionPrototype]
       result_stack:
         type: list[ir.Value | ir.Function]
+      const_vars:
+        type: set[str]
       _fast_math_enabled:
         type: bool
       target:
@@ -282,6 +284,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
+        self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
         self._fast_math_enabled: bool = False
@@ -675,6 +678,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
+                if node.operand.name in self.const_vars:
+                    raise Exception(
+                        f"Cannot mutate '{node.operand.name}':"
+                        "declared as constant"
+                    )
                 var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
@@ -689,6 +697,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
             if isinstance(node.operand, astx.Identifier):
+                if node.operand.name in self.const_vars:
+                    raise Exception(
+                        f"Cannot mutate '{node.operand.name}':"
+                        "declared as constant"
+                    )
                 var_addr = self.named_values.get(node.operand.name)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
@@ -704,6 +717,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
 
             if isinstance(node.operand, astx.Identifier):
+                if node.operand.name in self.const_vars:
+                    raise Exception(
+                        f"Cannot mutate '{node.operand.name}':"
+                        "declared as constant"
+                    )
                 addr = self.named_values.get(node.operand.name)
                 if addr:
                     self._llvm.ir_builder.store(result, addr)
@@ -734,6 +752,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if not isinstance(var_lhs, astx.VariableExprAST):
                 raise Exception("destination of '=' must be a variable")
 
+            lhs_name = var_lhs.get_name()
+            if lhs_name in self.const_vars:
+                raise Exception(
+                    f"Cannot assign to '{lhs_name}': declared as constant"
+                )
             # Codegen the rhs.
             self.visit(node.rhs)
             llvm_rhs = safe_pop(self.result_stack)
@@ -1258,6 +1281,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Get the name of the variable to assign to
         var_name = expr.name
 
+        if var_name in self.const_vars:
+            raise Exception(
+                f"Cannot assign to '{var_name}': declared as constant"
+            )
         # Codegen the value expression on the right-hand side
         self.visit(expr.value)
         llvm_value = safe_pop(self.result_stack)
@@ -2407,6 +2434,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             alloca = self.create_entry_block_alloca(node.name, type_str)
 
         self._llvm.ir_builder.store(init_val, alloca)
+        if node.mutability == astx.MutabilityKind.constant:
+            self.const_vars.add(node.name)
         self.named_values[node.name] = alloca
 
         self.result_stack.append(init_val)
@@ -2784,7 +2813,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # Store the initial value.
             self._llvm.ir_builder.store(init_val, alloca)
 
-        # Remember this binding.
+        if node.mutability == astx.MutabilityKind.constant:
+            self.const_vars.add(node.name)
         self.named_values[node.name] = alloca
 
     @dispatch  # type: ignore[no-redef]

@@ -61,24 +61,28 @@ def test_function_call_fibonacci(
         type_=int_type(),
         value=literal_type(0),
         parent=fib_block,
+        mutability=astx.MutabilityKind.mutable,
     )
     astx.VariableDeclaration(
         name="b",
         type_=int_type(),
         value=literal_type(1),
         parent=fib_block,
+        mutability=astx.MutabilityKind.mutable,
     )
     astx.VariableDeclaration(
         name="i",
         type_=int_type(),
         value=literal_type(2),
         parent=fib_block,
+        mutability=astx.MutabilityKind.mutable,
     )
     astx.VariableDeclaration(
         name="sum",
         type_=int_type(),
         value=literal_type(10),
         parent=fib_block,
+        mutability=astx.MutabilityKind.mutable,
     )
 
     cond = astx.BinaryOp(

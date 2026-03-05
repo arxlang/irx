@@ -59,7 +59,9 @@ def test_for_range(
     builder = builder_class()
 
     # `for` statement
-    var_a = astx.InlineVariableDeclaration("a", type_=int_type())
+    var_a = astx.InlineVariableDeclaration(
+        "a", type_=int_type(), mutability=astx.MutabilityKind.mutable
+    )
     start = literal_type(1)
     end = literal_type(10)
     step = literal_type(1)
@@ -134,7 +136,10 @@ def test_for_count(
     builder = builder_class()
 
     init_a = astx.InlineVariableDeclaration(
-        "a2", type_=int_type(), value=literal_type(0)
+        "a2",
+        type_=int_type(),
+        value=literal_type(0),
+        mutability=astx.MutabilityKind.mutable,
     )
     var_a = astx.Identifier("a2")
     cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(10))
