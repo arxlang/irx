@@ -48,7 +48,10 @@ def test_variable_assignment(
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=int_type(), value=literal_type(10)
+        name="x",
+        type_=int_type(),
+        value=literal_type(10),
+        mutability=astx.MutabilityKind.mutable,
     )
     assignment = astx.VariableAssignment(name="x", value=literal_type(42))
 

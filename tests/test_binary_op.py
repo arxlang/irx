@@ -110,13 +110,22 @@ def test_binary_op_basic(
     module = builder.module()
 
     decl_a = astx.VariableDeclaration(
-        name="a", type_=int_type(), value=literal_type(1)
+        name="a",
+        type_=int_type(),
+        value=literal_type(1),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.VariableDeclaration(
-        name="b", type_=int_type(), value=literal_type(2)
+        name="b",
+        type_=int_type(),
+        value=literal_type(2),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_c = astx.VariableDeclaration(
-        name="c", type_=int_type(), value=literal_type(4)
+        name="c",
+        type_=int_type(),
+        value=literal_type(4),
+        mutability=astx.MutabilityKind.mutable,
     )
 
     a = astx.Identifier("a")
@@ -209,10 +218,16 @@ def test_binary_op_logical_and_or(
     module = builder.module()
 
     decl_x = astx.VariableDeclaration(
-        name="x", type_=int_type(), value=literal_type(a_val)
+        name="x",
+        type_=int_type(),
+        value=literal_type(a_val),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_y = astx.VariableDeclaration(
-        name="y", type_=int_type(), value=literal_type(b_val)
+        name="y",
+        type_=int_type(),
+        value=literal_type(b_val),
+        mutability=astx.MutabilityKind.mutable,
     )
 
     expr = (astx.Identifier("x") & astx.Identifier("x")) | astx.Identifier("y")

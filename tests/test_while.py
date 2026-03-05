@@ -60,7 +60,10 @@ def test_while_expr(
 
     # Identifier declaration and initialization: int a = 0
     init_var = astx.InlineVariableDeclaration(
-        "a", type_=int_type(), value=literal_type(0)
+        "a",
+        type_=int_type(),
+        value=literal_type(0),
+        mutability=astx.MutabilityKind.mutable,
     )
 
     # Condition: a < 5
