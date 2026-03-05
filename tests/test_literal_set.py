@@ -1,4 +1,6 @@
-"""Tests for LiteralSet lowering using project conventions."""
+"""
+title: Tests for LiteralSet lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -15,13 +17,23 @@ from llvmlite import ir
 
 
 def _array_i32_values(const: ir.Constant) -> list[int]:
-    """Extract i32-like values from array constant via regex (suite style)."""
+    """
+    title: Extract i32-like values from array constant via regex (suite style).
+    parameters:
+      const:
+        type: ir.Constant
+    """
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_set_empty(builder_class: Type[Builder]) -> None:
-    """Empty set lowers to constant [0 x i32]."""
+    """
+    title: Empty set lowers to constant [0 x i32].
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -37,7 +49,12 @@ def test_literal_set_empty(builder_class: Type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
-    """Homogeneous integer constants lower to constant array [N x i32]."""
+    """
+    title: Homogeneous integer constants lower to constant array [N x i32].
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -66,7 +83,12 @@ def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
 def test_literal_set_mixed_int_widths_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Mixed-width integer sets are not yet supported."""
+    """
+    title: Mixed-width integer sets are not yet supported.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -83,7 +105,12 @@ def test_literal_set_mixed_int_widths_unsupported(
 def test_literal_set_non_integer_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Non-integer homogeneous sets are not yet supported."""
+    """
+    title: Non-integer homogeneous sets are not yet supported.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
