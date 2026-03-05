@@ -118,11 +118,9 @@ def test_literal_dict_mixed_int_widths(
     )
     result = visitor.result_stack.pop()
 
-    # Result should be an alloca pointer
-    assert isinstance(result, ir.instructions.AllocaInstr)
-    inner = result.type.pointee
-    assert isinstance(inner, ir.ArrayType)
-    assert inner.count == 2  # noqa: PLR2004
+    # Result should be a first-class array value (loaded from alloca)
+    assert isinstance(result.type, ir.ArrayType)
+    assert result.type.count == 2  # noqa: PLR2004
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])

@@ -2058,7 +2058,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 )
                 self._llvm.ir_builder.store(val_ir, val_ptr)
 
-            self.result_stack.append(alloca)
+            loaded = self._llvm.ir_builder.load(alloca, name="dict.lit.val")
+            self.result_stack.append(loaded)
             return
 
         raise TypeError(
