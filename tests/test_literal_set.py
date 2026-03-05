@@ -32,6 +32,7 @@ def test_literal_set_empty(builder_class: Type[Builder]) -> None:
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == 0
+    assert const.type.element == ir.IntType(32)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -55,6 +56,7 @@ def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == 3  # noqa: PLR2004
+    assert const.type.element == ir.IntType(32)
     # Values should be deterministically sorted
     vals = _array_i32_values(const)
     assert sorted(vals) == [1, 2, 3]
