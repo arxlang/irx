@@ -1972,15 +1972,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.visit(k_lit)
             k_val = self.result_stack.pop()
             if k_val is None:
-                raise Exception(
-                    "LiteralDict: failed to lower a key."
-                )
+                raise Exception("LiteralDict: failed to lower a key.")
             self.visit(v_lit)
             v_val = self.result_stack.pop()
             if v_val is None:
-                raise Exception(
-                    "LiteralDict: failed to lower a value."
-                )
+                raise Exception("LiteralDict: failed to lower a value.")
             llvm_keys.append(k_val)
             llvm_vals.append(v_val)
 
@@ -1999,8 +1995,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         k_homog = all(v.type == k_ty0 for v in llvm_keys)
         v_homog = all(v.type == v_ty0 for v in llvm_vals)
         all_const = all(
-            isinstance(v, ir.Constant)
-            for v in llvm_keys + llvm_vals
+            isinstance(v, ir.Constant) for v in llvm_keys + llvm_vals
         )
 
         # Homogeneous constant keys & values -> constant array
@@ -2013,44 +2008,28 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 ir.Constant(pair_ty, [k, v])
                 for k, v in zip(llvm_keys, llvm_vals)
             ]
-            self.result_stack.append(
-                ir.Constant(arr_ty, const_pairs)
-            )
+            self.result_stack.append(ir.Constant(arr_ty, const_pairs))
             return
 
         # Mixed-width integer keys/values -> alloca + sext + stores
-        all_int_keys = all(
-            isinstance(k.type, ir.IntType) for k in llvm_keys
-        )
-        all_int_vals = all(
-            isinstance(v.type, ir.IntType) for v in llvm_vals
-        )
+        all_int_keys = all(isinstance(k.type, ir.IntType) for k in llvm_keys)
+        all_int_vals = all(isinstance(v.type, ir.IntType) for v in llvm_vals)
         if all_int_keys and all_int_vals:
-            widest_k = max(
-                k.type.width for k in llvm_keys
-            )
-            widest_v = max(
-                v.type.width for v in llvm_vals
-            )
+            widest_k = max(k.type.width for k in llvm_keys)
+            widest_v = max(v.type.width for v in llvm_vals)
             k_ty = ir.IntType(widest_k)
             v_ty = ir.IntType(widest_v)
             pair_ty = ir.LiteralStructType([k_ty, v_ty])
             arr_ty = ir.ArrayType(pair_ty, n)
 
-            entry_bb = (
-                self._llvm.ir_builder.function.entry_basic_block
-            )
+            entry_bb = self._llvm.ir_builder.function.entry_basic_block
             cur_bb = self._llvm.ir_builder.block
             self._llvm.ir_builder.position_at_start(entry_bb)
-            alloca = self._llvm.ir_builder.alloca(
-                arr_ty, name="dict.lit"
-            )
+            alloca = self._llvm.ir_builder.alloca(arr_ty, name="dict.lit")
             self._llvm.ir_builder.position_at_end(cur_bb)
 
             i32 = ir.IntType(32)
-            for i, (k, v) in enumerate(
-                zip(llvm_keys, llvm_vals)
-            ):
+            for i, (k, v) in enumerate(zip(llvm_keys, llvm_vals)):
                 key_ir = k
                 val_ir = v
                 if key_ir.type != k_ty:
