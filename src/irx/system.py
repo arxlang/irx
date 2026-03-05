@@ -81,3 +81,187 @@ class Cast(astx.Expr):
         key = f"Cast[{self.target_type}]"
         value = self.value.get_struct(simplified)
         return self._prepare_struct(key, value, simplified)
+
+
+class ListInsertExpr(astx.Expr):
+    """
+    title: Insert an element into a list expression.
+    attributes:
+      list_expr:
+        type: astx.Expr
+      index:
+        type: astx.Expr
+      value:
+        type: astx.Expr
+    """
+
+    list_expr: astx.Expr
+    index: astx.Expr
+    value: astx.Expr
+
+    def __init__(
+        self, list_expr: astx.Expr, index: astx.Expr, value: astx.Expr
+    ) -> None:
+        self.list_expr = list_expr
+        self.index = index
+        self.value = value
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Return the structured representation of list insert.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = "ListInsertExpr"
+        value = {
+            "list": self.list_expr.get_struct(simplified),
+            "index": self.index.get_struct(simplified),
+            "value": self.value.get_struct(simplified),
+        }
+        return self._prepare_struct(key, value, simplified)
+
+
+class ListRemoveExpr(astx.Expr):
+    """
+    title: Remove the first matching element from a list expression.
+    attributes:
+      list_expr:
+        type: astx.Expr
+      value:
+        type: astx.Expr
+    """
+
+    list_expr: astx.Expr
+    value: astx.Expr
+
+    def __init__(self, list_expr: astx.Expr, value: astx.Expr) -> None:
+        self.list_expr = list_expr
+        self.value = value
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Return the structured representation of list remove.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = "ListRemoveExpr"
+        value = {
+            "list": self.list_expr.get_struct(simplified),
+            "value": self.value.get_struct(simplified),
+        }
+        return self._prepare_struct(key, value, simplified)
+
+
+class ListSearchExpr(astx.Expr):
+    """
+    title: Search an element in a list expression.
+    attributes:
+      list_expr:
+        type: astx.Expr
+      value:
+        type: astx.Expr
+    """
+
+    list_expr: astx.Expr
+    value: astx.Expr
+
+    def __init__(self, list_expr: astx.Expr, value: astx.Expr) -> None:
+        self.list_expr = list_expr
+        self.value = value
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Return the structured representation of list search.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = "ListSearchExpr"
+        value = {
+            "list": self.list_expr.get_struct(simplified),
+            "value": self.value.get_struct(simplified),
+        }
+        return self._prepare_struct(key, value, simplified)
+
+
+class ListCountExpr(astx.Expr):
+    """
+    title: Count element occurrences in a list expression.
+    attributes:
+      list_expr:
+        type: astx.Expr
+      value:
+        type: astx.Expr
+    """
+
+    list_expr: astx.Expr
+    value: astx.Expr
+
+    def __init__(self, list_expr: astx.Expr, value: astx.Expr) -> None:
+        self.list_expr = list_expr
+        self.value = value
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Return the structured representation of list count.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = "ListCountExpr"
+        value = {
+            "list": self.list_expr.get_struct(simplified),
+            "value": self.value.get_struct(simplified),
+        }
+        return self._prepare_struct(key, value, simplified)
+
+
+class ListSliceExpr(astx.Expr):
+    """
+    title: Slice a list expression using start and end.
+    attributes:
+      list_expr:
+        type: astx.Expr
+      start:
+        type: astx.Expr
+      end:
+        type: astx.Expr
+    """
+
+    list_expr: astx.Expr
+    start: astx.Expr
+    end: astx.Expr
+
+    def __init__(
+        self, list_expr: astx.Expr, start: astx.Expr, end: astx.Expr
+    ) -> None:
+        self.list_expr = list_expr
+        self.start = start
+        self.end = end
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Return the structured representation of list slice.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = "ListSliceExpr"
+        value = {
+            "list": self.list_expr.get_struct(simplified),
+            "start": self.start.get_struct(simplified),
+            "end": self.end.get_struct(simplified),
+        }
+        return self._prepare_struct(key, value, simplified)

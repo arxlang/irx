@@ -1916,6 +1916,222 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    def _pop_result_or_raise(self, context: str) -> ir.Value:
+        """
+        title: Pop one value from result stack with context.
+        parameters:
+          context:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        try:
+            value = self.result_stack.pop()
+        except IndexError as exc:
+            raise TypeError(f"{context}: lowering produced no value") from exc
+        if value is None:
+            raise TypeError(f"{context}: lowering produced None value")
+        return cast(ir.Value, value)
+
+    def _extract_int_array_constant(
+        self, value: ir.Value, context: str
+    ) -> tuple[ir.IntType, list[ir.Constant]]:
+        """
+        title: Ensure value is an integer array constant and unpack elements.
+        parameters:
+          value:
+            type: ir.Value
+          context:
+            type: str
+        returns:
+          type: tuple[ir.IntType, list[ir.Constant]]
+        """
+        if not isinstance(value, ir.Constant):
+            raise TypeError(f"{context}: expected array constant list value")
+        if not isinstance(value.type, ir.ArrayType):
+            raise TypeError(f"{context}: expected list as LLVM array type")
+        if not isinstance(value.type.element, ir.IntType):
+            raise TypeError(f"{context}: only integer lists are supported")
+
+        elem_ty = value.type.element
+        elems = value.constant
+        if not isinstance(elems, list):
+            raise TypeError(f"{context}: invalid constant array payload")
+
+        for idx, elem in enumerate(elems):
+            if not isinstance(elem, ir.Constant):
+                raise TypeError(
+                    f"{context}: list element {idx} is not constant"
+                )
+            if elem.type != elem_ty:
+                raise TypeError(
+                    f"{context}: list element {idx} type mismatch "
+                    f"{elem.type} != {elem_ty}"
+                )
+        return elem_ty, cast(list[ir.Constant], elems)
+
+    def _coerce_int_constant(
+        self, value: ir.Value, target_type: ir.IntType, context: str
+    ) -> ir.Constant:
+        """
+        title: Convert integer constant to requested integer type.
+        parameters:
+          value:
+            type: ir.Value
+          target_type:
+            type: ir.IntType
+          context:
+            type: str
+        returns:
+          type: ir.Constant
+        """
+        if not isinstance(value, ir.Constant):
+            raise TypeError(f"{context}: expected constant integer value")
+        if not isinstance(value.type, ir.IntType):
+            raise TypeError(f"{context}: expected integer value")
+        return ir.Constant(target_type, int(value.constant))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListInsertExpr) -> None:
+        """
+        title: Insert value into an integer list constant.
+        parameters:
+          node:
+            type: system.ListInsertExpr
+        """
+        context = "ListInsertExpr"
+        self.visit(node.list_expr)
+        list_value = self._pop_result_or_raise(context)
+        elem_ty, elems = self._extract_int_array_constant(list_value, context)
+
+        self.visit(node.index)
+        index_value = self._pop_result_or_raise(context)
+        if not isinstance(index_value, ir.Constant) or not isinstance(
+            index_value.type, ir.IntType
+        ):
+            raise TypeError("ListInsertExpr: index must be integer constant")
+        index = int(index_value.constant)
+
+        self.visit(node.value)
+        inserted = self._coerce_int_constant(
+            self._pop_result_or_raise(context), elem_ty, context
+        )
+
+        out = list(elems)
+        out.insert(index, inserted)
+        out_ty = ir.ArrayType(elem_ty, len(out))
+        self.result_stack.append(ir.Constant(out_ty, out))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListRemoveExpr) -> None:
+        """
+        title: Remove first matching value from integer list constant.
+        parameters:
+          node:
+            type: system.ListRemoveExpr
+        """
+        context = "ListRemoveExpr"
+        self.visit(node.list_expr)
+        list_value = self._pop_result_or_raise(context)
+        elem_ty, elems = self._extract_int_array_constant(list_value, context)
+
+        self.visit(node.value)
+        needle = self._coerce_int_constant(
+            self._pop_result_or_raise(context), elem_ty, context
+        )
+        needle_value = int(needle.constant)
+
+        out = list(elems)
+        for idx, elem in enumerate(out):
+            if int(elem.constant) == needle_value:
+                del out[idx]
+                out_ty = ir.ArrayType(elem_ty, len(out))
+                self.result_stack.append(ir.Constant(out_ty, out))
+                return
+
+        raise ValueError(
+            f"ListRemoveExpr: value {needle_value} not found in list"
+        )
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListSearchExpr) -> None:
+        """
+        title: Search first index of value in integer list constant.
+        parameters:
+          node:
+            type: system.ListSearchExpr
+        """
+        context = "ListSearchExpr"
+        self.visit(node.list_expr)
+        list_value = self._pop_result_or_raise(context)
+        elem_ty, elems = self._extract_int_array_constant(list_value, context)
+
+        self.visit(node.value)
+        needle = self._coerce_int_constant(
+            self._pop_result_or_raise(context), elem_ty, context
+        )
+        needle_value = int(needle.constant)
+
+        idx = -1
+        for pos, elem in enumerate(elems):
+            if int(elem.constant) == needle_value:
+                idx = pos
+                break
+        self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, idx))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListCountExpr) -> None:
+        """
+        title: Count value occurrences in integer list constant.
+        parameters:
+          node:
+            type: system.ListCountExpr
+        """
+        context = "ListCountExpr"
+        self.visit(node.list_expr)
+        list_value = self._pop_result_or_raise(context)
+        elem_ty, elems = self._extract_int_array_constant(list_value, context)
+
+        self.visit(node.value)
+        needle = self._coerce_int_constant(
+            self._pop_result_or_raise(context), elem_ty, context
+        )
+        needle_value = int(needle.constant)
+
+        count = sum(1 for elem in elems if int(elem.constant) == needle_value)
+        self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, count))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListSliceExpr) -> None:
+        """
+        title: Slice integer list constant using Python-style bounds.
+        parameters:
+          node:
+            type: system.ListSliceExpr
+        """
+        context = "ListSliceExpr"
+        self.visit(node.list_expr)
+        list_value = self._pop_result_or_raise(context)
+        elem_ty, elems = self._extract_int_array_constant(list_value, context)
+
+        self.visit(node.start)
+        start_value = self._pop_result_or_raise(context)
+        self.visit(node.end)
+        end_value = self._pop_result_or_raise(context)
+
+        if not isinstance(start_value, ir.Constant) or not isinstance(
+            start_value.type, ir.IntType
+        ):
+            raise TypeError("ListSliceExpr: start must be integer constant")
+        if not isinstance(end_value, ir.Constant) or not isinstance(
+            end_value.type, ir.IntType
+        ):
+            raise TypeError("ListSliceExpr: end must be integer constant")
+
+        sliced = elems[int(start_value.constant) : int(end_value.constant)]
+        out_ty = ir.ArrayType(elem_ty, len(sliced))
+        self.result_stack.append(ir.Constant(out_ty, sliced))
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
@@ -2848,5 +3064,7 @@ class LLVMLiteIR(Builder):
             file_path_o,
             "-o",
             self.output_file,
+            _tty_out=False,
+            _tty_in=False,
         )
         os.chmod(self.output_file, 0o755)
