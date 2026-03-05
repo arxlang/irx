@@ -1,4 +1,6 @@
-"""Tests for LiteralDict lowering using project conventions."""
+"""
+title: Tests for LiteralDict lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,14 @@ from llvmlite import ir
 def _struct_array_values(
     const: ir.Constant,
 ) -> list[tuple[int, int]]:
-    """Extract {iN k, iN v} pairs from a constant struct array."""
+    """
+    title: Extract {iN k, iN v} pairs from a constant struct array.
+    parameters:
+      const:
+        type: ir.Constant
+    returns:
+      type: list[tuple[int, int]]
+    """
     pairs = re.findall(
         r"\{\s*i\d+\s+(-?\d+),\s*i\d+\s+(-?\d+)\s*\}",
         str(const),
@@ -29,7 +38,12 @@ def _struct_array_values(
 def test_literal_dict_empty(
     builder_class: Type[Builder],
 ) -> None:
-    """Empty dict lowers to constant [0 x {i32, i32}]."""
+    """
+    title: Empty dict lowers to constant [0 x {i32, i32}].
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -46,7 +60,12 @@ def test_literal_dict_empty(
 def test_literal_dict_homogeneous_ints(
     builder_class: Type[Builder],
 ) -> None:
-    """Homogeneous integer key/value pairs produce a constant array."""
+    """
+    title: Homogeneous integer key/value pairs produce a constant array.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -73,7 +92,12 @@ def test_literal_dict_homogeneous_ints(
 def test_literal_dict_mixed_int_widths(
     builder_class: Type[Builder],
 ) -> None:
-    """Mixed-width integer dict uses alloca + sext (needs function)."""
+    """
+    title: Mixed-width integer dict uses alloca + sext (needs function).
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -105,7 +129,12 @@ def test_literal_dict_mixed_int_widths(
 def test_literal_dict_unsupported_types(
     builder_class: Type[Builder],
 ) -> None:
-    """Non-integer entry types raise TypeError."""
+    """
+    title: Non-integer entry types raise TypeError.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()

@@ -1945,7 +1945,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralDict) -> None:
-        """Lower a LiteralDict to LLVM IR."""
+        """
+        title: Lower a LiteralDict to LLVM IR.
+        parameters:
+          node:
+            type: astx.LiteralDict
+        """
 
         def _sort_key(
             lit: astx.Literal,
@@ -2022,10 +2027,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         if all_int_keys and all_int_vals:
             widest_k = max(
-                k.type.width for k in llvm_keys  # type: ignore[union-attr]
+                k.type.width for k in llvm_keys
             )
             widest_v = max(
-                v.type.width for v in llvm_vals  # type: ignore[union-attr]
+                v.type.width for v in llvm_vals
             )
             k_ty = ir.IntType(widest_k)
             v_ty = ir.IntType(widest_v)
@@ -2046,13 +2051,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             for i, (k, v) in enumerate(
                 zip(llvm_keys, llvm_vals)
             ):
-                if k.type != k_ty:
-                    k = self._llvm.ir_builder.sext(
-                        k, k_ty, name=f"dict_k_sext{i}"
+                key_ir = k
+                val_ir = v
+                if key_ir.type != k_ty:
+                    key_ir = self._llvm.ir_builder.sext(
+                        key_ir, k_ty, name=f"dict_k_sext{i}"
                     )
-                if v.type != v_ty:
-                    v = self._llvm.ir_builder.sext(
-                        v, v_ty, name=f"dict_v_sext{i}"
+                if val_ir.type != v_ty:
+                    val_ir = self._llvm.ir_builder.sext(
+                        val_ir, v_ty, name=f"dict_v_sext{i}"
                     )
                 elem_ptr = self._llvm.ir_builder.gep(
                     alloca,
@@ -2064,13 +2071,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     [ir.Constant(i32, 0), ir.Constant(i32, 0)],
                     inbounds=True,
                 )
-                self._llvm.ir_builder.store(k, key_ptr)
+                self._llvm.ir_builder.store(key_ir, key_ptr)
                 val_ptr = self._llvm.ir_builder.gep(
                     elem_ptr,
                     [ir.Constant(i32, 0), ir.Constant(i32, 1)],
                     inbounds=True,
                 )
-                self._llvm.ir_builder.store(v, val_ptr)
+                self._llvm.ir_builder.store(val_ir, val_ptr)
 
             self.result_stack.append(alloca)
             return
