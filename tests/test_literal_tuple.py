@@ -218,8 +218,8 @@ def test_literal_tuple_global_value_constant(
         ptr_type_str,
         ptr_type_str,
     ]
-    s = str(const)
-    assert '@"mock_gv_1"' in s and '@"mock_gv_2"' in s
+    s = str(const).replace('"', "")
+    assert "@mock_gv_1" in s and "@mock_gv_2" in s
     assert not visitor.result_stack
 
 

@@ -1978,9 +1978,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if isinstance(v.type, ir.PointerType) and isinstance(
                 ty, ir.PointerType
             ):
-                if isinstance(v, (ir.Constant, ir.GlobalValue, ir.Function)):
+                if isinstance(v, ir.Constant):
                     return ir.Constant.bitcast(v, ty)
-                return self._llvm.ir_builder.bitcast(v, ty)
+                if getattr(self._llvm, "ir_builder", None) and getattr(
+                    self._llvm.ir_builder, "block", None
+                ):
+                    return self._llvm.ir_builder.bitcast(v, ty)
+                raise TypeError(
+                    f"Cannot bitcast non-constant value {v} to {ty}"
+                    " without a positioned builder"
+                )
             raise TypeError(
                 f"Unsupported coercion from {v.type} to {ty} for tuple element"
             )
@@ -1999,6 +2006,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elem_tys = [_elem_type_for_tuple(v) for v in llvm_vals]
         struct_ty = ir.LiteralStructType(elem_tys)
 
+        last_const_err: Exception | None = None
+
         if all(_is_const_like(v) for v in llvm_vals):
             for i, (v, ty) in enumerate(zip(llvm_vals, elem_tys)):
                 if v.type != ty:
@@ -2006,8 +2015,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             try:
                 const_struct = ir.Constant(struct_ty, llvm_vals)
-            except TypeError:
-                pass
+            except TypeError as e:
+                last_const_err = e
             else:
                 self.result_stack.append(const_struct)
                 return
@@ -2024,7 +2033,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 if not has_builder
                 else "unpositioned builder context"
             )
-            raise Exception(f"Non-constant tuple literal used in {loc_msg}.")
+            detail = (
+                f" (constant folding failed: {last_const_err})"
+                if last_const_err
+                else ""
+            )
+            raise Exception(
+                f"Non-constant tuple literal used in {loc_msg}.{detail}"
+            )
 
         val = ir.Constant.undef(struct_ty)
         for idx, v in enumerate(llvm_vals):
