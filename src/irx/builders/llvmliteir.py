@@ -96,6 +96,11 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
+    UINT8_TYPE: ir.types.Type
+    UINT16_TYPE: ir.types.Type
+    UINT32_TYPE: ir.types.Type
+    UINT64_TYPE: ir.types.Type
+    UINT128_TYPE: ir.types.Type
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
@@ -145,6 +150,16 @@ class VariablesLLVM:
             return self.ASCII_STRING_TYPE
         elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
+        elif type_name == "uint8":
+            return self.UINT8_TYPE
+        elif type_name == "uint16":
+            return self.UINT16_TYPE
+        elif type_name == "uint32":
+            return self.UINT32_TYPE
+        elif type_name == "uint64":
+            return self.UINT64_TYPE
+        elif type_name == "uint128":
+            return self.UINT128_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -247,6 +262,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
+        self._llvm.UINT8_TYPE = ir.IntType(8)
+        self._llvm.UINT16_TYPE = ir.IntType(16)
+        self._llvm.UINT32_TYPE = ir.IntType(32)
+        self._llvm.UINT64_TYPE = ir.IntType(64)
+        self._llvm.UINT128_TYPE = ir.IntType(128)
         self._llvm.VOID_TYPE = ir.VoidType()
         self._llvm.STRING_TYPE = ir.LiteralStructType(
             [ir.IntType(32), ir.IntType(8).as_pointer()]
@@ -1316,6 +1336,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def visit(self, node: astx.LiteralInt8) -> None:
         """Translate ASTx LiteralInt8 to LLVM-IR."""
         result = ir.Constant(self._llvm.INT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt8) -> None:
+        """Translate ASTx LiteralUInt8 to LLVM-IR."""
+        result = ir.Constant(self._llvm.UINT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt16) -> None:
+        """Translate ASTx LiteralUInt16 to LLVM-IR."""
+        result = ir.Constant(self._llvm.UINT16_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt32) -> None:
+        """Translate ASTx LiteralUInt32 to LLVM-IR."""
+        result = ir.Constant(self._llvm.UINT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt64) -> None:
+        """Translate ASTx LiteralUInt64 to LLVM-IR."""
+        result = ir.Constant(self._llvm.UINT64_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt128) -> None:
+        """Translate ASTx LiteralUInt128 to LLVM-IR."""
+        result = ir.Constant(self._llvm.UINT128_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]

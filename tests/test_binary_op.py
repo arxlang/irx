@@ -14,7 +14,12 @@ from .conftest import check_result
 
 @pytest.mark.parametrize(
     "int_type, literal_type",
-    [(astx.Int32, astx.LiteralInt32), (astx.Int16, astx.LiteralInt16)],
+    [
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.UInt32, astx.LiteralUInt32),
+        (astx.UInt16, astx.LiteralUInt16),
+    ],
 )
 @pytest.mark.parametrize(
     "builder_class",
@@ -59,6 +64,10 @@ def test_binary_op_literals(
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
         (astx.Int64, astx.LiteralInt64),
+        (astx.UInt32, astx.LiteralUInt32),
+        (astx.UInt16, astx.LiteralUInt16),
+        (astx.UInt8, astx.LiteralUInt8),
+        (astx.UInt64, astx.LiteralUInt64),
     ],
 )
 @pytest.mark.parametrize(
