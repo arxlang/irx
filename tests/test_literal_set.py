@@ -78,7 +78,7 @@ def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
     assert const.type.element == ir.IntType(32)
     # Values should be deterministically sorted
     vals = _array_i32_values(const)
-    assert sorted(vals) == [1, 2, 3]
+    assert vals == [1, 2, 3]
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
