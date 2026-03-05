@@ -22,6 +22,8 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
     parameters:
       const:
         type: ir.Constant
+    returns:
+      type: list[int]
     """
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
 

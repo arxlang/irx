@@ -1948,11 +1948,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         title: Lower a LiteralSet to LLVM IR (minimal support).
         summary: >-
-          Supported cases:
-          - Empty set -> constant [0 x i32]
-          - Homogeneous integer constant sets -> constant [N x iX]
-          Elements are sorted deterministically by (type-name, value)
-          since Python set iteration order is arbitrary.
+          Supported cases: - Empty set -> constant [0 x i32] - Homogeneous
+          integer constant sets -> constant [N x iX] Elements are sorted
+          deterministically by (type-name, value) since Python set iteration
+          order is arbitrary.
         parameters:
           node:
             type: astx.LiteralSet
