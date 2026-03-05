@@ -2219,8 +2219,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         builder.cbranch(is_null, end, loop)
 
         builder.position_at_start(end)
-        final_count = builder.load(counter, "final_count")
-        builder.ret(final_count)
+        builder.ret(count_val)
 
         return func
 
