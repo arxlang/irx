@@ -1943,6 +1943,143 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralDict) -> None:
+        """Lower a LiteralDict to LLVM IR."""
+
+        def _sort_key(
+            lit: astx.Literal,
+        ) -> tuple[str, int | str]:
+            tname = type(lit).__name__
+            val = getattr(lit, "value", None)
+            if isinstance(val, (int, str)):
+                return (tname, val)
+            return (tname, repr(lit))
+
+        items_sorted = sorted(
+            node.elements.items(), key=lambda kv: _sort_key(kv[0])
+        )
+
+        # Lower keys and values
+        llvm_keys: list[ir.Value] = []
+        llvm_vals: list[ir.Value] = []
+        for k_lit, v_lit in items_sorted:
+            self.visit(k_lit)
+            k_val = self.result_stack.pop()
+            if k_val is None:
+                raise Exception(
+                    "LiteralDict: failed to lower a key."
+                )
+            self.visit(v_lit)
+            v_val = self.result_stack.pop()
+            if v_val is None:
+                raise Exception(
+                    "LiteralDict: failed to lower a value."
+                )
+            llvm_keys.append(k_val)
+            llvm_vals.append(v_val)
+
+        n = len(llvm_keys)
+
+        # Empty dict: [0 x {i32, i32}]
+        if n == 0:
+            pair_ty = ir.LiteralStructType(
+                [self._llvm.INT32_TYPE, self._llvm.INT32_TYPE]
+            )
+            arr_ty = ir.ArrayType(pair_ty, 0)
+            self.result_stack.append(ir.Constant(arr_ty, []))
+            return
+
+        k_ty0, v_ty0 = llvm_keys[0].type, llvm_vals[0].type
+        k_homog = all(v.type == k_ty0 for v in llvm_keys)
+        v_homog = all(v.type == v_ty0 for v in llvm_vals)
+        all_const = all(
+            isinstance(v, ir.Constant)
+            for v in llvm_keys + llvm_vals
+        )
+
+        # Homogeneous constant keys & values -> constant array
+        k_is_int = all(is_int_type(k.type) for k in llvm_keys)
+        v_is_int = all(is_int_type(v.type) for v in llvm_vals)
+        if k_homog and v_homog and all_const and k_is_int and v_is_int:
+            pair_ty = ir.LiteralStructType([k_ty0, v_ty0])
+            arr_ty = ir.ArrayType(pair_ty, n)
+            const_pairs = [
+                ir.Constant(pair_ty, [k, v])
+                for k, v in zip(llvm_keys, llvm_vals)
+            ]
+            self.result_stack.append(
+                ir.Constant(arr_ty, const_pairs)
+            )
+            return
+
+        # Mixed-width integer keys/values -> alloca + sext + stores
+        all_int_keys = all(
+            isinstance(k.type, ir.IntType) for k in llvm_keys
+        )
+        all_int_vals = all(
+            isinstance(v.type, ir.IntType) for v in llvm_vals
+        )
+        if all_int_keys and all_int_vals:
+            widest_k = max(
+                k.type.width for k in llvm_keys  # type: ignore[union-attr]
+            )
+            widest_v = max(
+                v.type.width for v in llvm_vals  # type: ignore[union-attr]
+            )
+            k_ty = ir.IntType(widest_k)
+            v_ty = ir.IntType(widest_v)
+            pair_ty = ir.LiteralStructType([k_ty, v_ty])
+            arr_ty = ir.ArrayType(pair_ty, n)
+
+            entry_bb = (
+                self._llvm.ir_builder.function.entry_basic_block
+            )
+            cur_bb = self._llvm.ir_builder.block
+            self._llvm.ir_builder.position_at_start(entry_bb)
+            alloca = self._llvm.ir_builder.alloca(
+                arr_ty, name="dict.lit"
+            )
+            self._llvm.ir_builder.position_at_end(cur_bb)
+
+            i32 = ir.IntType(32)
+            for i, (k, v) in enumerate(
+                zip(llvm_keys, llvm_vals)
+            ):
+                if k.type != k_ty:
+                    k = self._llvm.ir_builder.sext(
+                        k, k_ty, name=f"dict_k_sext{i}"
+                    )
+                if v.type != v_ty:
+                    v = self._llvm.ir_builder.sext(
+                        v, v_ty, name=f"dict_v_sext{i}"
+                    )
+                elem_ptr = self._llvm.ir_builder.gep(
+                    alloca,
+                    [ir.Constant(i32, 0), ir.Constant(i32, i)],
+                    inbounds=True,
+                )
+                key_ptr = self._llvm.ir_builder.gep(
+                    elem_ptr,
+                    [ir.Constant(i32, 0), ir.Constant(i32, 0)],
+                    inbounds=True,
+                )
+                self._llvm.ir_builder.store(k, key_ptr)
+                val_ptr = self._llvm.ir_builder.gep(
+                    elem_ptr,
+                    [ir.Constant(i32, 0), ir.Constant(i32, 1)],
+                    inbounds=True,
+                )
+                self._llvm.ir_builder.store(v, val_ptr)
+
+            self.result_stack.append(alloca)
+            return
+
+        raise TypeError(
+            "LiteralDict: only empty, homogeneous constant, or "
+            "integer key/value entries are supported."
+        )
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
