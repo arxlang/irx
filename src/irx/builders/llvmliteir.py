@@ -1959,9 +1959,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             val = getattr(lit, "value", None)
             if isinstance(val, (int, str)):
                 return (tname, val)
-            raise TypeError(
-                f"LiteralDict: unsupported key type {tname}"
-            )
+            raise TypeError(f"LiteralDict: unsupported key type {tname}")
 
         items_sorted = sorted(
             node.elements.items(), key=lambda kv: _sort_key(kv[0])
