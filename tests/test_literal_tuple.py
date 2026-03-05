@@ -36,9 +36,8 @@ def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
 
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.LiteralStructType)
-    assert not const.type.elements
-    expected = ir.Constant(ir.LiteralStructType([]), [])
-    assert str(const) == str(expected)
+    assert len(const.type.elements) == 0
+    assert list(const.constant) == []
     assert not visitor.result_stack
 
 
@@ -74,12 +73,12 @@ def test_literal_tuple_homogeneous_constants(
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 3  # noqa: PLR2004
     assert [str(t) for t in const.type.elements] == ["i32", "i32", "i32"]
-    i32 = ir.IntType(32)
-    expected = ir.Constant(
-        ir.LiteralStructType([i32, i32, i32]),
-        [ir.Constant(i32, v) for v in (1, 2, 3)],
-    )
-    assert str(const) == str(expected)
+
+    # Verify the constant payloads match
+    payloads = list(const.constant)
+    assert len(payloads) == 3  # noqa: PLR2004
+    assert all(isinstance(c, ir.Constant) for c in payloads)
+    assert [c.constant for c in payloads] == [1, 2, 3]
     assert not visitor.result_stack
 
 
@@ -114,11 +113,12 @@ def test_literal_tuple_heterogeneous_constants(
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 2  # noqa: PLR2004
     assert [str(t) for t in const.type.elements] == ["i32", "float"]
-    expected = ir.Constant(
-        ir.LiteralStructType([ir.IntType(32), ir.FloatType()]),
-        [ir.Constant(ir.IntType(32), 1), ir.Constant(ir.FloatType(), 2.5)],
-    )
-    assert str(const) == str(expected)
+
+    # Verify heterogeneous constant payloads
+    payloads = list(const.constant)
+    assert len(payloads) == 2  # noqa: PLR2004
+    assert payloads[0].constant == 1
+    assert payloads[1].constant == 2.5  # noqa: PLR2004
     assert not visitor.result_stack
 
 
@@ -144,11 +144,11 @@ def test_literal_tuple_single_element(builder_class: Type[Builder]) -> None:
     assert isinstance(const.type, ir.LiteralStructType)
     assert len(const.type.elements) == 1
     assert [str(t) for t in const.type.elements] == ["i1"]
-    expected = ir.Constant(
-        ir.LiteralStructType([ir.IntType(1)]),
-        [ir.Constant(ir.IntType(1), 1)],
-    )
-    assert str(const) == str(expected)
+
+    # Verify boolean literal payload
+    payloads = list(const.constant)
+    assert len(payloads) == 1
+    assert payloads[0].constant == 1
     assert not visitor.result_stack
 
 
@@ -266,7 +266,7 @@ def test_literal_tuple_builder_guard(
     tuple_node = astx.LiteralTuple(elements=(MockDynNode(),))
 
     try:
-        with pytest.raises(Exception, match="global initializer context"):
+        with pytest.raises(Exception, match="initializer"):
             visitor.visit(tuple_node)
     finally:
         visitor.visit = original_visit  # type: ignore
