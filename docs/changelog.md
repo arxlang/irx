@@ -1,6 +1,18 @@
 # Release Notes
 ---
 
+# [1.8.0](https://github.com/arxlang/irx/compare/1.7.0...1.8.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* Add option for -no-pie compilation ([#203](https://github.com/arxlang/irx/issues/203)) ([168edd9](https://github.com/arxlang/irx/commit/168edd9e9f84079a24ecb375aa40c17945fdb6fb))
+
+
+### Features
+
+* add LiteralTime support ([5c88e1e](https://github.com/arxlang/irx/commit/5c88e1e1abaa9286044c2973b51c8fb75a339498))
+
 # [1.7.0](https://github.com/arxlang/irx/compare/1.6.0...1.7.0) (2026-03-06)
 
 
