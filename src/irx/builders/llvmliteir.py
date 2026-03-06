@@ -2017,7 +2017,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.INT32_TYPE, [self._llvm.ASCII_STRING_TYPE]
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
-        func.linkage = "external"
+        block = func.append_basic_block("entry")
+        builder = ir.IRBuilder(block)
+        strlen_func = self._create_strlen_inline()
+        result = builder.call(strlen_func, [func.args[0]], "len")
+        builder.ret(result)
         return func
 
     def _create_string_equals_function(self) -> ir.Function:
@@ -2036,7 +2040,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
-        func.linkage = "external"
+
+        block = func.append_basic_block("entry")
+        builder = ir.IRBuilder(block)
+        strcmp_func = self._create_strcmp_inline()
+        result = builder.call(strcmp_func, [func.args[0], func.args[1]], "cmp")
+        builder.ret(result)
         return func
 
     def _create_string_substring_function(self) -> ir.Function:
@@ -2102,7 +2111,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         entry = func.append_basic_block("entry")
         builder = ir.IRBuilder(entry)
 
-        strlen_func = self._create_strlen_inline()
+        strlen_func = self._create_string_length_function()
         len1 = builder.call(strlen_func, [func.args[0]], "len1")
         len2 = builder.call(strlen_func, [func.args[1]], "len2")
 
@@ -2306,14 +2315,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: ir.Value
         """
         if op == "==":
-            strcmp_func = self._create_strcmp_inline()
+            equals_func = self._create_string_equals_function()
             return self._llvm.ir_builder.call(
-                strcmp_func, [lhs, rhs], "str_equals"
+                equals_func, [lhs, rhs], "str_equals"
             )
         elif op == "!=":
-            strcmp_func = self._create_strcmp_inline()
+            equals_func = self._create_string_equals_function()
             equals_result = self._llvm.ir_builder.call(
-                strcmp_func, [lhs, rhs], "str_equals"
+                equals_func, [lhs, rhs], "str_equals"
             )
             return self._llvm.ir_builder.xor(
                 equals_result,
