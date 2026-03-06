@@ -10,7 +10,7 @@ license = "BSD 3 Clause"
 requires-python = ">=3.10,<4"
 dependencies = [
   "atpublic >= 4.0",
-  "astx (>=0.23.1)",
+  "astx (>=0.24.0)",
   "llvmlite  >= 0.44.0",
   "plum-dispatch >= 2.2.2",
   "xhell (>=0.2.1)",
