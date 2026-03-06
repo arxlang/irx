@@ -3630,18 +3630,24 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.StructDefStmt
         """
 
+        # Prevent duplicate struct definitions
         if node.name in self.struct_types:
             raise ValueError(f"Struct '{node.name}' already defined.")
 
+        # Create identified struct type
         struct_type = self._llvm.module.context.get_identified_type(node.name)
 
-        field_types = [
-            self._llvm.get_data_type(attr.type_.__class__.__name__.lower())
-            for attr in node.attributes
-        ]
+        # Convert AST field types → LLVM types
+        field_types = []
+        for attr in node.attributes:
+            type_str = attr.type_.__class__.__name__.lower()
+            field_type = self._llvm.get_data_type(type_str)
+            field_types.append(field_type)
 
+        # Set struct body
         struct_type.set_body(*field_types)
 
+        # Register struct
         self.struct_types[node.name] = struct_type
         self.struct_defs[node.name] = node
 
