@@ -16,6 +16,8 @@ via `clang`.
   ([`plum`](https://github.com/beartype/plum)).
 - **Back end:** IR construction and object emission with [llvmlite].
 - **Native build:** links with `clang` to produce an executable.
+- **PIE-friendly objects:** emits PIC-compatible objects by default to work with
+  modern PIE-default linkers.
 - **Supported nodes (subset; exact ASTx class names):**
 
   - **Literals:** `LiteralInt16`, `LiteralInt32`, `LiteralString`
@@ -188,6 +190,19 @@ def test_binary_op_basic():
 - Install a recent LLVM/Clang. On Linux, use distro packages.
 - On macOS, install Xcode CLT.
 - On Windows, ensure LLVM’s `bin` directory is on `PATH`.
+
+### PIE mismatch (`R_X86_64_32 ... can not be used when making a PIE object`)
+
+- This usually means your linker is enforcing PIE while the object was compiled
+  with non-PIE relocations.
+- Current IRx defaults to PIC-compatible object emission, which should work with
+  PIE-default linkers.
+- If you are using an older ARX/IRX stack, update first.
+- If you must link externally as a workaround, use:
+
+  ```bash
+  clang -no-pie file.o -o program
+  ```
 
 ## Platform Notes
 

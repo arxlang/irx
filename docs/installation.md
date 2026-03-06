@@ -52,3 +52,17 @@ $ poetry install
 > ```
 >
 > See the full instructions at: https://irx.arxlang.org/contributing/
+
+## Toolchain notes
+
+IRx emits PIC-compatible object files by default so they can link on toolchains
+that default to PIE executables (common on modern Linux distributions and Conda
+environments).
+
+If you still hit a PIE mismatch linker error (for example `R_X86_64_32` while
+linking), verify you are using a recent IRx/Arx version. As a temporary
+workaround for external/manual linking, use:
+
+```bash
+clang -no-pie file.o -o program
+```
