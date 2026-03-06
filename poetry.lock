@@ -168,21 +168,25 @@ test = ["astroid (>=2,<5)", "pytest (<9.0)", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "astx"
-version = "0.23.1"
+version = "0.24.0"
 description = "ASTx is an agnostic expression structure for AST."
 optional = false
-python-versions = "<4,>=3.9"
+python-versions = "<4,>=3.10"
 groups = ["main"]
 files = [
-    {file = "astx-0.23.1-py3-none-any.whl", hash = "sha256:481cd8701a2aa2c042c0fe74ac7b2e0c7613d13e9b0afe0822789797559908af"},
-    {file = "astx-0.23.1.tar.gz", hash = "sha256:546f45fc44c59a42f4fd8700504a66921cbb94cf0305835a380e1ffb129face0"},
+    {file = "astx-0.24.0-py3-none-any.whl", hash = "sha256:9b078aa6b2a76fe01654a98641281c37ada4a7db112971a2947c9a309b36ef8e"},
+    {file = "astx-0.24.0.tar.gz", hash = "sha256:15dc487b6fd4467e068bf4757563451ecbb04f6c668d341116fdaedf4ec05db5"},
 ]
 
 [package.dependencies]
 atpublic = ">=4.0"
-mermaid-ascii = ">=0.6.1"
 plum-dispatch = ">=2"
 typeguard = ">=4"
+typing-extensions = ">=4"
+
+[package.extras]
+all = ["mermaid-ascii (>=0.6.1)"]
+console = ["mermaid-ascii (>=0.6.1)"]
 
 [[package]]
 name = "async-lru"
@@ -2337,18 +2341,6 @@ groups = ["dev"]
 files = [
     {file = "mergedeep-1.3.4-py3-none-any.whl", hash = "sha256:70775750742b25c0d8f36c55aed03d24c3384d17c951b3175d898bd778ef0307"},
     {file = "mergedeep-1.3.4.tar.gz", hash = "sha256:0096d52e9dad9939c3d975a774666af186eda617e6ca84df4c94dec30004f2a8"},
-]
-
-[[package]]
-name = "mermaid-ascii"
-version = "0.7.0"
-description = "Mermaid-ASCII (GoLang) wrapped in a Python Package"
-optional = false
-python-versions = "<4,>=3.9"
-groups = ["main"]
-files = [
-    {file = "mermaid_ascii-0.7.0-cp314-cp314-manylinux_2_39_x86_64.whl", hash = "sha256:db7e10958a1816b028fee3c0bef9ad849238c7e7af0b2278390e30be41c97870"},
-    {file = "mermaid_ascii-0.7.0.tar.gz", hash = "sha256:5e03519ca7603a197c197ae0764f66b16a1feb8affb8a150285f288e7f4bc1c3"},
 ]
 
 [[package]]
@@ -4654,4 +4646,4 @@ test = ["coverage (>=5.3.1)", "prompt-toolkit (>=3.0.29)", "pygments (>=2.2)", "
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "0ced5f90a6f775a584715e53d241481c6ea54dccf19584bb76894e5a93a26649"
+content-hash = "1057db6901bfc54b2bfbf217aff9f6943f115c4b3336486de7e084e7f6871729"
