@@ -297,9 +297,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.initialize()
 
         self.target: llvm.TargetRef = llvm.Target.from_default_triple()
-        self.target_machine: llvm.TargetMachine = (
-            self.target.create_target_machine(codemodel="small")
-        )
+        try:
+            self.target_machine: llvm.TargetMachine = (
+                self.target.create_target_machine(
+                    codemodel="small",
+                    reloc="pic",
+                )
+            )
+        except TypeError:
+            # Older llvmlite versions may not expose reloc in Python bindings.
+            self.target_machine = self.target.create_target_machine(
+                codemodel="small"
+            )
 
         self._llvm.module.triple = self.target_machine.triple
         self._llvm.module.data_layout = str(self.target_machine.target_data)
