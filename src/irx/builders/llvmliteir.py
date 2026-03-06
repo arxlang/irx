@@ -122,14 +122,16 @@ def splat_scalar(
 
 
 @typechecked
-def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
+def safe_pop(
+    lst: list[ir.Value | ir.Function],
+) -> Optional[ir.Value | ir.Function]:
     """
     title: Implement a safe pop operation for lists.
     parameters:
       lst:
         type: list[ir.Value | ir.Function]
     returns:
-      type: ir.Value | ir.Function
+      type: Optional[ir.Value | ir.Function]
     """
     try:
         return lst.pop()
@@ -473,13 +475,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: Any
           description: An llvm allocation instance.
         """
+        current_block = self._llvm.ir_builder.block
         self._llvm.ir_builder.position_at_start(
             self._llvm.ir_builder.function.entry_basic_block
         )
         alloca = self._llvm.ir_builder.alloca(
             self._llvm.get_data_type(type_name), None, var_name
         )
-        self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
+        if current_block is not None:
+            self._llvm.ir_builder.position_at_end(current_block)
         return alloca
 
     def fp_rank(self, t: ir.Type) -> int:

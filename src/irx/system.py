@@ -33,6 +33,7 @@ class PrintExpr(astx.Expr):
           message:
             type: astx.Expr
         """
+        super().__init__()
         self.message: astx.Expr = message
         self._name: str = f"print_msg_{next(PrintExpr._counter)}"
 
@@ -66,6 +67,7 @@ class Cast(astx.Expr):
     target_type: Any = astx.LiteralNone()
 
     def __init__(self, value: astx.AST, target_type: Any) -> None:
+        super().__init__()
         self.value: astx.AST = value
         self.target_type: Any = target_type
 
