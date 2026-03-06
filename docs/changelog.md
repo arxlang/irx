@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+## [1.8.1](https://github.com/arxlang/irx/compare/1.8.0...1.8.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* Update astx; mermaid-ascii is optional now ([#206](https://github.com/arxlang/irx/issues/206)) ([511efba](https://github.com/arxlang/irx/commit/511efbac43b16af56d6a6179ffdc62f3dd6439b5))
+
 # [1.8.0](https://github.com/arxlang/irx/compare/1.7.0...1.8.0) (2026-03-06)
 
 
