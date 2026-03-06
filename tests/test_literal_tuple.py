@@ -1,4 +1,6 @@
-"""Tests for LiteralTuple lowering using project conventions."""
+"""
+title: Tests for LiteralTuple lowering using project conventions.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +15,12 @@ from llvmlite import ir
 
 
 def _assert_unpacked_literal_struct(alloca: ir.AllocaInstr) -> None:
-    """Assert alloca points to an unpacked literal struct."""
+    """
+    title: Assert alloca points to an unpacked literal struct.
+    parameters:
+      alloca:
+        type: ir.AllocaInstr
+    """
     assert isinstance(alloca, ir.AllocaInstr)
     pointee = alloca.type.pointee
     assert isinstance(pointee, ir.LiteralStructType)
@@ -21,12 +28,22 @@ def _assert_unpacked_literal_struct(alloca: ir.AllocaInstr) -> None:
 
 
 def _assert_empty_stack(visitor: LLVMLiteIRVisitor) -> None:
-    """Assert translator result stack is empty after evaluation."""
+    """
+    title: Assert translator result stack is empty after evaluation.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     assert len(visitor.result_stack) == 0
 
 
 def _setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
-    """Create a dummy function so the visitor can emit alloca instructions."""
+    """
+    title: Create a dummy function so the visitor can emit alloca instructions.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     fn_ty = ir.FunctionType(ir.VoidType(), [])
     fn = ir.Function(visitor._llvm.module, fn_ty, "test_tuple_fn")
     bb = fn.append_basic_block("entry")
@@ -35,7 +52,12 @@ def _setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
-    """Empty tuple lowers to alloca of {} (empty literal struct)."""
+    """
+    title: Empty tuple lowers to alloca of empty literal struct.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -53,7 +75,12 @@ def test_literal_tuple_empty(builder_class: Type[Builder]) -> None:
 def test_literal_tuple_homogeneous_ints(
     builder_class: Type[Builder],
 ) -> None:
-    """Homogeneous integer constants lower to alloca of struct."""
+    """
+    title: Homogeneous integer constants lower to alloca of struct.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -85,7 +112,12 @@ def test_literal_tuple_homogeneous_ints(
 def test_literal_tuple_heterogeneous(
     builder_class: Type[Builder],
 ) -> None:
-    """Heterogeneous tuple (int, float) lowers to alloca of struct."""
+    """
+    title: Heterogeneous tuple lowers to alloca of struct.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -115,7 +147,12 @@ def test_literal_tuple_heterogeneous(
 def test_literal_tuple_single_element(
     builder_class: Type[Builder],
 ) -> None:
-    """Single-element tuple lowers to alloca of struct {i32}."""
+    """
+    title: Single-element tuple lowers to alloca of struct.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()

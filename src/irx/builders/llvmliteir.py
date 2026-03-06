@@ -1944,7 +1944,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
     def _ensure_function_context(self) -> None:
-        """Ensure tuple lowering occurs inside a function."""
+        """
+        title: Ensure tuple lowering occurs inside a function.
+        raises:
+          RuntimeError: >-
+            LiteralTuple lowering happens without an active function.
+        """
         if self._llvm.ir_builder.function is None:
             raise RuntimeError(
                 "LiteralTuple must be lowered inside a function"
@@ -1952,17 +1957,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralTuple) -> None:
-        """Lower a LiteralTuple to LLVM IR.
-
-        Representation
-        --------------
-        Always materialises an ``alloca`` in the function entry block and
-        stores each element.  The *pointer* is pushed onto the result
-        stack, giving downstream code a uniform aggregate representation
-        (GEP + load) regardless of whether elements are constant.
-
-        Tuples are heterogeneous and ordered, so they are modelled as a
-        literal struct rather than an array.
+        """
+        title: Lower a LiteralTuple to LLVM IR.
+        summary: >-
+          Always materialises an alloca in the function entry block and stores
+          each element. The pointer is pushed onto the result stack so
+          downstream code can use a uniform aggregate representation. Tuples
+          are heterogeneous and ordered, so they are modelled as a literal
+          struct rather than an array.
+        parameters:
+          node:
+            type: astx.LiteralTuple
         """
         # 1) Lower every element
         llvm_vals: list[ir.Value] = []
