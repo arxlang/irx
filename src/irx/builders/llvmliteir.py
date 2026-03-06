@@ -343,6 +343,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: RuntimeFeatureState
       const_vars:
         type: set[str]
+      struct_types:
+        type: dict[str, ir.IdentifiedStructType]
+      struct_defs:
+        type: dict[str, astx.StructDefStmt]
       _fast_math_enabled:
         type: bool
       target:
@@ -377,6 +381,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+
+        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
+        self.struct_defs: dict[str, astx.StructDefStmt] = {}
+
         self._fast_math_enabled: bool = False
 
         self.initialize()
@@ -3611,6 +3619,35 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.mutability == astx.MutabilityKind.constant:
             self.const_vars.add(node.name)
         self.named_values[node.name] = alloca
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StructDefStmt) -> None:
+        """
+        title: Struct Definition Codegen
+        summary: Translate ASTx StructDefStmt to LLVM-IR.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        """
+
+        # Prevent redefining the same struct
+        if node.name in self.struct_types:
+            raise ValueError(f"Struct '{node.name}' already defined.")
+
+        # Create LLVM identified struct type
+        struct_type = self._llvm.module.context.get_identified_type(node.name)
+
+        # Convert AST field types to LLVM types
+        field_types = [
+            self._llvm.get_data_type(attr.type_) for attr in node.attributes
+        ]
+
+        # Set the struct body
+        struct_type.set_body(*field_types)
+
+        # Register struct type and definition
+        self.struct_types[node.name] = struct_type
+        self.struct_defs[node.name] = node
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralInt16) -> None:
