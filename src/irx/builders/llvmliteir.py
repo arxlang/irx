@@ -2070,6 +2070,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return func
 
     def _create_string_substring_function(self) -> ir.Function:
+        """
+        title: Create a string substring function.
+        returns:
+          type: ir.Function
+        """
         func_name = "string_substring"
         if func_name in self._llvm.module.globals:
             return self._llvm.module.get_global(func_name)
