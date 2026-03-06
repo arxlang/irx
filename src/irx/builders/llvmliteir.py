@@ -168,6 +168,8 @@ class VariablesLLVM:
         type: ir.types.Type
       UTF8_STRING_TYPE:
         type: ir.types.Type
+      TIME_TYPE:
+        type: ir.types.Type
       TIMESTAMP_TYPE:
         type: ir.types.Type
       DATETIME_TYPE:
@@ -196,6 +198,7 @@ class VariablesLLVM:
     STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
+    TIME_TYPE: ir.types.Type
     TIMESTAMP_TYPE: ir.types.Type
     DATETIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
@@ -387,6 +390,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
         # Composite types
+        self._llvm.TIME_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
         self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
             [
                 self._llvm.INT32_TYPE,
@@ -1710,6 +1720,81 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         utf8_literal = astx.LiteralUTF8String(value=expr.value)
         self.visit(utf8_literal)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTime) -> None:
+        """
+        title: Lower a LiteralTime to LLVM IR.
+        summary: >-
+          Representation: { i32 hour, i32 minute, i32 second } emitted as a
+          constant struct. Accepted formats are HH:MM and HH:MM:SS.
+        parameters:
+          node:
+            type: astx.LiteralTime
+        """
+        s = node.value.strip()
+
+        parts = s.split(":")
+        if len(parts) not in (2, 3):
+            raise Exception(
+                f"LiteralTime: invalid time format '{node.value}'. "
+                "Expected 'HH:MM' or 'HH:MM:SS'."
+            )
+
+        # Parse hour, minute
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except Exception as exc:
+            raise Exception(
+                f"LiteralTime: invalid hour/minute in '{node.value}'."
+            ) from exc
+
+        # Parse second (optional)
+        if len(parts) == 3:  # noqa: PLR2004
+            sec_part = parts[2]
+            if "." in sec_part:
+                raise Exception(
+                    "LiteralTime: fractional seconds "
+                    f"not supported in '{node.value}'."
+                )
+            try:
+                second = int(sec_part)
+            except Exception as exc:
+                raise Exception(
+                    f"LiteralTime: invalid seconds in '{node.value}'."
+                ) from exc
+        else:
+            second = 0
+
+        # Range checks
+        MAX_HOUR = 23
+        MAX_MINUTE = 59
+        MAX_SECOND = 59
+        if not (0 <= hour <= MAX_HOUR):
+            raise Exception(
+                f"LiteralTime: hour out of range in '{node.value}'."
+            )
+        if not (0 <= minute <= MAX_MINUTE):
+            raise Exception(
+                f"LiteralTime: minute out of range in '{node.value}'."
+            )
+        if not (0 <= second <= MAX_SECOND):
+            raise Exception(
+                f"LiteralTime: second out of range in '{node.value}'."
+            )
+
+        # Build constant struct { i32, i32, i32 }
+        i32 = self._llvm.INT32_TYPE
+        const_time = ir.Constant(
+            self._llvm.TIME_TYPE,
+            [
+                ir.Constant(i32, hour),
+                ir.Constant(i32, minute),
+                ir.Constant(i32, second),
+            ],
+        )
+        self.result_stack.append(const_time)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralTimestamp) -> None:
