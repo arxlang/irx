@@ -2728,35 +2728,38 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           node:
             type: system.PrintExpr
         """
-        if hasattr(node.message, "value"):
-            # For literal strings/values
-            message = node.message.value
-            msg_length = len(message) + 1
-            msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
+        self.visit(node.message)
+        message_value = safe_pop(self.result_stack)
+        if message_value is None:
+            raise Exception("Invalid message in PrintExpr")
 
-            global_msg = ir.GlobalVariable(
-                self._llvm.module, msg_type, name=node._name
-            )
-            global_msg.linkage = "internal"
-            global_msg.global_constant = True
-            global_msg.initializer = ir.Constant(
-                msg_type, bytearray(message + "\0", "utf8")
-            )
-
-            ptr = self._llvm.ir_builder.gep(
-                global_msg,
-                [
-                    ir.Constant(ir.IntType(32), 0),
-                    ir.Constant(ir.IntType(32), 0),
-                ],
-                inbounds=True,
-            )
+        message_type = message_value.type
+        ptr: ir.Value
+        if (
+            isinstance(message_type, ir.PointerType)
+            and message_type.pointee == self._llvm.INT8_TYPE
+        ):
+            ptr = message_value
+        elif is_int_type(message_type):
+            int_arg, int_fmt = self._normalize_int_for_printf(message_value)
+            int_fmt_gv = self._get_or_create_format_global(int_fmt)
+            ptr = self._snprintf_heap(int_fmt_gv, [int_arg])
+        elif isinstance(
+            message_type, (ir.HalfType, ir.FloatType, ir.DoubleType)
+        ):
+            float_arg: ir.Value
+            if isinstance(message_type, (ir.HalfType, ir.FloatType)):
+                float_arg = self._llvm.ir_builder.fpext(
+                    message_value, self._llvm.DOUBLE_TYPE, "print_to_double"
+                )
+            else:
+                float_arg = message_value
+            float_fmt_gv = self._get_or_create_format_global("%.6f")
+            ptr = self._snprintf_heap(float_fmt_gv, [float_arg])
         else:
-            # For variables and other expressions
-            self.visit(node.message)
-            ptr = safe_pop(self.result_stack)
-            if not ptr:
-                raise Exception("Invalid message in PrintExpr")
+            raise Exception(
+                f"Unsupported message type in PrintExpr: {message_type}"
+            )
 
         puts_fn = self._llvm.module.globals.get("puts")
         if puts_fn is None:
