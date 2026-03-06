@@ -116,6 +116,7 @@ Use this guidance for any change inside the IRx repository:
   - follow SOLID principles
   - prefer the Never Nest philosophy as much as possible
   - do not reuse the same variable for different types
+  - avoid unnecessary or obvious comments in code
 
 ### Python docstring convention in this repo
 
