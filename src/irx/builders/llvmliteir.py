@@ -1111,6 +1111,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(cmp_result)
             return
 
+        elif node.op_code == "substr":
+            SUBSTR_ARG_COUNT = 2
+            if not (
+                isinstance(llvm_lhs.type, ir.PointerType)
+                and llvm_lhs.type.pointee == self._llvm.INT8_TYPE
+            ):
+                raise Exception("substr: lhs must be a string (i8*)")
+
+            if not (
+                isinstance(llvm_rhs.type, ir.ArrayType)
+                and llvm_rhs.type.count == SUBSTR_ARG_COUNT
+            ):
+                raise Exception(
+                    "substr: rhs must be a 2-element array [start, length]"
+                )
+
+            start_val = self._llvm.ir_builder.extract_value(
+                llvm_rhs, [0], "substr_start"
+            )
+            len_val = self._llvm.ir_builder.extract_value(
+                llvm_rhs, [1], "substr_len"
+            )
+            substr_func = self._create_string_substring_function()
+
+            result = self._llvm.ir_builder.call(
+                substr_func, [llvm_lhs, start_val, len_val], "substr_result"
+            )
+            self.result_stack.append(result)
+            return
+
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
@@ -2040,11 +2070,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return func
 
     def _create_string_substring_function(self) -> ir.Function:
-        """
-        title: Create a string substring function.
-        returns:
-          type: ir.Function
-        """
         func_name = "string_substring"
         if func_name in self._llvm.module.globals:
             return self._llvm.module.get_global(func_name)
@@ -2059,7 +2084,48 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             ],
         )
         func = ir.Function(self._llvm.module, func_type, func_name)
-        func.linkage = "external"
+
+        entry = func.append_basic_block("entry")
+        builder = ir.IRBuilder(entry)
+
+        src, start, length = func.args[0], func.args[1], func.args[2]
+
+        malloc = self._create_malloc_decl()
+        length_plus_1 = builder.add(
+            length, ir.Constant(self._llvm.INT32_TYPE, 1)
+        )
+        length_szt = builder.zext(length_plus_1, self._llvm.SIZE_T_TYPE)
+        result_ptr = builder.call(malloc, [length_szt], "substr_buf")
+
+        # src_start = src + start
+        src_start = builder.gep(src, [start], inbounds=True)
+
+        loop_bb = func.append_basic_block("substr_loop")
+        end_bb = func.append_basic_block("substr_end")
+
+        idx = builder.alloca(self._llvm.INT32_TYPE, name="substr_idx")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), idx)
+        builder.branch(loop_bb)
+
+        builder.position_at_start(loop_bb)
+        idx_val = builder.load(idx, "idx_val")
+        at_end = builder.icmp_signed("==", idx_val, length, "at_end")
+
+        copy_bb = func.append_basic_block("substr_copy")
+        builder.cbranch(at_end, end_bb, copy_bb)
+
+        builder.position_at_start(copy_bb)
+        src_ptr = builder.gep(src_start, [idx_val], inbounds=True)
+        dst_ptr = builder.gep(result_ptr, [idx_val], inbounds=True)
+        builder.store(builder.load(src_ptr, "ch"), dst_ptr)
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, idx)
+        builder.branch(loop_bb)
+
+        builder.position_at_start(end_bb)
+        null_ptr = builder.gep(result_ptr, [length], inbounds=True)
+        builder.store(ir.Constant(self._llvm.INT8_TYPE, 0), null_ptr)
+        builder.ret(result_ptr)
         return func
 
     def _handle_string_concatenation(
