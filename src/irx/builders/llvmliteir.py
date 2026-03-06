@@ -122,14 +122,16 @@ def splat_scalar(
 
 
 @typechecked
-def safe_pop(lst: list[ir.Value | ir.Function]) -> ir.Value | ir.Function:
+def safe_pop(
+    lst: list[ir.Value | ir.Function],
+) -> Optional[ir.Value | ir.Function]:
     """
     title: Implement a safe pop operation for lists.
     parameters:
       lst:
         type: list[ir.Value | ir.Function]
     returns:
-      type: ir.Value | ir.Function
+      type: Optional[ir.Value | ir.Function]
     """
     try:
         return lst.pop()
@@ -473,13 +475,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: Any
           description: An llvm allocation instance.
         """
+        current_block = self._llvm.ir_builder.block
         self._llvm.ir_builder.position_at_start(
             self._llvm.ir_builder.function.entry_basic_block
         )
         alloca = self._llvm.ir_builder.alloca(
             self._llvm.get_data_type(type_name), None, var_name
         )
-        self._llvm.ir_builder.position_at_end(self._llvm.ir_builder.block)
+        if current_block is not None:
+            self._llvm.ir_builder.position_at_end(current_block)
         return alloca
 
     def fp_rank(self, t: ir.Type) -> int:
@@ -1117,14 +1121,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           block:
             type: astx.Block
         """
-        result = None
+        result: Optional[ir.Value | ir.Function] = None
         for node in block.nodes:
+            if self._llvm.ir_builder.block.terminator is not None:
+                break
+
+            stack_size_before = len(self.result_stack)
             self.visit(node)
-            try:
+            if len(self.result_stack) > stack_size_before:
                 result = self.result_stack.pop()
-            except IndexError:
-                # some nodes doesn't add anything in the stack
-                pass
+
+            if self._llvm.ir_builder.block.terminator is not None:
+                result = None
+                break
+
         if result is not None:
             self.result_stack.append(result)
 
@@ -1137,7 +1147,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.IfStmt
         """
         self.visit(node.condition)
-        cond_v = self.result_stack.pop()
+        cond_v = safe_pop(self.result_stack)
         if not cond_v:
             raise Exception("codegen: Invalid condition expression.")
 
@@ -1167,38 +1177,68 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.cbranch(cond_v, then_bb, else_bb)
 
-        # Emit then value.
+        # Emit then branch.
         self._llvm.ir_builder.position_at_start(then_bb)
+        then_stack_size = len(self.result_stack)
         self.visit(node.then)
-        then_v = self.result_stack.pop()
-        if not then_v:
-            raise Exception("codegen: `Then` expression is invalid.")
-
-        self._llvm.ir_builder.branch(merge_bb)
-
-        # Update reference to final block of 'then'
-        then_bb = self._llvm.ir_builder.block
+        then_terminated = self._llvm.ir_builder.block.terminator is not None
+        then_v: Optional[ir.Value | ir.Function] = None
+        if len(self.result_stack) > then_stack_size:
+            then_v = self.result_stack.pop()
+        if not then_terminated:
+            self._llvm.ir_builder.branch(merge_bb)
+            then_bb = self._llvm.ir_builder.block
 
         # Emit else block.
         self._llvm.ir_builder.position_at_start(else_bb)
-        else_v = None
+        else_stack_size = len(self.result_stack)
         if node.else_ is not None:
             self.visit(node.else_)
+        else_terminated = self._llvm.ir_builder.block.terminator is not None
+        else_v: Optional[ir.Value | ir.Function] = None
+        if len(self.result_stack) > else_stack_size:
             else_v = self.result_stack.pop()
-        else:
-            else_v = ir.Constant(self._llvm.INT32_TYPE, 0)
+        if not else_terminated:
+            self._llvm.ir_builder.branch(merge_bb)
+            else_bb = self._llvm.ir_builder.block
 
-        # Update reference to final block of 'else'
-        else_bb = self._llvm.ir_builder.block
-        self._llvm.ir_builder.branch(merge_bb)
+        then_reaches_merge = not then_terminated
+        else_reaches_merge = not else_terminated
+        if not then_reaches_merge and not else_reaches_merge:
+            self._llvm.ir_builder.position_at_start(merge_bb)
+            self._llvm.ir_builder.unreachable()
+            return
 
-        # Emit merge block and PHI node
+        # Emit merge block and PHI node when both branches produce compatible
+        # values and can reach the merge block.
         self._llvm.ir_builder.position_at_start(merge_bb)
-        phi = self._llvm.ir_builder.phi(self._llvm.INT32_TYPE, "iftmp")
-        phi.add_incoming(then_v, then_bb)
-        phi.add_incoming(else_v, else_bb)
+        if (
+            then_reaches_merge
+            and else_reaches_merge
+            and then_v is not None
+            and else_v is not None
+            and then_v.type == else_v.type
+        ):
+            phi = self._llvm.ir_builder.phi(then_v.type, "iftmp")
+            phi.add_incoming(then_v, then_bb)
+            phi.add_incoming(else_v, else_bb)
+            self.result_stack.append(phi)
+            return
 
-        self.result_stack.append(phi)
+        if (
+            then_reaches_merge
+            and not else_reaches_merge
+            and then_v is not None
+        ):
+            self.result_stack.append(then_v)
+            return
+
+        if (
+            else_reaches_merge
+            and not then_reaches_merge
+            and else_v is not None
+        ):
+            self.result_stack.append(else_v)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.WhileStmt) -> None:
@@ -2688,35 +2728,38 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           node:
             type: system.PrintExpr
         """
-        if hasattr(node.message, "value"):
-            # For literal strings/values
-            message = node.message.value
-            msg_length = len(message) + 1
-            msg_type = ir.ArrayType(self._llvm.INT8_TYPE, msg_length)
+        self.visit(node.message)
+        message_value = safe_pop(self.result_stack)
+        if message_value is None:
+            raise Exception("Invalid message in PrintExpr")
 
-            global_msg = ir.GlobalVariable(
-                self._llvm.module, msg_type, name=node._name
-            )
-            global_msg.linkage = "internal"
-            global_msg.global_constant = True
-            global_msg.initializer = ir.Constant(
-                msg_type, bytearray(message + "\0", "utf8")
-            )
-
-            ptr = self._llvm.ir_builder.gep(
-                global_msg,
-                [
-                    ir.Constant(ir.IntType(32), 0),
-                    ir.Constant(ir.IntType(32), 0),
-                ],
-                inbounds=True,
-            )
+        message_type = message_value.type
+        ptr: ir.Value
+        if (
+            isinstance(message_type, ir.PointerType)
+            and message_type.pointee == self._llvm.INT8_TYPE
+        ):
+            ptr = message_value
+        elif is_int_type(message_type):
+            int_arg, int_fmt = self._normalize_int_for_printf(message_value)
+            int_fmt_gv = self._get_or_create_format_global(int_fmt)
+            ptr = self._snprintf_heap(int_fmt_gv, [int_arg])
+        elif isinstance(
+            message_type, (ir.HalfType, ir.FloatType, ir.DoubleType)
+        ):
+            float_arg: ir.Value
+            if isinstance(message_type, (ir.HalfType, ir.FloatType)):
+                float_arg = self._llvm.ir_builder.fpext(
+                    message_value, self._llvm.DOUBLE_TYPE, "print_to_double"
+                )
+            else:
+                float_arg = message_value
+            float_fmt_gv = self._get_or_create_format_global("%.6f")
+            ptr = self._snprintf_heap(float_fmt_gv, [float_arg])
         else:
-            # For variables and other expressions
-            self.visit(node.message)
-            ptr = safe_pop(self.result_stack)
-            if not ptr:
-                raise Exception("Invalid message in PrintExpr")
+            raise Exception(
+                f"Unsupported message type in PrintExpr: {message_type}"
+            )
 
         puts_fn = self._llvm.module.globals.get("puts")
         if puts_fn is None:

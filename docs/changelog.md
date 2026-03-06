@@ -1,6 +1,19 @@
 # Release Notes
 ---
 
+# [1.7.0](https://github.com/arxlang/irx/compare/1.6.0...1.7.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* Fix If statement, add tests, add support for python 3.14 ([#195](https://github.com/arxlang/irx/issues/195)) ([a5c4b5d](https://github.com/arxlang/irx/commit/a5c4b5d7151ad6d8113df66c2738711fa053fb4b))
+* Fix print for numeric ([#196](https://github.com/arxlang/irx/issues/196)) ([620afbe](https://github.com/arxlang/irx/commit/620afbe1422d5f8f3938e36e700f034fc0d9aeaf))
+
+
+### Features
+
+* enforce mutability checking for variable declarations in LLVM-IR builder ([#192](https://github.com/arxlang/irx/issues/192)) ([f1f4036](https://github.com/arxlang/irx/commit/f1f4036904d1c70c4c4d6f3689f882f0be5027b7))
+
 # [1.6.0](https://github.com/arxlang/irx/compare/1.5.0...1.6.0) (2026-03-05)
 
 
