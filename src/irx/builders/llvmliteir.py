@@ -1983,6 +1983,67 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported"
         )
 
+    def _ensure_function_context(self) -> None:
+        """
+        title: Ensure tuple lowering occurs inside a function.
+        raises:
+          RuntimeError: >-
+            LiteralTuple lowering happens without an active function.
+        """
+        if self._llvm.ir_builder.function is None:
+            raise RuntimeError(
+                "LiteralTuple must be lowered inside a function"
+            )
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTuple) -> None:
+        """
+        title: Lower a LiteralTuple to LLVM IR.
+        summary: >-
+          Always materialises an alloca in the function entry block and stores
+          each element. The pointer is pushed onto the result stack so
+          downstream code can use a uniform aggregate representation. Tuples
+          are heterogeneous and ordered, so they are modelled as a literal
+          struct rather than an array.
+        parameters:
+          node:
+            type: astx.LiteralTuple
+        """
+        # 1) Lower every element
+        llvm_vals: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralTuple: failed to lower an element.")
+            llvm_vals.append(v)
+
+        # 2) Build the struct type from element value types
+        elem_tys = [v.type for v in llvm_vals]
+        struct_ty = ir.LiteralStructType(elem_tys)
+
+        # 3) Guard: must be inside a function to use alloca
+        self._ensure_function_context()
+
+        # 4) Alloca in the entry block, store each element, push pointer
+        builder = self._llvm.ir_builder
+        entry_bb = builder.function.entry_basic_block
+        cur_bb = builder.block
+        builder.position_at_start(entry_bb)
+        alloca = builder.alloca(struct_ty, name="tuple.lit")
+        builder.position_at_end(cur_bb)
+
+        i32 = ir.IntType(32)
+        for idx, v in enumerate(llvm_vals):
+            field_ptr = builder.gep(
+                alloca,
+                [ir.Constant(i32, 0), ir.Constant(i32, idx)],
+                inbounds=True,
+            )
+            builder.store(v, field_ptr)
+
+        self.result_stack.append(alloca)
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
