@@ -7,9 +7,12 @@ from __future__ import annotations
 from typing import Any, cast
 from unittest.mock import Mock
 
+import pytest
+
 from irx.builders.llvmliteir import (
     LLVMLiteIRVisitor,
     emit_int_div,
+    safe_pop,
     splat_scalar,
 )
 from llvmlite import ir
@@ -113,6 +116,30 @@ def test_emit_int_div_signed_and_unsigned() -> None:
     assert getattr(unsigned, "opname", "") == "udiv"
 
 
+def test_safe_pop_empty_returns_none() -> None:
+    """
+    title: safe_pop should return None when the list is empty.
+    """
+    assert safe_pop([]) is None
+
+
+def test_get_data_type_aliases_and_invalid() -> None:
+    """
+    title: >-
+      VariablesLLVM.get_data_type should resolve aliases and reject invalid.
+    """
+    visitor = LLVMLiteIRVisitor()
+    llvm_vars = visitor._llvm
+
+    assert llvm_vars.get_data_type("float16") == llvm_vars.FLOAT16_TYPE
+    assert llvm_vars.get_data_type("double") == llvm_vars.DOUBLE_TYPE
+    assert llvm_vars.get_data_type("char") == llvm_vars.INT8_TYPE
+    assert llvm_vars.get_data_type("utf8string") == llvm_vars.UTF8_STRING_TYPE
+
+    with pytest.raises(Exception, match="not valid"):
+        llvm_vars.get_data_type("not-a-type")
+
+
 def test_get_size_t_type_from_triple_32bit() -> None:
     """
     title: Test _get_size_t_type_from_triple for 32-bit architectures.
@@ -125,6 +152,20 @@ def test_get_size_t_type_from_triple_32bit() -> None:
 
     size_t_ty = visitor._get_size_t_type_from_triple()
     assert size_t_ty.width == 32  # noqa: PLR2004
+
+
+def test_get_size_t_type_from_triple_32bit_family_with_64_tag() -> None:
+    """
+    title: 32-bit family triples carrying '64' should map to i64.
+    """
+    visitor = LLVMLiteIRVisitor()
+
+    mock_tm = Mock()
+    mock_tm.triple = "arm-unknown-linux-gnu64"
+    visitor.target_machine = mock_tm
+
+    size_t_ty = visitor._get_size_t_type_from_triple()
+    assert size_t_ty.width == 64  # noqa: PLR2004
 
 
 def test_get_size_t_type_from_triple_fallback() -> None:
@@ -141,6 +182,30 @@ def test_get_size_t_type_from_triple_fallback() -> None:
     size_t_ty = visitor._get_size_t_type_from_triple()
     assert isinstance(size_t_ty, ir.IntType)
     assert size_t_ty.width in (32, 64)
+
+
+def test_get_fma_function_vector_half_and_cache() -> None:
+    """
+    title: >-
+      Vector-half FMA intrinsic naming should include lane count and cache.
+    """
+    visitor = LLVMLiteIRVisitor()
+    vec_ty = ir.VectorType(visitor._llvm.FLOAT16_TYPE, 4)
+
+    first = visitor._get_fma_function(vec_ty)
+    second = visitor._get_fma_function(vec_ty)
+
+    assert first.name == "llvm.fma.v4f16"
+    assert first is second
+
+
+def test_get_fma_function_invalid_type_raises() -> None:
+    """
+    title: _get_fma_function should reject non-floating element types.
+    """
+    visitor = LLVMLiteIRVisitor()
+    with pytest.raises(Exception, match="FMA supports only floating-point"):
+        visitor._get_fma_function(ir.IntType(32))
 
 
 def test_scalar_vector_float_conversion_fptrunc() -> None:
@@ -197,8 +262,34 @@ def test_set_fast_math_marks_float_ops() -> None:
     inst_fast = visitor._llvm.ir_builder.fadd(lhs, rhs)
     visitor._apply_fast_math(inst_fast)
     assert "fast" in inst_fast.flags
+    visitor._apply_fast_math(inst_fast)
+    assert "fast" in inst_fast.flags
 
     visitor.set_fast_math(False)
     inst_normal = visitor._llvm.ir_builder.fadd(lhs, rhs)
     visitor._apply_fast_math(inst_normal)
     assert "fast" not in inst_normal.flags
+
+
+def test_apply_fast_math_noop_for_non_fp_values() -> None:
+    """
+    title: _apply_fast_math should no-op for scalar and vector integer ops.
+    """
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+    visitor.set_fast_math(True)
+
+    int_ty = ir.IntType(32)
+    scalar_add = visitor._llvm.ir_builder.add(
+        ir.Constant(int_ty, 1), ir.Constant(int_ty, 2)
+    )
+    visitor._apply_fast_math(scalar_add)
+    assert "fast" not in scalar_add.flags
+
+    vec_ty = ir.VectorType(int_ty, 2)
+    vector_add = visitor._llvm.ir_builder.add(
+        ir.Constant(vec_ty, [1, 2]),
+        ir.Constant(vec_ty, [3, 4]),
+    )
+    visitor._apply_fast_math(vector_add)
+    assert "fast" not in vector_add.flags
