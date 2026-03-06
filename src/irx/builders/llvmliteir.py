@@ -260,7 +260,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: dict[str, astx.FunctionPrototype]
       result_stack:
         type: list[ir.Value | ir.Function]
-      const_vars:
         type: set[str]
       _fast_math_enabled:
         type: bool
@@ -286,7 +285,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # named_values as instance variable so it isn't shared across instances
         self.named_values: dict[str, Any] = {}
-        self.const_vars: set[str] = set()
+        self._const_scopes: list[dict[str, bool]] = [{}]
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
         self._fast_math_enabled: bool = False
@@ -305,6 +304,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.SIZE_T_TYPE = self._get_size_t_type_from_triple()
 
         self._add_builtins()
+
+    def push_const_scope(self) -> None:
+        """Push a new constant scope."""
+        self._const_scopes.append({})
+
+    def pop_const_scope(self) -> None:
+        """Pop the current constant scope."""
+        if len(self._const_scopes) > 1:
+            self._const_scopes.pop()
+        else:
+            self._const_scopes[0].clear()
+
+    def add_const(self, name: str) -> None:
+        """Add a name to the current constant scope."""
+        if self._const_scopes:
+            self._const_scopes[-1][name] = True
+
+    def add_mutable(self, name: str) -> None:
+        """
+        Explicitly declare a name as mutable in the current scope for shadowing.
+        """
+        if self._const_scopes:
+            self._const_scopes[-1][name] = False
+
+    def is_const(self, name: str) -> bool:
+        """Check if a name is constant in any active scope."""
+        for scope in reversed(self._const_scopes):
+            if name in scope:
+                return scope[name]
+        return False
 
     def translate(self, node: astx.AST) -> str:
         """
@@ -682,7 +711,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                if self.is_const(node.operand.name):
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
@@ -701,7 +730,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                if self.is_const(node.operand.name):
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
@@ -721,7 +750,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
 
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                if self.is_const(node.operand.name):
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
@@ -757,7 +786,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 raise Exception("destination of '=' must be a variable")
 
             lhs_name = var_lhs.get_name()
-            if lhs_name in self.const_vars:
+            if self.is_const(lhs_name):
                 raise Exception(
                     f"Cannot assign to '{lhs_name}': declared as constant"
                 )
@@ -1321,7 +1350,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Get the name of the variable to assign to
         var_name = expr.name
 
-        if var_name in self.const_vars:
+        if self.is_const(var_name):
             raise Exception(
                 f"Cannot assign to '{var_name}': declared as constant"
             )
@@ -1398,8 +1427,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
-        self.visit(node.body)
-        _body_val = self.result_stack.pop()
+        self.push_const_scope()
+        try:
+            self.visit(node.body)
+            _body_val = self.result_stack.pop()
+        finally:
+            self.pop_const_scope()
 
         # Emit update expression
         self.visit(node.update)
@@ -1518,8 +1551,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         old_val = self.named_values.get(node.variable.name)
         self.named_values[node.variable.name] = var_addr
 
-        self.visit(node.body)
-        _ = self.result_stack.pop()
+        self.push_const_scope()
+        self.add_mutable(node.variable.name)
+        try:
+            self.visit(node.body)
+            _ = self.result_stack.pop()
+        finally:
+            self.pop_const_scope()
 
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
@@ -2371,6 +2409,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         basic_block = fn.append_basic_block("entry")
         self._llvm.ir_builder = ir.IRBuilder(basic_block)
 
+        old_named_values = self.named_values.copy()
+
         for idx, llvm_arg in enumerate(fn.args):
             arg_ast = proto.args.nodes[idx]
             type_str = arg_ast.type_.__class__.__name__.lower()
@@ -2385,7 +2425,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # Add arguments to variable symbol table.
             self.named_values[llvm_arg.name] = alloca
 
-        self.visit(node.body)
+        self.push_const_scope()
+        for llvm_arg in fn.args:
+            self.add_mutable(llvm_arg.name)
+
+        try:
+            self.visit(node.body)
+        finally:
+            self.pop_const_scope()
+            self.named_values = old_named_values
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
@@ -2475,7 +2523,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.store(init_val, alloca)
         if node.mutability == astx.MutabilityKind.constant:
-            self.const_vars.add(node.name)
+            self.add_const(node.name)
+        else:
+            self.add_mutable(node.name)
         self.named_values[node.name] = alloca
 
         self.result_stack.append(init_val)
@@ -2857,7 +2907,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ir_builder.store(init_val, alloca)
 
         if node.mutability == astx.MutabilityKind.constant:
-            self.const_vars.add(node.name)
+            self.add_const(node.name)
+        else:
+            self.add_mutable(node.name)
         self.named_values[node.name] = alloca
 
     @dispatch  # type: ignore[no-redef]
