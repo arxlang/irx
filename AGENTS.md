@@ -104,7 +104,7 @@ Use this guidance for any change inside the IRx repository:
 
 - Python style:
   - 4-space indentation (`.editorconfig`)
-  - max line length: 79 (`ruff`)
+  - keep lines shorter than 80 characters (`ruff` uses 79)
 - Ruff:
   - `ruff check src tests`
   - `ruff format src tests`
@@ -112,9 +112,15 @@ Use this guidance for any change inside the IRx repository:
   - `mypy` strict mode (`check_untyped_defs = true`, `strict = true`)
 - Pre-commit also runs:
   - `bandit`, `vulture`, `mccabe`, and project hooks
+- Design:
+  - follow SOLID principles
+  - prefer the Never Nest philosophy as much as possible
+  - do not reuse the same variable for different types
 
 ### Python docstring convention in this repo
 
+- Docstrings are written in Douki format:
+  - https://github.com/arxlang/douki/
 - Keep existing docstring style (`title: ...`, optional metadata fields).
 - Preserve docstrings for public-facing symbols when adding/updating code.
 
@@ -176,7 +182,7 @@ makim tests.build-from-ir --file <path-without-extension>
 
 GitHub Actions (`.github/workflows/main.yaml`) runs:
 
-- tests on Python 3.10, 3.11, 3.12, 3.13
+- tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
 - operating systems: ubuntu + windows (windows/3.13 excluded)
 - linter job on ubuntu (Python 3.13) with pre-commit stack
 
