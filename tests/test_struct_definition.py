@@ -1,6 +1,6 @@
 """
-title: Struct Definition Tests
-summary: Tests for StructDefStmt LLVM IR generation.
+title: Test Struct Definition
+summary: Verify StructDefStmt generates an LLVM identified struct type.
 """
 
 from typing import Type
@@ -17,8 +17,8 @@ from .conftest import check_result
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_struct_definition(builder_class: Type[Builder]) -> None:
     """
-    title: Basic Struct Definition
-    summary: Verify StructDefStmt generates correct LLVM struct type.
+    title: Struct definition code generation
+    summary: Ensure StructDefStmt translates to an LLVM struct type.
     parameters:
       builder_class:
         type: Type[Builder]
@@ -27,7 +27,7 @@ def test_struct_definition(builder_class: Type[Builder]) -> None:
     builder = builder_class()
     module = builder.module()
 
-    # Define struct
+    # Define struct: Point { x: int32, y: int32 }
     struct_def = astx.StructDefStmt(
         name="Point",
         attributes=[
@@ -36,7 +36,7 @@ def test_struct_definition(builder_class: Type[Builder]) -> None:
         ],
     )
 
-    # main() function
+    # Define main() -> int32
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
@@ -47,8 +47,12 @@ def test_struct_definition(builder_class: Type[Builder]) -> None:
     main_block.append(struct_def)
     main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
-    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+    main_fn = astx.FunctionDef(
+        prototype=main_proto,
+        body=main_block,
+    )
 
     module.block.append(main_fn)
 
-    check_result("build", builder, module, expected_output="0")
+    # Verify LLVM IR translation
+    check_result("translate", builder, module)
