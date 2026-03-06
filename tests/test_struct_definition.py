@@ -55,4 +55,4 @@ def test_struct_definition(builder_class: Type[Builder]) -> None:
     module.block.append(main_fn)
 
     # Verify LLVM IR translation
-    check_result("translate", builder, module)
+    check_result("build", builder, module, expected_output="0")
