@@ -373,6 +373,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#toolchain-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolchain notes
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -991,6 +1002,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#toolchain-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toolchain notes
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1045,6 +1067,15 @@ poetry<span class="w"> </span>install
 </code></pre></div>
 <p>See the full instructions at: <a href="https://irx.arxlang.org/contributing/">https://irx.arxlang.org/contributing/</a></p>
 </blockquote>
+<h2 id="toolchain-notes">Toolchain notes<a class="headerlink" href="#toolchain-notes" title="Permanent link">&para;</a></h2>
+<p>IRx emits PIC-compatible object files by default so they can link on toolchains
+that default to PIE executables (common on modern Linux distributions and Conda
+environments).</p>
+<p>If you still hit a PIE mismatch linker error (for example <code class="language-python highlight"><span class="n">R_X86_64_32</span></code> while
+linking), verify you are using a recent IRx/Arx version. As a temporary
+workaround for external/manual linking, use:</p>
+<div class="language-bash highlight"><pre><span></span><code>clang<span class="w"> </span>-no-pie<span class="w"> </span>file.o<span class="w"> </span>-o<span class="w"> </span>program
+</code></pre></div>
 
 
 

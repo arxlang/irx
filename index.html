@@ -517,6 +517,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#pie-mismatch-r_x86_64_32-can-not-be-used-when-making-a-pie-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIE mismatch (R_X86_64_32 ... can not be used when making a PIE object)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1395,6 +1406,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#pie-mismatch-r_x86_64_32-can-not-be-used-when-making-a-pie-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIE mismatch (R_X86_64_32 ... can not be used when making a PIE object)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1492,6 +1514,8 @@ supported.</p>
   (<a href="https://github.com/beartype/plum"><code class="language-python highlight"><span class="n">plum</span></code></a>).</li>
 <li><strong>Back end:</strong> IR construction and object emission with <a href="https://llvmlite.readthedocs.io/">llvmlite</a>.</li>
 <li><strong>Native build:</strong> links with <code class="language-python highlight"><span class="n">clang</span></code> to produce an executable.</li>
+<li><strong>PIE-friendly objects:</strong> emits PIC-compatible objects by default to work with
+  modern PIE-default linkers.</li>
 <li>
 <p><strong>Supported nodes (subset; exact ASTx class names):</strong></p>
 </li>
@@ -1653,6 +1677,17 @@ or binary; use it for inspection, tests, or feeding another tool.</p>
 <li>On macOS, install Xcode CLT.</li>
 <li>On Windows, ensure LLVM’s <code class="language-python highlight"><span class="nb">bin</span></code> directory is on <code class="language-python highlight"><span class="n">PATH</span></code>.</li>
 </ul>
+<h3 id="pie-mismatch-r_x86_64_32-can-not-be-used-when-making-a-pie-object">PIE mismatch (<code class="language-python highlight"><span class="n">R_X86_64_32</span> <span class="o">...</span> <span class="n">can</span> <span class="ow">not</span> <span class="n">be</span> <span class="n">used</span> <span class="n">when</span> <span class="n">making</span> <span class="n">a</span> <span class="n">PIE</span> <span class="nb">object</span></code>)<a class="headerlink" href="#pie-mismatch-r_x86_64_32-can-not-be-used-when-making-a-pie-object" title="Permanent link">&para;</a></h3>
+<ul>
+<li>This usually means your linker is enforcing PIE while the object was compiled
+  with non-PIE relocations.</li>
+<li>Current IRx defaults to PIC-compatible object emission, which should work with
+  PIE-default linkers.</li>
+<li>If you are using an older ARX/IRX stack, update first.</li>
+<li>If you must link externally as a workaround, use:</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code>clang<span class="w"> </span>-no-pie<span class="w"> </span>file.o<span class="w"> </span>-o<span class="w"> </span>program
+</code></pre></div>
 <h2 id="platform-notes">Platform Notes<a class="headerlink" href="#platform-notes" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Linux &amp; macOS:</strong> supported and used in CI.</li>
