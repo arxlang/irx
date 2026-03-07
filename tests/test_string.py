@@ -10,6 +10,7 @@ import pytest
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.system import PrintExpr
+from llvmlite import binding as llvm
 
 from .conftest import check_result
 
@@ -82,6 +83,43 @@ def test_string_literal_utf8_char_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=expected)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_string_literal_utf8_char_non_ascii_translate(
+    builder_class: Type[Builder],
+) -> None:
+    """
+    title: Test non-ASCII UTF-8 char literal lowers without crashing.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    expected = "é"
+
+    char_literal = astx.LiteralUTF8Char(expected)
+
+    decl_tmp = astx.VariableDeclaration(
+        name="tmp", type_=astx.String(), value=char_literal
+    )
+
+    block = astx.Block()
+    block.append(decl_tmp)
+    block.append(PrintExpr(astx.LiteralUTF8String(expected)))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    ir_text = builder.translate(module)
+
+    llvm.parse_assembly(ir_text)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
