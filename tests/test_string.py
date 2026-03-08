@@ -300,3 +300,58 @@ def test_string_with_special_characters_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=expected)
+
+from unittest.mock import MagicMock
+from llvmlite import ir
+from irx.builders.llvmliteir import LLVMLiteIR
+
+def setup_builder():
+    main_builder = LLVMLiteIR()
+    visitor = main_builder.translator
+    func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
+    fn = ir.Function(visitor._llvm.module, func_type, name="main")
+    bb = fn.append_basic_block("entry")
+    visitor._llvm.ir_builder = ir.IRBuilder(bb)
+    return visitor
+
+
+def test_string_helper_functions():
+    builder = setup_builder()
+    
+    # Call the creators
+    concat_fn = builder._create_string_concat_function()
+    assert concat_fn.name == "string_concat"
+    # Call again to hit the cached branch
+    assert builder._create_string_concat_function() is concat_fn
+    
+    len_fn = builder._create_string_length_function()
+    assert len_fn.name == "string_length"
+    assert builder._create_string_length_function() is len_fn
+    
+    eq_fn = builder._create_string_equals_function()
+    assert eq_fn.name == "string_equals"
+    assert builder._create_string_equals_function() is eq_fn
+    
+    sub_fn = builder._create_string_substring_function()
+    assert sub_fn.name == "string_substring"
+    assert builder._create_string_substring_function() is sub_fn
+
+
+def test_handle_string_operations():
+    builder = setup_builder()
+    
+    str1 = ir.Constant(builder._llvm.ASCII_STRING_TYPE, None)
+    str2 = ir.Constant(builder._llvm.ASCII_STRING_TYPE, None)
+    
+    # This will insert the call in the current block
+    res_concat = builder._handle_string_concatenation(str1, str2)
+    assert res_concat is not None
+    
+    res_cmp_eq = builder._handle_string_comparison(str1, str2, "==")
+    assert res_cmp_eq is not None
+    
+    res_cmp_neq = builder._handle_string_comparison(str1, str2, "!=")
+    assert res_cmp_neq is not None
+    
+    with pytest.raises(Exception):
+        builder._handle_string_comparison(str1, str2, "<")

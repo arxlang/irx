@@ -72,3 +72,377 @@ def test_float_operations_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=str(expected))
+
+
+def test_float_equality_comparison() -> None:
+    """
+    title: Test float == comparison.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.14),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.14),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp(
+        op_code="==",
+        lhs=astx.Identifier("a"),
+        rhs=astx.Identifier("b"),
+    )
+
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    if_stmt = astx.IfStmt(
+        condition=cond, then=then_block, else_=else_block
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_float_inequality_comparison() -> None:
+    """
+    title: Test float != comparison.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(1.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(2.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp(
+        op_code="!=",
+        lhs=astx.Identifier("a"),
+        rhs=astx.Identifier("b"),
+    )
+
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    if_stmt = astx.IfStmt(
+        condition=cond, then=then_block, else_=else_block
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_float_binary_ops() -> None:
+    """
+    title: Test basic float arithmetic operations.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(10.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    add_expr = astx.BinaryOp(
+        op_code="+",
+        lhs=astx.Identifier("a"),
+        rhs=astx.Identifier("b"),
+    )
+    sub_expr = astx.BinaryOp(
+        op_code="-",
+        lhs=add_expr,
+        rhs=astx.LiteralFloat32(3.0),
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(sub_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_float_less_than() -> None:
+    """Test float < comparison branch."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(1.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(2.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp("<", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_float_greater_than() -> None:
+    """Test float > comparison branch."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(5.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp(">", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_float_less_equal() -> None:
+    """Test float <= comparison branch."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp("<=", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_float_greater_equal() -> None:
+    """Test float >= comparison branch."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(5.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp(">=", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_literal_float16() -> None:
+    """Test LiteralFloat16 visitor (lines 1589-1590)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="h", type_=astx.Float16(),
+        value=astx.LiteralFloat16(1.5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_float_division() -> None:
+    """Test float division branch (line 1053-1058)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(10.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(2.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    div_expr = astx.BinaryOp(
+        "/", astx.Identifier("a"), astx.Identifier("b")
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(div_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_float_multiplication() -> None:
+    """Test float multiplication branch (line 988-992)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Float32(),
+        value=astx.LiteralFloat32(4.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    mul_expr = astx.BinaryOp(
+        "*", astx.Identifier("a"), astx.Identifier("b")
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(mul_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

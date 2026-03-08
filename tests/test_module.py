@@ -96,3 +96,55 @@ def test_module_fn_main(
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)
+
+
+def test_multiple_function_calls() -> None:
+    """
+    title: Test calling a user function that uses FunctionCall.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    # Helper function: add(a, b) -> a + b
+    arg_a = astx.Argument(
+        name="a", type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    arg_b = astx.Argument(
+        name="b", type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    args = astx.Arguments()
+    args.append(arg_a)
+    args.append(arg_b)
+
+    add_proto = astx.FunctionPrototype(
+        name="add", args=args, return_type=astx.Int32()
+    )
+    add_body = astx.Block()
+    add_expr = astx.BinaryOp(
+        op_code="+",
+        lhs=astx.Identifier("a"),
+        rhs=astx.Identifier("b"),
+    )
+    add_body.append(astx.FunctionReturn(add_expr))
+    add_fn = astx.FunctionDef(prototype=add_proto, body=add_body)
+    module.block.append(add_fn)
+
+    # main calls add(10, 32)
+    call = astx.FunctionCall(
+        fn="add",
+        args=[astx.LiteralInt32(10), astx.LiteralInt32(32)],
+    )
+
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    main_block = astx.Block()
+    main_block.append(astx.FunctionReturn(call))
+    main_fn = astx.FunctionDef(
+        prototype=main_proto, body=main_block
+    )
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output="42")

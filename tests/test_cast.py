@@ -297,3 +297,205 @@ def test_cast_boolean_to_string(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expected_output)
+
+from irx.system import Cast
+
+
+def test_cast_int_to_float() -> None:
+    """Test Cast from int to float (line 2654)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(42),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("x"), target_type=astx.Float32())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_float_to_int() -> None:
+    """Test Cast from float to int (line 2659)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="f", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.14),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("f"), target_type=astx.Int32())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_int_widening() -> None:
+    """Test Cast from int8 to int32 (line 2646)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int8(),
+        value=astx.LiteralInt8(10),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("x"), target_type=astx.Int32())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_int_narrowing() -> None:
+    """Test Cast from int32 to int8 (line 2650)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(10),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("x"), target_type=astx.Int8())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_same_type_noop() -> None:
+    """Test Cast with same source and target type is a no-op (line 2639)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("x"), target_type=astx.Int32())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_float_to_half() -> None:
+    """Test Cast from float32 to float16 (line 2666)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="f", type_=astx.Float32(),
+        value=astx.LiteralFloat32(1.5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("f"), target_type=astx.Float16())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_half_to_float() -> None:
+    """Test Cast from float16 to float32 (line 2673)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="h", type_=astx.Float16(),
+        value=astx.LiteralFloat16(1.5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("h"), target_type=astx.Float32())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_cast_int_to_string() -> None:
+    """Test Cast from int to string (line 2694+)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(42),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cast_expr = Cast(value=astx.Identifier("x"), target_type=astx.String())
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(cast_expr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

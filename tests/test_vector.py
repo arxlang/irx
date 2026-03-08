@@ -1,14 +1,10 @@
-"""
-title: Direct testing of internal llvmliteir methods to reach 90% coverage.
-"""
-
 import astx
 import pytest
 from unittest.mock import MagicMock
-
 from llvmlite import ir
 from irx.builders.llvmliteir import LLVMLiteIR
-from irx.builders.llvmliteir import is_vector, splat_scalar, emit_int_div
+from .conftest import check_result
+
 
 
 def setup_builder():
@@ -20,85 +16,6 @@ def setup_builder():
     bb = fn.append_basic_block("entry")
     visitor._llvm.ir_builder = ir.IRBuilder(bb)
     return visitor
-
-
-# ── Internal Helpers ─────────────────────────────────────────
-
-
-def test_is_vector_helper():
-    builder = setup_builder()
-    scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
-    vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
-    vec = ir.Constant(vec_ty, [1, 2, 3, 4])
-    
-    assert not is_vector(scalar)
-    assert is_vector(vec)
-
-
-def test_splat_scalar_helper():
-    builder = setup_builder()
-    scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
-    vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
-    
-    vec = splat_scalar(builder._llvm.ir_builder, scalar, vec_ty)
-    assert vec.type == vec_ty
-
-
-def test_emit_int_div_helper():
-    builder = setup_builder()
-    lhs = ir.Constant(builder._llvm.INT32_TYPE, 10)
-    rhs = ir.Constant(builder._llvm.INT32_TYPE, 2)
-    
-    res = emit_int_div(builder._llvm.ir_builder, lhs, rhs, False)
-    assert res.type == builder._llvm.INT32_TYPE
-
-
-# ── String Helper Functions ──────────────────────────────────
-
-
-def test_string_helper_functions():
-    builder = setup_builder()
-    
-    # Call the creators
-    concat_fn = builder._create_string_concat_function()
-    assert concat_fn.name == "string_concat"
-    # Call again to hit the cached branch
-    assert builder._create_string_concat_function() is concat_fn
-    
-    len_fn = builder._create_string_length_function()
-    assert len_fn.name == "string_length"
-    assert builder._create_string_length_function() is len_fn
-    
-    eq_fn = builder._create_string_equals_function()
-    assert eq_fn.name == "string_equals"
-    assert builder._create_string_equals_function() is eq_fn
-    
-    sub_fn = builder._create_string_substring_function()
-    assert sub_fn.name == "string_substring"
-    assert builder._create_string_substring_function() is sub_fn
-
-
-def test_handle_string_operations():
-    builder = setup_builder()
-    
-    str1 = ir.Constant(builder._llvm.ASCII_STRING_TYPE, None)
-    str2 = ir.Constant(builder._llvm.ASCII_STRING_TYPE, None)
-    
-    # This will insert the call in the current block
-    res_concat = builder._handle_string_concatenation(str1, str2)
-    assert res_concat is not None
-    
-    res_cmp_eq = builder._handle_string_comparison(str1, str2, "==")
-    assert res_cmp_eq is not None
-    
-    res_cmp_neq = builder._handle_string_comparison(str1, str2, "!=")
-    assert res_cmp_neq is not None
-    
-    with pytest.raises(Exception):
-        builder._handle_string_comparison(str1, str2, "<")
-
-
-# ── Vector Binary Operations ─────────────────────────────────
 
 
 def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsigned: bool = None):

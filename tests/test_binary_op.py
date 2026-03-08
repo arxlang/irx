@@ -248,3 +248,121 @@ def test_binary_op_logical_and_or(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expect)
+
+
+def test_literal_int8() -> None:
+    """Test LiteralInt8 visitor."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Int8(),
+        value=astx.LiteralInt8(42),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_literal_int64() -> None:
+    """Test LiteralInt64 visitor."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="big", type_=astx.Int64(),
+        value=astx.LiteralInt64(1000000),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_int_equality() -> None:
+    """Test integer == comparison (line 1085)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Int32(),
+        value=astx.LiteralInt32(5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Int32(),
+        value=astx.LiteralInt32(5),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp("==", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_int_inequality() -> None:
+    """Test integer != comparison (line 1108)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl_a = astx.InlineVariableDeclaration(
+        name="a", type_=astx.Int32(),
+        value=astx.LiteralInt32(1),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.InlineVariableDeclaration(
+        name="b", type_=astx.Int32(),
+        value=astx.LiteralInt32(2),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    cond = astx.BinaryOp("!=", astx.Identifier("a"), astx.Identifier("b"))
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl_a)
+    block.append(decl_b)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")

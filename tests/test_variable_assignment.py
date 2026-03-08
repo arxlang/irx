@@ -68,3 +68,194 @@ def test_variable_assignment(
 
     expected_output = "42"
     check_result("build", builder, module, expected_output=expected_output)
+
+
+def test_variable_declaration_no_initializer_int() -> None:
+    """
+    title: Test VariableDeclaration without initializer for int type.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.Identifier("x")))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_variable_declaration_no_initializer_float() -> None:
+    """
+    title: Test VariableDeclaration for float type.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="y",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(0.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_variable_declaration_string_type() -> None:
+    """
+    title: Test VariableDeclaration for string type.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.VariableDeclaration(
+        name="s",
+        type_=astx.String(),
+        value=astx.LiteralUTF8String("hello"),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_const_variable_declaration() -> None:
+    """
+    title: Test const VariableDeclaration with mutability check.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.VariableDeclaration(
+        name="PI",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(3),
+        mutability=astx.MutabilityKind.constant,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(astx.FunctionReturn(astx.Identifier("PI")))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="3")
+
+
+def test_variable_assignment() -> None:
+    """Test VariableAssignment visitor (line 1314+)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(10),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    assign = astx.VariableAssignment(
+        name="x", value=astx.LiteralInt32(42)
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(assign)
+    block.append(astx.FunctionReturn(astx.Identifier("x")))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="42")
+
+
+def test_variable_assignment_const_error() -> None:
+    """Test VariableAssignment to const raises error (line 1325)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="c", type_=astx.Int32(),
+        value=astx.LiteralInt32(10),
+        mutability=astx.MutabilityKind.constant,
+    )
+
+    assign = astx.VariableAssignment(
+        name="c", value=astx.LiteralInt32(42)
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(assign)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="Cannot assign"):
+        check_result("build", builder, module)
+
+
+def test_inline_var_redeclare_error() -> None:
+    """Test re-declaring a variable raises error (line 2455)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl1 = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(1),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl2 = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(2),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl1)
+    block.append(decl2)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="Identifier already declared"):
+        check_result("build", builder, module)

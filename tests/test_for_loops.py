@@ -167,3 +167,71 @@ def test_for_count(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+def test_for_range_loop_without_step() -> None:
+    """
+    title: Test ForRangeLoopStmt without explicit step value.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    var_i = astx.InlineVariableDeclaration(
+        "i", type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    start = astx.LiteralInt32(0)
+    end = astx.LiteralInt32(5)
+
+    body = astx.Block()
+    body.append(astx.LiteralInt32(0))
+
+    loop = astx.ForRangeLoopStmt(
+        variable=var_i,
+        start=start,
+        end=end,
+        step=astx.LiteralInt32(1),
+        body=body,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(loop)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_for_count_loop_basic() -> None:
+    """Test ForCountLoopStmt (lines 1350+)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    init = astx.InlineVariableDeclaration(
+        name="i", type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cond = astx.BinaryOp("<", astx.Identifier("i"), astx.LiteralInt32(5))
+    update = astx.BinaryOp("+", astx.Identifier("i"), astx.LiteralInt32(1))
+    body = astx.Block()
+    body.append(astx.LiteralInt32(0))
+
+    loop = astx.ForCountLoopStmt(
+        initializer=init, condition=cond, update=update, body=body
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(loop)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

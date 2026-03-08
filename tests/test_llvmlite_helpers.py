@@ -293,3 +293,45 @@ def test_apply_fast_math_noop_for_non_fp_values() -> None:
     )
     visitor._apply_fast_math(vector_add)
     assert "fast" not in vector_add.flags
+
+from unittest.mock import MagicMock
+from llvmlite import ir
+from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import is_vector, splat_scalar, emit_int_div
+
+def setup_builder():
+    main_builder = LLVMLiteIR()
+    visitor = main_builder.translator
+    func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
+    fn = ir.Function(visitor._llvm.module, func_type, name="main")
+    bb = fn.append_basic_block("entry")
+    visitor._llvm.ir_builder = ir.IRBuilder(bb)
+    return visitor
+
+
+def test_is_vector_helper():
+    builder = setup_builder()
+    scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
+    vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
+    vec = ir.Constant(vec_ty, [1, 2, 3, 4])
+    
+    assert not is_vector(scalar)
+    assert is_vector(vec)
+
+
+def test_splat_scalar_helper():
+    builder = setup_builder()
+    scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
+    vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
+    
+    vec = splat_scalar(builder._llvm.ir_builder, scalar, vec_ty)
+    assert vec.type == vec_ty
+
+
+def test_emit_int_div_helper():
+    builder = setup_builder()
+    lhs = ir.Constant(builder._llvm.INT32_TYPE, 10)
+    rhs = ir.Constant(builder._llvm.INT32_TYPE, 2)
+    
+    res = emit_int_div(builder._llvm.ir_builder, lhs, rhs, False)
+    assert res.type == builder._llvm.INT32_TYPE

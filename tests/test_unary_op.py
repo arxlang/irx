@@ -105,3 +105,146 @@ def test_unary_op_increment_decrement(
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)
+
+
+def test_decrement_operator() -> None:
+    """
+    title: Test standalone decrement operator.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(10),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    decr = astx.UnaryOp(op_code="--", operand=astx.Identifier("x"))
+    decr.type_ = astx.Int32()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(decr)
+    block.append(astx.FunctionReturn(astx.Identifier("x")))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="9")
+
+
+def test_not_operator() -> None:
+    """
+    title: Test standalone NOT operator.
+    """
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="flag",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    not_op = astx.UnaryOp(
+        op_code="!", operand=astx.Identifier("flag")
+    )
+    not_op.type_ = astx.Int32()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(not_op)
+    block.append(astx.FunctionReturn(astx.Identifier("flag")))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_increment_const_error() -> None:
+    """Test ++ on const variable raises error (line 686)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="c", type_=astx.Int32(),
+        value=astx.LiteralInt32(5),
+        mutability=astx.MutabilityKind.constant,
+    )
+    incr = astx.UnaryOp(op_code="++", operand=astx.Identifier("c"))
+    incr.type_ = astx.Int32()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(incr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="Cannot mutate"):
+        check_result("build", builder, module)
+
+
+def test_decrement_const_error() -> None:
+    """Test -- on const variable raises error (line 705)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="c", type_=astx.Int32(),
+        value=astx.LiteralInt32(5),
+        mutability=astx.MutabilityKind.constant,
+    )
+    decr = astx.UnaryOp(op_code="--", operand=astx.Identifier("c"))
+    decr.type_ = astx.Int32()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(decr)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="Cannot mutate"):
+        check_result("build", builder, module)
+
+
+def test_not_const_error() -> None:
+    """Test ! on const variable raises error (line 725)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="c", type_=astx.Int32(),
+        value=astx.LiteralInt32(1),
+        mutability=astx.MutabilityKind.constant,
+    )
+    not_op = astx.UnaryOp(op_code="!", operand=astx.Identifier("c"))
+    not_op.type_ = astx.Int32()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(not_op)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="Cannot mutate"):
+        check_result("build", builder, module)

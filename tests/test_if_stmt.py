@@ -326,3 +326,66 @@ def test_if_recursive_fibonacci_with_returning_branches(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output="55")
+
+
+def test_if_stmt_float_condition() -> None:
+    """Test IfStmt with float condition (lines 1152, 1155-1156)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="f", type_=astx.Float32(),
+        value=astx.LiteralFloat32(1.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    # Use float identifier directly as condition
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    if_stmt = astx.IfStmt(
+        condition=astx.Identifier("f"),
+        then=then_block,
+        else_=else_block,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(if_stmt)
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="1")
+
+
+def test_if_stmt_no_else() -> None:
+    """Test IfStmt with no else block."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x", type_=astx.Int32(),
+        value=astx.LiteralInt32(1),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    cond = astx.BinaryOp(">", astx.Identifier("x"), astx.LiteralInt32(0))
+    then_block = astx.Block()
+    then_block.append(astx.LiteralInt32(42))
+
+    if_stmt = astx.IfStmt(condition=cond, then=then_block)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(if_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

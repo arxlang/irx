@@ -177,3 +177,58 @@ def test_print_float_function_call_result_codegen() -> None:
     assert 'call float @"average"' in ir_text
     assert "%.6f" in ir_text
     _assert_puts_uses_char_ptr(ir_text)
+
+from irx.system import PrintExpr
+from .conftest import check_result
+
+
+def test_print_integer() -> None:
+    """Test PrintExpr with integer value (line 2744)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(PrintExpr(astx.LiteralInt32(42)))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output="42")
+
+
+def test_print_float() -> None:
+    """Test PrintExpr with float value (line 2751-2758)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(PrintExpr(astx.LiteralFloat32(3.14)))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_format_global_reuse() -> None:
+    """Test _get_or_create_format_global reuse (line 2613)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(PrintExpr(astx.LiteralInt32(1)))
+    block.append(PrintExpr(astx.LiteralInt32(2)))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

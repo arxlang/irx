@@ -337,3 +337,62 @@ def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
 
     with pytest.raises(Exception, match="second out of range"):
         check_result("build", builder, module, "")
+
+
+def test_literal_datetime_valid() -> None:
+    """Test valid LiteralDateTime (lines 1825+)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    dt = astx.LiteralDateTime("2025-03-06T14:30:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(dt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_literal_datetime_invalid_format() -> None:
+    """Test LiteralDateTime with invalid format (line 1845)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    dt = astx.LiteralDateTime("20250306")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(dt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="LiteralDateTime"):
+        check_result("build", builder, module)
+
+
+def test_literal_datetime_hour_out_of_range() -> None:
+    """Test LiteralDateTime with out-of-range values."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    dt = astx.LiteralDateTime("2025-03-06T25:00:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(dt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="hour out of range"):
+        check_result("build", builder, module)

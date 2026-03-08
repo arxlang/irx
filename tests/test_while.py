@@ -95,3 +95,40 @@ def test_while_expr(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+def test_while_stmt_float_condition() -> None:
+    """Test WhileStmt with float condition (lines 1273, 1277-1278)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="count", type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    # while(count) { count = count - 1.0 }
+    sub_expr = astx.BinaryOp(
+        "-", astx.Identifier("count"), astx.LiteralFloat32(1.0)
+    )
+    assign = astx.VariableAssignment(name="count", value=sub_expr)
+    body = astx.Block()
+    body.append(assign)
+
+    while_stmt = astx.WhileStmt(
+        condition=astx.Identifier("count"),
+        body=body,
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(decl)
+    block.append(while_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)

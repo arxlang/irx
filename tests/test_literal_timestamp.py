@@ -10,6 +10,7 @@ from typing import Type, cast
 
 import astx
 import pytest
+from .conftest import check_result
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
@@ -115,3 +116,121 @@ def test_literal_timestamp_timezone_rejected(
     visitor.result_stack.clear()
     with pytest.raises(Exception, match="timezone"):
         visitor.visit(astx.LiteralTimestamp("2025-10-30T12:34:56Z"))
+
+
+def test_literal_timestamp_valid() -> None:
+    """Test valid LiteralTimestamp (lines 1726-1810)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("2025-03-06T14:30:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_literal_timestamp_with_space() -> None:
+    """Test LiteralTimestamp with space separator."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("2025-03-06 14:30:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module)
+
+
+def test_literal_timestamp_invalid_format() -> None:
+    """Test LiteralTimestamp with invalid format (line 1734)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("20250306")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="LiteralTimestamp"):
+        check_result("build", builder, module)
+
+
+def test_literal_timestamp_hour_out_of_range() -> None:
+    """Test LiteralTimestamp with out-of-range hour (line 1797)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("2025-03-06T25:00:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="hour out of range"):
+        check_result("build", builder, module)
+
+
+def test_literal_timestamp_minute_out_of_range() -> None:
+    """Test LiteralTimestamp with out-of-range minute (line 1801)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("2025-03-06T12:60:00")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="minute out of range"):
+        check_result("build", builder, module)
+
+
+def test_literal_timestamp_second_out_of_range() -> None:
+    """Test LiteralTimestamp with out-of-range second (line 1805)."""
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    ts = astx.LiteralTimestamp("2025-03-06T12:30:61")
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(ts)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    with pytest.raises(Exception, match="second out of range"):
+        check_result("build", builder, module)
