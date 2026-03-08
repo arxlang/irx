@@ -98,7 +98,9 @@ def test_while_expr(
 
 
 def test_while_stmt_float_condition() -> None:
-    """Test WhileStmt with float condition (lines 1273, 1277-1278)."""
+    """
+    title: Test WhileStmt with float condition (lines 1273, 1277-1278).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

@@ -175,7 +175,9 @@ def test_const_variable_declaration() -> None:
 
 
 def test_variable_assignment_extra() -> None:
-    """Test VariableAssignment visitor (line 1314+)."""
+    """
+    title: Test VariableAssignment visitor (line 1314+).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -203,7 +205,9 @@ def test_variable_assignment_extra() -> None:
 
 
 def test_variable_assignment_const_error() -> None:
-    """Test VariableAssignment to const raises error (line 1325)."""
+    """
+    title: Test VariableAssignment to const raises error (line 1325).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -232,7 +236,9 @@ def test_variable_assignment_const_error() -> None:
 
 
 def test_inline_var_redeclare_error() -> None:
-    """Test re-declaring a variable raises error (line 2455)."""
+    """
+    title: Test re-declaring a variable raises error (line 2455).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

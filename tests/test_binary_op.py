@@ -251,7 +251,9 @@ def test_binary_op_logical_and_or(
 
 
 def test_literal_int8() -> None:
-    """Test LiteralInt8 visitor."""
+    """
+    title: Test LiteralInt8 visitor.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -274,7 +276,9 @@ def test_literal_int8() -> None:
 
 
 def test_literal_int64() -> None:
-    """Test LiteralInt64 visitor."""
+    """
+    title: Test LiteralInt64 visitor.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -297,7 +301,9 @@ def test_literal_int64() -> None:
 
 
 def test_int_equality() -> None:
-    """Test integer == comparison (line 1085)."""
+    """
+    title: Test integer == comparison (line 1085).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -333,7 +339,9 @@ def test_int_equality() -> None:
 
 
 def test_int_inequality() -> None:
-    """Test integer != comparison (line 1108)."""
+    """
+    title: Test integer != comparison (line 1108).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

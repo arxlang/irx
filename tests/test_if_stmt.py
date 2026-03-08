@@ -329,7 +329,9 @@ def test_if_recursive_fibonacci_with_returning_branches(
 
 
 def test_if_stmt_float_condition() -> None:
-    """Test IfStmt with float condition (lines 1152, 1155-1156)."""
+    """
+    title: Test IfStmt with float condition (lines 1152, 1155-1156).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -363,7 +365,9 @@ def test_if_stmt_float_condition() -> None:
 
 
 def test_if_stmt_no_else() -> None:
-    """Test IfStmt with no else block."""
+    """
+    title: Test IfStmt with no else block.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

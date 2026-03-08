@@ -340,7 +340,9 @@ def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
 
 
 def test_literal_datetime_valid() -> None:
-    """Test valid LiteralDateTime (lines 1825+)."""
+    """
+    title: Test valid LiteralDateTime (lines 1825+).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -359,7 +361,9 @@ def test_literal_datetime_valid() -> None:
 
 
 def test_literal_datetime_invalid_format() -> None:
-    """Test LiteralDateTime with invalid format (line 1845)."""
+    """
+    title: Test LiteralDateTime with invalid format (line 1845).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -379,7 +383,9 @@ def test_literal_datetime_invalid_format() -> None:
 
 
 def test_literal_datetime_hour_out_of_range() -> None:
-    """Test LiteralDateTime with out-of-range values."""
+    """
+    title: Test LiteralDateTime with out-of-range values.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

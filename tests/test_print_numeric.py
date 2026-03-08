@@ -183,7 +183,9 @@ from .conftest import check_result
 
 
 def test_print_integer() -> None:
-    """Test PrintExpr with integer value (line 2744)."""
+    """
+    title: Test PrintExpr with integer value (line 2744).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -200,7 +202,9 @@ def test_print_integer() -> None:
 
 
 def test_print_float() -> None:
-    """Test PrintExpr with float value (line 2751-2758)."""
+    """
+    title: Test PrintExpr with float value (line 2751-2758).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -217,7 +221,9 @@ def test_print_float() -> None:
 
 
 def test_format_global_reuse() -> None:
-    """Test _get_or_create_format_global reuse (line 2613)."""
+    """
+    title: Test _get_or_create_format_global reuse (line 2613).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

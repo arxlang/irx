@@ -302,7 +302,9 @@ from irx.system import Cast
 
 
 def test_cast_int_to_float() -> None:
-    """Test Cast from int to float (line 2654)."""
+    """
+    title: Test Cast from int to float (line 2654).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -327,7 +329,9 @@ def test_cast_int_to_float() -> None:
 
 
 def test_cast_float_to_int() -> None:
-    """Test Cast from float to int (line 2659)."""
+    """
+    title: Test Cast from float to int (line 2659).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -352,7 +356,9 @@ def test_cast_float_to_int() -> None:
 
 
 def test_cast_int_widening() -> None:
-    """Test Cast from int8 to int32 (line 2646)."""
+    """
+    title: Test Cast from int8 to int32 (line 2646).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -377,7 +383,9 @@ def test_cast_int_widening() -> None:
 
 
 def test_cast_int_narrowing() -> None:
-    """Test Cast from int32 to int8 (line 2650)."""
+    """
+    title: Test Cast from int32 to int8 (line 2650).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -402,7 +410,9 @@ def test_cast_int_narrowing() -> None:
 
 
 def test_cast_same_type_noop() -> None:
-    """Test Cast with same source and target type is a no-op (line 2639)."""
+    """
+    title: Test Cast with same source and target type is a no-op (line 2639).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -427,7 +437,9 @@ def test_cast_same_type_noop() -> None:
 
 
 def test_cast_float_to_half() -> None:
-    """Test Cast from float32 to float16 (line 2666)."""
+    """
+    title: Test Cast from float32 to float16 (line 2666).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -452,7 +464,9 @@ def test_cast_float_to_half() -> None:
 
 
 def test_cast_half_to_float() -> None:
-    """Test Cast from float16 to float32 (line 2673)."""
+    """
+    title: Test Cast from float16 to float32 (line 2673).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -477,7 +491,9 @@ def test_cast_half_to_float() -> None:
 
 
 def test_cast_int_to_string_extra() -> None:
-    """Test Cast from int to string (line 2694+)."""
+    """
+    title: Test Cast from int to string (line 2694+).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

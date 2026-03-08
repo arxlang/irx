@@ -216,7 +216,9 @@ def test_float_binary_ops() -> None:
 
 
 def test_float_less_than() -> None:
-    """Test float < comparison branch."""
+    """
+    title: Test float < comparison branch.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -252,7 +254,9 @@ def test_float_less_than() -> None:
 
 
 def test_float_greater_than() -> None:
-    """Test float > comparison branch."""
+    """
+    title: Test float > comparison branch.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -288,7 +292,9 @@ def test_float_greater_than() -> None:
 
 
 def test_float_less_equal() -> None:
-    """Test float <= comparison branch."""
+    """
+    title: Test float <= comparison branch.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -324,7 +330,9 @@ def test_float_less_equal() -> None:
 
 
 def test_float_greater_equal() -> None:
-    """Test float >= comparison branch."""
+    """
+    title: Test float >= comparison branch.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -360,7 +368,9 @@ def test_float_greater_equal() -> None:
 
 
 def test_literal_float16() -> None:
-    """Test LiteralFloat16 visitor (lines 1589-1590)."""
+    """
+    title: Test LiteralFloat16 visitor (lines 1589-1590).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -383,7 +393,9 @@ def test_literal_float16() -> None:
 
 
 def test_float_division() -> None:
-    """Test float division branch (line 1053-1058)."""
+    """
+    title: Test float division branch (line 1053-1058).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -416,7 +428,9 @@ def test_float_division() -> None:
 
 
 def test_float_multiplication() -> None:
-    """Test float multiplication branch (line 988-992)."""
+    """
+    title: Test float multiplication branch (line 988-992).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

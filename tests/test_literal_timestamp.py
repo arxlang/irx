@@ -119,7 +119,9 @@ def test_literal_timestamp_timezone_rejected(
 
 
 def test_literal_timestamp_valid() -> None:
-    """Test valid LiteralTimestamp (lines 1726-1810)."""
+    """
+    title: Test valid LiteralTimestamp (lines 1726-1810).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -138,7 +140,9 @@ def test_literal_timestamp_valid() -> None:
 
 
 def test_literal_timestamp_with_space() -> None:
-    """Test LiteralTimestamp with space separator."""
+    """
+    title: Test LiteralTimestamp with space separator.
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -157,7 +161,9 @@ def test_literal_timestamp_with_space() -> None:
 
 
 def test_literal_timestamp_invalid_format() -> None:
-    """Test LiteralTimestamp with invalid format (line 1734)."""
+    """
+    title: Test LiteralTimestamp with invalid format (line 1734).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -177,7 +183,9 @@ def test_literal_timestamp_invalid_format() -> None:
 
 
 def test_literal_timestamp_hour_out_of_range() -> None:
-    """Test LiteralTimestamp with out-of-range hour (line 1797)."""
+    """
+    title: Test LiteralTimestamp with out-of-range hour (line 1797).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -197,7 +205,9 @@ def test_literal_timestamp_hour_out_of_range() -> None:
 
 
 def test_literal_timestamp_minute_out_of_range() -> None:
-    """Test LiteralTimestamp with out-of-range minute (line 1801)."""
+    """
+    title: Test LiteralTimestamp with out-of-range minute (line 1801).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -217,7 +227,9 @@ def test_literal_timestamp_minute_out_of_range() -> None:
 
 
 def test_literal_timestamp_second_out_of_range() -> None:
-    """Test LiteralTimestamp with out-of-range second (line 1805)."""
+    """
+    title: Test LiteralTimestamp with out-of-range second (line 1805).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 

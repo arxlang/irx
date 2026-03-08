@@ -170,7 +170,9 @@ def test_not_operator() -> None:
 
 
 def test_increment_const_error() -> None:
-    """Test ++ on const variable raises error (line 686)."""
+    """
+    title: Test ++ on const variable raises error (line 686).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -197,7 +199,9 @@ def test_increment_const_error() -> None:
 
 
 def test_decrement_const_error() -> None:
-    """Test -- on const variable raises error (line 705)."""
+    """
+    title: Test -- on const variable raises error (line 705).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
@@ -224,7 +228,9 @@ def test_decrement_const_error() -> None:
 
 
 def test_not_const_error() -> None:
-    """Test ! on const variable raises error (line 725)."""
+    """
+    title: Test ! on const variable raises error (line 725).
+    """
     builder = LLVMLiteIR()
     module = builder.module()
 
