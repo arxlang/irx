@@ -8,6 +8,7 @@ from irx.builders.llvmliteir import LLVMLiteIR
 from irx.system import PrintExpr
 from llvmlite import binding as llvm
 
+from .conftest import check_result
 
 def _translate_and_validate(module: astx.Module) -> str:
     builder = LLVMLiteIR()
@@ -177,9 +178,6 @@ def test_print_float_function_call_result_codegen() -> None:
     assert 'call float @"average"' in ir_text
     assert "%.6f" in ir_text
     _assert_puts_uses_char_ptr(ir_text)
-
-from irx.system import PrintExpr
-from .conftest import check_result
 
 
 def test_print_integer() -> None:

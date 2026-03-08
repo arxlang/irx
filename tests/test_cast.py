@@ -298,9 +298,6 @@ def test_cast_boolean_to_string(
 
     check_result("build", builder, module, expected_output=expected_output)
 
-from irx.system import Cast
-
-
 def test_cast_int_to_float() -> None:
     """
     title: Test Cast from int to float (line 2654).

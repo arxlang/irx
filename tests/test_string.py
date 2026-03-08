@@ -3,6 +3,7 @@ title: Tests for string operations.
 """
 
 from typing import Type, Any
+from unittest.mock import MagicMock
 
 import astx
 import pytest
@@ -10,6 +11,7 @@ import pytest
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.system import PrintExpr
+from llvmlite import ir
 
 from .conftest import check_result
 
@@ -300,10 +302,6 @@ def test_string_with_special_characters_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=expected)
-
-from unittest.mock import MagicMock
-from llvmlite import ir
-from irx.builders.llvmliteir import LLVMLiteIR
 
 def setup_builder() -> Any:
     main_builder = LLVMLiteIR()
