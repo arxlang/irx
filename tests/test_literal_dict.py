@@ -1,4 +1,6 @@
-"""Tests for LiteralDict lowering using project conventions."""
+"""
+title: LiteralDict lowering tests
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,12 @@ EXPECTED_STRUCT_FIELDS = 2
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
-    """Empty dict lowers to constant [0 x {i32, i32}]."""
+    """
+    title: Empty LiteralDict lowering
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -34,7 +41,12 @@ def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
 def test_literal_dict_homogeneous_int_constants(
     builder_class: Type[Builder],
 ) -> None:
-    """Homogeneous integer constant dict lowers to constant array."""
+    """
+    title: Homogeneous LiteralDict lowering
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -65,7 +77,12 @@ def test_literal_dict_homogeneous_int_constants(
 def test_literal_dict_heterogeneous_constants_unsupported(
     builder_class: Type[Builder],
 ) -> None:
-    """Heterogeneous constant key/value types are not yet supported."""
+    """
+    title: Heterogeneous LiteralDict rejection
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()

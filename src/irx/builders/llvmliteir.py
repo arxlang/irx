@@ -2079,14 +2079,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralDict) -> None:
-        """Lower a LiteralDict to LLVM IR (minimal support).
-
-        Supported cases:
-        - Empty dict -> constant [0 x {i32, i32}] (placeholder types)
-        - All-constant key/value pairs -> constant [N x {K, V}]
-
-        Otherwise raises to keep behavior explicit and aligned with
-        current project philosophy.
+        """
+        title: LiteralDict lowering
+        parameters:
+          node:
+            type: astx.LiteralDict
         """
         # 1) Collect lowered key/value LLVM values
         llvm_pairs: list[tuple[ir.Value, ir.Value]] = []
