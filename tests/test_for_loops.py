@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -23,10 +24,10 @@ from .conftest import check_result
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        # ("translate", "test_for_range.ll"),
-        ("build", ""),
+        # ("translate", "test_for_range.ll", ""),
+        ("build", "", "123456789"),
     ],
 )
 @pytest.mark.parametrize(
@@ -38,6 +39,7 @@ from .conftest import check_result
 def test_for_range(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -48,6 +50,8 @@ def test_for_range(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -66,7 +70,7 @@ def test_for_range(
     end = literal_type(10)
     step = literal_type(1)
     body = astx.Block()
-    body.append(literal_type(2))
+    body.append(PrintExpr(astx.Identifier("a")))
     for_loop = astx.ForRangeLoopStmt(
         variable=var_a,
         start=start,
@@ -87,7 +91,7 @@ def test_for_range(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 @pytest.mark.parametrize(
@@ -100,10 +104,10 @@ def test_for_range(
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        # ("translate", "test_for_loops.ll"),
-        ("build", ""),
+        # ("translate", "test_for_loops.ll", ""),
+        ("build", "", "0123456789"),
     ],
 )
 @pytest.mark.parametrize(
@@ -115,6 +119,7 @@ def test_for_range(
 def test_for_count(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -125,6 +130,8 @@ def test_for_count(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -146,7 +153,7 @@ def test_for_count(
     update = astx.UnaryOp(op_code="++", operand=var_a)
 
     for_body = astx.Block()
-    for_body.append(literal_type(2))
+    for_body.append(PrintExpr(astx.Identifier("a2")))
     for_loop = astx.ForCountLoopStmt(
         initializer=init_a,
         condition=cond,
@@ -166,7 +173,7 @@ def test_for_count(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 def test_for_range_loop_without_step() -> None:
@@ -185,7 +192,7 @@ def test_for_range_loop_without_step() -> None:
     end = astx.LiteralInt32(5)
 
     body = astx.Block()
-    body.append(astx.LiteralInt32(0))
+    body.append(PrintExpr(astx.Identifier("i")))
 
     loop = astx.ForRangeLoopStmt(
         variable=var_i,
@@ -204,7 +211,7 @@ def test_for_range_loop_without_step() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="01234")
 
 
 def test_for_count_loop_basic() -> None:
@@ -223,7 +230,7 @@ def test_for_count_loop_basic() -> None:
     cond = astx.BinaryOp("<", astx.Identifier("i"), astx.LiteralInt32(5))
     update = astx.BinaryOp("+", astx.Identifier("i"), astx.LiteralInt32(1))
     body = astx.Block()
-    body.append(astx.LiteralInt32(0))
+    body.append(PrintExpr(astx.Identifier("i")))
 
     loop = astx.ForCountLoopStmt(
         initializer=init, condition=cond, update=update, body=body
@@ -238,4 +245,4 @@ def test_for_count_loop_basic() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="01234")

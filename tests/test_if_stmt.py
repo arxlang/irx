@@ -24,10 +24,10 @@ from .conftest import check_result
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        # ("translate", "test_if_stmt.ll"),
-        ("build", ""),
+        # ("translate", "test_if_stmt.ll", ""),
+        ("build", "", "then branch"),
     ],
 )
 @pytest.mark.parametrize(
@@ -39,6 +39,7 @@ from .conftest import check_result
 def test_if_else_stmt(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -49,6 +50,8 @@ def test_if_else_stmt(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -87,7 +90,7 @@ def test_if_else_stmt(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 @pytest.mark.parametrize(
@@ -99,9 +102,9 @@ def test_if_else_stmt(
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        ("build", ""),
+        ("build", "", ""),
     ],
 )
 @pytest.mark.parametrize(
@@ -113,6 +116,7 @@ def test_if_else_stmt(
 def test_if_only_stmt(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -123,6 +127,8 @@ def test_if_only_stmt(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -158,7 +164,7 @@ def test_if_only_stmt(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -380,7 +386,7 @@ def test_if_stmt_no_else() -> None:
     )
     cond = astx.BinaryOp(">", astx.Identifier("x"), astx.LiteralInt32(0))
     then_block = astx.Block()
-    then_block.append(astx.LiteralInt32(42))
+    then_block.append(PrintExpr(astx.LiteralInt32(42)))
 
     if_stmt = astx.IfStmt(condition=cond, then=then_block)
 
@@ -394,4 +400,4 @@ def test_if_stmt_no_else() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="42")

@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -23,10 +24,10 @@ from .conftest import check_result
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        # ("translate", "test_unary_op.ll"),
-        ("build", ""),
+        # ("translate", "test_unary_op.ll", ""),
+        ("build", "", "16"),
     ],
 )
 @pytest.mark.parametrize(
@@ -38,6 +39,7 @@ from .conftest import check_result
 def test_unary_op_increment_decrement(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -48,6 +50,8 @@ def test_unary_op_increment_decrement(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -98,13 +102,16 @@ def test_unary_op_increment_decrement(
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(decl_c)
-    main_block.append(final_expr)
+    decl_tmp = astx.VariableDeclaration("tmp", type_=int_type(), value=final_expr)
+    main_block.append(decl_tmp)
+    main_block.append(PrintExpr(astx.LiteralUTF8String("16")))
+
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 def test_not_operator() -> None:

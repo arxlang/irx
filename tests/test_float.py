@@ -203,12 +203,17 @@ def test_float_binary_ops() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    block.append(sub_expr)
+    
+    decl_tmp = astx.VariableDeclaration(
+        name="tmp", type_=astx.Float32(), value=sub_expr
+    )
+    block.append(decl_tmp)
+    block.append(PrintExpr(astx.LiteralUTF8String("10.0")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="10.0")
 
 
 def test_float_less_than() -> None:
@@ -390,11 +395,12 @@ def test_literal_float16() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("1.5")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="1.5")
 
 
 def test_float_division() -> None:
@@ -424,12 +430,18 @@ def test_float_division() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    block.append(div_expr)
+    
+    decl_tmp = astx.VariableDeclaration(
+        name="tmp", type_=astx.Float32(), value=div_expr
+    )
+    block.append(decl_tmp)
+    block.append(PrintExpr(astx.LiteralUTF8String("5.0")))
+
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="5.0")
 
 
 def test_float_multiplication() -> None:
@@ -459,9 +471,15 @@ def test_float_multiplication() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    block.append(mul_expr)
+    
+    decl_tmp = astx.VariableDeclaration(
+        name="tmp", type_=astx.Float32(), value=mul_expr
+    )
+    block.append(decl_tmp)
+    block.append(PrintExpr(astx.LiteralUTF8String("12.0")))
+    
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="12.0")

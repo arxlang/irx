@@ -13,6 +13,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.system import PrintExpr
 from llvmlite import ir
 
 from .conftest import check_result
@@ -133,11 +134,12 @@ def test_literal_timestamp_valid() -> None:
     )
     block = astx.Block()
     block.append(ts)
+    block.append(PrintExpr(astx.LiteralUTF8String("2025-03-06T14:30:00")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="2025-03-06T14:30:00")
 
 
 def test_literal_timestamp_with_space() -> None:
@@ -154,11 +156,12 @@ def test_literal_timestamp_with_space() -> None:
     )
     block = astx.Block()
     block.append(ts)
+    block.append(PrintExpr(astx.LiteralUTF8String("2025-03-06 14:30:00")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="2025-03-06 14:30:00")
 
 
 def test_literal_timestamp_invalid_format() -> None:

@@ -13,6 +13,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 from llvmlite import ir
 
 from .conftest import check_result
@@ -36,7 +37,9 @@ def _datetime_values(const: ir.Constant) -> list[int]:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_basic_hms(
+    builder_class: Type[Builder],
+) -> None:
     """
     title: Integration - lowering succeeds and program builds.
     parameters:
@@ -49,6 +52,7 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
     datetime_node = astx.LiteralDateTime("2025-10-30T12:34:56")
     block = astx.Block()
     block.append(datetime_node)
+    block.append(PrintExpr(astx.LiteralUTF8String("2025-10-30T12:34:56")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     proto = astx.FunctionPrototype(
@@ -57,14 +61,16 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, "")
+    check_result("build", builder, module, "", expected_output="2025-10-30T12:34:56")
 
 
 @pytest.mark.skipif(
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_basic_hm(
+    builder_class: Type[Builder],
+) -> None:
     """
     title: Integration - HH:MM defaults seconds to 0 and builds.
     parameters:
@@ -77,6 +83,7 @@ def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
     datetime_node = astx.LiteralDateTime("2025-10-30 12:34")
     block = astx.Block()
     block.append(datetime_node)
+    block.append(PrintExpr(astx.LiteralUTF8String("2025-10-30 12:34")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     proto = astx.FunctionPrototype(
@@ -85,7 +92,7 @@ def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, "")
+    check_result("build", builder, module, "", expected_output="2025-10-30 12:34")
 
 
 @pytest.mark.parametrize(
@@ -121,6 +128,7 @@ def test_literal_datetime_parsing(
     datetime_node = astx.LiteralDateTime(datetime_str)
     block = astx.Block()
     block.append(datetime_node)
+    block.append(PrintExpr(astx.LiteralUTF8String(datetime_str)))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     proto = astx.FunctionPrototype(
@@ -129,7 +137,7 @@ def test_literal_datetime_parsing(
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, "")
+    check_result("build", builder, module, "", expected_output=datetime_str)
 
 
 @pytest.mark.skipif(
@@ -353,11 +361,12 @@ def test_literal_datetime_valid() -> None:
     )
     block = astx.Block()
     block.append(dt)
+    block.append(PrintExpr(astx.LiteralUTF8String("2025-03-06T14:30:00")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="2025-03-06T14:30:00")
 
 
 def test_literal_datetime_invalid_format() -> None:

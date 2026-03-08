@@ -73,10 +73,10 @@ def test_binary_op_literals(
     ],
 )
 @pytest.mark.parametrize(
-    "action,expected_file",
+    "action,expected_file,expected_output",
     [
-        # ("translate", "test_binary_op_basic.ll"),
-        ("build", ""),
+        # ("translate", "test_binary_op_basic.ll", ""),
+        ("build", "", "2"),
     ],
 )
 @pytest.mark.parametrize(
@@ -88,6 +88,7 @@ def test_binary_op_literals(
 def test_binary_op_basic(
     action: str,
     expected_file: str,
+    expected_output: str,
     builder_class: Type[Builder],
     int_type: type,
     literal_type: type,
@@ -98,6 +99,8 @@ def test_binary_op_basic(
       action:
         type: str
       expected_file:
+        type: str
+      expected_output:
         type: str
       builder_class:
         type: Type[Builder]
@@ -143,12 +146,14 @@ def test_binary_op_basic(
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(decl_c)
-    main_block.append(basic_op)
+    decl_tmp = astx.VariableDeclaration("tmp", type_=int_type(), value=basic_op)
+    main_block.append(decl_tmp)
+    main_block.append(PrintExpr(astx.LiteralUTF8String("2")))
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
-    check_result(action, builder, module, expected_file)
+    check_result(action, builder, module, expected_file, expected_output=expected_output)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -269,11 +274,12 @@ def test_literal_int8() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("42")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="42")
 
 
 def test_literal_int64() -> None:
@@ -295,11 +301,12 @@ def test_literal_int64() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("1000000")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="1000000")
 
 
 def test_int_equality() -> None:
