@@ -2078,6 +2078,25 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ListGet) -> None:
+        """
+        title: ListGet lowering
+        parameters:
+          node:
+            type: system.ListGet
+        """
+        self.visit(node.list_ptr)
+        lst_ptr = self.result_stack.pop()
+        self.visit(node.index)
+        idx_val = self.result_stack.pop()
+
+        builder = self._llvm.ir_builder
+        data_ptr = self._emit_load_data(builder, lst_ptr)
+        slot = builder.gep(data_ptr, [idx_val], inbounds=True, name="get_slot")
+        result = builder.load(slot, "get_val")
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralDict) -> None:
         """
         title: LiteralDict lowering
