@@ -107,36 +107,6 @@ def test_unary_op_increment_decrement(
     check_result(action, builder, module, expected_file)
 
 
-def test_decrement_operator() -> None:
-    """
-    title: Test standalone decrement operator.
-    """
-    builder = LLVMLiteIR()
-    module = builder.module()
-
-    decl = astx.InlineVariableDeclaration(
-        name="x",
-        type_=astx.Int32(),
-        value=astx.LiteralInt32(10),
-        mutability=astx.MutabilityKind.mutable,
-    )
-
-    decr = astx.UnaryOp(op_code="--", operand=astx.Identifier("x"))
-    decr.type_ = astx.Int32()
-
-    proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
-    )
-    block = astx.Block()
-    block.append(decl)
-    block.append(decr)
-    block.append(astx.FunctionReturn(astx.Identifier("x")))
-    fn = astx.FunctionDef(prototype=proto, body=block)
-    module.block.append(fn)
-
-    check_result("build", builder, module, expected_output="9")
-
-
 def test_not_operator() -> None:
     """
     title: Test standalone NOT operator.
