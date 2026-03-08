@@ -2,7 +2,7 @@
 title: Tests for string operations.
 """
 
-from typing import Type
+from typing import Type, Any
 
 import astx
 import pytest
@@ -305,7 +305,7 @@ from unittest.mock import MagicMock
 from llvmlite import ir
 from irx.builders.llvmliteir import LLVMLiteIR
 
-def setup_builder():
+def setup_builder() -> Any:
     main_builder = LLVMLiteIR()
     visitor = main_builder.translator
     func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
@@ -315,7 +315,7 @@ def setup_builder():
     return visitor
 
 
-def test_string_helper_functions():
+def test_string_helper_functions() -> None:
     builder = setup_builder()
     
     # Call the creators
@@ -337,7 +337,7 @@ def test_string_helper_functions():
     assert builder._create_string_substring_function() is sub_fn
 
 
-def test_handle_string_operations():
+def test_handle_string_operations() -> None:
     builder = setup_builder()
     
     str1 = ir.Constant(builder._llvm.ASCII_STRING_TYPE, None)

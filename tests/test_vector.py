@@ -4,10 +4,11 @@ from unittest.mock import MagicMock
 from llvmlite import ir
 from irx.builders.llvmliteir import LLVMLiteIR
 from .conftest import check_result
+from typing import Any
 
 
 
-def setup_builder():
+def setup_builder() -> Any:
     main_builder = LLVMLiteIR()
     visitor = main_builder.translator
     # Mocking standard startup
@@ -18,11 +19,11 @@ def setup_builder():
     return visitor
 
 
-def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsigned: bool = None):
+def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsigned: Any = None) -> ir.Value:
     builder = setup_builder()
     
     original_visit = builder.visit
-    def mock_visit(node, *args, **kwargs):
+    def mock_visit(node: Any, *args: Any, **kwargs: Any) -> Any:
         if isinstance(node, astx.Identifier):
             if node.name == "LHS":
                 builder.result_stack.append(lhs_val)
@@ -38,13 +39,13 @@ def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsign
     
     bin_op = astx.BinaryOp(op_code, astx.Identifier("LHS"), astx.Identifier("RHS"))
     if unsigned is not None:
-        bin_op.unsigned = unsigned
+        bin_op.unsigned = unsigned  # type: ignore
     builder.visit(bin_op)
     
     return builder.result_stack.pop()
 
 
-def test_vector_vector_math():
+def test_vector_vector_math() -> None:
     builder = setup_builder()
     vec_ty_f32 = ir.VectorType(builder._llvm.FLOAT_TYPE, 4)
     v1_f32 = ir.Constant(vec_ty_f32, [1.0] * 4)
@@ -62,7 +63,7 @@ def test_vector_vector_math():
             _run_vector_binop(op, v1_f32, v2_f32)
 
 
-def test_vector_scalar_promotion():
+def test_vector_scalar_promotion() -> None:
     builder = setup_builder()
     vec_ty_f32 = ir.VectorType(builder._llvm.FLOAT_TYPE, 4)
     v1_f32 = ir.Constant(vec_ty_f32, [1.0] * 4)
@@ -80,7 +81,7 @@ def test_vector_scalar_promotion():
     _run_vector_binop("+", scal_f64, v1_f32)
 
 
-def test_vector_int_math():
+def test_vector_int_math() -> None:
     builder = setup_builder()
     vec_ty_i32 = ir.VectorType(builder._llvm.INT32_TYPE, 4)
     v1_i32 = ir.Constant(vec_ty_i32, [1] * 4)

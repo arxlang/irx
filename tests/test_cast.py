@@ -476,7 +476,7 @@ def test_cast_half_to_float() -> None:
     check_result("build", builder, module)
 
 
-def test_cast_int_to_string() -> None:
+def test_cast_int_to_string_extra() -> None:
     """Test Cast from int to string (line 2694+)."""
     builder = LLVMLiteIR()
     module = builder.module()

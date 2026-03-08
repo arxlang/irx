@@ -174,7 +174,7 @@ def test_const_variable_declaration() -> None:
     check_result("build", builder, module, expected_output="3")
 
 
-def test_variable_assignment() -> None:
+def test_variable_assignment_extra() -> None:
     """Test VariableAssignment visitor (line 1314+)."""
     builder = LLVMLiteIR()
     module = builder.module()

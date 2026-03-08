@@ -299,7 +299,7 @@ from llvmlite import ir
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.builders.llvmliteir import is_vector, splat_scalar, emit_int_div
 
-def setup_builder():
+def setup_builder() -> LLVMLiteIRVisitor:
     main_builder = LLVMLiteIR()
     visitor = main_builder.translator
     func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
@@ -309,7 +309,7 @@ def setup_builder():
     return visitor
 
 
-def test_is_vector_helper():
+def test_is_vector_helper() -> None:
     builder = setup_builder()
     scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
     vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
@@ -319,7 +319,7 @@ def test_is_vector_helper():
     assert is_vector(vec)
 
 
-def test_splat_scalar_helper():
+def test_splat_scalar_helper() -> None:
     builder = setup_builder()
     scalar = ir.Constant(builder._llvm.INT32_TYPE, 1)
     vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, 4)
@@ -328,7 +328,7 @@ def test_splat_scalar_helper():
     assert vec.type == vec_ty
 
 
-def test_emit_int_div_helper():
+def test_emit_int_div_helper() -> None:
     builder = setup_builder()
     lhs = ir.Constant(builder._llvm.INT32_TYPE, 10)
     rhs = ir.Constant(builder._llvm.INT32_TYPE, 2)
