@@ -182,14 +182,13 @@ def test_variable_assignment_extra() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(10),
         mutability=astx.MutabilityKind.mutable,
     )
 
-    assign = astx.VariableAssignment(
-        name="x", value=astx.LiteralInt32(42)
-    )
+    assign = astx.VariableAssignment(name="x", value=astx.LiteralInt32(42))
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
@@ -212,14 +211,13 @@ def test_variable_assignment_const_error() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="c", type_=astx.Int32(),
+        name="c",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(10),
         mutability=astx.MutabilityKind.constant,
     )
 
-    assign = astx.VariableAssignment(
-        name="c", value=astx.LiteralInt32(42)
-    )
+    assign = astx.VariableAssignment(name="c", value=astx.LiteralInt32(42))
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
@@ -243,12 +241,14 @@ def test_inline_var_redeclare_error() -> None:
     module = builder.module()
 
     decl1 = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(1),
         mutability=astx.MutabilityKind.mutable,
     )
     decl2 = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(2),
         mutability=astx.MutabilityKind.mutable,
     )

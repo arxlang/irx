@@ -2,8 +2,7 @@
 title: Tests for string operations.
 """
 
-from typing import Type, Any
-from unittest.mock import MagicMock
+from typing import Any, Type
 
 import astx
 import pytest
@@ -302,6 +301,7 @@ def test_string_with_special_characters_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=expected)
+
 
 def setup_builder() -> Any:
     main_builder = LLVMLiteIR()

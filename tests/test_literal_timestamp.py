@@ -10,11 +10,12 @@ from typing import Type, cast
 
 import astx
 import pytest
-from .conftest import check_result
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from llvmlite import ir
+
+from .conftest import check_result
 
 HAS_LITERAL_TIMESTAMP = hasattr(astx, "LiteralTimestamp")
 NANOS_PER_MILLISECOND = 123_000_000

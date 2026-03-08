@@ -258,7 +258,8 @@ def test_literal_int8() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Int8(),
+        name="b",
+        type_=astx.Int8(),
         value=astx.LiteralInt8(42),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -283,7 +284,8 @@ def test_literal_int64() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="big", type_=astx.Int64(),
+        name="big",
+        type_=astx.Int64(),
         value=astx.LiteralInt64(1000000),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -308,12 +310,14 @@ def test_int_equality() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Int32(),
+        name="a",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(5),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Int32(),
+        name="b",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(5),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -346,12 +350,14 @@ def test_int_inequality() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Int32(),
+        name="a",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(1),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Int32(),
+        name="b",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(2),
         mutability=astx.MutabilityKind.mutable,
     )

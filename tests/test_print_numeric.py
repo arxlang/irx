@@ -10,6 +10,7 @@ from llvmlite import binding as llvm
 
 from .conftest import check_result
 
+
 def _translate_and_validate(module: astx.Module) -> str:
     builder = LLVMLiteIR()
     ir_text = builder.translate(module)

@@ -121,9 +121,7 @@ def test_not_operator() -> None:
         mutability=astx.MutabilityKind.mutable,
     )
 
-    not_op = astx.UnaryOp(
-        op_code="!", operand=astx.Identifier("flag")
-    )
+    not_op = astx.UnaryOp(op_code="!", operand=astx.Identifier("flag"))
     not_op.type_ = astx.Int32()
 
     proto = astx.FunctionPrototype(
@@ -147,7 +145,8 @@ def test_increment_const_error() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="c", type_=astx.Int32(),
+        name="c",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(5),
         mutability=astx.MutabilityKind.constant,
     )
@@ -176,7 +175,8 @@ def test_decrement_const_error() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="c", type_=astx.Int32(),
+        name="c",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(5),
         mutability=astx.MutabilityKind.constant,
     )
@@ -205,7 +205,8 @@ def test_not_const_error() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="c", type_=astx.Int32(),
+        name="c",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(1),
         mutability=astx.MutabilityKind.constant,
     )

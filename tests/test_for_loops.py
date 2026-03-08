@@ -177,7 +177,8 @@ def test_for_range_loop_without_step() -> None:
     module = builder.module()
 
     var_i = astx.InlineVariableDeclaration(
-        "i", type_=astx.Int32(),
+        "i",
+        type_=astx.Int32(),
         mutability=astx.MutabilityKind.mutable,
     )
     start = astx.LiteralInt32(0)
@@ -214,7 +215,8 @@ def test_for_count_loop_basic() -> None:
     module = builder.module()
 
     init = astx.InlineVariableDeclaration(
-        name="i", type_=astx.Int32(),
+        name="i",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(0),
         mutability=astx.MutabilityKind.mutable,
     )

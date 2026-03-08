@@ -4,8 +4,8 @@ title: Targeted helper coverage for LLVMLiteIRVisitor.
 
 from __future__ import annotations
 
-from typing import cast, Any
-from unittest.mock import MagicMock, Mock
+from typing import Any, cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -295,6 +295,7 @@ def test_apply_fast_math_noop_for_non_fp_values() -> None:
     )
     visitor._apply_fast_math(vector_add)
     assert "fast" not in vector_add.flags
+
 
 def setup_builder() -> LLVMLiteIRVisitor:
     main_builder = LLVMLiteIR()

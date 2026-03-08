@@ -105,9 +105,7 @@ def test_float_equality_comparison() -> None:
     else_block = astx.Block()
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
-    if_stmt = astx.IfStmt(
-        condition=cond, then=then_block, else_=else_block
-    )
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
@@ -153,9 +151,7 @@ def test_float_inequality_comparison() -> None:
     else_block = astx.Block()
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
-    if_stmt = astx.IfStmt(
-        condition=cond, then=then_block, else_=else_block
-    )
+    if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
@@ -223,12 +219,14 @@ def test_float_less_than() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(1.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(2.0),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -261,12 +259,14 @@ def test_float_greater_than() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(5.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -299,12 +299,14 @@ def test_float_less_equal() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -337,12 +339,14 @@ def test_float_greater_equal() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(5.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -375,7 +379,8 @@ def test_literal_float16() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="h", type_=astx.Float16(),
+        name="h",
+        type_=astx.Float16(),
         value=astx.LiteralFloat16(1.5),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -400,18 +405,18 @@ def test_float_division() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(10.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(2.0),
         mutability=astx.MutabilityKind.mutable,
     )
-    div_expr = astx.BinaryOp(
-        "/", astx.Identifier("a"), astx.Identifier("b")
-    )
+    div_expr = astx.BinaryOp("/", astx.Identifier("a"), astx.Identifier("b"))
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
@@ -435,18 +440,18 @@ def test_float_multiplication() -> None:
     module = builder.module()
 
     decl_a = astx.InlineVariableDeclaration(
-        name="a", type_=astx.Float32(),
+        name="a",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.InlineVariableDeclaration(
-        name="b", type_=astx.Float32(),
+        name="b",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(4.0),
         mutability=astx.MutabilityKind.mutable,
     )
-    mul_expr = astx.BinaryOp(
-        "*", astx.Identifier("a"), astx.Identifier("b")
-    )
+    mul_expr = astx.BinaryOp("*", astx.Identifier("a"), astx.Identifier("b"))
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()

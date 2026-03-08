@@ -298,6 +298,7 @@ def test_cast_boolean_to_string(
 
     check_result("build", builder, module, expected_output=expected_output)
 
+
 def test_cast_int_to_float() -> None:
     """
     title: Test Cast from int to float (line 2654).
@@ -306,7 +307,8 @@ def test_cast_int_to_float() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(42),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -333,7 +335,8 @@ def test_cast_float_to_int() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="f", type_=astx.Float32(),
+        name="f",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.14),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -360,7 +363,8 @@ def test_cast_int_widening() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int8(),
+        name="x",
+        type_=astx.Int8(),
         value=astx.LiteralInt8(10),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -387,7 +391,8 @@ def test_cast_int_narrowing() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(10),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -414,7 +419,8 @@ def test_cast_same_type_noop() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(5),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -441,7 +447,8 @@ def test_cast_float_to_half() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="f", type_=astx.Float32(),
+        name="f",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(1.5),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -468,7 +475,8 @@ def test_cast_half_to_float() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="h", type_=astx.Float16(),
+        name="h",
+        type_=astx.Float16(),
         value=astx.LiteralFloat16(1.5),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -495,7 +503,8 @@ def test_cast_int_to_string_extra() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(42),
         mutability=astx.MutabilityKind.mutable,
     )

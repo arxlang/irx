@@ -336,7 +336,8 @@ def test_if_stmt_float_condition() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="f", type_=astx.Float32(),
+        name="f",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(1.0),
         mutability=astx.MutabilityKind.mutable,
     )
@@ -372,7 +373,8 @@ def test_if_stmt_no_else() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=astx.Int32(),
+        name="x",
+        type_=astx.Int32(),
         value=astx.LiteralInt32(1),
         mutability=astx.MutabilityKind.mutable,
     )

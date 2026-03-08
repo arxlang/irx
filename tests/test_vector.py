@@ -1,11 +1,10 @@
-import astx
-import pytest
-from unittest.mock import MagicMock
-from llvmlite import ir
-from irx.builders.llvmliteir import LLVMLiteIR
-from .conftest import check_result
 from typing import Any
 
+import astx
+import pytest
+
+from irx.builders.llvmliteir import LLVMLiteIR
+from llvmlite import ir
 
 
 def setup_builder() -> Any:
@@ -19,10 +18,13 @@ def setup_builder() -> Any:
     return visitor
 
 
-def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsigned: Any = None) -> ir.Value:
+def _run_vector_binop(
+    op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsigned: Any = None
+) -> ir.Value:
     builder = setup_builder()
 
     original_visit = builder.visit
+
     def mock_visit(node: Any, *args: Any, **kwargs: Any) -> Any:
         if isinstance(node, astx.Identifier):
             if node.name == "LHS":
@@ -37,7 +39,9 @@ def _run_vector_binop(op_code: str, lhs_val: ir.Value, rhs_val: ir.Value, unsign
     # Mock bound method
     builder.visit = mock_visit
 
-    bin_op = astx.BinaryOp(op_code, astx.Identifier("LHS"), astx.Identifier("RHS"))
+    bin_op = astx.BinaryOp(
+        op_code, astx.Identifier("LHS"), astx.Identifier("RHS")
+    )
     if unsigned is not None:
         bin_op.unsigned = unsigned  # type: ignore
     builder.visit(bin_op)
@@ -94,7 +98,7 @@ def test_vector_int_math() -> None:
     with pytest.raises(Exception):
         _run_vector_binop("/", v1_i32, v2_i32)
 
-    return # Vector modulo/cmp raise unimplemented
+    return  # Vector modulo/cmp raise unimplemented
 
     # cmp
     _run_vector_binop("==", v1_i32, v2_i32)

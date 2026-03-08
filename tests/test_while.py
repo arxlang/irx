@@ -105,7 +105,8 @@ def test_while_stmt_float_condition() -> None:
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="count", type_=astx.Float32(),
+        name="count",
+        type_=astx.Float32(),
         value=astx.LiteralFloat32(3.0),
         mutability=astx.MutabilityKind.mutable,
     )

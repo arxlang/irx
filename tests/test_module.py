@@ -107,11 +107,13 @@ def test_multiple_function_calls() -> None:
 
     # Helper function: add(a, b) -> a + b
     arg_a = astx.Argument(
-        name="a", type_=astx.Int32(),
+        name="a",
+        type_=astx.Int32(),
         mutability=astx.MutabilityKind.mutable,
     )
     arg_b = astx.Argument(
-        name="b", type_=astx.Int32(),
+        name="b",
+        type_=astx.Int32(),
         mutability=astx.MutabilityKind.mutable,
     )
     args = astx.Arguments()
@@ -142,9 +144,7 @@ def test_multiple_function_calls() -> None:
     )
     main_block = astx.Block()
     main_block.append(astx.FunctionReturn(call))
-    main_fn = astx.FunctionDef(
-        prototype=main_proto, body=main_block
-    )
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output="42")
