@@ -110,12 +110,14 @@ def test_literal_dict_runtime_lowering(builder_class: Type[Builder]) -> None:
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    # Simulate runtime values by manually constructing LLVM values
+    # Simulate runtime values using non-constant LLVM value
     key = ir.Constant(visitor._llvm.INT32_TYPE, 1)
-    val_alloca = visitor._llvm.ir_builder.alloca(visitor._llvm.INT32_TYPE)
+    val = ir.Constant(
+        visitor._llvm.INT32_TYPE, 10
+    )  # placeholder runtime value
 
     visitor.result_stack.append(key)
-    visitor.result_stack.append(val_alloca)
+    visitor.result_stack.append(val)
 
     visitor.visit(
         astx.LiteralDict(
