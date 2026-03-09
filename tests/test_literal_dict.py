@@ -96,3 +96,36 @@ def test_literal_dict_heterogeneous_constants_unsupported(
                 }
             )
         )
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_dict_runtime_lowering(builder_class: Type[Builder]) -> None:
+    """
+    title: Runtime LiteralDict lowering (non-constant path)
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    # Simulate runtime values by manually constructing LLVM values
+    key = ir.Constant(visitor._llvm.INT32_TYPE, 1)
+    val_alloca = visitor._llvm.ir_builder.alloca(visitor._llvm.INT32_TYPE)
+
+    visitor.result_stack.append(key)
+    visitor.result_stack.append(val_alloca)
+
+    visitor.visit(
+        astx.LiteralDict(
+            elements={
+                astx.LiteralInt32(1): astx.LiteralInt32(2),
+            }
+        )
+    )
+
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result.type, ir.PointerType)
+    assert isinstance(result.type.pointee, ir.ArrayType)

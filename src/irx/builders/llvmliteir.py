@@ -2148,11 +2148,68 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(const_arr)
             return
 
-        # 4) Non-constant path not yet supported
-        raise TypeError(
-            "LiteralDict: only empty or all-constant dictionaries "
-            "are supported in this version"
-        )
+        # 4) Runtime lowering for non-constant dictionaries
+
+        # Infer key/value types from the first pair
+        first_key_ty = llvm_pairs[0][0].type
+        first_val_ty = llvm_pairs[0][1].type
+
+        # Ensure runtime dictionaries remain homogeneous
+        for key_val, val_val in llvm_pairs:
+            if key_val.type != first_key_ty or val_val.type != first_val_ty:
+                raise TypeError(
+                    "LiteralDict: heterogeneous runtime key/value types "
+                    "are not supported"
+                )
+
+        # Create the struct type representing one dictionary entry: {K, V}
+        pair_ty = ir.LiteralStructType([first_key_ty, first_val_ty])
+
+        # Create array type for the full dictionary: [N x {K, V}]
+        arr_ty = ir.ArrayType(pair_ty, n)
+
+        builder = self._llvm.ir_builder
+
+        # Allocate the dictionary array in the function entry block
+        entry_bb = builder.function.entry_basic_block
+        current_bb = builder.block
+
+        builder.position_at_start(entry_bb)
+        alloca = builder.alloca(arr_ty, name="dict.lit")
+        builder.position_at_end(current_bb)
+
+        # i32 type used for GEP indexing
+        i32 = ir.IntType(32)
+
+        # Store each key/value pair into the allocated array
+        for i, (key_val, val_val) in enumerate(llvm_pairs):
+            # Pointer to the i-th element in the dictionary array
+            elem_ptr = builder.gep(
+                alloca,
+                [ir.Constant(i32, 0), ir.Constant(i32, i)],
+                inbounds=True,
+            )
+
+            # Pointer to struct field 0 (key)
+            key_ptr = builder.gep(
+                elem_ptr,
+                [ir.Constant(i32, 0), ir.Constant(i32, 0)],
+                inbounds=True,
+            )
+
+            # Pointer to struct field 1 (value)
+            val_ptr = builder.gep(
+                elem_ptr,
+                [ir.Constant(i32, 0), ir.Constant(i32, 1)],
+                inbounds=True,
+            )
+
+            # Store key and value into the struct fields
+            builder.store(key_val, key_ptr)
+            builder.store(val_val, val_ptr)
+
+        # Push the pointer to the constructed dictionary onto the result stack
+        self.result_stack.append(alloca)
 
     def _create_string_concat_function(self) -> ir.Function:
         """
