@@ -2170,6 +2170,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         builder = self._llvm.ir_builder
 
+        # Runtime lowering requires a function context
+        if builder.function is None:
+            raise TypeError(
+                "LiteralDict: runtime lowering requires a function context"
+            )
+
         # Allocate the dictionary array in the function entry block
         entry_bb = builder.function.entry_basic_block
         current_bb = builder.block
