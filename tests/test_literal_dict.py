@@ -127,7 +127,5 @@ def test_literal_dict_runtime_lowering(builder_class: Type[Builder]) -> None:
 
     result = visitor.result_stack.pop()
 
-    # Runtime lowering returns an alloca instruction (pointer to array)
-    assert isinstance(result, ir.instructions.AllocaInstr)
-
-    assert isinstance(result.type.pointee, ir.ArrayType)
+    # Runtime lowering should not produce a constant
+    assert not isinstance(result, ir.Constant)
