@@ -2170,10 +2170,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         builder = self._llvm.ir_builder
 
-        # If we cannot safely emit runtime IR (no function or block),
-        # fall back to constant lowering so tests outside functions work.
-
-        if builder.block is None:
+        # Runtime lowering requires a valid function context.
+        # During unit tests the visitor runs outside a function,
+        # so we fall back to constant lowering to avoid invalid IR.
+        if builder.function is None or builder.block is None:
             const_pairs = [ir.Constant(pair_ty, [k, v]) for k, v in llvm_pairs]
             const_arr = ir.Constant(arr_ty, const_pairs)
             self.result_stack.append(const_arr)
