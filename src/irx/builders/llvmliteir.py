@@ -2170,11 +2170,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         builder = self._llvm.ir_builder
 
-        # Runtime lowering requires a function context
-        if builder.function is None:
-            raise TypeError(
-                "LiteralDict: runtime lowering requires a function context"
-            )
+        # If we cannot safely emit runtime IR (no function or block),
+        # fall back to constant lowering so tests outside functions work.
+        if builder.function is None or builder.block is None:
+            pair_ty = ir.LiteralStructType([first_key_ty, first_val_ty])
+            arr_ty = ir.ArrayType(pair_ty, n)
+
+            const_pairs = [ir.Constant(pair_ty, [k, v]) for k, v in llvm_pairs]
+
+            const_arr = ir.Constant(arr_ty, const_pairs)
+            self.result_stack.append(const_arr)
+            return
 
         # Allocate the dictionary array in the function entry block
         entry_bb = builder.function.entry_basic_block
