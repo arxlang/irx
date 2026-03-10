@@ -118,7 +118,9 @@ def test_emit_int_div_signed_and_unsigned() -> None:
 
 
 def test_unify_promotes_scalar_int_to_vector() -> None:
-    """Scalar ints splat to match vector operands and widen width."""
+    """
+    title: Scalar ints splat to match vector operands and widen width.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -137,7 +139,9 @@ def test_unify_promotes_scalar_int_to_vector() -> None:
 
 
 def test_unify_vector_float_rank_matches_double() -> None:
-    """Float vectors upgrade to match double scalars."""
+    """
+    title: Float vectors upgrade to match double scalars.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -160,7 +164,9 @@ def test_unify_vector_float_rank_matches_double() -> None:
 
 
 def test_unify_int_and_float_scalars_returns_float() -> None:
-    """Scalar int + float promotes to float for both operands."""
+    """
+    title: Scalar int plus float promotes both operands to float.
+    """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
 
@@ -173,6 +179,8 @@ def test_unify_int_and_float_scalars_returns_float() -> None:
 
     assert is_fp_type(widened_int.type)
     assert widened_float.type == visitor._llvm.FLOAT_TYPE
+
+
 def test_safe_pop_empty_returns_none() -> None:
     """
     title: safe_pop should return None when the list is empty.

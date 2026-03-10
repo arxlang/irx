@@ -678,7 +678,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
     def _is_numeric_value(self, value: ir.Value) -> bool:
-        """Return True if value represents an int/float scalar or vector."""
+        """
+        title: Check if value is an int or floating-point scalar or vector.
+        parameters:
+          value:
+            type: ir.Value
+            description: LLVM IR value to classify.
+        returns:
+          type: bool
+          description: True if the value is an int/float scalar or vector.
+        """
         if is_vector(value):
             elem_ty = value.type.element
             return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
@@ -688,7 +697,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _unify_numeric_operands(
         self, lhs: ir.Value, rhs: ir.Value
     ) -> tuple[ir.Value, ir.Value]:
-        """Ensure numeric operands share shape and scalar type."""
+        """
+        title: Ensure numeric operands share shape and scalar type.
+        parameters:
+          lhs:
+            type: ir.Value
+            description: Left-hand side operand.
+          rhs:
+            type: ir.Value
+            description: Right-hand side operand.
+        returns:
+          type: tuple[ir.Value, ir.Value]
+          description: Operands converted to compatible shape and scalar type.
+        """
         lhs_is_vec = is_vector(lhs)
         rhs_is_vec = is_vector(rhs)
 
@@ -732,7 +753,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return lhs, rhs
 
     def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
-        """Choose the widest float type from provided candidates."""
+        """
+        title: Choose the widest floating-point type from a list of candidates.
+        parameters:
+          candidates:
+            type: list[ir.Type]
+            description: Candidate floating-point types.
+        returns:
+          type: ir.Type
+          description: The widest floating-point type; defaults to float32.
+        """
         if not candidates:
             return self._llvm.FLOAT_TYPE
 
@@ -764,7 +794,19 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     def _cast_value_to_type(
         self, value: ir.Value, target_scalar_ty: ir.Type
     ) -> ir.Value:
-        """Cast scalars or vectors to the target scalar type."""
+        """
+        title: Cast scalars or vectors to a target scalar type.
+        parameters:
+          value:
+            type: ir.Value
+            description: Source scalar or vector value.
+          target_scalar_ty:
+            type: ir.Type
+            description: Desired scalar element type.
+        returns:
+          type: ir.Value
+          description: Value converted to the requested scalar type and shape.
+        """
         builder = self._llvm.ir_builder
         value_is_vec = is_vector(value)
         if value_is_vec:
