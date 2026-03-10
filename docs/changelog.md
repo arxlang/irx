@@ -1,6 +1,53 @@
 # Release Notes
 ---
 
+## [1.8.1](https://github.com/arxlang/irx/compare/1.8.0...1.8.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* Update astx; mermaid-ascii is optional now ([#206](https://github.com/arxlang/irx/issues/206)) ([511efba](https://github.com/arxlang/irx/commit/511efbac43b16af56d6a6179ffdc62f3dd6439b5))
+
+# [1.8.0](https://github.com/arxlang/irx/compare/1.7.0...1.8.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* Add option for -no-pie compilation ([#203](https://github.com/arxlang/irx/issues/203)) ([168edd9](https://github.com/arxlang/irx/commit/168edd9e9f84079a24ecb375aa40c17945fdb6fb))
+
+
+### Features
+
+* add LiteralTime support ([5c88e1e](https://github.com/arxlang/irx/commit/5c88e1e1abaa9286044c2973b51c8fb75a339498))
+
+# [1.7.0](https://github.com/arxlang/irx/compare/1.6.0...1.7.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* Fix If statement, add tests, add support for python 3.14 ([#195](https://github.com/arxlang/irx/issues/195)) ([a5c4b5d](https://github.com/arxlang/irx/commit/a5c4b5d7151ad6d8113df66c2738711fa053fb4b))
+* Fix print for numeric ([#196](https://github.com/arxlang/irx/issues/196)) ([620afbe](https://github.com/arxlang/irx/commit/620afbe1422d5f8f3938e36e700f034fc0d9aeaf))
+
+
+### Features
+
+* enforce mutability checking for variable declarations in LLVM-IR builder ([#192](https://github.com/arxlang/irx/issues/192)) ([f1f4036](https://github.com/arxlang/irx/commit/f1f4036904d1c70c4c4d6f3689f882f0be5027b7))
+
+# [1.6.0](https://github.com/arxlang/irx/compare/1.5.0...1.6.0) (2026-03-05)
+
+
+### Bug Fixes
+
+* ensure ForRangeLoopStmt condition is checked before loop body execution ([#178](https://github.com/arxlang/irx/issues/178)) ([6bb3b7f](https://github.com/arxlang/irx/commit/6bb3b7fd20f2dde7f37dc862f4f8a7fb7dd949b0))
+* make fast-math toggles work ([#140](https://github.com/arxlang/irx/issues/140)) ([67f3668](https://github.com/arxlang/irx/commit/67f3668ea5a59b1b5d7bcea4cd12001f53a93983))
+* set module triple/data layout; drop forced 64-bit size_t override ([#134](https://github.com/arxlang/irx/issues/134)) ([4361689](https://github.com/arxlang/irx/commit/4361689ca8f3b9fdd681a06fcfffda03a1a47902))
+
+
+### Features
+
+* add minimal LiteralList lowering and tests ([#128](https://github.com/arxlang/irx/issues/128)) ([3683488](https://github.com/arxlang/irx/commit/3683488bf912a191a2710fc0d2c9faefca27bcc3))
+* Fix incomplete float type detection in binary operations ([#146](https://github.com/arxlang/irx/issues/146)) ([290d1f1](https://github.com/arxlang/irx/commit/290d1f1b9c0244c915f58acb4a8fafd0c44952bc)), closes [#137](https://github.com/arxlang/irx/issues/137)
+
 # [1.5.0](https://github.com/arxlang/irx/compare/1.4.0...1.5.0) (2025-11-30)
 
 

@@ -1,4 +1,6 @@
-"""Tests for the UnaryOp."""
+"""
+title: Tests for the UnaryOp.
+"""
 
 from typing import Type
 
@@ -40,18 +42,40 @@ def test_unary_op_increment_decrement(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx UnaryOp for increment and decrement operations."""
+    """
+    title: Test ASTx UnaryOp for increment and decrement operations.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
     decl_a = astx.VariableDeclaration(
-        name="a", type_=int_type(), value=literal_type(5)
+        name="a",
+        type_=int_type(),
+        value=literal_type(5),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_b = astx.VariableDeclaration(
-        name="b", type_=int_type(), value=literal_type(10)
+        name="b",
+        type_=int_type(),
+        value=literal_type(10),
+        mutability=astx.MutabilityKind.mutable,
     )
     decl_c = astx.VariableDeclaration(
-        name="c", type_=int_type(), value=literal_type(0)
+        name="c",
+        type_=int_type(),
+        value=literal_type(0),
+        mutability=astx.MutabilityKind.mutable,
     )
 
     var_a = astx.Identifier("a")

@@ -1,1 +1,3 @@
-"""Package for irx helper tools."""
+"""
+title: Package for irx helper tools.
+"""

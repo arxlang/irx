@@ -1,4 +1,6 @@
-"""Tests for Boolean logic and comparisons."""
+"""
+title: Tests for Boolean logic and comparisons.
+"""
 
 from typing import Type
 
@@ -31,7 +33,20 @@ def test_boolean_operations(
     rhs: bool,
     expected: str,
 ) -> None:
-    """Test literal Boolean AND/OR operations."""
+    """
+    title: Test literal Boolean AND/OR operations.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      lhs:
+        type: bool
+      op:
+        type: str
+      rhs:
+        type: bool
+      expected:
+        type: str
+    """
     builder = builder_class()
     module = builder.module()
 
@@ -84,7 +99,24 @@ def test_boolean_comparison(
     rhs: int,
     expected: str,
 ) -> None:
-    """Test integer comparisons."""
+    """
+    title: Test integer comparisons.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+      lhs:
+        type: int
+      op:
+        type: str
+      rhs:
+        type: int
+      expected:
+        type: str
+    """
     builder = builder_class()
     module = builder.module()
 

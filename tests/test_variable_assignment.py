@@ -1,4 +1,6 @@
-"""Test For VariableAssignment."""
+"""
+title: Test For VariableAssignment.
+"""
 
 from typing import Type
 
@@ -32,12 +34,24 @@ def test_variable_assignment(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test VariableAssignment by reassigning and returning."""
+    """
+    title: Test VariableAssignment by reassigning and returning.
+    parameters:
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
     module = builder.module()
 
     decl = astx.InlineVariableDeclaration(
-        name="x", type_=int_type(), value=literal_type(10)
+        name="x",
+        type_=int_type(),
+        value=literal_type(10),
+        mutability=astx.MutabilityKind.mutable,
     )
     assignment = astx.VariableAssignment(name="x", value=literal_type(42))
 

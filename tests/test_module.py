@@ -1,4 +1,6 @@
-"""Tests for the Module AST."""
+"""
+title: Tests for the Module AST.
+"""
 
 from typing import Type
 
@@ -12,7 +14,16 @@ from .conftest import check_result
 
 
 def make_fn_add(int_type: type, literal_type: type) -> astx.AST:
-    """Create a fixture for a function `add`."""
+    """
+    title: Create a fixture for a function add.
+    parameters:
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    returns:
+      type: astx.AST
+    """
     var_a = astx.Argument(name="a", type_=int_type(), default=literal_type(1))
     var_b = astx.Argument(name="b", type_=int_type(), default=literal_type(2))
 
@@ -54,7 +65,20 @@ def test_module_fn_main(
     int_type: type,
     literal_type: type,
 ) -> None:
-    """Test ASTx Module with a main function and a function called add."""
+    """
+    title: Test ASTx Module with a main function and a function called add.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
     builder = builder_class()
 
     fn_add = make_fn_add(int_type, literal_type)
