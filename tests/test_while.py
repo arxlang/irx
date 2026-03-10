@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -130,8 +131,9 @@ def test_while_stmt_float_condition() -> None:
     block = astx.Block()
     block.append(decl)
     block.append(while_stmt)
+    block.append(PrintExpr(astx.LiteralUTF8String("DONE")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="DONE")

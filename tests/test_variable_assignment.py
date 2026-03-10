@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -89,11 +90,12 @@ def test_variable_declaration_no_initializer_int() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("0")))
     block.append(astx.FunctionReturn(astx.Identifier("x")))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="0")
 
 
 def test_variable_declaration_no_initializer_float() -> None:
@@ -115,11 +117,12 @@ def test_variable_declaration_no_initializer_float() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("0.0")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="0.0")
 
 
 def test_variable_declaration_string_type() -> None:
@@ -141,11 +144,12 @@ def test_variable_declaration_string_type() -> None:
     )
     block = astx.Block()
     block.append(decl)
+    block.append(PrintExpr(astx.LiteralUTF8String("hello")))
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="hello")
 
 
 def test_const_variable_declaration() -> None:

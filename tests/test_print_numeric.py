@@ -216,7 +216,7 @@ def test_print_float() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="3.140000")
 
 
 def test_format_global_reuse() -> None:
@@ -236,4 +236,4 @@ def test_format_global_reuse() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="12")

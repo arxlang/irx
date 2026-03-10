@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 from irx.system import Cast, PrintExpr
 
 from .conftest import check_result
@@ -319,12 +320,25 @@ def test_cast_int_to_float() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Float32(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="42.000000")
 
 
 def test_cast_float_to_int() -> None:
@@ -347,12 +361,25 @@ def test_cast_float_to_int() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Int32(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="3")
 
 
 def test_cast_int_widening() -> None:
@@ -375,12 +402,25 @@ def test_cast_int_widening() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Int32(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="10")
 
 
 def test_cast_int_narrowing() -> None:
@@ -403,12 +443,25 @@ def test_cast_int_narrowing() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Int8(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="10")
 
 
 def test_cast_same_type_noop() -> None:
@@ -431,12 +484,25 @@ def test_cast_same_type_noop() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Int32(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="5")
 
 
 def test_cast_float_to_half() -> None:
@@ -459,12 +525,25 @@ def test_cast_float_to_half() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Float16(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="1.500000")
 
 
 def test_cast_half_to_float() -> None:
@@ -487,12 +566,25 @@ def test_cast_half_to_float() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.Float32(), value=cast_expr
+    )
+
+    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    str_var = astx.InlineVariableDeclaration(
+        name="r", type_=astx.String(), value=cast_to_str
+    )
+    print_stmt = PrintExpr(message=astx.Identifier("r"))
+    
+    block.append(cast_var)
+    block.append(str_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="1.500000")
 
 
 def test_cast_int_to_string_extra() -> None:
@@ -515,9 +607,16 @@ def test_cast_int_to_string_extra() -> None:
     )
     block = astx.Block()
     block.append(decl)
-    block.append(cast_expr)
+
+    cast_var = astx.InlineVariableDeclaration(
+        name="cast_res", type_=astx.String(), value=cast_expr
+    )
+
+    print_stmt = PrintExpr(message=astx.Identifier("cast_res"))
+    block.append(cast_var)
+    block.append(print_stmt)
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output="42")

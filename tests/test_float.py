@@ -101,8 +101,10 @@ def test_float_equality_comparison() -> None:
     )
 
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
@@ -147,8 +149,10 @@ def test_float_inequality_comparison() -> None:
     )
 
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
@@ -238,8 +242,10 @@ def test_float_less_than() -> None:
 
     cond = astx.BinaryOp("<", astx.Identifier("a"), astx.Identifier("b"))
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
@@ -278,8 +284,10 @@ def test_float_greater_than() -> None:
 
     cond = astx.BinaryOp(">", astx.Identifier("a"), astx.Identifier("b"))
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
@@ -318,8 +326,10 @@ def test_float_less_equal() -> None:
 
     cond = astx.BinaryOp("<=", astx.Identifier("a"), astx.Identifier("b"))
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
@@ -358,8 +368,10 @@ def test_float_greater_equal() -> None:
 
     cond = astx.BinaryOp(">=", astx.Identifier("a"), astx.Identifier("b"))
     then_block = astx.Block()
+    then_block.append(PrintExpr(astx.LiteralUTF8String("1")))
     then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
     else_block = astx.Block()
+    else_block.append(PrintExpr(astx.LiteralUTF8String("0")))
     else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
