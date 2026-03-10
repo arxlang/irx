@@ -139,7 +139,9 @@ def test_literal_timestamp_valid() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, expected_output="2025-03-06T14:30:00")
+    check_result(
+        "build", builder, module, expected_output="2025-03-06T14:30:00"
+    )
 
 
 def test_literal_timestamp_with_space() -> None:
@@ -161,7 +163,9 @@ def test_literal_timestamp_with_space() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, expected_output="2025-03-06 14:30:00")
+    check_result(
+        "build", builder, module, expected_output="2025-03-06 14:30:00"
+    )
 
 
 def test_literal_timestamp_invalid_format() -> None:

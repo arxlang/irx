@@ -61,7 +61,9 @@ def test_literal_datetime_basic_hms(
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, "", expected_output="2025-10-30T12:34:56")
+    check_result(
+        "build", builder, module, "", expected_output="2025-10-30T12:34:56"
+    )
 
 
 @pytest.mark.skipif(
@@ -92,7 +94,9 @@ def test_literal_datetime_basic_hm(
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, "", expected_output="2025-10-30 12:34")
+    check_result(
+        "build", builder, module, "", expected_output="2025-10-30 12:34"
+    )
 
 
 @pytest.mark.parametrize(
@@ -366,7 +370,9 @@ def test_literal_datetime_valid() -> None:
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
 
-    check_result("build", builder, module, expected_output="2025-03-06T14:30:00")
+    check_result(
+        "build", builder, module, expected_output="2025-03-06T14:30:00"
+    )
 
 
 def test_literal_datetime_invalid_format() -> None:

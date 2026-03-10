@@ -146,14 +146,18 @@ def test_binary_op_basic(
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(decl_c)
-    decl_tmp = astx.VariableDeclaration("tmp", type_=int_type(), value=basic_op)
+    decl_tmp = astx.VariableDeclaration(
+        "tmp", type_=int_type(), value=basic_op
+    )
     main_block.append(decl_tmp)
     main_block.append(PrintExpr(astx.LiteralUTF8String("2")))
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])

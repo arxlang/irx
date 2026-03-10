@@ -102,7 +102,9 @@ def test_unary_op_increment_decrement(
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(decl_c)
-    decl_tmp = astx.VariableDeclaration("tmp", type_=int_type(), value=final_expr)
+    decl_tmp = astx.VariableDeclaration(
+        "tmp", type_=int_type(), value=final_expr
+    )
     main_block.append(decl_tmp)
     main_block.append(PrintExpr(astx.LiteralUTF8String("16")))
 
@@ -111,7 +113,9 @@ def test_unary_op_increment_decrement(
 
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 def test_not_operator() -> None:

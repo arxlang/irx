@@ -9,7 +9,6 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
-from irx.system import PrintExpr
 from irx.system import Cast, PrintExpr
 
 from .conftest import check_result
@@ -325,12 +324,14 @@ def test_cast_int_to_float() -> None:
         name="cast_res", type_=astx.Float32(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -366,12 +367,14 @@ def test_cast_float_to_int() -> None:
         name="cast_res", type_=astx.Int32(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -407,12 +410,14 @@ def test_cast_int_widening() -> None:
         name="cast_res", type_=astx.Int32(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -448,12 +453,14 @@ def test_cast_int_narrowing() -> None:
         name="cast_res", type_=astx.Int8(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -489,12 +496,14 @@ def test_cast_same_type_noop() -> None:
         name="cast_res", type_=astx.Int32(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -530,12 +539,14 @@ def test_cast_float_to_half() -> None:
         name="cast_res", type_=astx.Float16(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)
@@ -571,12 +582,14 @@ def test_cast_half_to_float() -> None:
         name="cast_res", type_=astx.Float32(), value=cast_expr
     )
 
-    cast_to_str = Cast(value=astx.Identifier("cast_res"), target_type=astx.String())
+    cast_to_str = Cast(
+        value=astx.Identifier("cast_res"), target_type=astx.String()
+    )
     str_var = astx.InlineVariableDeclaration(
         name="r", type_=astx.String(), value=cast_to_str
     )
     print_stmt = PrintExpr(message=astx.Identifier("r"))
-    
+
     block.append(cast_var)
     block.append(str_var)
     block.append(print_stmt)

@@ -90,7 +90,9 @@ def test_if_else_stmt(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 @pytest.mark.parametrize(
@@ -164,7 +166,9 @@ def test_if_only_stmt(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])

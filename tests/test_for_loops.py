@@ -91,7 +91,9 @@ def test_for_range(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 @pytest.mark.parametrize(
@@ -173,7 +175,9 @@ def test_for_count(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file, expected_output=expected_output)
+    check_result(
+        action, builder, module, expected_file, expected_output=expected_output
+    )
 
 
 def test_for_range_loop_without_step() -> None:

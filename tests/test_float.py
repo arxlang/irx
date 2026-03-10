@@ -207,7 +207,7 @@ def test_float_binary_ops() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    
+
     decl_tmp = astx.VariableDeclaration(
         name="tmp", type_=astx.Float32(), value=sub_expr
     )
@@ -442,7 +442,7 @@ def test_float_division() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    
+
     decl_tmp = astx.VariableDeclaration(
         name="tmp", type_=astx.Float32(), value=div_expr
     )
@@ -483,13 +483,13 @@ def test_float_multiplication() -> None:
     block = astx.Block()
     block.append(decl_a)
     block.append(decl_b)
-    
+
     decl_tmp = astx.VariableDeclaration(
         name="tmp", type_=astx.Float32(), value=mul_expr
     )
     block.append(decl_tmp)
     block.append(PrintExpr(astx.LiteralUTF8String("12.0")))
-    
+
     block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn = astx.FunctionDef(prototype=proto, body=block)
     module.block.append(fn)
