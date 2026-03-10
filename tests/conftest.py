@@ -68,8 +68,8 @@ def check_result(
             filename_exe = fp.name
             builder.build(module, output_file=filename_exe)
 
-        # todo: fix the code to avoid workarounds
-        exe_result = str(builder.run()).replace("\n", "")
+        result = builder.run(raise_on_error=False)
+        exe_result = result.stdout.strip() or str(result.returncode)
 
         if expected_output:
             message = (
