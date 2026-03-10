@@ -7,7 +7,15 @@ from typing import Sequence
 import astx
 import pytest
 
-from irx.builders.base import Builder, BuilderVisitor, run_command
+from irx.builders.base import (
+    Builder,
+    BuilderVisitor,
+    CommandError,
+    CommandResult,
+    run_command,
+)
+
+EXIT_CODE = 7
 
 
 class _DummyVisitor(BuilderVisitor):
@@ -37,18 +45,34 @@ class _DummyBuilder(Builder):
 
 def test_run_command_success() -> None:
     """
-    title: run_command should return stdout on success.
+    title: run_command should return a CommandResult with stdout on success.
     """
-    out = run_command(["/bin/sh", "-c", "printf ok"])
-    assert out == "ok"
+    result = run_command(["/bin/sh", "-c", "printf ok"])
+    assert isinstance(result, CommandResult)
+    assert result.stdout == "ok"
+    assert result.returncode == 0
+    assert result.success is True
 
 
-def test_run_command_nonzero_returns_code() -> None:
+def test_run_command_nonzero_raises() -> None:
     """
-    title: run_command should return exit code string on failure.
+    title: run_command should raise CommandError on non-zero exit by default.
     """
-    out = run_command(["/bin/sh", "-c", "exit 7"])
-    assert out == "7"
+    with pytest.raises(CommandError) as exc_info:
+        run_command(["/bin/sh", "-c", "exit 7"])
+    assert exc_info.value.result.returncode == EXIT_CODE
+
+
+def test_run_command_nonzero_no_raise() -> None:
+    """
+    title: >-
+      run_command with raise_on_error=False should return result instead of
+      raising.
+    """
+    result = run_command(["/bin/sh", "-c", "exit 7"], raise_on_error=False)
+    assert isinstance(result, CommandResult)
+    assert result.returncode == EXIT_CODE
+    assert result.success is False
 
 
 def test_builder_visitor_translate_not_implemented() -> None:
@@ -65,7 +89,7 @@ def test_builder_translate_delegates_to_translator() -> None:
     title: Builder.translate should delegate to configured translator.
     """
     builder = _DummyBuilder()
-    result = builder.translate(astx.LiteralInt32(1))
+    result: str = builder.translate(astx.LiteralInt32(1))
     assert result == "translated:LiteralInt32"
 
 
@@ -77,14 +101,24 @@ def test_builder_run_uses_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
         type: pytest.MonkeyPatch
     """
     seen: list[Sequence[str]] = []
+    fake_result = CommandResult(
+        stdout="done", stderr="", returncode=0, command=["/tmp/fake-bin"]
+    )
 
-    def _fake_run(command: Sequence[str]) -> str:
+    def _fake_run(
+        command: Sequence[str],
+        *,
+        raise_on_error: bool = True,
+        debug: bool = False,
+        capture_stderr: bool = True,
+    ) -> CommandResult:
         seen.append(command)
-        return "done"
+        return fake_result
 
     builder = _DummyBuilder()
     builder.output_file = "/tmp/fake-bin"
     monkeypatch.setattr("irx.builders.base.run_command", _fake_run)
 
-    assert builder.run() == "done"
+    result = builder.run()
+    assert result == fake_result
     assert seen == [["/tmp/fake-bin"]]
