@@ -125,3 +125,4 @@ def test_literal_dict_const_lowering(
     # When no function context exists, runtime lowering falls back to constant
     assert isinstance(result, ir.Constant)
     assert isinstance(result.type, ir.ArrayType)
+    assert result.type.count == 1

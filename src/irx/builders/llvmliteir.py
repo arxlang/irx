@@ -2188,7 +2188,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         builder.position_at_end(current_bb)
 
         # i32 type used for GEP indexing
-        i32 = ir.IntType(32)
+        i32 = self._llvm.INT32_TYPE
 
         # Store each key/value pair into the allocated array
         for i, (key_val, val_val) in enumerate(llvm_pairs):
