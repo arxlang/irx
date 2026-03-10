@@ -99,7 +99,7 @@ def test_literal_dict_heterogeneous_constants_unsupported(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_dict_runtime_lowering_fallback(
+def test_literal_dict_const_lowering(
     builder_class: Type[Builder],
 ) -> None:
     """
