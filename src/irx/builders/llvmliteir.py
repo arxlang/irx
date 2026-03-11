@@ -1283,7 +1283,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.branch(cond_bb)
 
         # Start inserting into the condition check block.
-        self._llvm.ir_builder.position_at_start(cond_bb)
+        self._llvm.ir_builder.position_at_end(cond_bb)
 
         # Emit the condition.
         self.visit(expr.condition)
@@ -1309,8 +1309,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Conditional branch based on the condition.
         self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
 
-        # Start inserting into the loop body block.
-        self._llvm.ir_builder.position_at_start(body_bb)
+        #  use position_at_end for body block
+        self._llvm.ir_builder.position_at_end(body_bb)
 
         # Emit the body of the loop.
         self.visit(expr.body)
@@ -1319,11 +1319,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not body_val:
             return
 
-        # Branch back to the condition check.
-        self._llvm.ir_builder.branch(cond_bb)
+        # Don't rely on result_stack for control flow.
+        # Only branch back if the block isn't already terminated
+        if not self._llvm.ir_builder.block.is_terminated:
+            self._llvm.ir_builder.branch(cond_bb)
 
-        # Start inserting into the block after the loop.
-        self._llvm.ir_builder.position_at_start(after_bb)
+        # use position_at_end for after block
+        self._llvm.ir_builder.position_at_end(after_bb)
 
         # While loop always returns 0.
         result = ir.Constant(self._llvm.INT32_TYPE, 0)
