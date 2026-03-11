@@ -95,3 +95,75 @@ def test_while_expr(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize(
+    "int_type, literal_type",
+    [
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.Int8, astx.LiteralInt8),
+        (astx.Int64, astx.LiteralInt64),
+    ],
+)
+@pytest.mark.parametrize(
+    "action,expected_file",
+    [
+        ("build", ""),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_while_false_condition(
+    action: str,
+    expected_file: str,
+    builder_class: Type[Builder],
+    int_type: type,
+    literal_type: type,
+) -> None:
+    """
+    title: Test While loop with a condition that is false from the start.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
+    builder = builder_class()
+
+    # Condition is always false: 10 < 0
+    cond = astx.BinaryOp(
+        op_code="<",
+        lhs=literal_type(10),
+        rhs=literal_type(0),
+    )
+
+    # Body that should never execute
+    body = astx.Block()
+    body.append(literal_type(1))
+
+    while_expr = astx.WhileStmt(condition=cond, body=body)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=int_type()
+    )
+    fn_block = astx.Block()
+    fn_block.append(while_expr)
+    fn_block.append(astx.FunctionReturn(literal_type(0)))
+
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result(action, builder, module, expected_file)
