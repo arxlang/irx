@@ -71,26 +71,67 @@ def is_vector(v: "ir.Value") -> bool:
     return isinstance(getattr(v, "type", None), VectorType)
 
 
-def _is_unsigned_node(node: "astx.AST") -> bool:
+def _is_unsigned_type(t: "astx.AST") -> bool:
+    """
+    title: Check whether a type object is an unsigned integer.
+    parameters:
+      t:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    return isinstance(
+        t,
+        (
+            astx.UInt8,
+            astx.UInt16,
+            astx.UInt32,
+            astx.UInt64,
+            astx.UInt128,
+        ),
+    )
+
+
+def _is_unsigned_node(
+    node: "astx.AST",
+    var_types: Optional[dict[str, Any]] = None,
+) -> bool:
     """
     title: Return True if the AST node carries an unsigned integer type.
     parameters:
       node:
         type: astx.AST
+      var_types:
+        type: Optional[dict[str, Any]]
     returns:
       type: bool
     """
     if hasattr(node, "type_") and node.type_ is not None:
-        return isinstance(
-            node.type_,
-            (
-                astx.UInt8,
-                astx.UInt16,
-                astx.UInt32,
-                astx.UInt64,
-                astx.UInt128,
-            ),
+        if _is_unsigned_type(node.type_):
+            return True
+
+    if isinstance(node, astx.Identifier) and var_types is not None:
+        vt = var_types.get(node.name)
+        if vt is not None:
+            return _is_unsigned_type(vt)
+
+    if isinstance(node, astx.BinaryOp):
+        return _is_unsigned_node(node.lhs, var_types) or _is_unsigned_node(
+            node.rhs, var_types
         )
+
+    if isinstance(
+        node,
+        (
+            astx.LiteralUInt8,
+            astx.LiteralUInt16,
+            astx.LiteralUInt32,
+            astx.LiteralUInt64,
+            astx.LiteralUInt128,
+        ),
+    ):
+        return True
+
     return False
 
 
@@ -315,6 +356,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: set[str]
       _fast_math_enabled:
         type: bool
+      var_types:
+        type: dict[str, Any]
       target:
         type: llvm.TargetRef
       target_machine:
@@ -341,6 +384,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
         self._fast_math_enabled: bool = False
+        self.var_types: dict[str, Any] = {}
 
         self.initialize()
 
@@ -1029,7 +1073,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Scalar Fallback: Original scalar promotion logic
         llvm_lhs, llvm_rhs = self.promote_operands(
-            llvm_lhs, llvm_rhs, unsigned=_is_unsigned_node(node)
+            llvm_lhs,
+            llvm_rhs,
+            unsigned=_is_unsigned_node(node, self.var_types),
         )
 
         if node.op_code in ("&&", "and"):
@@ -1103,7 +1149,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             # handle it depend on datatype
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1121,7 +1167,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
             # be careful we havn't  handled all the conditions
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1136,7 +1182,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -1151,7 +1197,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -1170,7 +1216,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 result = self._llvm.ir_builder.udiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1197,7 +1243,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -1224,7 +1270,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
-            elif _is_unsigned_node(node):
+            elif _is_unsigned_node(node, self.var_types):
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
@@ -1233,6 +1279,22 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
             self.result_stack.append(cmp_result)
+            return
+
+        elif node.op_code == "%":
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+                result = self._llvm.ir_builder.frem(
+                    llvm_lhs, llvm_rhs, "fremtmp"
+                )
+            elif _is_unsigned_node(node, self.var_types):
+                result = self._llvm.ir_builder.urem(
+                    llvm_lhs, llvm_rhs, "uremtmp"
+                )
+            else:
+                result = self._llvm.ir_builder.srem(
+                    llvm_lhs, llvm_rhs, "sremtmp"
+                )
+            self.result_stack.append(result)
             return
 
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
@@ -3138,6 +3200,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         if self.named_values.get(node.name):
             raise Exception(f"Identifier already declared: {node.name}")
+
+        self.var_types[node.name] = getattr(node, "type_", None)
 
         type_str = node.type_.__class__.__name__.lower()
 
