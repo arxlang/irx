@@ -88,6 +88,7 @@ def test_while_expr(
     fn_block = astx.Block()
     fn_block.append(init_var)
     fn_block.append(while_expr)
+    fn_block.append(PrintExpr(astx.LiteralUTF8String("LOOP_DONE")))
     fn_block.append(astx.FunctionReturn(literal_type(0)))
 
     fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
@@ -95,7 +96,13 @@ def test_while_expr(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file)
+    check_result(
+        action,
+        builder,
+        module,
+        expected_file,
+        expected_output="LOOP_DONE",
+    )
 
 
 def test_while_stmt_float_condition() -> None:
@@ -201,6 +208,7 @@ def test_while_false_condition(
     )
     fn_block = astx.Block()
     fn_block.append(while_expr)
+    fn_block.append(PrintExpr(astx.LiteralUTF8String("SKIPPED")))
     fn_block.append(astx.FunctionReturn(literal_type(0)))
 
     fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
@@ -208,4 +216,10 @@ def test_while_false_condition(
     module = builder.module()
     module.block.append(fn_main)
 
-    check_result(action, builder, module, expected_file)
+    check_result(
+        action,
+        builder,
+        module,
+        expected_file,
+        expected_output="SKIPPED",
+    )

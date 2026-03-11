@@ -9,6 +9,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -90,12 +91,19 @@ def test_module_fn_main(
         name="main", args=astx.Arguments(), return_type=int_type()
     )
     main_block = astx.Block()
+    main_block.append(PrintExpr(astx.LiteralUTF8String("MODULE_OK")))
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(
+        action,
+        builder,
+        module,
+        expected_file,
+        expected_output="MODULE_OK",
+    )
 
 
 def test_multiple_function_calls() -> None:
