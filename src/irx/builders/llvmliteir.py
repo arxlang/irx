@@ -1545,13 +1545,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         if is_fp_type(cur_var.type):
-            next_var = self._llvm.ir_builder.fadd(
-                cur_var, step_val, "nextvar"
-            )
+            next_var = self._llvm.ir_builder.fadd(cur_var, step_val, "nextvar")
         else:
-            next_var = self._llvm.ir_builder.add(
-                cur_var, step_val, "nextvar"
-            )
+            next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
         self._llvm.ir_builder.store(next_var, var_addr)
 
         self._llvm.ir_builder.branch(header_bb)
