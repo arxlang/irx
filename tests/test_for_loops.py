@@ -91,6 +91,68 @@ def test_for_range(
 
 
 @pytest.mark.parametrize(
+    "float_type, literal_type",
+    [
+        (astx.Float32, astx.LiteralFloat32),
+    ],
+)
+@pytest.mark.parametrize(
+    "action,expected_file",
+    [
+        ("build", ""),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_for_range_float(
+    action: str,
+    expected_file: str,
+    builder_class: Type[Builder],
+    float_type: type,
+    literal_type: type,
+) -> None:
+    """
+    title: Test For Range statement with floating-point types.
+    """
+    builder = builder_class()
+
+    # `for` statement
+    var_a = astx.InlineVariableDeclaration(
+        "a", type_=float_type(), mutability=astx.MutabilityKind.mutable
+    )
+    start = literal_type(1.0)
+    end = literal_type(10.0)
+    step = literal_type(1.0)
+    body = astx.Block()
+    body.append(literal_type(2.0))
+    for_loop = astx.ForRangeLoopStmt(
+        variable=var_a,
+        start=start,
+        end=end,
+        step=step,
+        body=body,
+    )
+
+    # main function
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=float_type()
+    )
+    block = astx.Block()
+    block.append(for_loop)
+    block.append(astx.FunctionReturn(literal_type(0.0)))
+    fn_main = astx.FunctionDef(prototype=proto, body=block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize(
     "int_type, literal_type",
     [
         (astx.Int32, astx.LiteralInt32),
