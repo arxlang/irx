@@ -117,6 +117,17 @@ def test_for_range_float(
 ) -> None:
     """
     title: Test For Range statement with floating-point types.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: Type[Builder]
+      float_type:
+        type: type
+      literal_type:
+        type: type
     """
     builder = builder_class()
 
