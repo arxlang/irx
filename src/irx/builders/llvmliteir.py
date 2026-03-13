@@ -187,8 +187,6 @@ class VariablesLLVM:
         type: ir.types.Type
       BOOLEAN_TYPE:
         type: ir.types.Type
-      STRING_TYPE:
-        type: ir.types.Type
       ASCII_STRING_TYPE:
         type: ir.types.Type
       UTF8_STRING_TYPE:
@@ -220,7 +218,6 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
-    STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIME_TYPE: ir.types.Type
@@ -263,12 +260,8 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name == "string":
-            return self.STRING_TYPE
-        elif type_name == "stringascii":
+        elif type_name in ("string", "stringascii", "utf8string"):
             return self.ASCII_STRING_TYPE
-        elif type_name == "utf8string":
-            return self.UTF8_STRING_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -418,11 +411,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
         self._llvm.VOID_TYPE = ir.VoidType()
-        self._llvm.STRING_TYPE = ir.LiteralStructType(
-            [ir.IntType(32), ir.IntType(8).as_pointer()]
-        )
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
-        self._llvm.UTF8_STRING_TYPE = self._llvm.STRING_TYPE
+        self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
         # Composite types
         self._llvm.TIME_TYPE = ir.LiteralStructType(
             [
@@ -2942,7 +2932,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         elif target_type in (
             self._llvm.ASCII_STRING_TYPE,
-            self._llvm.STRING_TYPE,
+            self._llvm.UTF8_STRING_TYPE,
         ):
             if is_int_type(value.type):
                 arg, fmt_str = self._normalize_int_for_printf(value)
