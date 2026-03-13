@@ -999,15 +999,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 self.result_stack.append(result)
                 return
 
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
-                result = self._llvm.ir_builder.fadd(
-                    llvm_lhs, llvm_rhs, "addtmp"
-                )
-                self._apply_fast_math(result)
             else:
-                # there's more conditions to be handled
-                result = self._llvm.ir_builder.add(
-                    llvm_lhs, llvm_rhs, "addtmp"
+                result = emit_add(
+                    self._llvm.ir_builder, llvm_lhs, llvm_rhs, "addtmp"
                 )
             self.result_stack.append(result)
             return
