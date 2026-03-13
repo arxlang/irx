@@ -958,12 +958,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         )
                         self._apply_fast_math(result)
                     else:
-                        unsigned = getattr(node, "unsigned", None)
+                        unsigned = getattr(node, "unsigned", False)
                         if unsigned is None:
-                            raise Exception(
-                                "Cannot infer integer division signedness "
-                                "for vector op"
-                            )
+                            # Fallback to signed division (sdiv) by default
+                            unsigned = False
+
                         result = emit_int_div(
                             self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
                         )
