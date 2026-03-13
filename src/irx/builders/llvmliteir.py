@@ -31,6 +31,11 @@ from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.tools.typing import typechecked
 
+FLOAT16_BITS = 16
+FLOAT32_BITS = 32
+FLOAT64_BITS = 64
+FLOAT128_BITS = 128
+
 
 def is_fp_type(t: "ir.Type") -> bool:
     """
@@ -672,6 +677,184 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         except (AttributeError, TypeError):
             return
 
+    def _is_numeric_value(self, value: ir.Value) -> bool:
+        """
+        title: Check if value is an int or floating-point scalar or vector.
+        parameters:
+          value:
+            type: ir.Value
+            description: LLVM IR value to classify.
+        returns:
+          type: bool
+          description: True if the value is an int/float scalar or vector.
+        """
+        if is_vector(value):
+            elem_ty = value.type.element
+            return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
+        base_ty = value.type
+        return isinstance(base_ty, ir.IntType) or is_fp_type(base_ty)
+
+    def _unify_numeric_operands(
+        self, lhs: ir.Value, rhs: ir.Value
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Ensure numeric operands share shape and scalar type.
+        parameters:
+          lhs:
+            type: ir.Value
+            description: Left-hand side operand.
+          rhs:
+            type: ir.Value
+            description: Right-hand side operand.
+        returns:
+          type: tuple[ir.Value, ir.Value]
+          description: Operands converted to compatible shape and scalar type.
+        """
+        lhs_is_vec = is_vector(lhs)
+        rhs_is_vec = is_vector(rhs)
+
+        if lhs_is_vec and rhs_is_vec and lhs.type.count != rhs.type.count:
+            raise Exception(
+                f"Vector size mismatch: {lhs.type.count} vs {rhs.type.count}"
+            )
+
+        target_lanes = None
+        if lhs_is_vec:
+            target_lanes = lhs.type.count
+        elif rhs_is_vec:
+            target_lanes = rhs.type.count
+
+        lhs_base_ty = lhs.type.element if lhs_is_vec else lhs.type
+        rhs_base_ty = rhs.type.element if rhs_is_vec else rhs.type
+
+        lhs_is_float = is_fp_type(lhs_base_ty)
+        rhs_is_float = is_fp_type(rhs_base_ty)
+
+        if lhs_is_float or rhs_is_float:
+            float_candidates = [
+                ty for ty in (lhs_base_ty, rhs_base_ty) if is_fp_type(ty)
+            ]
+            target_scalar_ty = self._select_float_type(float_candidates)
+        else:
+            lhs_width = getattr(lhs_base_ty, "width", 0)
+            rhs_width = getattr(rhs_base_ty, "width", 0)
+            target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
+
+        lhs = self._cast_value_to_type(lhs, target_scalar_ty)
+        rhs = self._cast_value_to_type(rhs, target_scalar_ty)
+
+        if target_lanes:
+            vec_ty = ir.VectorType(target_scalar_ty, target_lanes)
+            if not is_vector(lhs):
+                lhs = splat_scalar(self._llvm.ir_builder, lhs, vec_ty)
+            if not is_vector(rhs):
+                rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
+
+        return lhs, rhs
+
+    def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
+        """
+        title: Choose the widest floating-point type from a list of candidates.
+        parameters:
+          candidates:
+            type: list[ir.Type]
+            description: Candidate floating-point types.
+        returns:
+          type: ir.Type
+          description: The widest floating-point type; defaults to float32.
+        """
+        if not candidates:
+            return self._llvm.FLOAT_TYPE
+
+        width = max(self._float_bit_width(ty) for ty in candidates)
+        return self._float_type_from_width(width)
+
+    def _float_type_from_width(self, width: int) -> ir.Type:
+        if width <= FLOAT16_BITS and hasattr(self._llvm, "FLOAT16_TYPE"):
+            return self._llvm.FLOAT16_TYPE
+        if width <= FLOAT32_BITS:
+            return self._llvm.FLOAT_TYPE
+        if width <= FLOAT64_BITS:
+            return self._llvm.DOUBLE_TYPE
+        if FP128Type is not None and width >= FLOAT128_BITS:
+            return FP128Type()
+        return self._llvm.FLOAT_TYPE
+
+    def _float_bit_width(self, ty: ir.Type) -> int:
+        if isinstance(ty, DoubleType):
+            return FLOAT64_BITS
+        if isinstance(ty, FloatType):
+            return FLOAT32_BITS
+        if isinstance(ty, HalfType):
+            return FLOAT16_BITS
+        if FP128Type is not None and isinstance(ty, FP128Type):
+            return FLOAT128_BITS
+        return getattr(ty, "width", 0)
+
+    def _cast_value_to_type(
+        self, value: ir.Value, target_scalar_ty: ir.Type
+    ) -> ir.Value:
+        """
+        title: Cast scalars or vectors to a target scalar type.
+        parameters:
+          value:
+            type: ir.Value
+            description: Source scalar or vector value.
+          target_scalar_ty:
+            type: ir.Type
+            description: Desired scalar element type.
+        returns:
+          type: ir.Value
+          description: Value converted to the requested scalar type and shape.
+        """
+        builder = self._llvm.ir_builder
+        value_is_vec = is_vector(value)
+        if value_is_vec:
+            lanes = value.type.count
+            current_scalar_ty = value.type.element
+            target_ty = ir.VectorType(target_scalar_ty, lanes)
+        else:
+            lanes = None
+            current_scalar_ty = value.type
+            target_ty = target_scalar_ty
+
+        if current_scalar_ty == target_scalar_ty and value.type == target_ty:
+            return value
+
+        current_is_float = is_fp_type(current_scalar_ty)
+        target_is_float = is_fp_type(target_scalar_ty)
+
+        if target_is_float:
+            if current_is_float:
+                current_bits = self._float_bit_width(current_scalar_ty)
+                target_bits = self._float_bit_width(target_scalar_ty)
+                if current_bits == target_bits:
+                    if value.type != target_ty:
+                        return builder.bitcast(value, target_ty)
+                    return value
+                if current_bits < target_bits:
+                    return builder.fpext(value, target_ty, "fpext")
+                return builder.fptrunc(value, target_ty, "fptrunc")
+            return builder.sitofp(value, target_ty, "sitofp")
+
+        if current_is_float:
+            raise Exception(
+                "Cannot implicitly convert floating-point to integer"
+            )
+
+        current_width = getattr(current_scalar_ty, "width", 0)
+        target_width = getattr(target_scalar_ty, "width", 0)
+
+        if current_width == target_width:
+            if value.type != target_ty:
+                return builder.bitcast(value, target_ty)
+            return value
+
+        if current_width < target_width:
+            return builder.sext(value, target_ty, "sext")
+
+        return builder.trunc(value, target_ty, "trunc")
+
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
         """
@@ -806,60 +989,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # Scalar-vector promotion: one vector + matching scalar -> splat scalar
-        lhs_is_vec = is_vector(llvm_lhs)
-        rhs_is_vec = is_vector(llvm_rhs)
-        if lhs_is_vec and not rhs_is_vec:
-            elem_ty = llvm_lhs.type.element
-            if llvm_rhs.type == elem_ty:
-                llvm_rhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_rhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_rhs.type, DoubleType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fptrunc(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_rhs.type, FloatType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fpext(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-        elif rhs_is_vec and not lhs_is_vec:
-            elem_ty = llvm_rhs.type.element
-            if llvm_lhs.type == elem_ty:
-                llvm_lhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_lhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_lhs.type, DoubleType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fptrunc(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_lhs.type, FloatType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fpext(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
-
+        if self._is_numeric_value(llvm_lhs) and self._is_numeric_value(
+            llvm_rhs
+        ):
+            llvm_lhs, llvm_rhs = self._unify_numeric_operands(
+                llvm_lhs, llvm_rhs
+            )
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             if llvm_lhs.type.count != llvm_rhs.type.count:
