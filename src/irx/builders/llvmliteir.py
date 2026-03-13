@@ -98,6 +98,31 @@ def emit_int_div(
     )
 
 
+def emit_add(
+    ir_builder: "ir.IRBuilder",
+    lhs: "ir.Value",
+    rhs: "ir.Value",
+    name: str = "addtmp",
+) -> "ir.Instruction":
+    """
+    title: Emit float or integer addition based on operand type.
+    parameters:
+      ir_builder:
+        type: ir.IRBuilder
+      lhs:
+        type: ir.Value
+      rhs:
+        type: ir.Value
+      name:
+        type: str
+    returns:
+      type: ir.Instruction
+    """
+    if is_fp_type(lhs.type):
+        return ir_builder.fadd(lhs, rhs, name=name)
+    return ir_builder.add(lhs, rhs, name=name)
+
+
 def splat_scalar(
     ir_builder: "ir.IRBuilder", scalar: "ir.Value", vec_type: "ir.VectorType"
 ) -> "ir.Value":
@@ -1544,10 +1569,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
-        if is_fp_type(cur_var.type):
-            next_var = self._llvm.ir_builder.fadd(cur_var, step_val, "nextvar")
-        else:
-            next_var = self._llvm.ir_builder.add(cur_var, step_val, "nextvar")
+        next_var = emit_add(
+            self._llvm.ir_builder, cur_var, step_val, "nextvar"
+        )
         self._llvm.ir_builder.store(next_var, var_addr)
 
         self._llvm.ir_builder.branch(header_bb)
