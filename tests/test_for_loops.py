@@ -20,6 +20,7 @@ from .conftest import check_result
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
         (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
     ],
 )
 @pytest.mark.parametrize(
@@ -82,79 +83,6 @@ def test_for_range(
     block = astx.Block()
     block.append(for_loop)
     block.append(astx.FunctionReturn(literal_type(0)))
-    fn_main = astx.FunctionDef(prototype=proto, body=block)
-
-    module = builder.module()
-    module.block.append(fn_main)
-
-    check_result(action, builder, module, expected_file)
-
-
-@pytest.mark.parametrize(
-    "float_type, literal_type",
-    [
-        (astx.Float32, astx.LiteralFloat32),
-    ],
-)
-@pytest.mark.parametrize(
-    "action,expected_file",
-    [
-        ("build", ""),
-    ],
-)
-@pytest.mark.parametrize(
-    "builder_class",
-    [
-        LLVMLiteIR,
-    ],
-)
-def test_for_range_float(
-    action: str,
-    expected_file: str,
-    builder_class: Type[Builder],
-    float_type: type,
-    literal_type: type,
-) -> None:
-    """
-    title: Test For Range statement with floating-point types.
-    parameters:
-      action:
-        type: str
-      expected_file:
-        type: str
-      builder_class:
-        type: Type[Builder]
-      float_type:
-        type: type
-      literal_type:
-        type: type
-    """
-    builder = builder_class()
-
-    # `for` statement
-    var_a = astx.InlineVariableDeclaration(
-        "a", type_=float_type(), mutability=astx.MutabilityKind.mutable
-    )
-    start = literal_type(1.0)
-    end = literal_type(10.0)
-    step = literal_type(1.0)
-    body = astx.Block()
-    body.append(literal_type(2.0))
-    for_loop = astx.ForRangeLoopStmt(
-        variable=var_a,
-        start=start,
-        end=end,
-        step=step,
-        body=body,
-    )
-
-    # main function
-    proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=float_type()
-    )
-    block = astx.Block()
-    block.append(for_loop)
-    block.append(astx.FunctionReturn(literal_type(0.0)))
     fn_main = astx.FunctionDef(prototype=proto, body=block)
 
     module = builder.module()
