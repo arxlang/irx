@@ -3552,7 +3552,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type_str = node.type_.__class__.__name__.lower()
 
         # Emit the initializer
-        if node.value is not None:
+        if node.value is not None and not isinstance(
+            node.value, astx.Undefined
+        ):
             self.visit(node.value)
             init_val = self.result_stack.pop()
             if init_val is None:
