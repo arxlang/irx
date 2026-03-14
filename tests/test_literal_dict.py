@@ -96,3 +96,33 @@ def test_literal_dict_heterogeneous_constants_unsupported(
                 }
             )
         )
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_dict_runtime_lowering(builder_class: Type[Builder]) -> None:
+    """
+    title: Runtime LiteralDict lowering fallback
+    parameters:
+      builder_class:
+        type: Type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    # Lower a literal dictionary outside a function context
+    visitor.visit(
+        astx.LiteralDict(
+            elements={
+                astx.LiteralInt32(1): astx.LiteralInt32(2),
+            }
+        )
+    )
+
+    result = visitor.result_stack.pop()
+
+    # Outside a function context, runtime lowering cannot emit IR,
+    # so the implementation falls back to constant lowering.
+    assert isinstance(result, ir.Constant)
+    assert isinstance(result.type, ir.ArrayType)
+    assert result.type.count == 1
