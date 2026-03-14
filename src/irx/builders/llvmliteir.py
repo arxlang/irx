@@ -2073,21 +2073,150 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(ir.Constant(empty_ty, []))
             return
 
-        # Homogeneous integer constant lists => constant array
-        first_ty = llvm_elems[0].type
-        is_ints = all(is_int_type(v.type) for v in llvm_elems)
-        homogeneous = all(v.type == first_ty for v in llvm_elems)
-        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
-        if is_ints and homogeneous and all_constants:
-            arr_ty = ir.ArrayType(first_ty, n)
-            const_arr = ir.Constant(arr_ty, llvm_elems)
-            self.result_stack.append(const_arr)
+        target_ty = llvm_elems[0].type
+        for v in llvm_elems[1:]:
+            target_ty = self._common_list_element_type(target_ty, v.type)
+
+        # Coerce every element to target_ty
+        coerced: list[ir.Value] = []
+        for v in llvm_elems:
+            coerced.append(self._coerce_to(v, target_ty))
+
+        #  All constants → emit as a constant array
+        if all(isinstance(v, ir.Constant) for v in coerced):
+            arr_ty = ir.ArrayType(target_ty, n)
+            self.result_stack.append(ir.Constant(arr_ty, coerced))
             return
 
-        raise TypeError(
-            "LiteralList: only empty or homogeneous integer constants "
-            "are supported"
+        #  At least one runtime value → alloca + store each element
+        arr_ty = ir.ArrayType(target_ty, n)
+
+        alloca = self._llvm.ir_builder.alloca(arr_ty, name="list_tmp")
+
+        zero = ir.Constant(self._llvm.INT32_TYPE, 0)
+
+        for i, v in enumerate(coerced):
+            idx = ir.Constant(self._llvm.INT32_TYPE, i)
+            slot = self._llvm.ir_builder.gep(
+                alloca, [zero, idx], inbounds=True
+            )
+            self._llvm.ir_builder.store(v, slot)
+
+        # Return pointer to first element (i.e. T*)
+        first_ptr = self._llvm.ir_builder.gep(
+            alloca, [zero, zero], inbounds=True
         )
+
+        self.result_stack.append(first_ptr)
+
+    def _common_list_element_type(self, a: ir.Type, b: ir.Type) -> ir.Type:
+        """
+        title: Return the common (widest) type for two list element types.
+        summary: >-
+          Ints widen by bit-width; FP widens by rank; int+FP promotes int to
+          FP. Pointer (string) types must match exactly.
+        parameters:
+          a:
+            type: ir.Type
+          b:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
+        if a == b:
+            return a
+
+        # Both integers → pick wider
+        if is_int_type(a) and is_int_type(b):
+            return a if a.width >= b.width else b
+
+        # Both FP → pick higher rank
+        a_rank = self.fp_rank(a)
+        b_rank = self.fp_rank(b)
+        if a_rank > 0 and b_rank > 0:
+            return a if a_rank >= b_rank else b
+
+        # Int + FP → promote int to FP
+        if is_int_type(a) and b_rank > 0:
+            return b
+        if is_int_type(b) and a_rank > 0:
+            return a
+
+        # Pointer types (strings) must match exactly
+        if isinstance(a, ir.PointerType) and isinstance(b, ir.PointerType):
+            if a == b:
+                return a
+            raise TypeError(
+                f"LiteralList: incompatible pointer types {a} and {b}"
+            )
+
+        raise TypeError(
+            f"LiteralList: cannot find common type for {a} and {b}"
+        )
+
+    def _coerce_to(self, v: ir.Value, target_ty: ir.Type) -> ir.Value:
+        """
+        title: Coerce a value to target_ty, inserting a cast if needed.
+        summary: >-
+          When the source is an ir.Constant the coercion is performed purely at
+          the Python/constant level so no IR instruction is emitted.  This
+          keeps all-constant lists on the constant-array fast path without
+          requiring a live builder block.
+        parameters:
+          v:
+            type: ir.Value
+          target_ty:
+            type: ir.Type
+        returns:
+          type: ir.Value
+        """
+        if v.type == target_ty:
+            return v
+
+        if isinstance(v, ir.Constant):
+            raw = v.constant
+
+            # int → wider/narrower int
+            if is_int_type(v.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+
+            # int → fp
+            if is_int_type(v.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+
+            # fp → fp (widen or narrow)
+            if is_fp_type(v.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+
+            # fp → int
+            if is_fp_type(v.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+
+        b = self._llvm.ir_builder
+
+        # int → wider/narrower int
+        if is_int_type(v.type) and is_int_type(target_ty):
+            if v.type.width < target_ty.width:
+                return b.sext(v, target_ty, "list_sext")
+            return b.trunc(v, target_ty, "list_trunc")
+
+        # int → fp
+        if is_int_type(v.type) and is_fp_type(target_ty):
+            return b.sitofp(v, target_ty, "list_itofp")
+
+        # fp → wider/narrower fp
+        if is_fp_type(v.type) and is_fp_type(target_ty):
+            src_rank = self.fp_rank(v.type)
+            dst_rank = self.fp_rank(target_ty)
+            if src_rank < dst_rank:
+                return b.fpext(v, target_ty, "list_fpext")
+            return b.fptrunc(v, target_ty, "list_fptrunc")
+
+        # fp → int
+        if is_fp_type(v.type) and is_int_type(target_ty):
+            return b.fptosi(v, target_ty, "list_fptosi")
+
+        raise TypeError(f"LiteralList: cannot coerce {v.type} to {target_ty}")
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralSet) -> None:
