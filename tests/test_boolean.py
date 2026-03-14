@@ -18,6 +18,8 @@ from .conftest import check_result
     [
         (True, "&&", True, "1"),
         (True, "||", False, "1"),
+        (False, "&&", True, ""),
+        (False, "||", False, ""),
     ],
 )
 @pytest.mark.parametrize(
@@ -82,6 +84,10 @@ def test_boolean_operations(
     [
         (1, "<", 2, "1"),
         (6, ">=", 6, "1"),
+        (2, ">", 1, "1"),
+        (3, "<=", 3, "1"),
+        (5, "==", 5, "1"),
+        (4, "!=", 3, "1"),
     ],
 )
 @pytest.mark.parametrize(
