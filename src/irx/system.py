@@ -12,14 +12,14 @@ import astx
 class PrintExpr(astx.Expr):
     """
     title: PrintExpr AST class.
+    notes: >-
+      It would be nice to support more arguments similar to the ones supported
+      by Python (*args, sep=' ', end='', file=None, flush=False).
     attributes:
       message:
         type: astx.Expr
       _name:
         type: str
-    notes: >-
-      It would be nice to support more arguments similar to the ones supported
-      by Python (*args, sep=' ', end='', file=None, flush=False).
     """
 
     message: astx.Expr
