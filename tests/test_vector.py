@@ -46,7 +46,9 @@ def _run_vector_binop(
 
     builder.visit = mock_visit
 
-    bin_op = astx.BinaryOp(op_code, astx.Identifier("LHS"), astx.Identifier("RHS"))
+    bin_op = astx.BinaryOp(
+        op_code, astx.Identifier("LHS"), astx.Identifier("RHS")
+    )
     if unsigned is not None:
         bin_op.unsigned = unsigned  # type: ignore[attr-defined]
     if fma_rhs is not None:
