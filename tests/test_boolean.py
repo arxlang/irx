@@ -69,12 +69,14 @@ def test_boolean_operations(
 
 
 @pytest.mark.parametrize(
-    "int_type,literal_type",
+    "num_type,literal_type",
     [
         (astx.Int8, astx.LiteralInt8),
         (astx.Int16, astx.LiteralInt16),
         (astx.Int32, astx.LiteralInt32),
         (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
     ],
 )
 @pytest.mark.parametrize(
@@ -82,6 +84,8 @@ def test_boolean_operations(
     [
         (1, "<", 2, "1"),
         (6, ">=", 6, "1"),
+        (1, "==", 1, "1"),
+        (1, "!=", 2, "1"),
     ],
 )
 @pytest.mark.parametrize(
@@ -92,7 +96,7 @@ def test_boolean_operations(
 )
 def test_boolean_comparison(
     builder_class: Type[Builder],
-    int_type: type,
+    num_type: type,
     literal_type: type,
     lhs: int,
     op: str,
@@ -100,11 +104,11 @@ def test_boolean_comparison(
     expected: str,
 ) -> None:
     """
-    title: Test integer comparisons.
+    title: Test numeric comparisons for integers and floats.
     parameters:
       builder_class:
         type: Type[Builder]
-      int_type:
+      num_type:
         type: type
       literal_type:
         type: type
@@ -125,7 +129,6 @@ def test_boolean_comparison(
     right = literal_type(rhs)
     expr = astx.BinaryOp(op, left, right)
 
-    # wrap in a main() returning a  Boolean
     proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),

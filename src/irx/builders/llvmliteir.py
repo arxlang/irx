@@ -246,7 +246,7 @@ class VariablesLLVM:
             return self.FLOAT_TYPE
         elif type_name == "float16":
             return self.FLOAT16_TYPE
-        elif type_name == "double":
+        elif type_name in ("double", "float64"):
             return self.DOUBLE_TYPE
         elif type_name == "boolean":
             return self.BOOLEAN_TYPE
@@ -1607,6 +1607,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.LiteralFloat32
         """
         result = ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, expr: astx.LiteralFloat64) -> None:
+        """
+        title: Translate ASTx LiteralFloat64 to LLVM-IR.
+        parameters:
+          expr:
+            type: astx.LiteralFloat64
+        """
+        result = ir.Constant(self._llvm.DOUBLE_TYPE, expr.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
