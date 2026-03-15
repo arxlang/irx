@@ -2161,7 +2161,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralSet) -> None:
         """
-        title: Lower a LiteralSet to LLVM IR (minimal support).
+        title: Lower a LiteralSet to LLVM IR.
         parameters:
           node:
             type: astx.LiteralSet
@@ -2189,24 +2189,76 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         n = len(llvm_elems)
 
+        # Empty set
         if n == 0:
             empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
             self.result_stack.append(ir.Constant(empty_ty, []))
             return
 
         first_ty = llvm_elems[0].type
-        is_ints = all(is_int_type(v.type) for v in llvm_elems)
+        is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
         homogeneous = all(v.type == first_ty for v in llvm_elems)
         all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
+
+        # Homogeneous integer constants → constant array
         if is_ints and homogeneous and all_constants:
             arr_ty = ir.ArrayType(first_ty, n)
             const_arr = ir.Constant(arr_ty, llvm_elems)
             self.result_stack.append(const_arr)
             return
 
+        # Mixed-width integer constants → promote to widest type
+        if is_ints and all_constants and not homogeneous:
+            widest = max(v.type.width for v in llvm_elems)
+            elem_ty = ir.IntType(widest)
+            arr_ty = ir.ArrayType(elem_ty, n)
+
+            builder = self._llvm.ir_builder
+
+            # If outside function context (tests), fallback to constant array
+            if builder.block is None:
+                promoted_vals: list[ir.Constant] = []
+                for v in llvm_elems:
+                    if v.type.width != widest:
+                        promoted_vals.append(ir.Constant(elem_ty, v.constant))
+                    else:
+                        promoted_vals.append(v)
+
+                const_arr = ir.Constant(arr_ty, promoted_vals)
+                self.result_stack.append(const_arr)
+                return
+
+            # Runtime lowering using alloca + store
+            entry_bb = builder.function.entry_basic_block
+            current_bb = builder.block
+
+            builder.position_at_start(entry_bb)
+            alloca = builder.alloca(arr_ty, name="set.lit")
+            builder.position_at_end(current_bb)
+
+            i32 = self._llvm.INT32_TYPE
+
+            for i, v in enumerate(llvm_elems):
+                cast_val = v
+                if cast_val.type != elem_ty:
+                    cast_val = builder.sext(
+                        cast_val, elem_ty, name=f"set_sext{i}"
+                    )
+
+                ptr = builder.gep(
+                    alloca,
+                    [ir.Constant(i32, 0), ir.Constant(i32, i)],
+                    inbounds=True,
+                )
+
+                builder.store(cast_val, ptr)
+
+            self.result_stack.append(alloca)
+            return
+
         raise TypeError(
-            "LiteralSet: only empty or homogeneous integer constants "
-            "are supported"
+            "LiteralSet: only integer constants are currently supported "
+            "(homogeneous or mixed-width)"
         )
 
     @dispatch  # type: ignore[no-redef]
