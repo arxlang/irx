@@ -10,10 +10,10 @@ import tempfile
 
 from datetime import datetime
 from datetime import time as _time
-from typing import Any, Callable, Optional, cast
+from pathlib import Path
+from typing import Any, Optional, cast
 
 import astx
-import xh
 
 from llvmlite import binding as llvm
 from llvmlite import ir
@@ -29,6 +29,11 @@ from public import public
 
 from irx import system
 from irx.builders.base import Builder, BuilderVisitor
+from irx.runtime.linking import link_executable
+from irx.runtime.registry import (
+    RuntimeFeatureState,
+    get_default_runtime_feature_registry,
+)
 from irx.tools.typing import typechecked
 
 
@@ -201,6 +206,12 @@ class VariablesLLVM:
         type: ir.types.Type
       POINTER_BITS:
         type: int
+      OPAQUE_POINTER_TYPE:
+        type: ir.types.Type
+      ARROW_ARRAY_BUILDER_HANDLE_TYPE:
+        type: ir.types.Type
+      ARROW_ARRAY_HANDLE_TYPE:
+        type: ir.types.Type
       context:
         type: ir.context.Context
       module:
@@ -225,6 +236,9 @@ class VariablesLLVM:
     DATETIME_TYPE: ir.types.Type
     SIZE_T_TYPE: ir.types.Type
     POINTER_BITS: int
+    OPAQUE_POINTER_TYPE: ir.types.Type
+    ARROW_ARRAY_BUILDER_HANDLE_TYPE: ir.types.Type
+    ARROW_ARRAY_HANDLE_TYPE: ir.types.Type
 
     context: ir.context.Context
     module: ir.module.Module
@@ -281,6 +295,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: dict[str, astx.FunctionPrototype]
       result_stack:
         type: list[ir.Value | ir.Function]
+      runtime_features:
+        type: RuntimeFeatureState
       const_vars:
         type: set[str]
       _fast_math_enabled:
@@ -298,10 +314,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     function_protos: dict[str, astx.FunctionPrototype]
     result_stack: list[ir.Value | ir.Function] = []
+    runtime_features: RuntimeFeatureState
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        active_runtime_features: Optional[set[str]] = None,
+    ) -> None:
         """
         title: Initialize LLVMTranslator object.
+        parameters:
+          active_runtime_features:
+            type: Optional[set[str]]
         """
         super().__init__()
 
@@ -335,6 +358,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.SIZE_T_TYPE = self._get_size_t_type_from_triple()
 
         self._add_builtins()
+        self.runtime_features = RuntimeFeatureState(
+            owner=self,
+            registry=get_default_runtime_feature_registry(),
+            active_features=active_runtime_features,
+        )
 
     def translate(self, node: astx.AST) -> str:
         """
@@ -347,6 +375,30 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         self.visit(node)
         return str(self._llvm.module)
+
+    def activate_runtime_feature(self, feature_name: str) -> None:
+        """
+        title: Activate a runtime feature for the current module.
+        parameters:
+          feature_name:
+            type: str
+        """
+        self.runtime_features.activate(feature_name)
+
+    def require_runtime_symbol(
+        self, feature_name: str, symbol_name: str
+    ) -> ir.Function:
+        """
+        title: Declare an external symbol owned by a runtime feature.
+        parameters:
+          feature_name:
+            type: str
+          symbol_name:
+            type: str
+        returns:
+          type: ir.Function
+        """
+        return self.runtime_features.require_symbol(feature_name, symbol_name)
 
     def _init_native_size_types(self) -> None:
         """
@@ -413,6 +465,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.VOID_TYPE = ir.VoidType()
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
+        self._llvm.OPAQUE_POINTER_TYPE = self._llvm.INT8_TYPE.as_pointer()
+        self._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE = (
+            self._llvm.OPAQUE_POINTER_TYPE
+        )
+        self._llvm.ARROW_ARRAY_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
         # Composite types
         self._llvm.TIME_TYPE = ir.LiteralStructType(
             [
@@ -2755,15 +2812,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         returns:
           type: ir.Function
         """
-        name = "malloc"
-        if name in self._llvm.module.globals:
-            return self._llvm.module.get_global(name)
-        ty = ir.FunctionType(
-            self._llvm.INT8_TYPE.as_pointer(), [self._llvm.SIZE_T_TYPE]
-        )
-        fn = ir.Function(self._llvm.module, ty, name=name)
-        fn.linkage = "external"
-        return fn
+        return self.require_runtime_symbol("libc", "malloc")
 
     def _snprintf_heap(
         self, fmt_gv: ir.GlobalVariable, args: list[ir.Value]
@@ -2824,22 +2873,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         returns:
           type: ir.Function
         """
-        name = "snprintf"
-        if name in self._llvm.module.globals:
-            return self._llvm.module.get_global(name)
-
-        snprintf_ty = ir.FunctionType(
-            self._llvm.INT32_TYPE,
-            [
-                self._llvm.INT8_TYPE.as_pointer(),
-                self._llvm.SIZE_T_TYPE,
-                self._llvm.INT8_TYPE.as_pointer(),
-            ],
-            var_arg=True,
-        )
-        fn = ir.Function(self._llvm.module, snprintf_ty, name=name)
-        fn.linkage = "external"
-        return fn
+        return self.require_runtime_symbol("libc", "snprintf")
 
     def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
         """
@@ -3004,16 +3038,82 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 f"Unsupported message type in PrintExpr: {message_type}"
             )
 
-        puts_fn = self._llvm.module.globals.get("puts")
-        if puts_fn is None:
-            puts_ty = ir.FunctionType(
-                self._llvm.INT32_TYPE, [ir.PointerType(self._llvm.INT8_TYPE)]
-            )
-            puts_fn = ir.Function(self._llvm.module, puts_ty, name="puts")
-
+        puts_fn = self.require_runtime_symbol("libc", "puts")
         self._llvm.ir_builder.call(puts_fn, [ptr])
 
         self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: system.ArrowInt32ArrayLength) -> None:
+        """
+        title: Lower the internal Arrow int32 array length helper.
+        parameters:
+          node:
+            type: system.ArrowInt32ArrayLength
+        """
+        builder_new = self.require_runtime_symbol(
+            "arrow", "irx_arrow_array_builder_int32_new"
+        )
+        append_int32 = self.require_runtime_symbol(
+            "arrow", "irx_arrow_array_builder_append_int32"
+        )
+        finish_builder = self.require_runtime_symbol(
+            "arrow", "irx_arrow_array_builder_finish"
+        )
+        array_length = self.require_runtime_symbol(
+            "arrow", "irx_arrow_array_length"
+        )
+        release_array = self.require_runtime_symbol(
+            "arrow", "irx_arrow_array_release"
+        )
+
+        builder_slot = self._llvm.ir_builder.alloca(
+            self._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            name="arrow_builder_slot",
+        )
+        self._llvm.ir_builder.call(builder_new, [builder_slot])
+        builder_handle = self._llvm.ir_builder.load(
+            builder_slot, "arrow_builder"
+        )
+
+        for item in node.values:
+            self.visit(item)
+            value = safe_pop(self.result_stack)
+            if value is None:
+                raise Exception("Arrow helper expected an integer value")
+            if not is_int_type(value.type):
+                raise Exception(
+                    "Arrow helper supports only integer expressions"
+                )
+
+            if value.type.width < self._llvm.INT32_TYPE.width:
+                value = self._llvm.ir_builder.sext(
+                    value, self._llvm.INT32_TYPE, "arrow_i32_promote"
+                )
+            elif value.type.width > self._llvm.INT32_TYPE.width:
+                value = self._llvm.ir_builder.trunc(
+                    value, self._llvm.INT32_TYPE, "arrow_i32_trunc"
+                )
+
+            self._llvm.ir_builder.call(append_int32, [builder_handle, value])
+
+        array_slot = self._llvm.ir_builder.alloca(
+            self._llvm.ARROW_ARRAY_HANDLE_TYPE,
+            name="arrow_array_slot",
+        )
+        self._llvm.ir_builder.call(
+            finish_builder, [builder_handle, array_slot]
+        )
+        array_handle = self._llvm.ir_builder.load(array_slot, "arrow_array")
+        length_i64 = self._llvm.ir_builder.call(
+            array_length, [array_handle], "arrow_length"
+        )
+        self._llvm.ir_builder.call(release_array, [array_handle])
+
+        length_i32 = self._llvm.ir_builder.trunc(
+            length_i64, self._llvm.INT32_TYPE, "arrow_length_i32"
+        )
+        self.result_stack.append(length_i32)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.Identifier) -> None:
@@ -3129,7 +3229,29 @@ class LLVMLiteIR(Builder):
         title: Initialize LLVMIR.
         """
         super().__init__()
-        self.translator: LLVMLiteIRVisitor = LLVMLiteIRVisitor()
+        self.translator: LLVMLiteIRVisitor = self._new_translator()
+
+    def _new_translator(self) -> LLVMLiteIRVisitor:
+        """
+        title: Create a fresh translator for one compilation unit.
+        returns:
+          type: LLVMLiteIRVisitor
+        """
+        return LLVMLiteIRVisitor(
+            active_runtime_features=set(self.runtime_feature_names)
+        )
+
+    def translate(self, expr: astx.AST) -> str:
+        """
+        title: Transpile ASTx to LLVM-IR with a fresh translator.
+        parameters:
+          expr:
+            type: astx.AST
+        returns:
+          type: str
+        """
+        self.translator = self._new_translator()
+        return self.translator.translate(expr)
 
     def build(self, node: astx.AST, output_file: str) -> None:
         """
@@ -3141,28 +3263,24 @@ class LLVMLiteIR(Builder):
           output_file:
             type: str
         """
-        self.translator = LLVMLiteIRVisitor()
-        result = self.translator.translate(node)
+        result = self.translate(node)
 
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)
 
-        with tempfile.NamedTemporaryFile(suffix="", delete=True) as temp_file:
-            self.tmp_path = temp_file.name
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.tmp_path = temp_dir
+            file_path_o = Path(temp_dir) / "irx_module.o"
 
-        file_path_o = f"{self.tmp_path}.o"
+            with open(file_path_o, "wb") as f:
+                f.write(result_object)
 
-        with open(file_path_o, "wb") as f:
-            f.write(result_object)
+            self.output_file = output_file
 
-        self.output_file = output_file
-
-        # fix xh typing
-        clang: Callable[..., Any] = xh.clang
-
-        clang(
-            file_path_o,
-            "-o",
-            self.output_file,
-        )
+            link_executable(
+                primary_object=file_path_o,
+                output_file=Path(self.output_file),
+                artifacts=self.translator.runtime_features.native_artifacts(),
+                linker_flags=self.translator.runtime_features.linker_flags(),
+            )
         os.chmod(self.output_file, 0o755)
