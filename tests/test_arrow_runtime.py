@@ -20,13 +20,13 @@ import nanoarrow
 import pytest
 
 from arx_nanoarrow_sources import get_include_dir, get_source_files
+from irx.arrow import ArrowInt32ArrayLength
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.runtime.arrow.feature import (
     IRX_ARROW_TYPE_INT32,
     build_arrow_runtime_feature,
 )
 from irx.runtime.linking import compile_native_artifacts, link_executable
-from irx.system import ArrowInt32ArrayLength
 from llvmlite import binding as llvm
 from nanoarrow import Array
 from nanoarrow.c_array import allocate_c_array

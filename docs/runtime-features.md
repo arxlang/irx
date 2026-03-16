@@ -156,7 +156,7 @@ Implemented in this phase:
 - Arrow native runtime feature with packaged nanoarrow sources
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
-- one internal Arrow lowering path: `irx.system.ArrowInt32ArrayLength`
+- one internal Arrow lowering path: `irx.arrow.ArrowInt32ArrayLength`
 - tests for registry behavior, IR declarations, build integration, runtime ABI,
   and Arrow C Data roundtrip
 

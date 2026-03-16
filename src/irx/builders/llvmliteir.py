@@ -27,6 +27,7 @@ except ImportError:  # pragma: no cover - optional
 from plum import dispatch
 from public import public
 
+from irx import arrow as irx_arrow
 from irx import system
 from irx.builders.base import Builder, BuilderVisitor
 from irx.runtime.linking import link_executable
@@ -3044,12 +3045,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
 
     @dispatch  # type: ignore[no-redef]
-    def visit(self, node: system.ArrowInt32ArrayLength) -> None:
+    def visit(self, node: irx_arrow.ArrowInt32ArrayLength) -> None:
         """
         title: Lower the internal Arrow int32 array length helper.
         parameters:
           node:
-            type: system.ArrowInt32ArrayLength
+            type: irx_arrow.ArrowInt32ArrayLength
         """
         builder_new = self.require_runtime_symbol(
             "arrow", "irx_arrow_array_builder_int32_new"
