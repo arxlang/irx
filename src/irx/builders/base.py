@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 
 import astx
 
@@ -72,7 +72,7 @@ class Builder(ABC):
       output_file:
         type: str
       sh_args:
-        type: Dict[str, Any]
+        type: dict[str, Any]
       runtime_feature_names:
         type: set[str]
     """
@@ -81,7 +81,7 @@ class Builder(ABC):
     tmp_path: str
     output_file: str
 
-    sh_args: Dict[str, Any]
+    sh_args: dict[str, Any]
     runtime_feature_names: set[str]
 
     def __init__(self) -> None:
@@ -91,7 +91,7 @@ class Builder(ABC):
         self.translator = BuilderVisitor()
         self.tmp_path = ""
         self.output_file = ""
-        self.sh_args: Dict[str, Any] = dict(
+        self.sh_args: dict[str, Any] = dict(
             _in=sys.stdin,
             _out=sys.stdout,
             _err=sys.stderr,

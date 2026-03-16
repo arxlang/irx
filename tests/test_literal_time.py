@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Type, cast
+from typing import cast
 
 import astx
 import pytest
@@ -35,13 +35,13 @@ def _time_values(const: ir.Constant) -> list[int]:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_time_hh_mm_ss(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: HH:MM:SS time lowers to constant struct.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -62,13 +62,13 @@ def test_literal_time_hh_mm_ss(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_time_hh_mm(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: HH:MM time defaults second to zero.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -89,13 +89,13 @@ def test_literal_time_hh_mm(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_time_midnight(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Midnight 00:00:00 lowers correctly.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -116,13 +116,13 @@ def test_literal_time_midnight(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_time_hour_out_of_range(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Reject hour outside 0-23 range.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -136,13 +136,13 @@ def test_literal_time_hour_out_of_range(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_time_fractional_rejected(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Reject fractional seconds.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)

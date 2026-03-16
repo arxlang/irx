@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Type, cast
+from typing import cast
 
 import astx
 import pytest
@@ -35,12 +35,12 @@ def _timestamp_values(const: ir.Constant) -> list[int]:
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_timestamp_basic(builder_class: Type[Builder]) -> None:
+def test_literal_timestamp_basic(builder_class: type[Builder]) -> None:
     """
     title: LiteralTimestamp with fractional seconds via 'T' separator.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -61,13 +61,13 @@ def test_literal_timestamp_basic(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_timestamp_fraction_truncated(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Fractions longer than 9 digits are truncated to nanoseconds.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -83,12 +83,12 @@ def test_literal_timestamp_fraction_truncated(
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_timestamp_invalid_date(builder_class: Type[Builder]) -> None:
+def test_literal_timestamp_invalid_date(builder_class: type[Builder]) -> None:
     """
     title: Reject impossible calendar dates (e.g., February 30).
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -102,13 +102,13 @@ def test_literal_timestamp_invalid_date(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_timestamp_timezone_rejected(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Reject timestamps that include timezone markers.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)

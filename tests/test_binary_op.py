@@ -2,8 +2,6 @@
 title: Tests for the BinaryOp.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -25,7 +23,7 @@ from .conftest import check_result
     ],
 )
 def test_binary_op_literals(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -33,7 +31,7 @@ def test_binary_op_literals(
     title: Test ASTx Module with a function called add.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -88,7 +86,7 @@ def test_binary_op_literals(
 def test_binary_op_basic(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -100,7 +98,7 @@ def test_binary_op_basic(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -152,12 +150,12 @@ def test_binary_op_basic(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
+def test_binary_op_string_not_equals(builder_class: type[Builder]) -> None:
     """
     title: Verify string '!=' uses strcmp_inline + xor 1 path.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -191,7 +189,7 @@ def test_binary_op_string_not_equals(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_binary_op_logical_and_or(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
     a_val: int,
@@ -202,7 +200,7 @@ def test_binary_op_logical_and_or(
     title: Verify '&&' and '||' for integer booleans (0/1).
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:

@@ -2,8 +2,6 @@
 title: Tests for None / void type.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -16,13 +14,13 @@ from .conftest import check_result
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_none_as_placeholder_in_expression(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Ensure LiteralNone pushes None on result stack without emitting IR.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()

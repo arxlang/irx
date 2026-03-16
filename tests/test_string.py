@@ -2,8 +2,6 @@
 title: Tests for string operations.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -16,13 +14,13 @@ from .conftest import check_result
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_literal_utf8_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test UTF-8 string literal by printing to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -51,13 +49,13 @@ def test_string_literal_utf8_with_print(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_literal_utf8_char_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test UTF-8 char literal by printing to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -86,13 +84,13 @@ def test_string_literal_utf8_char_with_print(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_literal_generic_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test generic string literal by printing to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -129,7 +127,7 @@ def test_string_literal_generic_with_print(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_concatenation_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     lhs_str: str,
     rhs_str: str,
     expected: str,
@@ -138,7 +136,7 @@ def test_string_concatenation_with_print(
     title: Test string concatenation by printing result to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       lhs_str:
         type: str
       rhs_str:
@@ -183,7 +181,7 @@ def test_string_concatenation_with_print(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_comparison_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     lhs_str: str,
     op: str,
     rhs_str: str,
@@ -193,7 +191,7 @@ def test_string_comparison_with_print(
     title: Test string comparison operations by printing result to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       lhs_str:
         type: str
       op:
@@ -232,13 +230,13 @@ def test_string_comparison_with_print(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_empty_string_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test empty string by printing to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -267,13 +265,13 @@ def test_empty_string_with_print(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_string_with_special_characters_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test string with special characters by printing to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()

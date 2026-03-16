@@ -4,8 +4,6 @@ title: Test irx with a fibonnaci function.
 
 from __future__ import annotations
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -31,7 +29,7 @@ from .conftest import check_result
     ],
 )
 def test_function_call_fibonacci(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -39,7 +37,7 @@ def test_function_call_fibonacci(
     title: Test the FunctionCall class with Fibonacci.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:

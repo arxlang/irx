@@ -2,8 +2,6 @@
 title: Symbol Table classes.
 """
 
-from typing import List
-
 from astx.symbol_table import SymbolTable
 from public import public
 
@@ -16,10 +14,10 @@ __all__ = ["SymbolTable"]
 @typechecked
 class RegisterTable:
     # each level in the stack represents a context
-    stack: List[int]
+    stack: list[int]
 
     def __init__(self) -> None:
-        self.stack: List[int] = []
+        self.stack: list[int] = []
 
     def append(self) -> None:
         self.stack.append(0)
