@@ -94,6 +94,7 @@ verbose = false
 line-length = 79
 force-exclude = true
 src = ["./"]
+target-version = "py310"
 exclude = [
   'docs',
 ]
@@ -115,6 +116,10 @@ select = [
   "PL",  # PL
   "RUF", # Ruff-specific rules
   "I001", # isort
+]
+extend-select = [
+  "UP006",  # Prefer builtin generics in annotations
+  "UP007",  # Prefer | syntax for unions and optionals
 ]
 
 [tool.ruff.lint.pydocstyle]

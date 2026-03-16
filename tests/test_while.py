@@ -2,8 +2,6 @@
 title: Test While Loop statements.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -38,7 +36,7 @@ from .conftest import check_result
 def test_while_expr(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -50,7 +48,7 @@ def test_while_expr(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -121,7 +119,7 @@ def test_while_expr(
 def test_while_false_condition(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -133,7 +131,7 @@ def test_while_false_condition(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:

@@ -2,8 +2,6 @@
 title: Tests for the UnaryOp.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -38,7 +36,7 @@ from .conftest import check_result
 def test_unary_op_increment_decrement(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -50,7 +48,7 @@ def test_unary_op_increment_decrement(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:

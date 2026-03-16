@@ -2,8 +2,6 @@
 title: Test If statements with and without else.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -39,7 +37,7 @@ from .conftest import check_result
 def test_if_else_stmt(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -51,7 +49,7 @@ def test_if_else_stmt(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -113,7 +111,7 @@ def test_if_else_stmt(
 def test_if_only_stmt(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -125,7 +123,7 @@ def test_if_only_stmt(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -162,12 +160,12 @@ def test_if_only_stmt(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_if_both_branches_return(builder_class: Type[Builder]) -> None:
+def test_if_both_branches_return(builder_class: type[Builder]) -> None:
     """
     title: Test IfStmt when both branches terminate with return.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -212,13 +210,13 @@ def test_if_both_branches_return(builder_class: Type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_if_one_branch_returns_other_falls_through(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test IfStmt when one branch returns and the other continues.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -267,13 +265,13 @@ def test_if_one_branch_returns_other_falls_through(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_if_recursive_fibonacci_with_returning_branches(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Test recursive fibonacci with IfStmt returning in both branches.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()

@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import re
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -36,12 +34,12 @@ def _datetime_values(const: ir.Constant) -> list[int]:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_basic_hms(builder_class: type[Builder]) -> None:
     """
     title: Integration - lowering succeeds and program builds.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -64,12 +62,12 @@ def test_literal_datetime_basic_hms(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_basic_hm(builder_class: type[Builder]) -> None:
     """
     title: Integration - HH:MM defaults seconds to 0 and builds.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -101,7 +99,7 @@ def test_literal_datetime_basic_hm(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_parsing(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     datetime_str: str,
     expected_values: list[int],
 ) -> None:
@@ -109,7 +107,7 @@ def test_literal_datetime_parsing(
     title: Integration - various formats build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       datetime_str:
         type: str
       expected_values:
@@ -137,13 +135,13 @@ def test_literal_datetime_parsing(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_fractional_rejected(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Integration - fractional seconds rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -168,13 +166,13 @@ def test_literal_datetime_fractional_rejected(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_datetime_timezone_rejected(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Integration - timezone markers rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -198,12 +196,12 @@ def test_literal_datetime_timezone_rejected(
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_invalid_month(builder_class: type[Builder]) -> None:
     """
     title: Integration - invalid month rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -227,12 +225,12 @@ def test_literal_datetime_invalid_month(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_invalid_day(builder_class: type[Builder]) -> None:
     """
     title: Integration - impossible calendar dates rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -256,12 +254,12 @@ def test_literal_datetime_invalid_day(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_invalid_hour(builder_class: type[Builder]) -> None:
     """
     title: Integration - hour out of range rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -285,12 +283,12 @@ def test_literal_datetime_invalid_hour(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_invalid_minute(builder_class: type[Builder]) -> None:
     """
     title: Integration - minute out of range rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()
@@ -314,12 +312,12 @@ def test_literal_datetime_invalid_minute(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_DATETIME, reason="astx.LiteralDateTime not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_datetime_invalid_second(builder_class: Type[Builder]) -> None:
+def test_literal_datetime_invalid_second(builder_class: type[Builder]) -> None:
     """
     title: Integration - second out of range rejected during build.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()

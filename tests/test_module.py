@@ -2,8 +2,6 @@
 title: Tests for the Module AST.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -61,7 +59,7 @@ def make_fn_add(int_type: type, literal_type: type) -> astx.AST:
 def test_module_fn_main(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
@@ -73,7 +71,7 @@ def test_module_fn_main(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:

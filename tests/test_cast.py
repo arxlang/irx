@@ -2,8 +2,6 @@
 title: Tests for the Casting.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -27,7 +25,7 @@ from .conftest import check_result
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_cast_basic(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type_from: type,
     literal_type_from: type,
     value: int,
@@ -38,7 +36,7 @@ def test_cast_basic(
     title: Test casting int types between different widths.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type_from:
         type: type
       literal_type_from:
@@ -87,7 +85,7 @@ def test_cast_basic(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_cast_to_string(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     astx_type: type,
     literal_type: type,
     value: object,
@@ -97,7 +95,7 @@ def test_cast_to_string(
     title: Cast various types to string and verify printed output.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       astx_type:
         type: type
       literal_type:
@@ -145,7 +143,7 @@ def test_cast_to_string(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_cast_int_to_float(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     int_type: type,
     literal_type: type,
     expected_str: str,
@@ -154,7 +152,7 @@ def test_cast_int_to_float(
     title: Cast int to float.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       int_type:
         type: type
       literal_type:
@@ -205,7 +203,7 @@ def test_cast_int_to_float(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_cast_float_to_int(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     float_type: type,
     literal_type: type,
     value: float,
@@ -216,7 +214,7 @@ def test_cast_float_to_int(
     title: Test float -> int cast truncates toward zero.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       float_type:
         type: type
       literal_type:
@@ -257,12 +255,12 @@ def test_cast_float_to_int(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_cast_same_type_noop(builder_class: Type[Builder]) -> None:
+def test_cast_same_type_noop(builder_class: type[Builder]) -> None:
     """
     title: Cast a value to its own type should be a no-op.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     module = builder.module()

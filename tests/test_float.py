@@ -2,8 +2,6 @@
 title: Tests for float.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -25,7 +23,7 @@ from .conftest import check_result
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_float_operations_with_print(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     lhs: float,
     op: str,
     rhs: float,
@@ -35,7 +33,7 @@ def test_float_operations_with_print(
     title: Test float operations by printing result to stdout.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       lhs:
         type: float
       op:

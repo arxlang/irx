@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Type, cast
+from typing import cast
 
 import astx
 import pytest
@@ -34,12 +34,12 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_list_empty(builder_class: Type[Builder]) -> None:
+def test_literal_list_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty list lowers to constant [0 x i32].
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -58,12 +58,12 @@ def test_literal_list_empty(builder_class: Type[Builder]) -> None:
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_list_homogeneous_ints(builder_class: Type[Builder]) -> None:
+def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
     """
     title: Homogeneous integer constants lower to constant array [N x i32].
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -92,13 +92,13 @@ def test_literal_list_homogeneous_ints(builder_class: Type[Builder]) -> None:
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_mixed_int_widths_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Mixed-width integer lists are not yet supported.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -117,13 +117,13 @@ def test_literal_list_mixed_int_widths_unsupported(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_non_integer_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Non-integer homogeneous lists are not yet supported.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -142,13 +142,13 @@ def test_literal_list_non_integer_unsupported(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_nested_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Nested lists (list containing lists) are not yet supported.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)

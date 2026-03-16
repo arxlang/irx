@@ -4,7 +4,7 @@ title: LiteralDict lowering tests
 
 from __future__ import annotations
 
-from typing import Type, cast
+from typing import cast
 
 import astx
 import pytest
@@ -18,12 +18,12 @@ EXPECTED_STRUCT_FIELDS = 2
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
+def test_literal_dict_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty LiteralDict lowering
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -39,13 +39,13 @@ def test_literal_dict_empty(builder_class: Type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_homogeneous_int_constants(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Homogeneous LiteralDict lowering
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -75,13 +75,13 @@ def test_literal_dict_homogeneous_int_constants(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_dict_heterogeneous_constants_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Heterogeneous LiteralDict rejection
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)

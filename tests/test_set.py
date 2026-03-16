@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Type, cast
+from typing import cast
 
 import astx
 import pytest
@@ -29,12 +29,12 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_set_empty(builder_class: Type[Builder]) -> None:
+def test_literal_set_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty set lowers to constant [0 x i32].
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -50,12 +50,12 @@ def test_literal_set_empty(builder_class: Type[Builder]) -> None:
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
+def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
     """
     title: Homogeneous integer constants lower to constant array [N x i32].
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -83,13 +83,13 @@ def test_literal_set_homogeneous_ints(builder_class: Type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_set_mixed_int_widths_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Mixed-width integer sets are not yet supported.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
@@ -105,13 +105,13 @@ def test_literal_set_mixed_int_widths_unsupported(
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_set_non_integer_unsupported(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Non-integer homogeneous sets are not yet supported.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)

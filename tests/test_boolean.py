@@ -2,8 +2,6 @@
 title: Tests for Boolean logic and comparisons.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -27,7 +25,7 @@ from .conftest import check_result
     ],
 )
 def test_boolean_operations(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     lhs: bool,
     op: str,
     rhs: bool,
@@ -37,7 +35,7 @@ def test_boolean_operations(
     title: Test literal Boolean AND/OR operations.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       lhs:
         type: bool
       op:
@@ -95,7 +93,7 @@ def test_boolean_operations(
     ],
 )
 def test_boolean_comparison(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     num_type: type,
     literal_type: type,
     lhs: int,
@@ -107,7 +105,7 @@ def test_boolean_comparison(
     title: Test numeric comparisons for integers and floats.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       num_type:
         type: type
       literal_type:
