@@ -12,10 +12,12 @@ dependencies = [
   "atpublic >= 4.0",
   "astx (>=0.24.0)",
   "llvmlite  >= 0.44.0",
+  "nanoarrow >= 0.8.0",
   "plum-dispatch >= 2.2.2",
   "xhell (>=0.2.1)",
   "eval-type-backport >=0.2 ; python_version < '3.10'",
   "typeguard >= 4",
+  "arx-nanoarrow-sources (>=0.8.0.post1,<0.9.0)",
 ]
 
 [build-system]
@@ -30,7 +32,13 @@ exclude = [
 packages = [
   {include = "irx", from="src"},
 ]
-include = ["src/irx/py.typed"]
+include = [
+  "src/irx/py.typed",
+  "src/irx/runtime/**/*.c",
+  "src/irx/runtime/**/*.h",
+  "src/irx/runtime/**/*.md",
+  "src/irx/runtime/**/LICENSE.txt",
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.3.2"
