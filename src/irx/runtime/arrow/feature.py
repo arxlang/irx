@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from arx_nanoarrow_sources import get_include_dir, get_source_files
 from llvmlite import ir
 
 from irx.runtime.features import (
@@ -30,10 +31,33 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
     """
     runtime_root = Path(__file__).resolve().parent
     native_root = runtime_root / "native"
-    vendor_root = runtime_root / "vendor" / "nanoarrow" / "src"
-
     compile_flags = ("-std=c99", "-DNANOARROW_NAMESPACE=IrxNanoarrow")
-    include_dirs = (native_root, vendor_root)
+    nanoarrow_include_dir = get_include_dir()
+    nanoarrow_sources = get_source_files()
+
+    if not nanoarrow_sources:
+        raise RuntimeError(
+            "arx-nanoarrow-sources did not provide any nanoarrow C sources"
+        )
+
+    include_dirs = (native_root, nanoarrow_include_dir)
+    artifacts = [
+        NativeArtifact(
+            kind="c_source",
+            path=native_root / "irx_arrow_runtime.c",
+            include_dirs=include_dirs,
+            compile_flags=compile_flags,
+        )
+    ]
+    artifacts.extend(
+        NativeArtifact(
+            kind="c_source",
+            path=source_path,
+            include_dirs=include_dirs,
+            compile_flags=compile_flags,
+        )
+        for source_path in nanoarrow_sources
+    )
 
     return RuntimeFeature(
         name="arrow",
@@ -83,32 +107,7 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
                 _declare_last_error,
             ),
         },
-        artifacts=(
-            NativeArtifact(
-                kind="c_source",
-                path=native_root / "irx_arrow_runtime.c",
-                include_dirs=include_dirs,
-                compile_flags=compile_flags,
-            ),
-            NativeArtifact(
-                kind="c_source",
-                path=vendor_root / "nanoarrow" / "common" / "array.c",
-                include_dirs=include_dirs,
-                compile_flags=compile_flags,
-            ),
-            NativeArtifact(
-                kind="c_source",
-                path=vendor_root / "nanoarrow" / "common" / "schema.c",
-                include_dirs=include_dirs,
-                compile_flags=compile_flags,
-            ),
-            NativeArtifact(
-                kind="c_source",
-                path=vendor_root / "nanoarrow" / "common" / "utils.c",
-                include_dirs=include_dirs,
-                compile_flags=compile_flags,
-            ),
-        ),
+        artifacts=tuple(artifacts),
         metadata={
             "type_ids": {"int32": IRX_ARROW_TYPE_INT32},
             "opaque_handles": {

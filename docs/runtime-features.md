@@ -131,18 +131,19 @@ IRx now depends on the Python `nanoarrow` package by default and uses it in the
 test suite to validate Arrow C Data interoperability against the installed
 package.
 
-IRx still vendors a pinned copy of `apache-arrow-nanoarrow-0.6.0` for the native
-Arrow runtime feature itself.
+IRx also depends on `arx-nanoarrow-sources` for the generated nanoarrow header
+and C source bundle used by the native Arrow runtime feature itself.
 
 Reasons:
 
-- the installed Python package does not ship the raw `nanoarrow.h` header or C
-  sources that IRx compiles into its native runtime
-- reproducible native builds in CI and local development
+- the installed Python `nanoarrow` package does not ship the raw `nanoarrow.h`
+  header or C sources that IRx compiles into its native runtime
+- reproducible native builds in CI and local development without keeping a
+  second nanoarrow copy inside the IRx repo
 - clear ownership of the narrow C runtime surface while keeping `nanoarrow`
   hidden behind the IRx ABI
 
-IRx compiles the vendored nanoarrow sources with
+IRx compiles the packaged nanoarrow sources with
 `-DNANOARROW_NAMESPACE=IrxNanoarrow` to keep those helper symbols internal to
 the feature implementation.
 
@@ -152,7 +153,7 @@ Implemented in this phase:
 
 - generic runtime-feature registry/state/linking
 - `libc` routed through the new feature system
-- Arrow native runtime feature with vendored nanoarrow
+- Arrow native runtime feature with packaged nanoarrow sources
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
 - one internal Arrow lowering path: `irx.system.ArrowInt32ArrayLength`

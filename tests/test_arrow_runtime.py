@@ -19,6 +19,7 @@ import astx
 import nanoarrow
 import pytest
 
+from arx_nanoarrow_sources import get_include_dir, get_source_files
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.runtime.arrow.feature import (
     IRX_ARROW_TYPE_INT32,
@@ -267,6 +268,25 @@ def test_arrow_length_codegen_declares_runtime_symbols() -> None:
     assert '@"irx_arrow_array_builder_int32_new"' in ir_text
     assert '@"irx_arrow_array_length"' in ir_text
     assert builder.translator.runtime_features.native_artifacts()
+
+
+def test_arrow_feature_uses_packaged_nanoarrow_sources() -> None:
+    """
+    title: Arrow runtime should compile against arx-nanoarrow-sources.
+    """
+    feature = build_arrow_runtime_feature()
+    native_sources = {
+        artifact.path
+        for artifact in feature.artifacts
+        if artifact.kind == "c_source"
+    }
+
+    assert get_source_files()
+    assert set(get_source_files()).issubset(native_sources)
+
+    for artifact in feature.artifacts:
+        if artifact.kind == "c_source":
+            assert get_include_dir() in artifact.include_dirs
 
 
 def test_arrow_length_build_returns_length() -> None:

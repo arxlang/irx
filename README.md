@@ -154,7 +154,7 @@ Arrow uses this path as its first substantial consumer:
 - opaque `irx_arrow_*` handles only
 - Arrow C Data import/export boundary
 - Python `nanoarrow` installed by default for interop and tests
-- vendored `nanoarrow` C sources kept internally for native runtime builds
+- `arx-nanoarrow-sources` installed by default for native runtime builds
 
 The current MVP is intentionally narrow: primitive `int32` arrays, lifecycle
 operations, inspection, and C Data roundtrip support. No full Arrow container

@@ -151,6 +151,21 @@ doc = ["doc8", "sphinx (>=7.0.0)", "sphinx-autobuild", "sphinx-autodoc-typehints
 test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock", "pytz (==2025.2)", "simplejson (==3.*)"]
 
 [[package]]
+name = "arx-nanoarrow-sources"
+version = "0.8.0.post1"
+description = "Bundled nanoarrow C headers and sources for the Arx ecosystem"
+optional = false
+python-versions = "<4,>=3.10"
+groups = ["main"]
+files = [
+    {file = "arx_nanoarrow_sources-0.8.0.post1-py3-none-any.whl", hash = "sha256:4763e651b01598a0a0ad4d253feb7468d1d4a05ba68beab9bc9035421c5551ac"},
+    {file = "arx_nanoarrow_sources-0.8.0.post1.tar.gz", hash = "sha256:ad21dfafc41830393a46af9392e66e63a5ebe7b9551ac1a3812bf3c4944f6f15"},
+]
+
+[package.dependencies]
+nanoarrow = ">=0.8.0,<0.9.0"
+
+[[package]]
 name = "asttokens"
 version = "3.0.1"
 description = "Annotate AST trees with source code positions"
@@ -4739,4 +4754,4 @@ test = ["coverage (>=5.3.1)", "prompt-toolkit (>=3.0.29)", "pygments (>=2.2)", "
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "5ad898084a6c5bdaadeb41c2114afc208c16a63137719f83b71189d8c5c737a1"
+content-hash = "4b1b5bf8c7f9df40699050c817d49737d9b3b48f3fb36ed7186be0be8dc5c7be"
