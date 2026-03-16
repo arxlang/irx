@@ -2676,6 +2676,99 @@ files = [
 ]
 
 [[package]]
+name = "nanoarrow"
+version = "0.8.0"
+description = "Python bindings to the nanoarrow C library"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "nanoarrow-0.8.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c5ea89651e49afa2674557005938963cb849d3c65f2f22ac6701c281a7e0244d"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:7861371960d09adb377d05da73190103178410dc014369779734f2dbff0ac0ad"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:db62ea708c873980eeb0e711fa6162120d1e372b2404bb79ead69f9aa0560192"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:178cc6d097b988d13354c6a48a873b4496c7bcedce43c55c6770186b6d1b4845"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:f5715e68cc17ccec23e1fcb9e828281bdf6afa11d78c8b0cd9a343c1ac48fb1d"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:958572c48d53f79693f30070fd4531f4d9643aa62e03ea1336ea2fc69e9e964d"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:dc1a1fe64c6b1177314eb4c36d9037268257d6699b052f9462a99e056703f4cb"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:feae14c938fe2192f1bea1d0f8e87be9446703d2997bbd555c949df36eed6d32"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-win32.whl", hash = "sha256:491a8aedbbbe4dd06660d641762ad9cb9743c39b96259f7795a4ac22cc046f18"},
+    {file = "nanoarrow-0.8.0-cp310-cp310-win_amd64.whl", hash = "sha256:1c3b2c6ff46c9cd37350b9855829c0eed1256311e4fea0fcbc8aa9c2080b80ca"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:31445b4cb891f77cb0261a0790222c9584c122f6d851e5818bc50a2678ae7bc4"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:5a579bd43011d2f5cb5a9ba3a7352bd4e3783f3adedb59b93540af71949433cf"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a1a910eaae1c60838ea9d11d247aba88cb17c02b67430ec88569a1ae68a7bb25"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b8520fe9ab310d855376e4faed742f683390bbab7b5dd230da398cb79f3deb29"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:78a5cbd6f3664e552280688dcae765424587d7392577774f7cd7191f654e71ab"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:8412b5594cef5e86f35a4a3eb05c25842c38f357926d13610b54dc1d99ffa2df"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:d6adfdc1129d3351e6a64e09749c2460270a49eea46a9badff16a15f31104e59"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:ebe2b9a7a25b3cc0f86f215e12f67bdfe8925a112ceda86c82d7633fc14fc52d"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-win32.whl", hash = "sha256:196b561557a26295862b181f204790c9fd308bdc78df30247b0e4c0b775b4a48"},
+    {file = "nanoarrow-0.8.0-cp311-cp311-win_amd64.whl", hash = "sha256:2cc015aa3905c3f0b798570975297730d1428a23768805a23202bc48d0eaabcd"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c5f27749e2b5218e69b484e01f4c08007386e1333fbb110f400354bde0612799"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c84efa8efba413a1cecee7d10d9e5dfbf7651026538449c5d554c1af19932791"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0548987b4d32536768e092478e3fe8968f35f9624354e30efa622e32c5d87944"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ae9d43a358cd6f13e9569c010de36e7e3e98b7da059bdf83438d5e7ce2f77f4"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:cc83b0b5636a3e558588c0eb6e3c32e295d0296909a08f3b4af17c81a2db8bf6"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:29e0783f9ff2b802cd883a41f5cc009f70efea519efcc710db7d143819d1d315"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:20d07a0ac666e9563e132a2097de5e9fa26b4781c0f8edfbdce0da866c22faba"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:3706258dc89231ef27dee50a26d53ec96dba85dbafa8d6637276bd212be4bc1b"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-win32.whl", hash = "sha256:6ab8bd2db59388c6bd131c4d9e2649a6626ffe7434084cee6c22fdfbedfeda1b"},
+    {file = "nanoarrow-0.8.0-cp312-cp312-win_amd64.whl", hash = "sha256:22c3443ebc0b988dff06cb88d03cf9accbf85fdde905fb7d76b6e001561855a8"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:605c7af9130599c40264d14c295dcc2a779402183c13f4189e7475b9dc52613a"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:64d49118b5477bef8af5fba0b66ad032e1f9861f70d210c262b5393e5b62f47d"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c1b64aa3739efbe85e775ba5733e37713521386d3014c866f9065815b7387114"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9b4a363e697b3e852fd1f374840df22aaac0323fb8d0ab24a50c3ea1090b4594"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:381a2a65b0bcfe36b267d506072a3a5c83b8326dfbb50dff2d7f55ac25159f69"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:cbca73fcb5c2c753ddac3695774e47cbed3b3bc64dba34866f3056e33a2a0ac2"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:a4539c5767723cf0c0a21b401acc7d706ca7fd84302b6be514eeb5b8ee230903"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:be0899058f66d3b7e4e4b7cfe125e95625e109b4513a81fd9bc098abef55a381"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-win32.whl", hash = "sha256:7c227e1e68926b0ccde7336211dd7a11f8983098b3698ee548756bdb778b016d"},
+    {file = "nanoarrow-0.8.0-cp313-cp313-win_amd64.whl", hash = "sha256:1730cb374739459a925c590c32e07e213c9c6ddd2e12f44547e2bd70d29a7a9b"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:dfa96964d2ccd762a5cb8e28eb0439b6c05b4f5090c4ca2d0207c32d8093cda5"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:714b21daefe495d7cdd6dad34d3409ae42a77f4ef6bf648f4688d0abef8924c1"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3777298c348b268b3490504d9ba099dc6eede702bb9f337360dec6412944a187"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1e31ee3e3b1e94eccc4cc034f02956ecd15b4ae33ae8a1f999704871ea3b6dec"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7bda72e24dd8e2abb3f445f129a422809d788db9cfbbfd247c32f5620e03128c"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:d2ee1a27a7210c8eba6ac6e8ab70b598da238348b125b53b16d9e1ae0313addc"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-musllinux_1_2_i686.whl", hash = "sha256:91466de52617b25dff7349dbf18cc612ce5ec35d09f025b37ea60be819808be8"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:4204e2b5f9cf895bcecfe432b03c346ec2bdadfda0174c8ab195acc6b4794986"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-win32.whl", hash = "sha256:1fdc0c2508b53a83c9814fdcd2d4bac6d98ea989fb363e0d88d329a8cddd7d50"},
+    {file = "nanoarrow-0.8.0-cp313-cp313t-win_amd64.whl", hash = "sha256:b73748e0f39cd8dc1ce33eaad3215f2aff6aebb03e659c26d2a8df9277e7e509"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:62a15d8c1bbee9b5ab9a35f401ae29d7a946e94d758a4ca6796d8154a7395a00"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:8fa51fc13f1a7b9773b7b10abc802cee0d9faab654a786be3b1081e3690061ab"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:345e7bfca9e9b548bf6ccb74dcb175734a1f6f1854a5a59bd6c36081988a99ad"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:080a7d9c2db1e5237b1b3cd9947b7544b0006e015522aaaa677c3433dd3eb2ed"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:1412f355b73e92677fdd30c4e28271478d1d572a04abe0526e60446a6a4eb018"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:27891ce4d6bf0cca897e0cbb6462a02515750679c58db0eb6c11a2b1373be75c"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-musllinux_1_2_i686.whl", hash = "sha256:e159645274a454b7f7b984ce094e6fb420f89e2003895537c5f5a9745bde7eb8"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:ba472808f2dc25ee8c692df0ea96c1a5adcb52f509c6fa52fa383556b0af6f5c"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-win32.whl", hash = "sha256:737c06de6e1f539669cb5eff5221e865c9efb9930af72a2e5f592d9f01b0764e"},
+    {file = "nanoarrow-0.8.0-cp39-cp39-win_amd64.whl", hash = "sha256:2af0e3e3a6bfb0fd675760e9f65671efd0abb71039a15b5288b16a212f5a762b"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:51e9609efad27191e6506b9c224c90ae49a0c72f641c8094f168d4694b45a3ff"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:185726c467211592ba47933949cb62bc6e1797eefdd760a145b241c44377fba9"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c11edd20949a874afb0e50f08402ea3f5c5206d70ec7ed2c27d8064a36222038"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8c2b31fdab6b5fb3d3c10f7597e16698c9d3db1bac4c645341e6e36320b78642"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:df0f118c7ba1036adf032d909674cb925a37ceeed83756c43d27ff9ad225b9e1"},
+    {file = "nanoarrow-0.8.0-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:827b3e3f8ba81c3b2a9de72dd6cddd74afc7e4cf03aacb0b7f6f2ac06747ae88"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-macosx_10_15_x86_64.whl", hash = "sha256:a765f955a6bfb989af1d37fa3d0c4f89c242fe12088b5e787748f995a5fa13fc"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-macosx_11_0_arm64.whl", hash = "sha256:b2023fa0d5d6992fd8a5a04452c559817c9805aea7391fa46291aaf381a6aa19"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:96c7d723b5615e2e9c5f7ba7b5af8d80ba90ecf9871ba005941ac80355ef556a"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c22b03d1ceca21aace2c8053ed43cac5566e69dd1660708783fe0e84dd35693e"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:999f906c297203b5430dc4e79e662301f5ab02a793b6fc67973ee3c0518fb936"},
+    {file = "nanoarrow-0.8.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:8c5529abc4e75b7764ffc6d2fbabd0c676f75ca2ece71a8671c4724207cfb697"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-macosx_10_15_x86_64.whl", hash = "sha256:e7255192cad0e29cca7344318b0dfa46fb2498c09f8ca59874659912f43917a9"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-macosx_11_0_arm64.whl", hash = "sha256:5359ecd4eb0d3c1ffdac34036859b53acb9ac5915bb50e798411ee9afc81a564"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e1cce5b6a3fd3179de2f94dcfb9868f1d744ee3299579074551c26708d3ac77f"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ccc167f74eb15473b0ec73411128fa1bef1ddbb74741721787d7716cc6f1870f"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:cfe2a9bb2998c88b23b3778cfd16f9de312fbdfbdc1f2a4939eb5c376cb827c3"},
+    {file = "nanoarrow-0.8.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:8d1ea6c929141be250df762bdaf7ce96cdd265252d0a5b8cc66069773be62fba"},
+    {file = "nanoarrow-0.8.0.tar.gz", hash = "sha256:aa63e01e799380ec4f8adab88f4faac8d27bfb725fe1009fe73d7ce4efd9f7f6"},
+]
+
+[package.extras]
+test = ["numpy", "pyarrow", "pytest", "python-dateutil"]
+verify = ["numpy", "pytest", "python-dateutil"]
+
+[[package]]
 name = "nbclient"
 version = "0.10.4"
 description = "A client library for executing notebooks. Formerly nbconvert's ExecutePreprocessor."
@@ -4646,4 +4739,4 @@ test = ["coverage (>=5.3.1)", "prompt-toolkit (>=3.0.29)", "pygments (>=2.2)", "
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "1057db6901bfc54b2bfbf217aff9f6943f115c4b3336486de7e084e7f6871729"
+content-hash = "5ad898084a6c5bdaadeb41c2114afc208c16a63137719f83b71189d8c5c737a1"

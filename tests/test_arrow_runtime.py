@@ -4,21 +4,32 @@ title: Tests for the Arrow runtime feature and lowering path.
 
 from __future__ import annotations
 
+import ctypes
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import astx
+import nanoarrow
 import pytest
 
 from irx.builders.llvmliteir import LLVMLiteIR
-from irx.runtime.arrow.feature import build_arrow_runtime_feature
-from irx.runtime.linking import link_executable
+from irx.runtime.arrow.feature import (
+    IRX_ARROW_TYPE_INT32,
+    build_arrow_runtime_feature,
+)
+from irx.runtime.linking import compile_native_artifacts, link_executable
 from irx.system import ArrowInt32ArrayLength
 from llvmlite import binding as llvm
+from nanoarrow import Array
+from nanoarrow.c_array import allocate_c_array
+from nanoarrow.c_schema import allocate_c_schema
 
 
 def _arrow_length_module(values: list[int]) -> astx.Module:
@@ -98,6 +109,131 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
             capture_output=True,
             text=True,
         )
+
+
+def _shared_library_suffix() -> str:
+    if sys.platform == "darwin":
+        return ".dylib"
+
+    return ".so"
+
+
+@contextmanager
+def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
+    if sys.platform == "win32":
+        pytest.skip("nanoarrow interop shared-library tests require Unix")
+
+    feature = build_arrow_runtime_feature()
+    clang_binary = shutil.which("clang")
+    if clang_binary is None:
+        pytest.skip("clang is required for Arrow runtime interop tests")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        output_path = (
+            tmp_path / f"libirx_arrow_runtime{_shared_library_suffix()}"
+        )
+        link_inputs = compile_native_artifacts(
+            feature.artifacts,
+            tmp_path,
+            clang_binary,
+        )
+
+        command = [clang_binary]
+        if sys.platform == "darwin":
+            command.append("-dynamiclib")
+        else:
+            command.append("-shared")
+
+        command.extend(str(obj) for obj in link_inputs.objects)
+        command.extend(link_inputs.linker_flags)
+        command.extend(["-o", str(output_path)])
+        subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        library = ctypes.CDLL(str(output_path))
+        _configure_arrow_runtime_library(library)
+        yield library
+
+
+def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
+    library.irx_arrow_array_builder_int32_new.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p)
+    ]
+    library.irx_arrow_array_builder_int32_new.restype = ctypes.c_int
+    library.irx_arrow_array_builder_append_int32.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int32,
+    ]
+    library.irx_arrow_array_builder_append_int32.restype = ctypes.c_int
+    library.irx_arrow_array_builder_finish.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    library.irx_arrow_array_builder_finish.restype = ctypes.c_int
+    library.irx_arrow_array_builder_release.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_array_builder_release.restype = None
+    library.irx_arrow_array_length.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_array_length.restype = ctypes.c_int64
+    library.irx_arrow_array_null_count.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_array_null_count.restype = ctypes.c_int64
+    library.irx_arrow_array_type_id.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_array_type_id.restype = ctypes.c_int32
+    library.irx_arrow_array_export.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    library.irx_arrow_array_export.restype = ctypes.c_int
+    library.irx_arrow_array_import.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    library.irx_arrow_array_import.restype = ctypes.c_int
+    library.irx_arrow_array_release.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_array_release.restype = None
+    library.irx_arrow_last_error.argtypes = []
+    library.irx_arrow_last_error.restype = ctypes.c_char_p
+
+
+def _assert_arrow_ok(library: ctypes.CDLL, code: int) -> None:
+    assert code == 0, library.irx_arrow_last_error().decode()
+
+
+def _build_runtime_array(
+    library: ctypes.CDLL, values: list[int]
+) -> ctypes.c_void_p:
+    builder = ctypes.c_void_p()
+    array_handle = ctypes.c_void_p()
+
+    _assert_arrow_ok(
+        library,
+        library.irx_arrow_array_builder_int32_new(ctypes.byref(builder)),
+    )
+
+    try:
+        for value in values:
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_array_builder_append_int32(builder, value),
+            )
+
+        _assert_arrow_ok(
+            library,
+            library.irx_arrow_array_builder_finish(
+                builder,
+                ctypes.byref(array_handle),
+            ),
+        )
+        return array_handle
+    finally:
+        if builder.value is not None and array_handle.value is None:
+            library.irx_arrow_array_builder_release(builder)
 
 
 def test_arrow_symbols_absent_when_unused() -> None:
@@ -257,3 +393,58 @@ def test_arrow_runtime_harness_c_data_roundtrip() -> None:
 
     assert result.returncode == 0
     assert result.stderr == ""
+
+
+def test_arrow_runtime_imports_python_nanoarrow_array() -> None:
+    """
+    title: Arrow runtime should import arrays built by Python nanoarrow.
+    """
+    with _load_arrow_runtime_library() as library:
+        source = nanoarrow.c_array([7, 8, 9], nanoarrow.int32())
+        array_handle = ctypes.c_void_p()
+
+        try:
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_array_import(
+                    source._addr(),
+                    source.schema._addr(),
+                    ctypes.byref(array_handle),
+                ),
+            )
+
+            assert array_handle.value is not None
+            assert library.irx_arrow_array_length(array_handle) == 3  # noqa: PLR2004
+            assert library.irx_arrow_array_null_count(array_handle) == 0
+            assert library.irx_arrow_array_type_id(array_handle) == (
+                IRX_ARROW_TYPE_INT32
+            )
+        finally:
+            if array_handle.value is not None:
+                library.irx_arrow_array_release(array_handle)
+
+
+def test_arrow_runtime_exports_to_python_nanoarrow_array() -> None:
+    """
+    title: Arrow runtime should export arrays consumable by Python nanoarrow.
+    """
+    with _load_arrow_runtime_library() as library:
+        array_handle = _build_runtime_array(library, [4, 5, 6])
+        try:
+            exported_schema = allocate_c_schema()
+            exported_array = allocate_c_array(exported_schema)
+
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_array_export(
+                    array_handle,
+                    exported_array._addr(),
+                    exported_schema._addr(),
+                ),
+            )
+
+            exported = Array(exported_array)
+            assert len(exported) == 3  # noqa: PLR2004
+            assert list(exported.iter_py()) == [4, 5, 6]
+        finally:
+            library.irx_arrow_array_release(array_handle)

@@ -86,6 +86,7 @@ Current Arrow MVP:
 - primitive `int32` arrays only
 - explicit create / append / finish / inspect / release lifecycle
 - Arrow C Data import/export support
+- Python `nanoarrow` dependency installed by default in IRx
 - `nanoarrow` used internally for schema/array helpers and validation
 
 What IRx does not do here:
@@ -126,14 +127,20 @@ currently rejects arrays with nulls.
 
 ## Nanoarrow
 
-IRx vendors a pinned copy of `apache-arrow-nanoarrow-0.6.0` for the Arrow
-runtime feature.
+IRx now depends on the Python `nanoarrow` package by default and uses it in the
+test suite to validate Arrow C Data interoperability against the installed
+package.
+
+IRx still vendors a pinned copy of `apache-arrow-nanoarrow-0.6.0` for the native
+Arrow runtime feature itself.
 
 Reasons:
 
-- reproducible builds in CI and local development
-- no dependency on a system-installed Arrow or nanoarrow package
-- clear ownership of the narrow C runtime surface
+- the installed Python package does not ship the raw `nanoarrow.h` header or C
+  sources that IRx compiles into its native runtime
+- reproducible native builds in CI and local development
+- clear ownership of the narrow C runtime surface while keeping `nanoarrow`
+  hidden behind the IRx ABI
 
 IRx compiles the vendored nanoarrow sources with
 `-DNANOARROW_NAMESPACE=IrxNanoarrow` to keep those helper symbols internal to
@@ -146,6 +153,7 @@ Implemented in this phase:
 - generic runtime-feature registry/state/linking
 - `libc` routed through the new feature system
 - Arrow native runtime feature with vendored nanoarrow
+- Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
 - one internal Arrow lowering path: `irx.system.ArrowInt32ArrayLength`
 - tests for registry behavior, IR declarations, build integration, runtime ABI,
