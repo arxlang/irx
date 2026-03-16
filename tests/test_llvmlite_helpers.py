@@ -199,7 +199,7 @@ def test_get_data_type_aliases_and_invalid() -> None:
     assert llvm_vars.get_data_type("float16") == llvm_vars.FLOAT16_TYPE
     assert llvm_vars.get_data_type("double") == llvm_vars.DOUBLE_TYPE
     assert llvm_vars.get_data_type("char") == llvm_vars.INT8_TYPE
-    assert llvm_vars.get_data_type("utf8string") == llvm_vars.UTF8_STRING_TYPE
+    assert llvm_vars.get_data_type("utf8string") == llvm_vars.ASCII_STRING_TYPE
 
     with pytest.raises(Exception, match="not valid"):
         llvm_vars.get_data_type("not-a-type")

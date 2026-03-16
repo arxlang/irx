@@ -16,6 +16,8 @@ via `clang`.
   ([`plum`](https://github.com/beartype/plum)).
 - **Back end:** IR construction and object emission with [llvmlite].
 - **Native build:** links with `clang` to produce an executable.
+- **Optional runtime features:** native capabilities are feature-gated per
+  compilation unit instead of being linked into every binary.
 - **PIE-friendly objects:** emits PIC-compatible objects by default to work with
   modern PIE-default linkers.
 - **Supported nodes (subset; exact ASTx class names):**
@@ -32,6 +34,9 @@ via `clang`.
 
 - **Built-ins:** `putchar`, `putchard` (emitted as IR); `puts` declaration when
   needed.
+- **Optional native runtimes:** `libc` externs are routed through the runtime
+  feature layer, and Arrow is now available as an optional native runtime
+  feature.
 
 ## Quick Start
 
@@ -131,6 +136,30 @@ builder.run()                   # executes ./hello (or hello.exe on Windows)
 3. Declare (or reuse) `i32 @puts(i8*)`.
 4. Call `puts`.
 
+### Optional Runtime Features
+
+IRx now has a generic runtime-feature system for native integrations that do not
+belong as handwritten LLVM container logic.
+
+- Features are registered by name, such as `libc` and `arrow`.
+- Features can declare external symbols, native C sources, objects, or static
+  libraries.
+- The linker only compiles and links artifacts for features that are active in
+  the current compilation unit.
+- This is intentionally separate from any future Arx import/module layer.
+
+Arrow uses this path as its first substantial consumer:
+
+- native runtime implemented in C under `src/irx/runtime/arrow/`
+- opaque `irx_arrow_*` handles only
+- Arrow C Data import/export boundary
+- Python `nanoarrow` installed by default for interop and tests
+- `arx-nanoarrow-sources` installed by default for native runtime builds
+
+The current MVP is intentionally narrow: primitive `int32` arrays, lifecycle
+operations, inspection, and C Data roundtrip support. No full Arrow container
+semantics are encoded directly in LLVM IR.
+
 ## Testing
 
 ```bash
@@ -217,7 +246,8 @@ def test_binary_op_basic():
 - Optimization toggles/passes.
 - Alternative backends and/or JIT runner.
 - Better diagnostics and source locations in IR.
-- Integration with [Apache Arrow](https://arrow.apache.org/).
+- Expand optional [Apache Arrow](https://arrow.apache.org/) runtime support:
+  nullable arrays, more primitive types, streams, and higher-level handles.
 
 ## Contributing
 

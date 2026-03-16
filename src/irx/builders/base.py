@@ -73,6 +73,8 @@ class Builder(ABC):
         type: str
       sh_args:
         type: Dict[str, Any]
+      runtime_feature_names:
+        type: set[str]
     """
 
     translator: BuilderVisitor
@@ -80,6 +82,7 @@ class Builder(ABC):
     output_file: str
 
     sh_args: Dict[str, Any]
+    runtime_feature_names: set[str]
 
     def __init__(self) -> None:
         """
@@ -95,6 +98,7 @@ class Builder(ABC):
             _env=os.environ,
             # _new_session=True,
         )
+        self.runtime_feature_names = set()
 
     def module(self) -> astx.Module:
         """
@@ -114,6 +118,15 @@ class Builder(ABC):
           type: str
         """
         return self.translator.translate(expr)
+
+    def activate_runtime_feature(self, feature_name: str) -> None:
+        """
+        title: Activate a native runtime feature for this compilation unit.
+        parameters:
+          feature_name:
+            type: str
+        """
+        self.runtime_feature_names.add(feature_name)
 
     @abstractmethod
     def build(

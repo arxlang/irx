@@ -20,6 +20,7 @@ from .conftest import check_result
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
         (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
     ],
 )
 @pytest.mark.parametrize(
