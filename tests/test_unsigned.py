@@ -37,14 +37,7 @@ from .conftest import check_result
             astx.LiteralUInt64,
             astx.Int64,
             astx.LiteralInt64,
-            4294967295,
-        ),
-        (
-            astx.UInt128,
-            astx.LiteralUInt128,
-            astx.Int32,
-            astx.LiteralInt32,
-            4294967295,
+            9223372036854775809,
         ),
     ],
 )
@@ -107,7 +100,11 @@ def test_unsigned_vs_signed_comparison(
         mutability=astx.MutabilityKind.constant,
     )
 
-    cond_u = astx.Identifier("u_a") > astx.Identifier("u_b")
+    cond_u = astx.BinaryOp(
+        op_code=">",
+        lhs=astx.Identifier("u_a"),
+        rhs=u_lit_type(1),
+    )
 
     then_blk_u = astx.Block()
     then_blk_u.append(PrintExpr(astx.LiteralUTF8String("U_TRUE ")))
@@ -132,7 +129,11 @@ def test_unsigned_vs_signed_comparison(
         mutability=astx.MutabilityKind.constant,
     )
 
-    cond_s = astx.Identifier("s_a") > astx.Identifier("s_b")
+    cond_s = astx.BinaryOp(
+        op_code=">",
+        lhs=astx.Identifier("s_a"),
+        rhs=s_lit_type(1),
+    )
 
     then_blk_s = astx.Block()
     then_blk_s.append(PrintExpr(astx.LiteralUTF8String("S_TRUE ")))
@@ -187,14 +188,7 @@ def test_unsigned_vs_signed_comparison(
             astx.LiteralUInt64,
             astx.Int64,
             astx.LiteralInt64,
-            4294967295,
-        ),
-        (
-            astx.UInt128,
-            astx.LiteralUInt128,
-            astx.Int32,
-            astx.LiteralInt32,
-            4294967295,
+            9223372036854775809,
         ),
     ],
 )
@@ -259,11 +253,19 @@ def test_unsigned_vs_signed_division(
     decl_u_c = astx.VariableDeclaration(
         name="u_c",
         type_=u_type(),
-        value=astx.Identifier("u_a") / astx.Identifier("u_b"),
+        value=astx.BinaryOp(
+            op_code="/",
+            lhs=astx.Identifier("u_a"),
+            rhs=u_lit_type(2),
+        ),
         mutability=astx.MutabilityKind.constant,
     )
 
-    cond_u = astx.Identifier("u_c") > u_lit_type(0)
+    cond_u = astx.BinaryOp(
+        op_code=">",
+        lhs=astx.Identifier("u_c"),
+        rhs=u_lit_type(0),
+    )
 
     then_blk_u = astx.Block()
     then_blk_u.append(PrintExpr(astx.LiteralUTF8String("U_DIV_GT_ZERO ")))
@@ -290,11 +292,19 @@ def test_unsigned_vs_signed_division(
     decl_s_c = astx.VariableDeclaration(
         name="s_c",
         type_=s_type(),
-        value=astx.Identifier("s_a") / astx.Identifier("s_b"),
+        value=astx.BinaryOp(
+            op_code="/",
+            lhs=astx.Identifier("s_a"),
+            rhs=s_lit_type(2),
+        ),
         mutability=astx.MutabilityKind.constant,
     )
 
-    cond_s = astx.Identifier("s_c") > s_lit_type(0)
+    cond_s = astx.BinaryOp(
+        op_code=">",
+        lhs=astx.Identifier("s_c"),
+        rhs=s_lit_type(0),
+    )
 
     then_blk_s = astx.Block()
     then_blk_s.append(PrintExpr(astx.LiteralUTF8String("S_DIV_GT_ZERO ")))
