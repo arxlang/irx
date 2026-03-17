@@ -16,6 +16,7 @@ from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from llvmlite import ir
 
 EXPECTED_SET_LENGTH = 2
+EXPECTED_PROMOTED_WIDTH = 32
 
 
 def _array_i32_values(const: ir.Constant) -> list[int]:
@@ -104,6 +105,14 @@ def test_literal_set_mixed_int_widths(builder_class: Type[Builder]) -> None:
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == EXPECTED_SET_LENGTH
+
+    # Check promoted type is i32 (widest type)
+    assert isinstance(const.type.element, ir.IntType)
+    assert const.type.element.width == EXPECTED_PROMOTED_WIDTH
+
+    # Check values are correct after promotion
+    vals = _array_i32_values(const)
+    assert vals == [1, 2]
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
