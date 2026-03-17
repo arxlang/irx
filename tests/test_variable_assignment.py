@@ -77,7 +77,7 @@ def test_variable_assignment(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_variable_declaration_no_initializer(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     var_type: type,
     literal_type: type,
 ) -> None:
@@ -85,7 +85,7 @@ def test_variable_declaration_no_initializer(
     title: Test VariableDeclaration without an initializer defaults to zero.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       var_type:
         type: type
       literal_type:
