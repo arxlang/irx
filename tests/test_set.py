@@ -85,7 +85,7 @@ def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_set_mixed_int_widths(builder_class: Type[Builder]) -> None:
+def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
     """
     title: Mixed-width integer constants lower correctly.
     parameters:
