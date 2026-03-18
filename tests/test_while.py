@@ -7,6 +7,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -165,3 +166,56 @@ def test_while_false_condition(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_while_float_condition(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Test WhileStmt with a Float32 condition covers fcmp_ordered path.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    # float a = 3.0
+    init_var = astx.InlineVariableDeclaration(
+        "a",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(3.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    # condition: a (evaluates to float, hits fcmp_ordered 0.0)
+    var_a = astx.Identifier("a")
+    cond = var_a
+
+    # body: a = a - 1.0
+    dec = astx.VariableAssignment(
+        name="a",
+        value=astx.BinaryOp(
+            op_code="-", lhs=var_a, rhs=astx.LiteralFloat32(1.0)
+        ),
+    )
+    body = astx.Block()
+    body.append(dec)
+
+    while_expr = astx.WhileStmt(condition=cond, body=body)
+
+    # Print "done" after loop to prove execution completed.
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn_block = astx.Block()
+    fn_block.append(init_var)
+    fn_block.append(while_expr)
+    fn_block.append(PrintExpr(astx.LiteralUTF8String("done")))
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result("build", builder, module, expected_output="done")
