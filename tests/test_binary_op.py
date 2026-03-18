@@ -246,3 +246,214 @@ def test_binary_op_logical_and_or(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expect)
+
+
+@pytest.mark.parametrize(
+    "a_val, b_val, op, expected",
+    [
+        (2.0, 3.0, "<=", "le_true"),
+        (3.0, 2.0, "<=", "le_false"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_float_le(
+    builder_class: type[Builder],
+    a_val: float,
+    b_val: float,
+    op: str,
+    expected: str,
+) -> None:
+    """
+    title: Test Float32 '<=' covers fcmp_ordered le path (line 1115).
+    parameters:
+      builder_class:
+        type: type[Builder]
+      a_val:
+        type: float
+      b_val:
+        type: float
+      op:
+        type: str
+      expected:
+        type: str
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    cond = astx.BinaryOp(
+        op_code="<=",
+        lhs=astx.LiteralFloat32(a_val),
+        rhs=astx.LiteralFloat32(b_val),
+    )
+    then_blk = astx.Block()
+    then_blk.append(PrintExpr(astx.LiteralUTF8String("le_true")))
+    else_blk = astx.Block()
+    else_blk.append(PrintExpr(astx.LiteralUTF8String("le_false")))
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(if_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output=expected)
+
+
+@pytest.mark.parametrize(
+    "a_val, b_val, expected",
+    [
+        (3.0, 2.0, "ge_true"),
+        (1.0, 2.0, "ge_false"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_float_ge(
+    builder_class: type[Builder],
+    a_val: float,
+    b_val: float,
+    expected: str,
+) -> None:
+    """
+    title: Test Float32 '>=' covers fcmp_ordered ge path (line 1125).
+    parameters:
+      builder_class:
+        type: type[Builder]
+      a_val:
+        type: float
+      b_val:
+        type: float
+      expected:
+        type: str
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    cond = astx.BinaryOp(
+        op_code=">=",
+        lhs=astx.LiteralFloat32(a_val),
+        rhs=astx.LiteralFloat32(b_val),
+    )
+    then_blk = astx.Block()
+    then_blk.append(PrintExpr(astx.LiteralUTF8String("ge_true")))
+    else_blk = astx.Block()
+    else_blk.append(PrintExpr(astx.LiteralUTF8String("ge_false")))
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(if_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output=expected)
+
+
+@pytest.mark.parametrize(
+    "a_val, b_val, expected",
+    [
+        (2.0, 2.0, "eq_true"),
+        (1.0, 2.0, "eq_false"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_float_eq(
+    builder_class: type[Builder],
+    a_val: float,
+    b_val: float,
+    expected: str,
+) -> None:
+    """
+    title: Test Float32 '==' covers fcmp_ordered eq path (line 1165).
+    parameters:
+      builder_class:
+        type: type[Builder]
+      a_val:
+        type: float
+      b_val:
+        type: float
+      expected:
+        type: str
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    cond = astx.BinaryOp(
+        op_code="==",
+        lhs=astx.LiteralFloat32(a_val),
+        rhs=astx.LiteralFloat32(b_val),
+    )
+    then_blk = astx.Block()
+    then_blk.append(PrintExpr(astx.LiteralUTF8String("eq_true")))
+    else_blk = astx.Block()
+    else_blk.append(PrintExpr(astx.LiteralUTF8String("eq_false")))
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(if_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output=expected)
+
+
+@pytest.mark.parametrize(
+    "a_val, b_val, expected",
+    [
+        (1.0, 2.0, "ne_true"),
+        (2.0, 2.0, "ne_false"),
+    ],
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_float_ne(
+    builder_class: type[Builder],
+    a_val: float,
+    b_val: float,
+    expected: str,
+) -> None:
+    """
+    title: Test Float32 '!=' covers fcmp_ordered ne path (line 1188).
+    parameters:
+      builder_class:
+        type: type[Builder]
+      a_val:
+        type: float
+      b_val:
+        type: float
+      expected:
+        type: str
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    cond = astx.BinaryOp(
+        op_code="!=",
+        lhs=astx.LiteralFloat32(a_val),
+        rhs=astx.LiteralFloat32(b_val),
+    )
+    then_blk = astx.Block()
+    then_blk.append(PrintExpr(astx.LiteralUTF8String("ne_true")))
+    else_blk = astx.Block()
+    else_blk.append(PrintExpr(astx.LiteralUTF8String("ne_false")))
+    if_stmt = astx.IfStmt(condition=cond, then=then_blk, else_=else_blk)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    block.append(if_stmt)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    check_result("build", builder, module, expected_output=expected)
