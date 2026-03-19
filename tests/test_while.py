@@ -19,6 +19,8 @@ from .conftest import check_result
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
         (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
     ],
 )
 @pytest.mark.parametrize(
@@ -69,8 +71,15 @@ def test_while_expr(
     var_a = astx.Identifier("a")
     cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(5))
 
-    # Update: ++a
-    update = astx.UnaryOp(op_code="++", operand=var_a)
+    # Update: a = a + 1  (works for int and float; ++ only works for int)
+    update = astx.VariableAssignment(
+        name="a",
+        value=astx.BinaryOp(
+            op_code="+",
+            lhs=astx.Identifier("a"),
+            rhs=literal_type(1),
+        ),
+    )
 
     # Body
     body = astx.Block()
