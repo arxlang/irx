@@ -74,18 +74,20 @@ def test_variable_assignment(
 
 
 @pytest.mark.parametrize(
-    "var_type, literal_type, expected_output",
+    "var_type, expected_output",
     [
-        (astx.Int32, astx.LiteralInt32, "0"),
-        (astx.Float32, astx.LiteralFloat32, "0.000000"),
-        (astx.Float64, astx.LiteralFloat64, "0.000000"),
+        (astx.Int8, "0"),
+        (astx.Int16, "0"),
+        (astx.Int32, "0"),
+        (astx.Int64, "0"),
+        (astx.Float32, "0.000000"),
+        (astx.Float64, "0.000000"),
     ],
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_variable_declaration_no_initializer(
     builder_class: type[Builder],
     var_type: type,
-    literal_type: type,
     expected_output: str,
 ) -> None:
     """
@@ -94,8 +96,6 @@ def test_variable_declaration_no_initializer(
       builder_class:
         type: type[Builder]
       var_type:
-        type: type
-      literal_type:
         type: type
       expected_output:
         type: str
