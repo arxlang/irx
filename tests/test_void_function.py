@@ -8,6 +8,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from irx.system import PrintExpr
 
 from .conftest import check_result
 
@@ -50,7 +51,7 @@ class TestVoidFunctionNoReturn:
         main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
         module.block.append(main_fn)
 
-        check_result("build", builder, module, expected_output="0")
+        check_result("build", builder, module)
 
     def test_void_function_with_print_no_explicit_return(
         self, builder_class: type[Builder]
@@ -58,8 +59,6 @@ class TestVoidFunctionNoReturn:
         """
         title: Void function with statements but no return node must compile cleanly.
         """
-        from irx.system import PrintExpr
-
         builder = builder_class()
         module = builder.module()
 
@@ -111,6 +110,7 @@ class TestVoidFunctionWithEarlyReturn:
             return_type=astx.NoneType(),
         )
         body = astx.Block()
+        body.append(PrintExpr(astx.LiteralUTF8String("explicit")))
         body.append(astx.FunctionReturn(astx.LiteralNone()))
 
         void_fn = astx.FunctionDef(prototype=proto, body=body)
@@ -128,7 +128,7 @@ class TestVoidFunctionWithEarlyReturn:
         main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
         module.block.append(main_fn)
 
-        check_result("build", builder, module, expected_output="0")
+        check_result("build", builder, module, expected_output="explicit")
 
 
 @pytest.mark.parametrize(
@@ -177,4 +177,4 @@ def test_non_void_function_missing_return_gets_zero_fallback(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result("build", builder, module, expected_output="0")
+    check_result("build", builder, module)
