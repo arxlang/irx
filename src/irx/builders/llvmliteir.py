@@ -1754,7 +1754,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         string_data.linkage = "internal"
         string_data.global_constant = True
         string_data.initializer = ir.Constant(
-            string_data_type, bytearray(string_value + "\0", "ascii")
+            string_data_type, bytearray((string_value + "\0").encode("utf-8"))
         )
 
         ptr = self._llvm.ir_builder.gep(
