@@ -2681,6 +2681,132 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported in this version"
         )
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.SubscriptExpr) -> None:
+        """
+        title: SubscriptExpr lowering — dict key lookup.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        """
+        self.visit(node.value)
+        dict_val = self.result_stack.pop()
+
+        if not (
+            isinstance(dict_val, ir.Constant)
+            and isinstance(dict_val.type, ir.ArrayType)
+            and isinstance(dict_val.type.element, ir.LiteralStructType)
+            and len(dict_val.type.element.elements) == 2
+        ):
+            raise TypeError(
+                "SubscriptExpr: only constant LiteralDict subscript "
+                "is supported in this version"
+            )
+
+        self.visit(node.index)
+        key_val = self.result_stack.pop()
+
+        # Fast path: constant key → compile-time linear scan
+        if isinstance(key_val, ir.Constant):
+            for entry in dict_val.constant:
+                entry_key = entry.constant[0]
+                if entry_key.constant == key_val.constant:
+                    self.result_stack.append(entry.constant[1])
+                    return
+            raise KeyError(
+                f"SubscriptExpr: key {key_val.constant!r} not found in dict"
+            )
+
+        # Runtime path: variable key → LLVM IR comparison chain
+        self._visit_subscript_runtime(dict_val, key_val)
+
+    def _visit_subscript_runtime(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+    ) -> None:
+        """
+        title: Emit runtime linear scan for dict key lookup.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+        """
+        builder = self._llvm.ir_builder
+        fn = builder.function
+        n = dict_val.type.count
+        key_type = dict_val.type.element.elements[0]
+        val_type = dict_val.type.element.elements[1]
+
+        zero = ir.Constant(ir.IntType(32), 0)
+        key_field = ir.Constant(ir.IntType(32), 0)
+        val_field = ir.Constant(ir.IntType(32), 1)
+
+        # Alloca in entry block to avoid stack growth in loops
+        current_bb = builder.block
+        builder.position_at_start(fn.entry_basic_block)
+        arr_alloca = builder.alloca(dict_val.type, name="dict_arr")
+        builder.position_at_end(current_bb)
+        builder.store(dict_val, arr_alloca)
+
+        merge_block = fn.append_basic_block("dict_merge")
+        not_found_block = fn.append_basic_block("dict_not_found")
+        phi_incomings: list[tuple[ir.Value, ir.Block]] = []
+
+        for i in range(n):
+            idx = ir.Constant(ir.IntType(32), i)
+            key_ptr = builder.gep(
+                arr_alloca,
+                [zero, idx, key_field],
+                inbounds=True,
+                name=f"kptr_{i}",
+            )
+            key_i = builder.load(key_ptr, name=f"k_{i}")
+
+            if isinstance(key_type, ir.IntType):
+                cmp = builder.icmp_signed(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
+            else:
+                cmp = builder.fcmp_ordered(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
+
+            hit_block = fn.append_basic_block(f"dict_hit_{i}")
+            next_block = (
+                fn.append_basic_block(f"dict_chk_{i + 1}")
+                if i < n - 1
+                else not_found_block
+            )
+            builder.cbranch(cmp, hit_block, next_block)
+
+            builder.position_at_end(hit_block)
+            val_ptr = builder.gep(
+                arr_alloca,
+                [zero, idx, val_field],
+                inbounds=True,
+                name=f"vptr_{i}",
+            )
+            val_i = builder.load(val_ptr, name=f"v_{i}")
+            builder.branch(merge_block)
+            phi_incomings.append((val_i, hit_block))
+
+            if i < n - 1:
+                builder.position_at_end(next_block)
+
+        builder.position_at_end(not_found_block)
+        not_found_val = ir.Constant(val_type, 0)
+        builder.branch(merge_block)
+
+        builder.position_at_end(merge_block)
+        phi = builder.phi(val_type, name="dict_res")
+        for val, blk in phi_incomings:
+            phi.add_incoming(val, blk)
+        phi.add_incoming(not_found_val, not_found_block)
+
+        self.result_stack.append(phi)
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
