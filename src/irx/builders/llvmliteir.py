@@ -809,7 +809,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return FLOAT16_BITS
         if FP128Type is not None and isinstance(ty, FP128Type):
             return FLOAT128_BITS
-        return getattr(ty, "width", 0)
+        raise Exception(f"Unknown floating-point type: {ty}")
 
     def _cast_value_to_type(
         self, value: ir.Value, target_scalar_ty: ir.Type
@@ -1018,15 +1018,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            if llvm_lhs.type.count != llvm_rhs.type.count:
-                raise Exception(
-                    f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}"
-                )
-            if llvm_lhs.type.element != llvm_rhs.type.element:
-                raise Exception(
-                    f"Vector element type mismatch: "
-                    f"{llvm_lhs.type.element} vs {llvm_rhs.type.element}"
-                )
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
             set_fast = is_float_vec and getattr(node, "fast_math", False)
@@ -1135,7 +1126,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
         elif node.op_code == "-":
             # note: it should be according the datatype,
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
@@ -1150,7 +1141,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
@@ -1165,7 +1156,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1179,7 +1170,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1191,7 +1182,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "<=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -1202,7 +1193,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == ">=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -1215,7 +1206,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
             # division
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 # Floating-point division
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
@@ -1242,7 +1233,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "=="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -1265,7 +1256,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "!="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
