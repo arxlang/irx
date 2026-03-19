@@ -298,3 +298,31 @@ def test_string_with_special_characters_with_print(
     module.block.append(fn)
 
     check_result("build", builder, module, expected_output=expected)
+
+
+def test_utf8_char_lowering_correctness() -> None:
+    """Verify LiteralUTF8Char correctly lowers to UTF-8 hex in IR."""
+
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    # 'é' is represented as \xc3\xa9 in UTF-8
+    char_node = astx.LiteralUTF8Char("é")
+
+    block = astx.Block()
+    block.append(
+        astx.VariableDeclaration(
+            name="tmp", type_=astx.String(), value=char_node
+        )
+    )
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    module.block.append(astx.FunctionDef(prototype=proto, body=block))
+
+    ir_output = builder.translate(module)
+
+    # Verify the UTF-8 hex sequence exists in the generated IR constant
+    assert "\\c3\\a9" in ir_output.lower()
