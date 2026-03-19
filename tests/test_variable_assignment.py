@@ -74,10 +74,11 @@ def test_variable_assignment(
 
 
 @pytest.mark.parametrize(
-    "var_type, literal_type",
+    "var_type, literal_type, expected_output",
     [
-        (astx.Int32, astx.LiteralInt32),
-        (astx.Float32, astx.LiteralFloat32),
+        (astx.Int32, astx.LiteralInt32, "0"),
+        (astx.Float32, astx.LiteralFloat32, "0.000000"),
+        (astx.Float64, astx.LiteralFloat64, "0.000000"),
     ],
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -85,6 +86,7 @@ def test_variable_declaration_no_initializer(
     builder_class: type[Builder],
     var_type: type,
     literal_type: type,
+    expected_output: str,
 ) -> None:
     """
     title: Test VariableDeclaration without an initializer defaults to zero.
@@ -95,6 +97,8 @@ def test_variable_declaration_no_initializer(
         type: type
       literal_type:
         type: type
+      expected_output:
+        type: str
     """
     builder = builder_class()
     module = builder.module()
@@ -105,13 +109,14 @@ def test_variable_declaration_no_initializer(
     )
 
     proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=var_type()
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
     )
     fn_block = astx.Block()
     fn_block.append(decl)
-    fn_block.append(astx.FunctionReturn(astx.Identifier("x")))
+    fn_block.append(PrintExpr(astx.Identifier("x")))
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 
     module.block.append(fn_main)
 
-    check_result("build", builder, module)
+    check_result("build", builder, module, expected_output=expected_output)
