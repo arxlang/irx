@@ -45,7 +45,8 @@ def test_dict_lookup_hit(builder_class: type[Builder]) -> None:
     result = visitor.result_stack.pop()
 
     assert isinstance(result, ir.Constant)
-    assert result.constant == 20
+    EXPECTED_VAL_FOR_KEY_2 = 20
+    assert result.constant == EXPECTED_VAL_FOR_KEY_2
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
