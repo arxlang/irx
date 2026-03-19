@@ -26,6 +26,9 @@ class TestVoidFunctionNoReturn:
     ) -> None:
         """
         title: Void function with no return statement must compile cleanly.
+        parameters:
+          builder_class:
+            type: type[Builder]
         """
         builder = builder_class()
         module = builder.module()
@@ -59,6 +62,9 @@ class TestVoidFunctionNoReturn:
     ) -> None:
         """
         title: Void function with no return node compiles cleanly.
+        parameters:
+          builder_class:
+            type: type[Builder]
         """
         builder = builder_class()
         module = builder.module()
@@ -101,6 +107,9 @@ class TestVoidFunctionWithEarlyReturn:
     ) -> None:
         """
         title: Void function with explicit return, no duplicate terminator.
+        parameters:
+          builder_class:
+            type: type[Builder]
         """
         builder = builder_class()
         module = builder.module()
@@ -152,6 +161,13 @@ def test_non_void_function_missing_return_gets_zero_fallback(
 ) -> None:
     """
     title: Non-void function with no return must not produce malformed IR.
+    parameters:
+      builder_class:
+        type: type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
     """
     builder = builder_class()
     module = builder.module()
