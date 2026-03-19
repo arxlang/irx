@@ -100,8 +100,9 @@ def test_dict_lookup_runtime_variable_key(
     builder_class: type[Builder],
 ) -> None:
     """
-    title: SubscriptExpr variable key does runtime linear scan and returns
-      the correct value.
+    title: >-
+      SubscriptExpr variable key does runtime linear scan and returns the
+      correct value.
     parameters:
       builder_class:
         type: type[Builder]
