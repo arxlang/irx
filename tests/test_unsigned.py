@@ -2,8 +2,6 @@
 title: Tests for Unsigned Integer Operations.
 """
 
-from typing import Type
-
 import astx
 import pytest
 
@@ -57,7 +55,7 @@ from .conftest import check_result
 def test_unsigned_vs_signed_comparison(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     u_type: type,
     u_lit_type: type,
     s_type: type,
@@ -72,7 +70,7 @@ def test_unsigned_vs_signed_comparison(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       u_type:
         type: type
       u_lit_type:
@@ -208,7 +206,7 @@ def test_unsigned_vs_signed_comparison(
 def test_unsigned_vs_signed_division(
     action: str,
     expected_file: str,
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
     u_type: type,
     u_lit_type: type,
     s_type: type,
@@ -223,7 +221,7 @@ def test_unsigned_vs_signed_division(
       expected_file:
         type: str
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
       u_type:
         type: type
       u_lit_type:
