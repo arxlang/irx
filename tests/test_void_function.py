@@ -1,6 +1,7 @@
 """
 title: Test FunctionDef with void return type
 """
+
 from __future__ import annotations
 
 import astx
@@ -57,7 +58,7 @@ class TestVoidFunctionNoReturn:
         self, builder_class: type[Builder]
     ) -> None:
         """
-        title: Void function with statements but no return node compiles cleanly.
+        title: Void function with no return node compiles cleanly.
         """
         builder = builder_class()
         module = builder.module()
@@ -99,7 +100,7 @@ class TestVoidFunctionWithEarlyReturn:
         self, builder_class: type[Builder]
     ) -> None:
         """
-        title: Void function with explicit return must not get duplicate terminator.
+        title: Void function with explicit return, no duplicate terminator.
         """
         builder = builder_class()
         module = builder.module()
