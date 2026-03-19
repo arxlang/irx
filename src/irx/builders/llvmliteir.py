@@ -1105,6 +1105,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.rhs)
         llvm_rhs = safe_pop(self.result_stack)
 
+        if self._try_set_binary_op(llvm_lhs, llvm_rhs, node.op_code):
+            return
+
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
@@ -2653,6 +2656,57 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "LiteralSet: only integer constants are currently supported "
             "(homogeneous or mixed-width)"
         )
+
+    def _try_set_binary_op(
+        self,
+        lhs: ir.Value | None,
+        rhs: ir.Value | None,
+        op_code: str,
+    ) -> bool:
+        """
+        title: Attempt a compile-time set operation on two constant int arrays.
+        parameters:
+          lhs:
+            type: ir.Value | None
+          rhs:
+            type: ir.Value | None
+          op_code:
+            type: str
+        returns:
+          type: bool
+        """
+        if op_code not in ("|", "&", "-", "^"):
+            return False
+
+        if not (
+            isinstance(lhs, ir.Constant)
+            and isinstance(lhs.type, ir.ArrayType)
+            and isinstance(lhs.type.element, ir.IntType)
+            and isinstance(rhs, ir.Constant)
+            and isinstance(rhs.type, ir.ArrayType)
+            and isinstance(rhs.type.element, ir.IntType)
+        ):
+            return False
+
+        a_vals: set[int] = {e.constant for e in lhs.constant}
+        b_vals: set[int] = {e.constant for e in rhs.constant}
+
+        if op_code == "|":
+            result_vals = a_vals | b_vals
+        elif op_code == "&":
+            result_vals = a_vals & b_vals
+        elif op_code == "-":
+            result_vals = a_vals - b_vals
+        else:
+            result_vals = a_vals ^ b_vals
+
+        widest = max(lhs.type.element.width, rhs.type.element.width)
+        elem_ty = ir.IntType(widest)
+        sorted_vals = sorted(result_vals)
+        consts = [ir.Constant(elem_ty, v) for v in sorted_vals]
+        arr_ty = ir.ArrayType(elem_ty, len(consts))
+        self.result_stack.append(ir.Constant(arr_ty, consts))
+        return True
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralTuple) -> None:
