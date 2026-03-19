@@ -222,9 +222,7 @@ def test_set_symmetric_difference(builder_class: type[Builder]) -> None:
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    expr = astx.BinaryOp(
-        op_code="^", lhs=_make_set(1, 2), rhs=_make_set(2, 3)
-    )
+    expr = astx.BinaryOp(op_code="^", lhs=_make_set(1, 2), rhs=_make_set(2, 3))
     visitor.visit(expr)
     result = visitor.result_stack.pop()
 
@@ -246,9 +244,7 @@ def test_set_disjoint_intersection_is_empty(
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    expr = astx.BinaryOp(
-        op_code="&", lhs=_make_set(1, 2), rhs=_make_set(3, 4)
-    )
+    expr = astx.BinaryOp(op_code="&", lhs=_make_set(1, 2), rhs=_make_set(3, 4))
     visitor.visit(expr)
     result = visitor.result_stack.pop()
 
