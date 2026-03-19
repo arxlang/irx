@@ -57,7 +57,7 @@ class TestVoidFunctionNoReturn:
         self, builder_class: type[Builder]
     ) -> None:
         """
-        title: Void function with statements but no return node must compile cleanly.
+        title: Void function with statements but no return node compiles cleanly.
         """
         builder = builder_class()
         module = builder.module()
@@ -99,7 +99,7 @@ class TestVoidFunctionWithEarlyReturn:
         self, builder_class: type[Builder]
     ) -> None:
         """
-        title: Void function with explicit return must not get a duplicate terminator.
+        title: Void function with explicit return must not get duplicate terminator.
         """
         builder = builder_class()
         module = builder.module()
