@@ -2262,6 +2262,47 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralTuple) -> None:
+        """
+        title: LiteralTuple lowering
+        parameters:
+          node:
+            type: astx.LiteralTuple
+        """
+
+        # Lower each element and collect LLVM values
+        llvm_elems: list[ir.Value] = []
+        for elem in node.elements:
+            self.visit(elem)
+            v = self.result_stack.pop()
+            if v is None:
+                raise Exception("LiteralTuple: invalid element lowering.")
+            llvm_elems.append(v)
+
+        n = len(llvm_elems)
+
+        # Empty tuple -> constant empty struct {}
+        if n == 0:
+            struct_ty = ir.LiteralStructType([])
+            self.result_stack.append(ir.Constant(struct_ty, []))
+            return
+
+        first_ty = llvm_elems[0].type
+        homogeneous = all(v.type == first_ty for v in llvm_elems)
+        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
+
+        if homogeneous and all_constants:
+            struct_ty = ir.LiteralStructType([first_ty] * n)
+            const_struct = ir.Constant(struct_ty, llvm_elems)
+            self.result_stack.append(const_struct)
+            return
+
+        raise TypeError(
+            "LiteralTuple: only empty or homogeneous constant tuples "
+            "are supported"
+        )
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralDict) -> None:
         """
         title: LiteralDict lowering
