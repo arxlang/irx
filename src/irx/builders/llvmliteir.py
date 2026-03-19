@@ -2390,11 +2390,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.value)
         dict_val = self.result_stack.pop()
 
+        _DICT_PAIR_FIELDS = 2
         if not (
             isinstance(dict_val, ir.Constant)
             and isinstance(dict_val.type, ir.ArrayType)
             and isinstance(dict_val.type.element, ir.LiteralStructType)
-            and len(dict_val.type.element.elements) == 2
+            and len(dict_val.type.element.elements) == _DICT_PAIR_FIELDS
         ):
             raise TypeError(
                 "SubscriptExpr: only constant LiteralDict subscript "
@@ -2455,9 +2456,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             )
             key_i = builder.load(key_ptr, name=f"k_{i}")
             if isinstance(key_type, ir.IntType):
-                cmp = builder.icmp_signed("==", key_i, key_val, name=f"cmp_{i}")
+                cmp = builder.icmp_signed(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
             else:
-                cmp = builder.fcmp_ordered("==", key_i, key_val, name=f"cmp_{i}")
+                cmp = builder.fcmp_ordered(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
             val_ptr = builder.gep(
                 arr_alloca, [zero, idx, val_field], inbounds=True
             )
