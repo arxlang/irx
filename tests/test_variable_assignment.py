@@ -23,7 +23,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        # (\"translate\", \"test_variable_assignment.ll\"),
+        # ("translate\", "test_variable_assignment.ll"),
         LLVMLiteIR,
     ],
 )
