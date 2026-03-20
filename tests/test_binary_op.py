@@ -283,9 +283,7 @@ def test_vector_op_fast_math_flag_applied(
     float_ty = ir.FloatType()
     vec_ty = ir.VectorType(float_ty, 4)
     fn_ty = ir.FunctionType(ir.VoidType(), [vec_ty, vec_ty])
-    fn = ir.Function(
-        visitor._llvm.module, fn_ty, name=f"test_vec_{op_name}"
-    )
+    fn = ir.Function(visitor._llvm.module, fn_ty, name=f"test_vec_{op_name}")
     block = fn.append_basic_block("entry")
     visitor._llvm.ir_builder = ir.IRBuilder(block)
 
@@ -307,9 +305,9 @@ def test_vector_op_fast_math_flag_applied(
 
     ir_text = str(visitor._llvm.module)
     assert f"{op_name} fast" in ir_text, (
-    f"Expected '{op_name} fast' in IR with fast_math=True, "
-    f"but got:\n{ir_text}"
-)
+        f"Expected '{op_name} fast' in IR with fast_math=True, "
+        f"but got:\n{ir_text}"
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -331,9 +329,7 @@ def test_vector_op_fast_math_flag_not_applied_without_request(
     float_ty = ir.FloatType()
     vec_ty = ir.VectorType(float_ty, 4)
     fn_ty = ir.FunctionType(ir.VoidType(), [vec_ty, vec_ty])
-    fn = ir.Function(
-        visitor._llvm.module, fn_ty, name="test_vec_no_fast"
-    )
+    fn = ir.Function(visitor._llvm.module, fn_ty, name="test_vec_no_fast")
     block = fn.append_basic_block("entry")
     visitor._llvm.ir_builder = ir.IRBuilder(block)
 
@@ -346,9 +342,9 @@ def test_vector_op_fast_math_flag_not_applied_without_request(
 
     ir_text = str(visitor._llvm.module)
     assert "fadd fast" not in ir_text and "fsub fast" not in ir_text, (
-    "Expected NO 'fast' flag on fp instructions when fast_math=False, "
-    f"but got:\n{ir_text}"
-)
+        "Expected NO 'fast' flag on fp instructions when fast_math=False, "
+        f"but got:\n{ir_text}"
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -377,13 +373,11 @@ def test_fast_math_flag_restored_after_vector_op(
     float_ty = ir.FloatType()
     vec_ty = ir.VectorType(float_ty, 4)
     fn_ty = ir.FunctionType(ir.VoidType(), [vec_ty, vec_ty])
-    fn = ir.Function(
-        visitor._llvm.module, fn_ty, name="test_restore_true"
-    )
+    fn = ir.Function(visitor._llvm.module, fn_ty, name="test_restore_true")
     block = fn.append_basic_block("entry")
     visitor._llvm.ir_builder = ir.IRBuilder(block)
 
-    _prev = visitor._fast_math_enabled          # True
+    _prev = visitor._fast_math_enabled  # True
     # set_fast is False (node.fast_math absent) — no mutation happens
     try:
         result = visitor._llvm.ir_builder.fadd(
@@ -392,7 +386,7 @@ def test_fast_math_flag_restored_after_vector_op(
         visitor._apply_fast_math(result)
         visitor._llvm.ir_builder.ret_void()
     finally:
-        visitor.set_fast_math(_prev)            # restores True
+        visitor.set_fast_math(_prev)  # restores True
 
     assert visitor._fast_math_enabled is True, (
         "_fast_math_enabled was incorrectly reset to False "
@@ -405,14 +399,12 @@ def test_fast_math_flag_restored_after_vector_op(
     assert visitor2._fast_math_enabled is False  # default
 
     fn_ty2 = ir.FunctionType(ir.VoidType(), [vec_ty, vec_ty])
-    fn2 = ir.Function(
-        visitor2._llvm.module, fn_ty2, name="test_restore_false"
-    )
+    fn2 = ir.Function(visitor2._llvm.module, fn_ty2, name="test_restore_false")
     block2 = fn2.append_basic_block("entry")
     visitor2._llvm.ir_builder = ir.IRBuilder(block2)
 
-    _prev2 = visitor2._fast_math_enabled        # False
-    visitor2.set_fast_math(True)                # node.fast_math=True
+    _prev2 = visitor2._fast_math_enabled  # False
+    visitor2.set_fast_math(True)  # node.fast_math=True
     try:
         result2 = visitor2._llvm.ir_builder.fadd(
             fn2.args[0], fn2.args[1], name="vfaddtmp"
@@ -420,7 +412,7 @@ def test_fast_math_flag_restored_after_vector_op(
         visitor2._apply_fast_math(result2)
         visitor2._llvm.ir_builder.ret_void()
     finally:
-        visitor2.set_fast_math(_prev2)          # restores False
+        visitor2.set_fast_math(_prev2)  # restores False
 
     assert visitor2._fast_math_enabled is False, (
         "_fast_math_enabled was left as True after vector op "
@@ -461,4 +453,3 @@ def test_emit_fma_fast_math_applied_on_direct_path(
     assert "llvm.fma" in ir_text or "vfma" in ir_text, (
         f"_emit_fma did not emit an FMA instruction. IR:\n{ir_text}"
     )
-    
