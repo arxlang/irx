@@ -18,12 +18,17 @@ typedef struct irx_arrow_array_handle irx_arrow_array_handle;
 enum irx_arrow_type_id {
   IRX_ARROW_TYPE_UNKNOWN = 0,
   IRX_ARROW_TYPE_INT32 = 1,
+  IRX_ARROW_TYPE_FLOAT32 = 2,
 };
 
 int irx_arrow_array_builder_int32_new(
     irx_arrow_array_builder_handle** out_builder);
 int irx_arrow_array_builder_append_int32(
     irx_arrow_array_builder_handle* builder, int32_t value);
+int irx_arrow_array_builder_float32_new(
+    irx_arrow_array_builder_handle** out_builder);
+int irx_arrow_array_builder_append_float32(
+    irx_arrow_array_builder_handle* builder, float value);
 int irx_arrow_array_builder_finish(
     irx_arrow_array_builder_handle* builder,
     irx_arrow_array_handle** out_array);

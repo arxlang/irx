@@ -74,6 +74,14 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
                 "irx_arrow_array_builder_finish",
                 _declare_builder_finish,
             ),
+            "irx_arrow_array_builder_float32_new": ExternalSymbolSpec(
+                "irx_arrow_array_builder_float32_new",
+                _declare_builder_float32_new,
+            ),
+            "irx_arrow_array_builder_append_float32": ExternalSymbolSpec(
+                "irx_arrow_array_builder_append_float32",
+                _declare_builder_append_float32,
+            ),
             "irx_arrow_array_builder_release": ExternalSymbolSpec(
                 "irx_arrow_array_builder_release",
                 _declare_builder_release,
@@ -258,4 +266,35 @@ def _declare_last_error(visitor: LLVMLiteIRVisitor) -> ir.Function:
     fn_type = ir.FunctionType(visitor._llvm.INT8_TYPE.as_pointer(), [])
     return declare_external_function(
         visitor._llvm.module, "irx_arrow_last_error", fn_type
+    )
+
+
+def _declare_builder_float32_new(
+    visitor: LLVMLiteIRVisitor,
+) -> ir.Function:
+    fn_type = ir.FunctionType(
+        visitor._llvm.INT32_TYPE,
+        [visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE.as_pointer()],
+    )
+    return declare_external_function(
+        visitor._llvm.module,
+        "irx_arrow_array_builder_float32_new",
+        fn_type,
+    )
+
+
+def _declare_builder_append_float32(
+    visitor: LLVMLiteIRVisitor,
+) -> ir.Function:
+    fn_type = ir.FunctionType(
+        visitor._llvm.INT32_TYPE,
+        [
+            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.FLOAT_TYPE,
+        ],
+    )
+    return declare_external_function(
+        visitor._llvm.module,
+        "irx_arrow_array_builder_append_float32",
+        fn_type,
     )

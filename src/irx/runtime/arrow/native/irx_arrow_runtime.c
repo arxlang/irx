@@ -14,6 +14,7 @@
 struct irx_arrow_array_builder_handle {
   struct ArrowSchema schema;
   struct ArrowArray array;
+  int32_t type_id;
 };
 
 struct irx_arrow_array_handle {
@@ -248,7 +249,99 @@ int irx_arrow_array_builder_int32_new(
     return code;
   }
 
+  builder->type_id = IRX_ARROW_TYPE_INT32;
   *out_builder = builder;
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_init_float32_schema(struct ArrowSchema* schema) {
+  ArrowSchemaInit(schema);
+
+  const int code = ArrowSchemaSetType(schema, NANOARROW_TYPE_FLOAT);
+  if (code != NANOARROW_OK) {
+    return irx_arrow_set_error_code(
+        code,
+        "ArrowSchemaSetType(float) failed with error code %d",
+        code);
+  }
+
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_init_float32_array(
+    struct ArrowSchema* schema,
+    struct ArrowArray* array) {
+  struct ArrowError error;
+  memset(&error, 0, sizeof(error));
+
+  int code = ArrowArrayInitFromSchema(array, schema, &error);
+  if (code != NANOARROW_OK) {
+    return irx_arrow_capture_nanoarrow_error(
+        code,
+        &error,
+        "ArrowArrayInitFromSchema");
+  }
+
+  code = ArrowArrayStartAppending(array);
+  if (code != NANOARROW_OK) {
+    return irx_arrow_set_error_code(
+        code,
+        "ArrowArrayStartAppending failed with error code %d",
+        code);
+  }
+
+  return NANOARROW_OK;
+}
+
+int irx_arrow_array_builder_float32_new(
+    irx_arrow_array_builder_handle** out_builder) {
+  irx_arrow_clear_error();
+  if (out_builder == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "out_builder must not be NULL");
+  }
+
+  irx_arrow_array_builder_handle* builder =
+      (irx_arrow_array_builder_handle*)malloc(sizeof(*builder));
+  if (builder == NULL) {
+    return irx_arrow_set_error_code(ENOMEM, "failed to allocate Arrow builder");
+  }
+
+  memset(builder, 0, sizeof(*builder));
+
+  int code = irx_arrow_init_float32_schema(&builder->schema);
+  if (code != NANOARROW_OK) {
+    free(builder);
+    return code;
+  }
+
+  code = irx_arrow_init_float32_array(&builder->schema, &builder->array);
+  if (code != NANOARROW_OK) {
+    irx_arrow_release_schema(&builder->schema);
+    free(builder);
+    return code;
+  }
+
+  builder->type_id = IRX_ARROW_TYPE_FLOAT32;
+  *out_builder = builder;
+  return NANOARROW_OK;
+}
+
+int irx_arrow_array_builder_append_float32(
+    irx_arrow_array_builder_handle* builder,
+    float value) {
+  irx_arrow_clear_error();
+  if (builder == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "builder must not be NULL");
+  }
+
+  const int code = ArrowArrayAppendDouble(&builder->array, (double)value);
+  if (code != NANOARROW_OK) {
+    return irx_arrow_set_error_code(
+        code,
+        "ArrowArrayAppendDouble(float32) failed with error code %d",
+        code);
+  }
+
   return NANOARROW_OK;
 }
 
@@ -303,7 +396,7 @@ int irx_arrow_array_builder_finish(
   memset(array, 0, sizeof(*array));
   ArrowSchemaMove(&builder->schema, &array->schema);
   ArrowArrayMove(&builder->array, &array->array);
-  array->type_id = IRX_ARROW_TYPE_INT32;
+  array->type_id = builder->type_id;
 
   free(builder);
   *out_array = array;
