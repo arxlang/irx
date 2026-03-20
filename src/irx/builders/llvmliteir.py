@@ -701,7 +701,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         builder = self._llvm.ir_builder
         if hasattr(builder, "fma"):
-            return builder.fma(lhs, rhs, addend, name="vfma")
+            inst = builder.fma(lhs, rhs, addend, name="vfma")
+            self._apply_fast_math(inst)
+            return inst
 
         fma_fn = self._get_fma_function(lhs.type)
         inst = builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
@@ -957,15 +959,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         f"FMA operand type mismatch: "
                         f"{llvm_lhs.type} vs {llvm_fma_rhs.type}"
                     )
+                _prev_fast_math = self._fast_math_enabled
                 if set_fast:
                     self.set_fast_math(True)
                 try:
                     result = self._emit_fma(llvm_lhs, llvm_rhs, llvm_fma_rhs)
                 finally:
-                    if set_fast:
-                        self.set_fast_math(False)
+                    self.set_fast_math(_prev_fast_math)
                 self.result_stack.append(result)
                 return
+            _prev_fast_math = self._fast_math_enabled
             if set_fast:
                 self.set_fast_math(True)
             try:
@@ -1017,8 +1020,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 else:
                     raise Exception(f"Vector binop {op} not implemented.")
             finally:
-                if set_fast:
-                    self.set_fast_math(False)
+                self.set_fast_math(_prev_fast_math)
             self.result_stack.append(result)
             return
 
