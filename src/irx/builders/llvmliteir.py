@@ -825,6 +825,25 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
 
+        elif node.op_code == "~":
+            self.visit(node.operand)
+            operand_val = safe_pop(self.result_stack)
+            # Bitwise NOT: xor with all bits set (-1)
+            result = self._llvm.ir_builder.xor(
+                operand_val, ir.Constant(operand_val.type, -1), "bitnottmp"
+            )
+            if isinstance(node.operand, astx.Identifier):
+                if node.operand.name in self.const_vars:
+                    raise Exception(
+                        f"Cannot mutate '{node.operand.name}':"
+                        "declared as constant"
+                    )
+                addr = self.named_values.get(node.operand.name)
+                if addr:
+                    self._llvm.ir_builder.store(result, addr)
+            self.result_stack.append(result)
+            return
+
         raise Exception(f"Unary operator {node.op_code} not implemented yet.")
 
     @dispatch  # type: ignore[no-redef]
@@ -1031,6 +1050,27 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
         elif node.op_code in ("||", "or"):
             result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
+            self.result_stack.append(result)
+            return
+        
+        if node.op_code == "&":
+            result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "bitandtmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == "|":
+            result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "bitortmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == "^":
+            result = self._llvm.ir_builder.xor(llvm_lhs, llvm_rhs, "bitxortmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == "<<":
+            result = self._llvm.ir_builder.shl(llvm_lhs, llvm_rhs, "shltmp")
+            self.result_stack.append(result)
+            return
+        elif node.op_code == ">>":
+            result = self._llvm.ir_builder.ashr(llvm_lhs, llvm_rhs, "shrtmp")
             self.result_stack.append(result)
             return
 
