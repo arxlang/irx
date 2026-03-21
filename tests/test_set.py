@@ -79,6 +79,7 @@ def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == 3  # noqa: PLR2004
     assert const.type.element == ir.IntType(32)
+
     # Values should be deterministically sorted
     vals = _array_i32_values(const)
     assert vals == [1, 2, 3]
@@ -116,11 +117,9 @@ def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
-def test_literal_set_non_integer_unsupported(
-    builder_class: type[Builder],
-) -> None:
+def test_literal_set_float_constants(builder_class: type[Builder]) -> None:
     """
-    title: Non-integer homogeneous sets are not yet supported.
+    title: Homogeneous float constants lower to constant array [N x float].
     parameters:
       builder_class:
         type: type[Builder]
@@ -129,9 +128,85 @@ def test_literal_set_non_integer_unsupported(
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    with pytest.raises(TypeError, match="integer constants"):
+    visitor.visit(
+        astx.LiteralSet(
+            elements={
+                astx.LiteralFloat32(1.0),
+                astx.LiteralFloat32(2.0),
+            }
+        )
+    )
+
+    const = visitor.result_stack.pop()
+
+    assert isinstance(const, ir.Constant)
+    assert isinstance(const.type, ir.ArrayType)
+    assert const.type.count == EXPECTED_SET_LENGTH
+    assert isinstance(const.type.element, ir.FloatType)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_set_heterogeneous_unsupported(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Heterogeneous sets are not supported.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    with pytest.raises(TypeError):
         visitor.visit(
             astx.LiteralSet(
-                elements={astx.LiteralFloat32(1.0), astx.LiteralFloat32(2.0)}
+                elements={
+                    astx.LiteralInt32(1),
+                    astx.LiteralFloat32(2.0),
+                }
             )
         )
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_set_runtime_lowering(builder_class: type[Builder]) -> None:
+    """
+    title: Runtime lowering for mixed-width integer sets.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+
+    # Create LLVM function context
+    module = ir.Module()
+    func_ty = ir.FunctionType(ir.VoidType(), [])
+    func = ir.Function(module, func_ty, name="test")
+
+    block = func.append_basic_block(name="entry")
+    ir_builder = ir.IRBuilder(block)
+
+    visitor._llvm.ir_builder = ir_builder
+    visitor.result_stack.clear()
+
+    # Mixed-width integers inside function context → triggers runtime lowering
+    visitor.visit(
+        astx.LiteralSet(
+            elements={
+                astx.LiteralInt16(1),
+                astx.LiteralInt32(2),
+            }
+        )
+    )
+
+    result = visitor.result_stack.pop()
+
+    # Runtime path should return alloca
+    assert isinstance(result, ir.instructions.AllocaInstr)
+
+    # Verify structure of allocated array
+    assert isinstance(result.type.pointee, ir.ArrayType)
+    assert result.type.pointee.count == EXPECTED_SET_LENGTH
