@@ -14,8 +14,13 @@ from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from llvmlite import ir
 
 
-# 🔥 helper to setup function context (VERY IMPORTANT)
 def setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
+    """
+    title: Setup LLVM function context for IR generation.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
     module = visitor._llvm.module
     func_ty = ir.FunctionType(ir.IntType(32), [])
     func = ir.Function(module, func_ty, name="test_func")
@@ -26,11 +31,17 @@ def setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_break_exits_loop(builder_class: type[Builder]) -> None:
+    """
+    title: Break exits loop immediately
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    setup_function_context(visitor)  # ✅ FIX
+    setup_function_context(visitor)
 
     body = astx.Block()
     body.append(astx.BreakStmt())
@@ -49,11 +60,17 @@ def test_break_exits_loop(builder_class: type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_continue_in_loop(builder_class: type[Builder]) -> None:
+    """
+    title: Continue jumps to next iteration
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    setup_function_context(visitor)  # ✅ FIX
+    setup_function_context(visitor)
 
     body = astx.Block()
     body.append(astx.ContinueStmt())
@@ -71,11 +88,17 @@ def test_continue_in_loop(builder_class: type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_nested_loop_break(builder_class: type[Builder]) -> None:
+    """
+    title: Break affects only inner loop in nested loops
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    setup_function_context(visitor)  # ✅ FIX
+    setup_function_context(visitor)
 
     inner_body = astx.Block()
     inner_body.append(astx.BreakStmt())
@@ -101,6 +124,12 @@ def test_nested_loop_break(builder_class: type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_break_outside_loop_raises(builder_class: type[Builder]) -> None:
+    """
+    title: Break outside loop raises exception
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
@@ -111,6 +140,12 @@ def test_break_outside_loop_raises(builder_class: type[Builder]) -> None:
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_continue_outside_loop_raises(builder_class: type[Builder]) -> None:
+    """
+    title: Continue outside loop raises exception
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
     visitor.result_stack.clear()
