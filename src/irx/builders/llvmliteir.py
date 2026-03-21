@@ -363,10 +363,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: RuntimeFeatureState
       const_vars:
         type: set[str]
-      _set_value_ids:
-        type: dict[int, ir.Value]
-      struct_types:
-        type: dict[str, ir.IdentifiedStructType]
+      loop_stack:
+        type: list[dict[str, ir.BasicBlock]]
       _fast_math_enabled:
         type: bool
       target:
@@ -401,10 +399,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
-        self._set_value_ids: dict[int, ir.Value] = {}
-
-        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
-
+        self.loop_stack: list[dict[str, ir.BasicBlock]] = []
         self._fast_math_enabled: bool = False
 
         self.initialize()
@@ -1602,21 +1597,27 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Conditional branch based on the condition.
         self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
+        loop_context = {
+            "break_target": after_bb,
+            "continue_target": cond_bb,
+        }
+        self.loop_stack.append(loop_context)
 
         #  use position_at_end for body block
         self._llvm.ir_builder.position_at_end(body_bb)
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = safe_pop(self.result_stack)
 
-        if not body_val:
-            return
+        # Handle cases like break/continue where nothing is pushed
+        _ = self.result_stack.pop() if self.result_stack else None
 
         # Don't rely on result_stack for control flow.
         # Only branch back if the block isn't already terminated
         if not self._llvm.ir_builder.block.is_terminated:
             self._llvm.ir_builder.branch(cond_bb)
+
+        self.loop_stack.pop()
 
         # use position_at_end for after block
         self._llvm.ir_builder.position_at_end(after_bb)
@@ -1714,7 +1715,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        safe_pop(self.result_stack)
+
+        _body_val = self.result_stack.pop() if self.result_stack else None
 
         # Emit update expression
         self.visit(node.update)
@@ -1827,6 +1829,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # condition decides entry into body
         self._llvm.ir_builder.cbranch(loop_cond, body_bb, after_bb)
 
+        loop_context = {
+            "break_target": after_bb,
+            "continue_target": header_bb,
+        }
+        self.loop_stack.append(loop_context)
+
         # LOOP BODY
         self._llvm.ir_builder.position_at_start(body_bb)
 
@@ -1845,6 +1853,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.branch(header_bb)
 
+        self.loop_stack.pop()
+
         # AFTER LOOP
         self._llvm.ir_builder.position_at_start(after_bb)
 
@@ -1861,6 +1871,34 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
 
         self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.BreakStmt) -> None:
+        """
+        title: Translate ASTx Break statement to LLVM-IR.
+        parameters:
+          node:
+            type: astx.BreakStmt
+        """
+        if not self.loop_stack:
+            raise Exception("codegen: Break statement outside loop.")
+
+        break_target = self.loop_stack[-1]["break_target"]
+        self._llvm.ir_builder.branch(break_target)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.ContinueStmt) -> None:
+        """
+        title: Translate ASTx Continue statement to LLVM-IR.
+        parameters:
+          node:
+            type: astx.ContinueStmt
+        """
+        if not self.loop_stack:
+            raise Exception("codegen: Continue statement outside loop.")
+
+        continue_target = self.loop_stack[-1]["continue_target"]
+        self._llvm.ir_builder.branch(continue_target)
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.Module) -> None:
