@@ -4,7 +4,6 @@ title: Tests for vector BinaryOp arithmetic and scalar-vector promotion.
 
 from __future__ import annotations
 
-from typing import cast
 
 import astx
 import pytest
@@ -22,7 +21,7 @@ def _make_visitor_in_fn() -> LLVMLiteIRVisitor:
       type: LLVMLiteIRVisitor
     """
     builder = LLVMLiteIR()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor: LLVMLiteIRVisitor = builder.translator  # type: ignore[assignment]
     float_ty = visitor._llvm.FLOAT_TYPE
     fn_ty = ir.FunctionType(float_ty, [])
     fn = ir.Function(visitor._llvm.module, fn_ty, name="vec_test")
@@ -66,11 +65,11 @@ def _visit_binop(
             return
         original_visit(n)
 
-    visitor.visit = _patched_visit  # type: ignore[assignment]
+    visitor.visit = _patched_visit  # type: ignore[method-assign]
     try:
         visitor.visit(node)
     finally:
-        visitor.visit = original_visit  # type: ignore[assignment]
+        visitor.visit = original_visit  # type: ignore[method-assign]
 
     return visitor.result_stack.pop()
 
