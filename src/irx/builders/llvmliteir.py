@@ -77,6 +77,19 @@ def is_vector(v: "ir.Value") -> bool:
     return isinstance(getattr(v, "type", None), VectorType)
 
 
+def _is_unsigned_node(node: "astx.AST") -> bool:
+    """
+    title: Return True if the AST node carries an unsigned integer type.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    type_ = getattr(node, "type_", None)
+    return isinstance(type_, astx.UnsignedInteger)
+
+
 def emit_int_div(
     ir_builder: "ir.IRBuilder",
     lhs: "ir.Value",
@@ -193,6 +206,18 @@ class VariablesLLVM:
         type: ir.types.Type
       BOOLEAN_TYPE:
         type: ir.types.Type
+      UINT8_TYPE:
+        type: ir.types.Type
+      UINT16_TYPE:
+        type: ir.types.Type
+      UINT32_TYPE:
+        type: ir.types.Type
+      UINT64_TYPE:
+        type: ir.types.Type
+      UINT128_TYPE:
+        type: ir.types.Type
+      STRING_TYPE:
+        type: ir.types.Type
       ASCII_STRING_TYPE:
         type: ir.types.Type
       UTF8_STRING_TYPE:
@@ -230,6 +255,12 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
+    UINT8_TYPE: ir.types.Type
+    UINT16_TYPE: ir.types.Type
+    UINT32_TYPE: ir.types.Type
+    UINT64_TYPE: ir.types.Type
+    UINT128_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIME_TYPE: ir.types.Type
@@ -277,6 +308,18 @@ class VariablesLLVM:
             return self.INT8_TYPE
         elif type_name in ("string", "stringascii", "utf8string"):
             return self.ASCII_STRING_TYPE
+        elif type_name == "utf8string":
+            return self.UTF8_STRING_TYPE
+        elif type_name == "uint8":
+            return self.UINT8_TYPE
+        elif type_name == "uint16":
+            return self.UINT16_TYPE
+        elif type_name == "uint32":
+            return self.UINT32_TYPE
+        elif type_name == "uint64":
+            return self.UINT64_TYPE
+        elif type_name == "uint128":
+            return self.UINT128_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -463,6 +506,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
+        self._llvm.UINT8_TYPE = ir.IntType(8)
+        self._llvm.UINT16_TYPE = ir.IntType(16)
+        self._llvm.UINT32_TYPE = ir.IntType(32)
+        self._llvm.UINT64_TYPE = ir.IntType(64)
+        self._llvm.UINT128_TYPE = ir.IntType(128)
         self._llvm.VOID_TYPE = ir.VoidType()
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
@@ -596,7 +644,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return 0
 
     def promote_operands(
-        self, lhs: ir.Value, rhs: ir.Value
+        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
     ) -> tuple[ir.Value, ir.Value]:
         """
         title: Promote two LLVM IR numeric operands to a common type.
@@ -607,6 +655,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           rhs:
             type: ir.Value
             description: The right-hand operand.
+          unsigned:
+            type: bool
         returns:
           type: tuple[ir.Value, ir.Value]
           description: A tuple containing the promoted operands.
@@ -614,9 +664,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if lhs.type == rhs.type:
             return lhs, rhs
 
-        # perform sign extension (for integer operands)
+        # perform sign/zero extension (for integer operands)
         if is_int_type(lhs.type) and is_int_type(rhs.type):
-            if lhs.type.width < rhs.type.width:
+            if unsigned:
+                if lhs.type.width < rhs.type.width:
+                    lhs = self._llvm.ir_builder.zext(
+                        lhs, rhs.type, "promote_lhs"
+                    )
+                elif lhs.type.width > rhs.type.width:
+                    rhs = self._llvm.ir_builder.zext(
+                        rhs, lhs.type, "promote_rhs"
+                    )
+            elif lhs.type.width < rhs.type.width:
                 lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
             elif lhs.type.width > rhs.type.width:
                 rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
@@ -633,16 +692,29 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
             return lhs, rhs
 
-        # If one is int and other is FP, convert int -> FP (sitofp),
+        # If one is int and other is FP, convert int -> FP
         if is_int_type(lhs.type) and rhs_fp_rank > 0:
             target_fp = rhs.type
-            lhs_fp = self._llvm.ir_builder.sitofp(lhs, target_fp, "int_to_fp")
-            # Now if rhs is narrower/wider, adjust (rhs already target_fp here)
+            if unsigned:
+                lhs_fp = self._llvm.ir_builder.uitofp(
+                    lhs, target_fp, "uint_to_fp"
+                )
+            else:
+                lhs_fp = self._llvm.ir_builder.sitofp(
+                    lhs, target_fp, "int_to_fp"
+                )
             return lhs_fp, rhs
 
         if is_int_type(rhs.type) and lhs_fp_rank > 0:
             target_fp = lhs.type
-            rhs_fp = self._llvm.ir_builder.sitofp(rhs, target_fp, "int_to_fp")
+            if unsigned:
+                rhs_fp = self._llvm.ir_builder.uitofp(
+                    rhs, target_fp, "uint_to_fp"
+                )
+            else:
+                rhs_fp = self._llvm.ir_builder.sitofp(
+                    rhs, target_fp, "int_to_fp"
+                )
             return lhs, rhs_fp
 
         return lhs, rhs
@@ -1023,7 +1095,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
 
         # Scalar Fallback: Original scalar promotion logic
-        llvm_lhs, llvm_rhs = self.promote_operands(llvm_lhs, llvm_rhs)
+        llvm_lhs, llvm_rhs = self.promote_operands(
+            llvm_lhs,
+            llvm_rhs,
+            unsigned=_is_unsigned_node(node),
+        )
 
         if node.op_code in ("&&", "and"):
             result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
@@ -1089,8 +1165,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
+            # handle it depend on datatype
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
+                    "<", llvm_lhs, llvm_rhs, "lttmp"
+                )
             else:
-                # handle it depend on datatype
                 result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1103,8 +1183,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
+            # be careful we havn't  handled all the conditions
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
+                    ">", llvm_lhs, llvm_rhs, "gttmp"
+                )
             else:
-                # be careful we havn't  handled all the conditions
                 result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1113,6 +1197,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<=":
             if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
+                    "<=", llvm_lhs, llvm_rhs, "letmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
             else:
@@ -1124,6 +1212,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">=":
             if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
+                    ">=", llvm_lhs, llvm_rhs, "getmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
             else:
@@ -1141,9 +1233,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.udiv(
+                    llvm_lhs, llvm_rhs, "divtmp"
+                )
             else:
-                # Assuming the division is signed by default. Use `udiv` for
-                # unsigned division.
                 result = self._llvm.ir_builder.sdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1164,6 +1258,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 )
             elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    "==", llvm_lhs, llvm_rhs, "eqtmp"
+                )
+            elif _is_unsigned_node(node):
+                cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
             else:
@@ -1189,11 +1287,31 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
+            elif _is_unsigned_node(node):
+                cmp_result = self._llvm.ir_builder.icmp_unsigned(
+                    "!=", llvm_lhs, llvm_rhs, "netmp"
+                )
             else:
                 cmp_result = self._llvm.ir_builder.icmp_signed(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
             self.result_stack.append(cmp_result)
+            return
+
+        elif node.op_code == "%":
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+                result = self._llvm.ir_builder.frem(
+                    llvm_lhs, llvm_rhs, "fremtmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.urem(
+                    llvm_lhs, llvm_rhs, "uremtmp"
+                )
+            else:
+                result = self._llvm.ir_builder.srem(
+                    llvm_lhs, llvm_rhs, "sremtmp"
+                )
+            self.result_stack.append(result)
             return
 
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
@@ -1730,6 +1848,61 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.LiteralInt8
         """
         result = ir.Constant(self._llvm.INT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt8) -> None:
+        """
+        title: Translate ASTx LiteralUInt8 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt8
+        """
+        result = ir.Constant(self._llvm.UINT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt16) -> None:
+        """
+        title: Translate ASTx LiteralUInt16 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt16
+        """
+        result = ir.Constant(self._llvm.UINT16_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt32) -> None:
+        """
+        title: Translate ASTx LiteralUInt32 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt32
+        """
+        result = ir.Constant(self._llvm.UINT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt64) -> None:
+        """
+        title: Translate ASTx LiteralUInt64 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt64
+        """
+        result = ir.Constant(self._llvm.UINT64_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt128) -> None:
+        """
+        title: Translate ASTx LiteralUInt128 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt128
+        """
+        result = ir.Constant(self._llvm.UINT128_TYPE, node.value)
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
