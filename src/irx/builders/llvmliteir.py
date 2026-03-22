@@ -2552,6 +2552,98 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported in this version"
         )
 
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.SubscriptExpr) -> None:
+        """
+        title: SubscriptExpr lowering — dict key lookup.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        """
+        self.visit(node.value)
+        dict_val = self.result_stack.pop()
+
+        _DICT_PAIR_FIELDS = 2
+        if not (
+            isinstance(dict_val, ir.Constant)
+            and isinstance(dict_val.type, ir.ArrayType)
+            and isinstance(dict_val.type.element, ir.LiteralStructType)
+            and len(dict_val.type.element.elements) == _DICT_PAIR_FIELDS
+        ):
+            raise TypeError(
+                "SubscriptExpr: only constant LiteralDict subscript "
+                "is supported in this version"
+            )
+
+        self.visit(node.index)
+        key_val = self.result_stack.pop()
+
+        # Fast path: constant key → compile-time linear scan
+        if isinstance(key_val, ir.Constant):
+            for entry in dict_val.constant:
+                entry_key = entry.constant[0]
+                if entry_key.constant == key_val.constant:
+                    self.result_stack.append(entry.constant[1])
+                    return
+            raise KeyError(
+                f"SubscriptExpr: key {key_val.constant!r} not found in dict"
+            )
+
+        # Runtime path: variable key → LLVM IR select chain (branchless)
+        self._visit_subscript_runtime(dict_val, key_val)
+
+    def _visit_subscript_runtime(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+    ) -> None:
+        """
+        title: Emit branchless runtime linear scan for dict key lookup.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+        """
+        builder = self._llvm.ir_builder
+        n = dict_val.type.count
+        key_type = dict_val.type.element.elements[0]
+        val_type = dict_val.type.element.elements[1]
+
+        zero = ir.Constant(ir.IntType(32), 0)
+        key_field = ir.Constant(ir.IntType(32), 0)
+        val_field = ir.Constant(ir.IntType(32), 1)
+
+        current_bb = builder.block
+        builder.position_at_start(builder.function.entry_basic_block)
+        arr_alloca = builder.alloca(dict_val.type, name="dict_arr")
+        builder.position_at_end(current_bb)
+        builder.store(dict_val, arr_alloca)
+
+        result: ir.Value = ir.Constant(val_type, 0)
+
+        for i in reversed(range(n)):
+            idx = ir.Constant(ir.IntType(32), i)
+            key_ptr = builder.gep(
+                arr_alloca, [zero, idx, key_field], inbounds=True
+            )
+            key_i = builder.load(key_ptr, name=f"k_{i}")
+            if isinstance(key_type, ir.IntType):
+                cmp = builder.icmp_signed(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
+            else:
+                cmp = builder.fcmp_ordered(
+                    "==", key_i, key_val, name=f"cmp_{i}"
+                )
+            val_ptr = builder.gep(
+                arr_alloca, [zero, idx, val_field], inbounds=True
+            )
+            val_i = builder.load(val_ptr, name=f"v_{i}")
+            result = builder.select(cmp, val_i, result, name=f"sel_{i}")
+
+        self.result_stack.append(result)
+
     def _create_string_concat_function(self) -> ir.Function:
         """
         title: Create a string concatenation function.
