@@ -152,3 +152,79 @@ def test_continue_outside_loop_raises(builder_class: type[Builder]) -> None:
 
     with pytest.raises(Exception, match="Continue statement outside loop"):
         visitor.visit(astx.ContinueStmt())
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_break_skips_remaining_statements(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Break prevents execution of subsequent statements in loop body
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    setup_function_context(visitor)
+
+    body = astx.Block()
+    body.append(astx.BreakStmt())
+
+    # should NOT execute
+    body.append(
+        astx.VariableAssignment(
+            name="x",
+            value=astx.LiteralInt32(10),
+        )
+    )
+
+    loop = astx.WhileStmt(
+        condition=astx.LiteralInt32(1),
+        body=body,
+    )
+
+    visitor.visit(loop)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_continue_skips_remaining_statements(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Continue prevents execution of subsequent statements in loop body
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    setup_function_context(visitor)
+
+    body = astx.Block()
+    body.append(astx.ContinueStmt())
+
+    # should NOT execute
+    body.append(
+        astx.VariableAssignment(
+            name="x",
+            value=astx.LiteralInt32(10),
+        )
+    )
+
+    loop = astx.WhileStmt(
+        condition=astx.LiteralInt32(1),
+        body=body,
+    )
+
+    visitor.visit(loop)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
