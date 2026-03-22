@@ -53,9 +53,6 @@ def _make_visitor_in_function() -> LLVMLiteIRVisitor:
     return visitor
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_empty(builder_class: type[Builder]) -> None:
     """
@@ -76,9 +73,6 @@ def test_literal_list_empty(builder_class: type[Builder]) -> None:
     assert const.type.count == 0
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
     """
@@ -109,12 +103,9 @@ def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
     assert vals == [1, 2, 3]
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_mixed_int_widths_widens(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Mixed-width integer list widens all elements to the widest type.
@@ -141,12 +132,9 @@ def test_literal_list_mixed_int_widths_widens(
     assert vals == [1, 2]
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_homogeneous_floats(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Homogeneous float constants lower to constant array [N x float].
@@ -173,19 +161,16 @@ def test_literal_list_homogeneous_floats(
     assert isinstance(const.type.element, ir.FloatType)
 
 
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_mixed_int_and_float_promotes(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Mixed int+float list promotes the integer to float.
     summary: '[i32(1), float(2.0)] should produce a constant [2 x float].'
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     visitor = _make_visitor_in_function()
 
@@ -207,7 +192,7 @@ def test_literal_list_mixed_int_and_float_promotes(
 )
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_literal_list_incompatible_types_raises(
-    builder_class: Type[Builder],
+    builder_class: type[Builder],
 ) -> None:
     """
     title: Incompatible types (e.g. pointer + int) raise TypeError.
@@ -216,7 +201,7 @@ def test_literal_list_incompatible_types_raises(
       raise TypeError.
     parameters:
       builder_class:
-        type: Type[Builder]
+        type: type[Builder]
     """
     visitor = _make_visitor_in_function()
 
