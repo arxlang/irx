@@ -211,7 +211,7 @@ def test_continue_skips_remaining_statements(
     body = astx.Block()
     body.append(astx.ContinueStmt())
 
-    # should NOT execute
+    # should NOT execute --
     body.append(
         astx.VariableAssignment(
             name="x",
