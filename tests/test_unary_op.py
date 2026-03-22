@@ -107,3 +107,81 @@ def test_unary_op_increment_decrement(
     module.block.append(main_fn)
 
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize(
+    "int_type, literal_type, value",
+    [
+        (astx.Int32, astx.LiteralInt32, 0),
+        (astx.Int32, astx.LiteralInt32, 5),
+        (astx.Int32, astx.LiteralInt32, -3),
+        (astx.Int16, astx.LiteralInt16, 0),
+        (astx.Int16, astx.LiteralInt16, 7),
+        (astx.UInt32, astx.LiteralUInt32, 0),
+        (astx.UInt32, astx.LiteralUInt32, 10),
+    ],
+)
+@pytest.mark.parametrize(
+    "action,expected_file",
+    [
+        ("build", ""),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_unary_op_logical_not_int(
+    action: str,
+    expected_file: str,
+    builder_class: type[Builder],
+    int_type: type,
+    literal_type: type,
+    value: int,
+) -> None:
+    """
+    title: Test logical NOT (!) for integer types.
+    parameters:
+      action:
+        type: str
+      expected_file:
+        type: str
+      builder_class:
+        type: type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+      value:
+        type: int
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    decl_a = astx.VariableDeclaration(
+        name="a",
+        type_=int_type(),
+        value=literal_type(value),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    var_a = astx.Identifier("a")
+
+    not_a = astx.UnaryOp(op_code="!", operand=var_a)
+    not_a.type_ = int_type()
+
+    main_proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=int_type()
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(not_a)
+    main_block.append(astx.FunctionReturn(literal_type(0)))
+
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    check_result(action, builder, module, expected_file)
