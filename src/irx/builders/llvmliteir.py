@@ -77,6 +77,18 @@ def is_vector(v: "ir.Value") -> bool:
     return isinstance(getattr(v, "type", None), VectorType)
 
 
+def is_struct_type(t: "ir.Type") -> bool:
+    """
+    title: Return True if t is an LLVM literal struct type.
+    parameters:
+      t:
+        type: ir.Type
+    returns:
+      type: bool
+    """
+    return isinstance(t, ir.LiteralStructType)
+
+
 def _is_unsigned_node(node: "astx.AST") -> bool:
     """
     title: Return True if the AST node carries an unsigned integer type.
@@ -88,6 +100,49 @@ def _is_unsigned_node(node: "astx.AST") -> bool:
     """
     type_ = getattr(node, "type_", None)
     return isinstance(type_, astx.UnsignedInteger)
+
+
+_TIME_FIELDS: dict[str, int] = {"hour": 0, "minute": 1, "second": 2}
+_TIMESTAMP_FIELDS: dict[str, int] = {
+    "year": 0,
+    "month": 1,
+    "day": 2,
+    "hour": 3,
+    "minute": 4,
+    "second": 5,
+    "nanos": 6,
+}
+_DATETIME_FIELDS: dict[str, int] = {
+    "year": 0,
+    "month": 1,
+    "day": 2,
+    "hour": 3,
+    "minute": 4,
+    "second": 5,
+}
+
+_STRUCT_TYPE_NAMES: frozenset[str] = frozenset(
+    {"time", "timestamp", "datetime"}
+)
+
+
+def _struct_fields_for(type_name: str) -> dict[str, int]:
+    """
+    title: Return the field-name → index mapping for a struct type name.
+    parameters:
+      type_name:
+        type: str
+    returns:
+      type: dict[str, int]
+    """
+    n = type_name.lower()
+    if n == "time":
+        return _TIME_FIELDS
+    if n == "timestamp":
+        return _TIMESTAMP_FIELDS
+    if n == "datetime":
+        return _DATETIME_FIELDS
+    raise Exception(f"No field mapping for struct type '{type_name}'.")
 
 
 def emit_int_div(
@@ -322,6 +377,12 @@ class VariablesLLVM:
             return self.UINT128_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
+        elif type_name == "time":
+            return self.TIME_TYPE
+        elif type_name == "timestamp":
+            return self.TIMESTAMP_TYPE
+        elif type_name == "datetime":
+            return self.DATETIME_TYPE
 
         raise Exception(f"[EE]: Type name {type_name} not valid.")
 
@@ -817,6 +878,481 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         except (AttributeError, TypeError):
             return
 
+    def _struct_type_name(self, llvm_type: ir.Type) -> Optional[str]:
+        """
+        title: Return the canonical type name for a known struct LLVM type.
+        summary: >-
+          Compares the given LiteralStructType against the three known struct
+          types.  Returns 'time', 'timestamp', or 'datetime', or None if not
+          recognised.
+        parameters:
+          llvm_type:
+            type: ir.Type
+        returns:
+          type: Optional[str]
+        """
+        if not isinstance(llvm_type, ir.LiteralStructType):
+            return None
+        if llvm_type == self._llvm.TIME_TYPE:
+            return "time"
+        if llvm_type == self._llvm.TIMESTAMP_TYPE:
+            return "timestamp"
+        if llvm_type == self._llvm.DATETIME_TYPE:
+            return "datetime"
+        return None
+
+    def _emit_struct_field_access(
+        self,
+        struct_val: ir.Value,
+        field_name: str,
+        result_name: str = "field",
+    ) -> ir.Value:
+        """
+        title: Emit an extractvalue for a named field of a known struct type.
+        summary: >-
+          Resolves the field index from the struct's canonical type name and
+          emits an LLVM ``extractvalue`` instruction, returning the i32 field.
+        parameters:
+          struct_val:
+            type: ir.Value
+            description: The aggregate struct value to extract from.
+          field_name:
+            type: str
+            description: The human-readable field name (e.g. 'hour').
+          result_name:
+            type: str
+            description: Name hint for the emitted instruction.
+        returns:
+          type: ir.Value
+        """
+        type_name = self._struct_type_name(struct_val.type)
+        if type_name is None:
+            raise Exception(
+                f"_emit_struct_field_access: value has unrecognised struct "
+                f"type {struct_val.type}"
+            )
+
+        fields = _struct_fields_for(type_name)
+        fn = field_name.lower()
+        if fn not in fields:
+            raise Exception(
+                f"Type '{type_name}' has no field '{field_name}'. "
+                f"Valid fields: {list(fields.keys())}"
+            )
+
+        idx = fields[fn]
+        return self._llvm.ir_builder.extract_value(
+            struct_val, idx, name=result_name
+        )
+
+    def _emit_struct_field_store(
+        self,
+        struct_ptr: ir.Value,
+        field_name: str,
+        new_val: ir.Value,
+        type_name: str,
+    ) -> None:
+        """
+        title: Store a new value into a named field of an alloca'd struct.
+        summary: >-
+          Computes a GEP into the struct alloca at the given field index and
+          emits a store instruction.  Used for runtime struct construction and
+          field mutation.
+        parameters:
+          struct_ptr:
+            type: ir.Value
+            description: Pointer to the struct alloca (result of alloca).
+          field_name:
+            type: str
+            description: The human-readable field name.
+          new_val:
+            type: ir.Value
+            description: The i32 value to store.
+          type_name:
+            type: str
+            description: Canonical struct type name ('time'/'timestamp'/'datetime').
+        """
+        fields = _struct_fields_for(type_name)
+        fn = field_name.lower()
+        if fn not in fields:
+            raise Exception(
+                f"Type '{type_name}' has no field '{field_name}'. "
+                f"Valid fields: {list(fields.keys())}"
+            )
+        idx = fields[fn]
+        i32 = self._llvm.INT32_TYPE
+        gep = self._llvm.ir_builder.gep(
+            struct_ptr,
+            [ir.Constant(i32, 0), ir.Constant(i32, idx)],
+            inbounds=True,
+            name=f"{fn}_ptr",
+        )
+        self._llvm.ir_builder.store(new_val, gep)
+
+    def _emit_runtime_struct_construct(
+        self,
+        type_name: str,
+        field_values: dict[str, ir.Value],
+    ) -> ir.Value:
+        """
+        title: Build a struct from runtime field values via alloca + GEP stores.
+        summary: >-
+          Allocates a struct on the stack, stores each supplied runtime i32
+          value into the corresponding field via GEP, then loads and returns
+          the fully assembled struct value.  Fields not supplied default to
+          zero.
+        parameters:
+          type_name:
+            type: str
+            description: Canonical struct type name.
+          field_values:
+            type: dict[str, ir.Value]
+            description: Mapping of field name to runtime i32 ir.Value.
+        returns:
+          type: ir.Value
+          description: The loaded struct value.
+        """
+        llvm_type = self._llvm.get_data_type(type_name)
+        fields = _struct_fields_for(type_name)
+        i32 = self._llvm.INT32_TYPE
+
+        # Allocate in entry block to keep SSA well-formed.
+        current_block = self._llvm.ir_builder.block
+        self._llvm.ir_builder.position_at_start(
+            self._llvm.ir_builder.function.entry_basic_block
+        )
+        alloca = self._llvm.ir_builder.alloca(
+            llvm_type, name=f"{type_name}_tmp"
+        )
+        if current_block is not None:
+            self._llvm.ir_builder.position_at_end(current_block)
+
+        for fname, fidx in fields.items():
+            if fname in field_values:
+                val = field_values[fname]
+            else:
+                val = ir.Constant(i32, 0)
+
+            gep = self._llvm.ir_builder.gep(
+                alloca,
+                [ir.Constant(i32, 0), ir.Constant(i32, fidx)],
+                inbounds=True,
+                name=f"{fname}_ptr",
+            )
+            self._llvm.ir_builder.store(val, gep)
+
+        return self._llvm.ir_builder.load(alloca, name=f"{type_name}_val")
+
+    def _emit_struct_field_extract_via_ptr(
+        self,
+        struct_ptr: ir.Value,
+        field_name: str,
+        type_name: str,
+    ) -> ir.Value:
+        """
+        title: Load a field from an alloca'd struct via GEP + load.
+        summary: >-
+          Used when the struct lives in memory (alloca) rather than as an
+          SSA value.  Emits a GEP to the field and a load instruction.
+        parameters:
+          struct_ptr:
+            type: ir.Value
+            description: Pointer to the struct alloca.
+          field_name:
+            type: str
+            description: Field name.
+          type_name:
+            type: str
+            description: Canonical struct type name.
+        returns:
+          type: ir.Value
+        """
+        fields = _struct_fields_for(type_name)
+        fn = field_name.lower()
+        if fn not in fields:
+            raise Exception(
+                f"Type '{type_name}' has no field '{field_name}'. "
+                f"Valid fields: {list(fields.keys())}"
+            )
+        idx = fields[fn]
+        i32 = self._llvm.INT32_TYPE
+        gep = self._llvm.ir_builder.gep(
+            struct_ptr,
+            [ir.Constant(i32, 0), ir.Constant(i32, idx)],
+            inbounds=True,
+            name=f"{fn}_ptr",
+        )
+        return self._llvm.ir_builder.load(gep, name=fn)
+
+    def _emit_struct_eq(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        type_name: str,
+        invert: bool,
+    ) -> ir.Value:
+        """Field-wise equality comparison for known struct types."""
+        fields = _struct_fields_for(type_name)
+        b = self._llvm.ir_builder
+        i1 = self._llvm.BOOLEAN_TYPE
+
+        running = ir.Constant(i1, 1)  # start with True
+        for fname, fidx in fields.items():
+            lf = b.extract_value(lhs, fidx, name=f"eq_lhs_{fname}")
+            rf = b.extract_value(rhs, fidx, name=f"eq_rhs_{fname}")
+            cmp = b.icmp_signed("==", lf, rf, name=f"eq_cmp_{fname}")
+            running = b.and_(running, cmp, name=f"eq_acc_{fname}")
+
+        if invert:
+            running = b.xor(running, ir.Constant(i1, 1), name="struct_ne")
+        return running
+
+    def _emit_struct_lt(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        type_name: str,
+        op: str,
+    ) -> ir.Value:
+        """Lexicographic ordered comparison for known struct types."""
+        # For > and >= swap operands and flip to < / <=
+        if op == ">":
+            lhs, rhs = rhs, lhs
+            op = "<"
+        elif op == ">=":
+            lhs, rhs = rhs, lhs
+            op = "<="
+
+        fields = _struct_fields_for(type_name)
+        field_names = list(fields.keys())
+        b = self._llvm.ir_builder
+        i1 = self._llvm.BOOLEAN_TYPE
+
+        # Extract all fields up front
+        lhs_fields = [
+            b.extract_value(lhs, fields[fn], name=f"lt_lhs_{fn}")
+            for fn in field_names
+        ]
+        rhs_fields = [
+            b.extract_value(rhs, fields[fn], name=f"lt_rhs_{fn}")
+            for fn in field_names
+        ]
+
+        # Build right-to-left using select (no extra basic blocks):
+        # result = (lN < rN) | (lN == rN & (lN-1 < rN-1 | ...))
+        # Seed with False (strict <) or True (<=) for the last field
+        strict_op = "<"
+        eq_op = "=="
+
+        result = b.icmp_signed(
+            strict_op if op == "<" else "<=",
+            lhs_fields[-1],
+            rhs_fields[-1],
+            name=f"lt_seed_{field_names[-1]}",
+        )
+
+        for fn, lf, rf in zip(
+            reversed(field_names[:-1]),
+            reversed(lhs_fields[:-1]),
+            reversed(rhs_fields[:-1]),
+        ):
+            lt = b.icmp_signed(strict_op, lf, rf, name=f"lt_{fn}")
+            eq = b.icmp_signed(eq_op, lf, rf, name=f"eq_{fn}")
+            result = b.or_(lt, b.and_(eq, result, f"and_{fn}"), f"or_{fn}")
+
+        return result
+
+
+if hasattr(astx, "StructFieldAccess"):
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StructFieldAccess) -> None:  # type: ignore[name-defined]
+        """
+        title: Translate struct field access (e.g. my_time.hour) to LLVM-IR.
+        summary: >-
+          Resolves the identifier to its named_values alloca, loads the struct
+          from memory, then emits either a GEP+load (for pointer-typed allocas)
+          or an extractvalue (for value-typed allocas) to read the requested
+          field.
+        parameters:
+          node:
+            type: astx.StructFieldAccess
+        """
+        # Resolve the receiver.  It may be stored as a struct alloca (pointer
+        # to struct) or as a loaded struct value already on the stack.
+        obj_name: str = (
+            node.object.name
+            if isinstance(node.object, astx.Identifier)
+            else ""
+        )
+        field_name: str = node.field
+
+        if obj_name and obj_name in self.named_values:
+            ptr = self.named_values[obj_name]
+            ptr_pointee = getattr(ptr.type, "pointee", None)
+            if isinstance(ptr_pointee, ir.LiteralStructType):
+                # It's an alloca holding a struct — use GEP + load.
+                type_name = self._struct_type_name(ptr_pointee)
+                if type_name is None:
+                    raise Exception(
+                        f"Field access on unsupported struct type: {ptr_pointee}"
+                    )
+                val = self._emit_struct_field_extract_via_ptr(
+                    ptr, field_name, type_name
+                )
+                self.result_stack.append(val)
+                return
+
+        # Fall back: visit the object expression to get a struct value on the
+        # stack, then extractvalue.
+        self.visit(node.object)
+        struct_val = safe_pop(self.result_stack)
+        if struct_val is None:
+            raise Exception(
+                f"StructFieldAccess: could not evaluate object for field "
+                f"'{field_name}'."
+            )
+        if not isinstance(struct_val.type, ir.LiteralStructType):
+            raise Exception(
+                f"StructFieldAccess: expected a struct value, got "
+                f"{struct_val.type}."
+            )
+        val = self._emit_struct_field_access(
+            struct_val, field_name, field_name
+        )
+        self.result_stack.append(val)
+
+    # -----------------------------------------------------------------------
+    # Struct construction from runtime values
+    # -----------------------------------------------------------------------
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.TimeExpr) -> None:  # type: ignore[name-defined]
+        """
+        title: Lower a runtime TimeExpr to LLVM IR.
+        summary: >-
+          Evaluates hour, minute, and second sub-expressions (which may be
+          arbitrary runtime integer values) and assembles them into a
+          { i32, i32, i32 } struct via alloca + GEP stores.
+        parameters:
+          node:
+            type: astx.TimeExpr
+        """
+        i32 = self._llvm.INT32_TYPE
+
+        def _load_i32(expr: astx.AST) -> ir.Value:
+            self.visit(expr)
+            v = safe_pop(self.result_stack)
+            if v is None:
+                raise Exception("TimeExpr: failed to lower sub-expression.")
+            if is_int_type(v.type) and v.type.width != 32:
+                v = self._llvm.ir_builder.sext(v, i32, "time_field_cast")
+            return v
+
+        hour_val = _load_i32(node.hour)
+        minute_val = _load_i32(node.minute)
+        second_val = _load_i32(node.second)
+
+        result = self._emit_runtime_struct_construct(
+            "time",
+            {"hour": hour_val, "minute": minute_val, "second": second_val},
+        )
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.TimestampExpr) -> None:  # type: ignore[name-defined]
+        """
+        title: Lower a runtime TimestampExpr to LLVM IR.
+        summary: >-
+          Evaluates year, month, day, hour, minute, second, and nanos
+          sub-expressions and assembles the full { i32×7 } struct.
+        parameters:
+          node:
+            type: astx.TimestampExpr
+        """
+        i32 = self._llvm.INT32_TYPE
+
+        def _load_i32(expr: astx.AST) -> ir.Value:
+            self.visit(expr)
+            v = safe_pop(self.result_stack)
+            if v is None:
+                raise Exception(
+                    "TimestampExpr: failed to lower sub-expression."
+                )
+            if is_int_type(v.type) and v.type.width != 32:
+                v = self._llvm.ir_builder.sext(v, i32, "ts_field_cast")
+            return v
+
+        year_val = _load_i32(node.year)
+        month_val = _load_i32(node.month)
+        day_val = _load_i32(node.day)
+        hour_val = _load_i32(node.hour)
+        minute_val = _load_i32(node.minute)
+        second_val = _load_i32(node.second)
+        nanos_val = (
+            _load_i32(node.nanos)
+            if hasattr(node, "nanos")
+            else ir.Constant(i32, 0)
+        )
+
+        result = self._emit_runtime_struct_construct(
+            "timestamp",
+            {
+                "year": year_val,
+                "month": month_val,
+                "day": day_val,
+                "hour": hour_val,
+                "minute": minute_val,
+                "second": second_val,
+                "nanos": nanos_val,
+            },
+        )
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.DateTimeExpr) -> None:  # type: ignore[name-defined]
+        """
+        title: Lower a runtime DateTimeExpr to LLVM IR.
+        summary: >-
+          Evaluates year, month, day, hour, minute, second sub-expressions
+          and assembles the { i32×6 } struct.
+        parameters:
+          node:
+            type: astx.DateTimeExpr
+        """
+        i32 = self._llvm.INT32_TYPE
+
+        def _load_i32(expr: astx.AST) -> ir.Value:
+            self.visit(expr)
+            v = safe_pop(self.result_stack)
+            if v is None:
+                raise Exception(
+                    "DateTimeExpr: failed to lower sub-expression."
+                )
+            if is_int_type(v.type) and v.type.width != 32:
+                v = self._llvm.ir_builder.sext(v, i32, "dt_field_cast")
+            return v
+
+        year_val = _load_i32(node.year)
+        month_val = _load_i32(node.month)
+        day_val = _load_i32(node.day)
+        hour_val = _load_i32(node.hour)
+        minute_val = _load_i32(node.minute)
+        second_val = _load_i32(node.second)
+
+        result = self._emit_runtime_struct_construct(
+            "datetime",
+            {
+                "year": year_val,
+                "month": month_val,
+                "day": day_val,
+                "hour": hour_val,
+                "minute": minute_val,
+                "second": second_val,
+            },
+        )
+        self.result_stack.append(result)
+
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
         """
@@ -950,6 +1486,51 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
+
+        if is_struct_type(llvm_lhs.type) or is_struct_type(llvm_rhs.type):
+            if llvm_lhs.type != llvm_rhs.type:
+                raise Exception(
+                    f"BinaryOp on struct values requires matching types; "
+                    f"got {llvm_lhs.type} vs {llvm_rhs.type}"
+                )
+            type_name = self._struct_type_name(llvm_lhs.type)
+            if type_name is None:
+                raise Exception(
+                    f"BinaryOp: unsupported struct type {llvm_lhs.type}"
+                )
+
+            op = node.op_code
+            if op == "==":
+                result = self._emit_struct_eq(
+                    llvm_lhs, llvm_rhs, type_name, invert=False
+                )
+            elif op == "!=":
+                result = self._emit_struct_eq(
+                    llvm_lhs, llvm_rhs, type_name, invert=True
+                )
+            elif op == "<":
+                result = self._emit_struct_lt(
+                    llvm_lhs, llvm_rhs, type_name, op="<"
+                )
+            elif op == "<=":
+                result = self._emit_struct_lt(
+                    llvm_lhs, llvm_rhs, type_name, op="<="
+                )
+            elif op == ">":
+                result = self._emit_struct_lt(
+                    llvm_lhs, llvm_rhs, type_name, op=">"
+                )
+            elif op == ">=":
+                result = self._emit_struct_lt(
+                    llvm_lhs, llvm_rhs, type_name, op=">="
+                )
+            else:
+                raise Exception(
+                    f"BinaryOp '{op}' is not supported for struct type "
+                    f"'{type_name}'. Only ==, !=, <, <=, >, >= are valid."
+                )
+            self.result_stack.append(result)
+            return
 
         # Scalar-vector promotion: one vector + matching scalar -> splat scalar
         lhs_is_vec = is_vector(llvm_lhs)
@@ -3043,6 +3624,14 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Default zero value based on type
         elif "float" in type_str:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
+        elif type_str in _STRUCT_TYPE_NAMES:
+            llvm_struct_ty = self._llvm.get_data_type(type_str)
+            fields = _struct_fields_for(type_str)
+            i32 = self._llvm.INT32_TYPE
+            init_val = ir.Constant(
+                llvm_struct_ty,
+                [ir.Constant(i32, 0)] * len(fields),
+            )
         else:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
 
@@ -3467,6 +4056,16 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             elif "float" in type_str:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
+                alloca = self.create_entry_block_alloca(node.name, type_str)
+
+            elif type_str in _STRUCT_TYPE_NAMES:
+                llvm_struct_ty = self._llvm.get_data_type(type_str)
+                fields = _struct_fields_for(type_str)
+                i32 = self._llvm.INT32_TYPE
+                init_val = ir.Constant(
+                    llvm_struct_ty,
+                    [ir.Constant(i32, 0)] * len(fields),
+                )
                 alloca = self.create_entry_block_alloca(node.name, type_str)
 
             else:
