@@ -396,7 +396,7 @@ def test_vector_unsupported_op_raises() -> None:
 @pytest.mark.parametrize("op", ["==", "!=", "<", "<=", ">", ">="])
 def test_float_vector_comparison_raises(op: str) -> None:
     """
-    title: comparison ops are not implemented for vectors.
+    title: comparison ops are not implemented.
     parameters:
       op:
         type: str
