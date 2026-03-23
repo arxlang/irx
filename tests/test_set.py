@@ -135,3 +135,119 @@ def test_literal_set_non_integer_unsupported(
                 elements={astx.LiteralFloat32(1.0), astx.LiteralFloat32(2.0)}
             )
         )
+
+
+def _make_set(*vals: int) -> astx.LiteralSet:
+    return astx.LiteralSet(elements={astx.LiteralInt32(v) for v in vals})
+
+
+def _set_values(const: ir.Value) -> list[int]:
+    return _array_i32_values(const)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_union(builder_class: type[Builder]) -> None:
+    """
+    title: BinaryOp | on two LiteralSets produces their union.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(op_code="|", lhs=_make_set(1, 2), rhs=_make_set(2, 3))
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert isinstance(result.type, ir.ArrayType)
+    assert _set_values(result) == [1, 2, 3]
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_intersection(builder_class: type[Builder]) -> None:
+    """
+    title: BinaryOp & on two LiteralSets produces their intersection.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(
+        op_code="&", lhs=_make_set(1, 2, 3), rhs=_make_set(2, 3, 4)
+    )
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert _set_values(result) == [2, 3]
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_difference(builder_class: type[Builder]) -> None:
+    """
+    title: BinaryOp - on two LiteralSets produces their difference.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(
+        op_code="-", lhs=_make_set(1, 2, 3), rhs=_make_set(2, 3)
+    )
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert _set_values(result) == [1]
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_symmetric_difference(builder_class: type[Builder]) -> None:
+    """
+    title: BinaryOp ^ on two LiteralSets produces their symmetric difference.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(op_code="^", lhs=_make_set(1, 2), rhs=_make_set(2, 3))
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert _set_values(result) == [1, 3]
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_disjoint_intersection_is_empty(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Intersection of disjoint sets is an empty constant array.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(op_code="&", lhs=_make_set(1, 2), rhs=_make_set(3, 4))
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert isinstance(result.type, ir.ArrayType)
+    assert result.type.count == 0
