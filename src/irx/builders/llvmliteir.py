@@ -1498,7 +1498,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = self.result_stack.pop()
+        body_val = safe_pop(self.result_stack)
 
         if not body_val:
             return
@@ -1604,7 +1604,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        _body_val = self.result_stack.pop()
+        safe_pop(self.result_stack)
 
         # Emit update expression
         self.visit(node.update)
