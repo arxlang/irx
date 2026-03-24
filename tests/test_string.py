@@ -301,7 +301,7 @@ def test_string_with_special_characters_with_print(
 
 
 def test_utf8_char_lowering_correctness() -> None:
-    """Verify LiteralUTF8Char correctly lowers to UTF-8 hex in IR."""
+    """title: Verify LiteralUTF8Char correctly lowers to UTF-8 hex in IR."""
 
     builder = LLVMLiteIR()
     module = builder.module()
