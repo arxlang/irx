@@ -1908,7 +1908,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
-        title: Handle ASCII string literals.
+                title: Handle UTF-8 char literals.
         parameters:
           expr:
             type: astx.LiteralUTF8Char
@@ -1927,7 +1927,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         string_data.linkage = "internal"
         string_data.global_constant = True
         string_data.initializer = ir.Constant(
-            string_data_type, bytearray(string_value + "\0", "ascii")
+            string_data_type, bytearray(utf8_bytes + b"\0")
         )
 
         ptr = self._llvm.ir_builder.gep(
