@@ -2818,7 +2818,76 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         key_val: ir.Value,
     ) -> None:
         """
-        title: Emit branchless runtime linear scan for dict key lookup.
+        title: Emit runtime dict key lookup.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+        """
+        key_type = dict_val.type.element.elements[0]
+
+        if isinstance(key_type, ir.IntType):
+            self._visit_subscript_switch(dict_val, key_val)
+        else:
+            self._visit_subscript_select(dict_val, key_val)
+
+    def _visit_subscript_switch(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+    ) -> None:
+        """
+        title: Emit switch-based dict lookup for integer keys.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+        """
+        builder = self._llvm.ir_builder
+        fn = builder.function
+        n = dict_val.type.count
+        val_type = dict_val.type.element.elements[1]
+        default_val = ir.Constant(val_type, 0)
+
+        default_bb = fn.append_basic_block("dict.default")
+        merge_bb = fn.append_basic_block("dict.merge")
+
+        case_blocks: list[tuple[ir.Constant, ir.Block]] = []
+        for i in range(n):
+            entry_key = dict_val.constant[i].constant[0]
+            bb = fn.append_basic_block(f"dict.case.{i}")
+            case_blocks.append((entry_key, bb))
+
+        switch = builder.switch(key_val, default_bb)
+        for case_key, case_bb in case_blocks:
+            switch.add_case(case_key, case_bb)
+
+        with builder.goto_block(default_bb):
+            builder.branch(merge_bb)
+
+        for i, (_, case_bb) in enumerate(case_blocks):
+            with builder.goto_block(case_bb):
+                builder.branch(merge_bb)
+
+        builder.position_at_end(merge_bb)
+
+        phi = builder.phi(val_type, name="dict.result")
+        phi.add_incoming(default_val, default_bb)
+        for i, (_, case_bb) in enumerate(case_blocks):
+            entry_val = dict_val.constant[i].constant[1]
+            phi.add_incoming(entry_val, case_bb)
+
+        self.result_stack.append(phi)
+
+    def _visit_subscript_select(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+    ) -> None:
+        """
+        title: Emit select-chain dict lookup for non-integer keys.
         parameters:
           dict_val:
             type: ir.Constant
