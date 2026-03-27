@@ -306,7 +306,7 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name in ("string", "stringascii", "utf8string"):
+        elif type_name in ("string", "stringascii"):
             return self.ASCII_STRING_TYPE
         elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
