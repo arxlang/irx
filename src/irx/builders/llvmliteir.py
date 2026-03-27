@@ -566,7 +566,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Add putchard
         putchard_ty = ir.FunctionType(
-            self._llvm.INT32_TYPE, [self._llvm.INT32_TYPE]
+            self._llvm.INT32_TYPE, [self._llvm.DOUBLE_TYPE]
         )
         putchard = ir.Function(self._llvm.module, putchard_ty, "putchard")
 
