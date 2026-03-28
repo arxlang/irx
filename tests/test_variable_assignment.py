@@ -88,9 +88,7 @@ def test_variable_assignment_prints_updated_value(
         value=astx.LiteralInt32(0),
         mutability=astx.MutabilityKind.mutable,
     )
-    assignment = astx.VariableAssignment(
-        name="x", value=astx.LiteralInt32(5)
-    )
+    assignment = astx.VariableAssignment(name="x", value=astx.LiteralInt32(5))
 
     proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=astx.Int32()
