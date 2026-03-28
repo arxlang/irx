@@ -297,4 +297,4 @@ def test_binary_op_rejects_assignment_operator(
         Exception,
         match="Assignment '=' should not be handled in BinaryOp",
     ):
-        builder.build(module)
+        builder.translate(module)
