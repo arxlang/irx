@@ -277,9 +277,7 @@ def test_binary_op_rejects_assignment_operator(
         mutability=astx.MutabilityKind.mutable,
     )
     invalid_assign = astx.BinaryOp(
-        op_code="=",
-        lhs=astx.Identifier("x"),
-        rhs=astx.LiteralInt32(5),
+        op_code="=", lhs=astx.Identifier("x"), rhs=astx.LiteralInt32(5)
     )
 
     proto = astx.FunctionPrototype(
