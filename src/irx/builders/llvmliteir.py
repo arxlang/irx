@@ -306,7 +306,7 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name in ("string", "stringascii", "utf8string"):
+        elif type_name in ("string", "stringascii"):
             return self.ASCII_STRING_TYPE
         elif type_name == "utf8string":
             return self.UTF8_STRING_TYPE
@@ -566,7 +566,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Add putchard
         putchard_ty = ir.FunctionType(
-            self._llvm.INT32_TYPE, [self._llvm.INT32_TYPE]
+            self._llvm.INT32_TYPE, [self._llvm.DOUBLE_TYPE]
         )
         putchard = ir.Function(self._llvm.module, putchard_ty, "putchard")
 
@@ -1927,7 +1927,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         string_data.linkage = "internal"
         string_data.global_constant = True
         string_data.initializer = ir.Constant(
-            string_data_type, bytearray(string_value + "\0", "ascii")
+            string_data_type, bytearray(utf8_bytes + b"\0")
         )
 
         ptr = self._llvm.ir_builder.gep(
