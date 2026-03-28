@@ -98,7 +98,12 @@ def test_while_expr(
 @pytest.mark.parametrize(
     "int_type, literal_type",
     [
+        (astx.Int8, astx.LiteralInt8),
+        (astx.Int16, astx.LiteralInt16),
         (astx.Int32, astx.LiteralInt32),
+        (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
     ],
 )
 @pytest.mark.parametrize(

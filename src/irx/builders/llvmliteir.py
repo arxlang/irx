@@ -175,7 +175,7 @@ def safe_pop(
       lst:
         type: list[ir.Value | ir.Function]
     returns:
-      type: Optional[ir.Value | ir.Function]
+      type: ir.Value | ir.Function | None
     """
     try:
         return lst.pop()
@@ -368,7 +368,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         title: Initialize LLVMTranslator object.
         parameters:
           active_runtime_features:
-            type: Optional[set[str]]
+            type: set[str] | None
         """
         super().__init__()
 
@@ -587,7 +587,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: str
             description: Function name.
         returns:
-          type: Optional[ir.Function]
+          type: ir.Function | None
         """
         if name in self._llvm.module.globals:
             return self._llvm.module.get_global(name)
