@@ -98,6 +98,74 @@ def test_while_expr(
 @pytest.mark.parametrize(
     "int_type, literal_type",
     [
+        (astx.Int8, astx.LiteralInt8),
+        (astx.Int16, astx.LiteralInt16),
+        (astx.Int32, astx.LiteralInt32),
+        (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_while_void_body_no_crash(
+    builder_class: type[Builder],
+    int_type: type,
+    literal_type: type,
+) -> None:
+    """
+    title: WhileStmt with void-only body must not crash on empty stack.
+    parameters:
+      builder_class:
+        type: type[Builder]
+      int_type:
+        type: type
+      literal_type:
+        type: type
+    """
+    builder = builder_class()
+
+    init_var = astx.InlineVariableDeclaration(
+        "a",
+        type_=int_type(),
+        value=literal_type(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    var_a = astx.Identifier("a")
+    cond = astx.BinaryOp(op_code="<", lhs=var_a, rhs=literal_type(5))
+
+    update = astx.UnaryOp(op_code="++", operand=var_a)
+
+    # Body with only an update — no trailing literal to push a value
+    body = astx.Block()
+    body.append(update)
+
+    while_expr = astx.WhileStmt(condition=cond, body=body)
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=int_type()
+    )
+    fn_block = astx.Block()
+    fn_block.append(init_var)
+    fn_block.append(while_expr)
+    fn_block.append(astx.FunctionReturn(literal_type(0)))
+
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result("build", builder, module, "")
+
+
+@pytest.mark.parametrize(
+    "int_type, literal_type",
+    [
         (astx.Int32, astx.LiteralInt32),
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),

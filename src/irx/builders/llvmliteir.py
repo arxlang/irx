@@ -11,7 +11,7 @@ import tempfile
 from datetime import datetime
 from datetime import time as _time
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import astx
 
@@ -168,14 +168,14 @@ def splat_scalar(
 @typechecked
 def safe_pop(
     lst: list[ir.Value | ir.Function],
-) -> Optional[ir.Value | ir.Function]:
+) -> ir.Value | ir.Function | None:
     """
     title: Implement a safe pop operation for lists.
     parameters:
       lst:
         type: list[ir.Value | ir.Function]
     returns:
-      type: Optional[ir.Value | ir.Function]
+      type: ir.Value | ir.Function | None
     """
     try:
         return lst.pop()
@@ -362,13 +362,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     def __init__(
         self,
-        active_runtime_features: Optional[set[str]] = None,
+        active_runtime_features: set[str] | None = None,
     ) -> None:
         """
         title: Initialize LLVMTranslator object.
         parameters:
           active_runtime_features:
-            type: Optional[set[str]]
+            type: set[str] | None
         """
         super().__init__()
 
@@ -579,7 +579,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         ir_builder.call(putchar, [ival])
         ir_builder.ret(ir.Constant(self._llvm.INT32_TYPE, 0))
 
-    def get_function(self, name: str) -> Optional[ir.Function]:
+    def get_function(self, name: str) -> ir.Function | None:
         """
         title: Put the function defined by the given name to result stack.
         parameters:
@@ -587,7 +587,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: str
             description: Function name.
         returns:
-          type: Optional[ir.Function]
+          type: ir.Function | None
         """
         if name in self._llvm.module.globals:
             return self._llvm.module.get_global(name)
@@ -842,7 +842,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             one = ir.Constant(operand_val.type, 1)
 
             # Perform the increment operation
-            result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
+            if is_fp_type(operand_val.type):
+                result = self._llvm.ir_builder.fadd(operand_val, one, "inctmp")
+            else:
+                result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
 
             # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
@@ -862,7 +865,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
             one = ir.Constant(operand_val.type, 1)
-            result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
+            if is_fp_type(operand_val.type):
+                result = self._llvm.ir_builder.fsub(operand_val, one, "dectmp")
+            else:
+                result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
             if isinstance(node.operand, astx.Identifier):
                 if node.operand.name in self.const_vars:
@@ -1324,7 +1330,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           block:
             type: astx.Block
         """
-        result: Optional[ir.Value | ir.Function] = None
+        result: ir.Value | ir.Function | None = None
         for node in block.nodes:
             if self._llvm.ir_builder.block.terminator is not None:
                 break
@@ -1385,7 +1391,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         then_stack_size = len(self.result_stack)
         self.visit(node.then)
         then_terminated = self._llvm.ir_builder.block.terminator is not None
-        then_v: Optional[ir.Value | ir.Function] = None
+        then_v: ir.Value | ir.Function | None = None
         if len(self.result_stack) > then_stack_size:
             then_v = self.result_stack.pop()
         if not then_terminated:
@@ -1398,7 +1404,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.else_ is not None:
             self.visit(node.else_)
         else_terminated = self._llvm.ir_builder.block.terminator is not None
-        else_v: Optional[ir.Value | ir.Function] = None
+        else_v: ir.Value | ir.Function | None = None
         if len(self.result_stack) > else_stack_size:
             else_v = self.result_stack.pop()
         if not else_terminated:
@@ -1604,7 +1610,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        safe_pop(self.result_stack)
+        _body_val = safe_pop(self.result_stack)
 
         # Emit update expression
         self.visit(node.update)
@@ -1724,7 +1730,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values[node.variable.name] = var_addr
 
         self.visit(node.body)
-        _ = safe_pop(self.result_stack)
+        safe_pop(self.result_stack)
 
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
