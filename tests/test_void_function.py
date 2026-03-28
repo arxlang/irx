@@ -55,7 +55,11 @@ class TestVoidFunctionNoReturn:
         main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
         module.block.append(main_fn)
 
-        check_result("build", builder, module)
+        ir_text = builder.translate(module)
+        assert "ret void" in ir_text, (
+            "Expected implicit 'ret void' in IR for void function "
+            f"with no return statement, but got:\n{ir_text}"
+        )
 
     def test_void_function_with_print_no_explicit_return(
         self, builder_class: type[Builder]
