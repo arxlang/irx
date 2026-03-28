@@ -908,39 +908,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: astx.BinaryOp
         """
         if node.op_code == "=":
-            # Special case '=' because we don't want to emit the lhs as an
-            # expression.
-            # Assignment requires the lhs to be an identifier.
-            # This assumes we're building without RTTI because LLVM builds
-            # that way by default.
-            # If you build LLVM with RTTI, this can be changed to a
-            # dynamic_cast for automatic error checking.
-            var_lhs = node.lhs
-
-            if not isinstance(var_lhs, astx.VariableExprAST):
-                raise Exception("destination of '=' must be a variable")
-
-            lhs_name = var_lhs.get_name()
-            if lhs_name in self.const_vars:
-                raise Exception(
-                    f"Cannot assign to '{lhs_name}': declared as constant"
-                )
-            # Codegen the rhs.
-            self.visit(node.rhs)
-            llvm_rhs = safe_pop(self.result_stack)
-
-            if not llvm_rhs:
-                raise Exception("codegen: Invalid rhs expression.")
-
-            llvm_lhs = self.named_values.get(var_lhs.get_name())
-
-            if not llvm_lhs:
-                raise Exception("codegen: Invalid lhs variable name")
-
-            self._llvm.ir_builder.store(llvm_rhs, llvm_lhs)
-            result = llvm_rhs
-            self.result_stack.append(result)
-            return
+            raise Exception(
+                "Assignment '=' should not be handled in BinaryOp. "
+                "Use VariableAssignment instead."
+            )
 
         self.visit(node.lhs)
         llvm_lhs = safe_pop(self.result_stack)
