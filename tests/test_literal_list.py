@@ -216,6 +216,35 @@ def test_literal_list_incompatible_types_raises(
         )
 
 
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_list_mixed_float_widths_widens(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Mixed float32+float64 list widens all elements to float64.
+    summary: >-
+      [float32(1.0), float64(2.0)] should produce a [2 x double] where the
+      float32 has been extended. Exercises _common_list_element_type and
+      _coerce_to with the unified _select_float_type / _float_bit_width paths.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    visitor = _make_visitor_in_function()
+
+    visitor.visit(
+        astx.LiteralList(
+            elements=[astx.LiteralFloat32(1.0), astx.LiteralFloat64(2.0)]
+        )
+    )
+    const = visitor.result_stack.pop()
+
+    assert isinstance(const, ir.Constant)
+    assert isinstance(const.type, ir.ArrayType)
+    assert const.type.count == 2  # noqa: PLR2004
+    assert isinstance(const.type.element, ir.DoubleType)
+
+
 @pytest.mark.skipif(
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
