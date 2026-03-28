@@ -3093,6 +3093,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.named_values[llvm_arg.name] = alloca
 
         self.visit(node.body)
+        # Emit implicit terminator if the body did not produce one.
+        # void functions get ret_void(); non-void functions get a zero ret
+        # as a safe fallback (e.g. missing return statement).
+        if not self._llvm.ir_builder.block.is_terminated:
+            return_type = fn.function_type.return_type
+            if isinstance(return_type, ir.VoidType):
+                self._llvm.ir_builder.ret_void()
+            else:
+                self._llvm.ir_builder.ret(ir.Constant(return_type, 0))
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
