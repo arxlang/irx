@@ -82,6 +82,19 @@ def is_vector(v: "ir.Value") -> bool:
     return isinstance(getattr(v, "type", None), VectorType)
 
 
+def _is_unsigned_node(node: "astx.AST") -> bool:
+    """
+    title: Return True if the AST node carries an unsigned integer type.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    type_ = getattr(node, "type_", None)
+    return isinstance(type_, astx.UnsignedInteger)
+
+
 def emit_int_div(
     ir_builder: "ir.IRBuilder",
     lhs: "ir.Value",
@@ -198,6 +211,18 @@ class VariablesLLVM:
         type: ir.types.Type
       BOOLEAN_TYPE:
         type: ir.types.Type
+      UINT8_TYPE:
+        type: ir.types.Type
+      UINT16_TYPE:
+        type: ir.types.Type
+      UINT32_TYPE:
+        type: ir.types.Type
+      UINT64_TYPE:
+        type: ir.types.Type
+      UINT128_TYPE:
+        type: ir.types.Type
+      STRING_TYPE:
+        type: ir.types.Type
       ASCII_STRING_TYPE:
         type: ir.types.Type
       UTF8_STRING_TYPE:
@@ -235,6 +260,12 @@ class VariablesLLVM:
     INT32_TYPE: ir.types.Type
     VOID_TYPE: ir.types.Type
     BOOLEAN_TYPE: ir.types.Type
+    UINT8_TYPE: ir.types.Type
+    UINT16_TYPE: ir.types.Type
+    UINT32_TYPE: ir.types.Type
+    UINT64_TYPE: ir.types.Type
+    UINT128_TYPE: ir.types.Type
+    STRING_TYPE: ir.types.Type
     ASCII_STRING_TYPE: ir.types.Type
     UTF8_STRING_TYPE: ir.types.Type
     TIME_TYPE: ir.types.Type
@@ -280,8 +311,20 @@ class VariablesLLVM:
             return self.INT64_TYPE
         elif type_name == "char":
             return self.INT8_TYPE
-        elif type_name in ("string", "stringascii", "utf8string"):
+        elif type_name in ("string", "stringascii"):
             return self.ASCII_STRING_TYPE
+        elif type_name == "utf8string":
+            return self.UTF8_STRING_TYPE
+        elif type_name == "uint8":
+            return self.UINT8_TYPE
+        elif type_name == "uint16":
+            return self.UINT16_TYPE
+        elif type_name == "uint32":
+            return self.UINT32_TYPE
+        elif type_name == "uint64":
+            return self.UINT64_TYPE
+        elif type_name == "uint128":
+            return self.UINT128_TYPE
         elif type_name == "nonetype":
             return self.VOID_TYPE
 
@@ -468,6 +511,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.INT16_TYPE = ir.IntType(16)
         self._llvm.INT32_TYPE = ir.IntType(32)
         self._llvm.INT64_TYPE = ir.IntType(64)
+        self._llvm.UINT8_TYPE = ir.IntType(8)
+        self._llvm.UINT16_TYPE = ir.IntType(16)
+        self._llvm.UINT32_TYPE = ir.IntType(32)
+        self._llvm.UINT64_TYPE = ir.IntType(64)
+        self._llvm.UINT128_TYPE = ir.IntType(128)
         self._llvm.VOID_TYPE = ir.VoidType()
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
@@ -523,7 +571,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Add putchard
         putchard_ty = ir.FunctionType(
-            self._llvm.INT32_TYPE, [self._llvm.INT32_TYPE]
+            self._llvm.INT32_TYPE, [self._llvm.DOUBLE_TYPE]
         )
         putchard = ir.Function(self._llvm.module, putchard_ty, "putchard")
 
@@ -1160,8 +1208,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
+            # handle it depend on datatype
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
+                    "<", llvm_lhs, llvm_rhs, "lttmp"
+                )
             else:
-                # handle it depend on datatype
                 result = self._llvm.ir_builder.icmp_signed(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1174,8 +1226,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
+            # be careful we havn't  handled all the conditions
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
+                    ">", llvm_lhs, llvm_rhs, "gttmp"
+                )
             else:
-                # be careful we havn't  handled all the conditions
                 result = self._llvm.ir_builder.icmp_signed(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1184,6 +1240,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<=":
             if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
+                    "<=", llvm_lhs, llvm_rhs, "letmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
             else:
@@ -1195,6 +1255,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">=":
             if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
+                    ">=", llvm_lhs, llvm_rhs, "getmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
             else:
@@ -1212,9 +1276,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.udiv(
+                    llvm_lhs, llvm_rhs, "divtmp"
+                )
             else:
-                # Assuming the division is signed by default. Use `udiv` for
-                # unsigned division.
                 result = self._llvm.ir_builder.sdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1235,6 +1301,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 )
             elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
+                    "==", llvm_lhs, llvm_rhs, "eqtmp"
+                )
+            elif _is_unsigned_node(node):
+                cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
             else:
@@ -1260,11 +1330,31 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
+            elif _is_unsigned_node(node):
+                cmp_result = self._llvm.ir_builder.icmp_unsigned(
+                    "!=", llvm_lhs, llvm_rhs, "netmp"
+                )
             else:
                 cmp_result = self._llvm.ir_builder.icmp_signed(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
             self.result_stack.append(cmp_result)
+            return
+
+        elif node.op_code == "%":
+            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+                result = self._llvm.ir_builder.frem(
+                    llvm_lhs, llvm_rhs, "fremtmp"
+                )
+            elif _is_unsigned_node(node):
+                result = self._llvm.ir_builder.urem(
+                    llvm_lhs, llvm_rhs, "uremtmp"
+                )
+            else:
+                result = self._llvm.ir_builder.srem(
+                    llvm_lhs, llvm_rhs, "sremtmp"
+                )
+            self.result_stack.append(result)
             return
 
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
@@ -1451,7 +1541,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = self.result_stack.pop()
+        body_val = safe_pop(self.result_stack)
 
         if not body_val:
             return
@@ -1557,7 +1647,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        _body_val = self.result_stack.pop()
+        safe_pop(self.result_stack)
 
         # Emit update expression
         self.visit(node.update)
@@ -1677,7 +1767,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values[node.variable.name] = var_addr
 
         self.visit(node.body)
-        _ = self.result_stack.pop()
+        _ = safe_pop(self.result_stack)
 
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
@@ -1804,6 +1894,61 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack.append(result)
 
     @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt8) -> None:
+        """
+        title: Translate ASTx LiteralUInt8 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt8
+        """
+        result = ir.Constant(self._llvm.UINT8_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt16) -> None:
+        """
+        title: Translate ASTx LiteralUInt16 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt16
+        """
+        result = ir.Constant(self._llvm.UINT16_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt32) -> None:
+        """
+        title: Translate ASTx LiteralUInt32 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt32
+        """
+        result = ir.Constant(self._llvm.UINT32_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt64) -> None:
+        """
+        title: Translate ASTx LiteralUInt64 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt64
+        """
+        result = ir.Constant(self._llvm.UINT64_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.LiteralUInt128) -> None:
+        """
+        title: Translate ASTx LiteralUInt128 to LLVM-IR.
+        parameters:
+          node:
+            type: astx.LiteralUInt128
+        """
+        result = ir.Constant(self._llvm.UINT128_TYPE, node.value)
+        self.result_stack.append(result)
+
+    @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
         title: Handle ASCII string literals.
@@ -1825,7 +1970,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         string_data.linkage = "internal"
         string_data.global_constant = True
         string_data.initializer = ir.Constant(
-            string_data_type, bytearray(string_value + "\0", "ascii")
+            string_data_type, bytearray(utf8_bytes + b"\0")
         )
 
         ptr = self._llvm.ir_builder.gep(
@@ -2213,21 +2358,150 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(ir.Constant(empty_ty, []))
             return
 
-        # Homogeneous integer constant lists => constant array
-        first_ty = llvm_elems[0].type
-        is_ints = all(is_int_type(v.type) for v in llvm_elems)
-        homogeneous = all(v.type == first_ty for v in llvm_elems)
-        all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
-        if is_ints and homogeneous and all_constants:
-            arr_ty = ir.ArrayType(first_ty, n)
-            const_arr = ir.Constant(arr_ty, llvm_elems)
-            self.result_stack.append(const_arr)
+        target_ty = llvm_elems[0].type
+        for v in llvm_elems[1:]:
+            target_ty = self._common_list_element_type(target_ty, v.type)
+
+        # Coerce every element to target_ty
+        coerced: list[ir.Value] = []
+        for v in llvm_elems:
+            coerced.append(self._coerce_to(v, target_ty))
+
+        #  All constants → emit as a constant array
+        if all(isinstance(v, ir.Constant) for v in coerced):
+            arr_ty = ir.ArrayType(target_ty, n)
+            self.result_stack.append(ir.Constant(arr_ty, coerced))
             return
 
-        raise TypeError(
-            "LiteralList: only empty or homogeneous integer constants "
-            "are supported"
+        #  At least one runtime value → alloca + store each element
+        arr_ty = ir.ArrayType(target_ty, n)
+
+        alloca = self._llvm.ir_builder.alloca(arr_ty, name="list_tmp")
+
+        zero = ir.Constant(self._llvm.INT32_TYPE, 0)
+
+        for i, v in enumerate(coerced):
+            idx = ir.Constant(self._llvm.INT32_TYPE, i)
+            slot = self._llvm.ir_builder.gep(
+                alloca, [zero, idx], inbounds=True
+            )
+            self._llvm.ir_builder.store(v, slot)
+
+        # Return pointer to first element (i.e. T*)
+        first_ptr = self._llvm.ir_builder.gep(
+            alloca, [zero, zero], inbounds=True
         )
+
+        self.result_stack.append(first_ptr)
+
+    def _common_list_element_type(self, a: ir.Type, b: ir.Type) -> ir.Type:
+        """
+        title: Return the common (widest) type for two list element types.
+        summary: >-
+          Ints widen by bit-width; FP widens by rank; int+FP promotes int to
+          FP. Pointer (string) types must match exactly.
+        parameters:
+          a:
+            type: ir.Type
+          b:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
+        if a == b:
+            return a
+
+        # Both integers → pick wider
+        if is_int_type(a) and is_int_type(b):
+            return a if a.width >= b.width else b
+
+        # Both FP → pick higher rank
+        a_rank = self.fp_rank(a)
+        b_rank = self.fp_rank(b)
+        if a_rank > 0 and b_rank > 0:
+            return a if a_rank >= b_rank else b
+
+        # Int + FP → promote int to FP
+        if is_int_type(a) and b_rank > 0:
+            return b
+        if is_int_type(b) and a_rank > 0:
+            return a
+
+        # Pointer types (strings) must match exactly
+        if isinstance(a, ir.PointerType) and isinstance(b, ir.PointerType):
+            if a == b:
+                return a
+            raise TypeError(
+                f"LiteralList: incompatible pointer types {a} and {b}"
+            )
+
+        raise TypeError(
+            f"LiteralList: cannot find common type for {a} and {b}"
+        )
+
+    def _coerce_to(self, v: ir.Value, target_ty: ir.Type) -> ir.Value:
+        """
+        title: Coerce a value to target_ty, inserting a cast if needed.
+        summary: >-
+          When the source is an ir.Constant the coercion is performed purely at
+          the Python/constant level so no IR instruction is emitted.  This
+          keeps all-constant lists on the constant-array fast path without
+          requiring a live builder block.
+        parameters:
+          v:
+            type: ir.Value
+          target_ty:
+            type: ir.Type
+        returns:
+          type: ir.Value
+        """
+        if v.type == target_ty:
+            return v
+
+        if isinstance(v, ir.Constant):
+            raw = v.constant
+
+            # int → wider/narrower int
+            if is_int_type(v.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+
+            # int → fp
+            if is_int_type(v.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+
+            # fp → fp (widen or narrow)
+            if is_fp_type(v.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+
+            # fp → int
+            if is_fp_type(v.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+
+        b = self._llvm.ir_builder
+
+        # int → wider/narrower int
+        if is_int_type(v.type) and is_int_type(target_ty):
+            if v.type.width < target_ty.width:
+                return b.sext(v, target_ty, "list_sext")
+            return b.trunc(v, target_ty, "list_trunc")
+
+        # int → fp
+        if is_int_type(v.type) and is_fp_type(target_ty):
+            return b.sitofp(v, target_ty, "list_itofp")
+
+        # fp → wider/narrower fp
+        if is_fp_type(v.type) and is_fp_type(target_ty):
+            src_rank = self.fp_rank(v.type)
+            dst_rank = self.fp_rank(target_ty)
+            if src_rank < dst_rank:
+                return b.fpext(v, target_ty, "list_fpext")
+            return b.fptrunc(v, target_ty, "list_fptrunc")
+
+        # fp → int
+        if is_fp_type(v.type) and is_int_type(target_ty):
+            return b.fptosi(v, target_ty, "list_fptosi")
+
+        raise TypeError(f"LiteralList: cannot coerce {v.type} to {target_ty}")
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralSet) -> None:
