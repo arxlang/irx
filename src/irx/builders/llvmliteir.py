@@ -2416,15 +2416,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return a if a.width >= b.width else b
 
         # Both FP → pick higher rank
-        a_rank = self.fp_rank(a)
-        b_rank = self.fp_rank(b)
-        if a_rank > 0 and b_rank > 0:
-            return a if a_rank >= b_rank else b
+        a_is_fp = is_fp_type(a)
+        b_is_fp = is_fp_type(b)
+        if a_is_fp and b_is_fp:
+            return self._select_float_type([a, b])
 
         # Int + FP → promote int to FP
-        if is_int_type(a) and b_rank > 0:
+        if is_int_type(a) and b_is_fp:
             return b
-        if is_int_type(b) and a_rank > 0:
+        if is_int_type(b) and a_is_fp:
             return a
 
         # Pointer types (strings) must match exactly
@@ -2491,9 +2491,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # fp → wider/narrower fp
         if is_fp_type(v.type) and is_fp_type(target_ty):
-            src_rank = self.fp_rank(v.type)
-            dst_rank = self.fp_rank(target_ty)
-            if src_rank < dst_rank:
+            if self._float_bit_width(v.type) < self._float_bit_width(
+                target_ty
+            ):
                 return b.fpext(v, target_ty, "list_fpext")
             return b.fptrunc(v, target_ty, "list_fptrunc")
 

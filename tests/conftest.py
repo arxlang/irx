@@ -7,7 +7,6 @@ import tempfile
 
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Optional
 
 import astx
 
@@ -35,7 +34,7 @@ def check_result(
     builder: Builder,
     module: astx.Module,
     expected_file: str = "",
-    expected_output: Optional[str] = None,
+    expected_output: str | None = None,
     similarity_factor: float = 0.35,  # TODO: change it to 0.95
     tolerance: float = 1e-4,
 ) -> None:
@@ -51,7 +50,7 @@ def check_result(
       expected_file:
         type: str
       expected_output:
-        type: Optional[str]
+        type: str | None
       similarity_factor:
         type: float
       tolerance:
