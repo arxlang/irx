@@ -80,7 +80,6 @@ def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
     assert const.type.count == 3  # noqa: PLR2004
     assert const.type.element == ir.IntType(32)
 
-    # Values should be deterministically sorted
     vals = _array_i32_values(const)
     assert vals == [1, 2, 3]
 
@@ -107,11 +106,9 @@ def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == EXPECTED_SET_LENGTH
 
-    # Check promoted type is i32 (widest type)
     assert isinstance(const.type.element, ir.IntType)
     assert const.type.element.width == EXPECTED_PROMOTED_WIDTH
 
-    # Check values are correct after promotion
     vals = _array_i32_values(const)
     assert vals == [1, 2]
 
@@ -143,6 +140,13 @@ def test_literal_set_float_constants(builder_class: type[Builder]) -> None:
     assert isinstance(const.type, ir.ArrayType)
     assert const.type.count == EXPECTED_SET_LENGTH
     assert isinstance(const.type.element, ir.FloatType)
+
+    # Format-independent float validation
+    ir_str = str(const)
+    assert "float" in ir_str
+
+    vals = re.findall(r"float\s+([^\],]+)", ir_str)
+    assert len(vals) == EXPECTED_SET_LENGTH
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -181,7 +185,6 @@ def test_literal_set_runtime_lowering(builder_class: type[Builder]) -> None:
     builder = builder_class()
     visitor = cast(LLVMLiteIRVisitor, builder.translator)
 
-    # Create LLVM function context
     module = ir.Module()
     func_ty = ir.FunctionType(ir.VoidType(), [])
     func = ir.Function(module, func_ty, name="test")
@@ -192,7 +195,6 @@ def test_literal_set_runtime_lowering(builder_class: type[Builder]) -> None:
     visitor._llvm.ir_builder = ir_builder
     visitor.result_stack.clear()
 
-    # Mixed-width integers inside function context → triggers runtime lowering
     visitor.visit(
         astx.LiteralSet(
             elements={
@@ -204,9 +206,16 @@ def test_literal_set_runtime_lowering(builder_class: type[Builder]) -> None:
 
     result = visitor.result_stack.pop()
 
-    # Runtime path should return alloca
     assert isinstance(result, ir.instructions.AllocaInstr)
 
-    # Verify structure of allocated array
     assert isinstance(result.type.pointee, ir.ArrayType)
     assert result.type.pointee.count == EXPECTED_SET_LENGTH
+
+    # Validate emitted IR instructions
+    ir_str = str(visitor._llvm.ir_builder.function)
+
+    # Value 1 appears via sign-extension
+    assert "sext i16 1" in ir_str
+
+    # Value 2 is directly stored
+    assert "store i32 2" in ir_str
