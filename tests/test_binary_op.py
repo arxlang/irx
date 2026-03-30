@@ -255,3 +255,20 @@ def test_binary_op_logical_and_or(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expect)
+
+def test_binary_op_mul_ir():
+    """Test that multiplication generates 'mul' in LLVM IR."""
+    from irx.builders.llvmliteir import LLVMLiteIR
+    import astx
+
+    builder = LLVMLiteIR()
+    module = builder.module()
+
+    # int main() { return 2 * 3; }
+    proto = astx.FunctionPrototype("main", astx.Arguments(), astx.Int32())
+    body = astx.Block()
+    body.append(astx.FunctionReturn(astx.LiteralInt32(2) * astx.LiteralInt32(3)))
+    module.block.append(astx.Function(prototype=proto, body=body))
+
+    ir_text = builder.translate(module)
+    assert "mul" in ir_text
