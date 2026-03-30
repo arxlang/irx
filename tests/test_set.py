@@ -216,5 +216,8 @@ def test_literal_set_runtime_lowering(builder_class: type[Builder]) -> None:
     # Validate emitted IR instructions
     ir_str = str(visitor._llvm.ir_builder.function)
 
+    # Value 1 appears via sign-extension
     assert "sext i16 1" in ir_str
+
+    # Value 2 is directly stored
     assert "store i32 2" in ir_str
