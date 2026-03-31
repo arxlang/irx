@@ -3151,6 +3151,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.named_values[llvm_arg.name] = alloca
 
         self.visit(node.body)
+        # Emit implicit terminator if the body did not produce one.
+        # Void functions get ret_void(); non-void functions that fall
+        # off the end are a missing-return error.
+        if not self._llvm.ir_builder.block.is_terminated:
+            return_type = fn.function_type.return_type
+            if isinstance(return_type, ir.VoidType):
+                self._llvm.ir_builder.ret_void()
+            else:
+                raise SyntaxError(
+                    f"Function '{proto.name}' with return type "
+                    f"'{return_type}' is missing a return statement"
+                )
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
