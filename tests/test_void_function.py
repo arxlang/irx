@@ -158,13 +158,13 @@ class TestVoidFunctionWithEarlyReturn:
         LLVMLiteIR,
     ],
 )
-def test_non_void_function_missing_return_gets_zero_fallback(
+def test_non_void_function_missing_return_raises_error(
     builder_class: type[Builder],
     int_type: type,
     literal_type: type,
 ) -> None:
     """
-    title: Non-void function with no return must not produce malformed IR.
+    title: Non-void function with no return must raise an error.
     parameters:
       builder_class:
         type: type[Builder]
@@ -198,4 +198,5 @@ def test_non_void_function_missing_return_gets_zero_fallback(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result("build", builder, module)
+    with pytest.raises(SyntaxError, match="missing a return statement"):
+        builder.translate(module)
