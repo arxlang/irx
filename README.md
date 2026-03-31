@@ -107,8 +107,9 @@ body.append(PrintExpr(astx.LiteralString("Hello, IRx!")))
 body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 module.block.append(astx.Function(prototype=main_proto, body=body))
 
-builder.build(module, "hello")  # emits object + links with clang
-builder.run()                   # executes ./hello (or hello.exe on Windows)
+builder.build(module, "hello")   # emits object + links with clang
+result = builder.run()           # executes ./hello → CommandResult
+print(result.stdout)             # "Hello, IRx!"
 ```
 
 ## How It Works
@@ -119,7 +120,8 @@ builder.run()                   # executes ./hello (or hello.exe on Windows)
 
   - `translate(ast) -> str` — generate LLVM IR text.
   - `build(ast, output_path)` — emit object via llvmlite and link with `clang`.
-  - `run()` — execute the produced binary.
+  - `run()` — execute the produced binary; returns a `CommandResult` with
+    `.stdout`, `.stderr`, `.returncode`, and `.success`.
 
 - **`LLVMLiteIRVisitor` (codegen)**
   - Uses `@dispatch` to visit each ASTx node type.

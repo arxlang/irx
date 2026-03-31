@@ -2,12 +2,23 @@
 title: Tests for builder base helpers.
 """
 
-from typing import Sequence
+import sys
+
+from typing import Any, Sequence
 
 import astx
 import pytest
 
-from irx.builders.base import Builder, BuilderVisitor, run_command
+from irx.builders.base import (
+    Builder,
+    BuilderVisitor,
+    CommandError,
+    CommandResult,
+    run_command,
+)
+
+EXIT_CODE = 7
+EXIT_CODE_NOT_FOUND = 127
 
 
 class _DummyVisitor(BuilderVisitor):
@@ -37,18 +48,36 @@ class _DummyBuilder(Builder):
 
 def test_run_command_success() -> None:
     """
-    title: run_command should return stdout on success.
+    title: run_command should return a CommandResult with stdout on success.
     """
-    out = run_command(["/bin/sh", "-c", "printf ok"])
-    assert out == "ok"
+    result = run_command([sys.executable, "-c", "print('ok', end='')"])
+    assert isinstance(result, CommandResult)
+    assert result.stdout == "ok"
+    assert result.returncode == 0
+    assert result.success is True
 
 
-def test_run_command_nonzero_returns_code() -> None:
+def test_run_command_nonzero_raises() -> None:
     """
-    title: run_command should return exit code string on failure.
+    title: run_command should raise CommandError on non-zero exit by default.
     """
-    out = run_command(["/bin/sh", "-c", "exit 7"])
-    assert out == "7"
+    with pytest.raises(CommandError) as exc_info:
+        run_command([sys.executable, "-c", "raise SystemExit(7)"])
+    assert exc_info.value.result.returncode == EXIT_CODE
+
+
+def test_run_command_nonzero_no_raise() -> None:
+    """
+    title: >-
+      run_command with raise_on_error=False should return result instead of
+      raising.
+    """
+    result = run_command(
+        [sys.executable, "-c", "raise SystemExit(7)"], raise_on_error=False
+    )
+    assert isinstance(result, CommandResult)
+    assert result.returncode == EXIT_CODE
+    assert result.success is False
 
 
 def test_builder_visitor_translate_not_implemented() -> None:
@@ -65,26 +94,92 @@ def test_builder_translate_delegates_to_translator() -> None:
     title: Builder.translate should delegate to configured translator.
     """
     builder = _DummyBuilder()
-    result = builder.translate(astx.LiteralInt32(1))
+    result: str = builder.translate(astx.LiteralInt32(1))
     assert result == "translated:LiteralInt32"
 
 
-def test_builder_run_uses_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_command_capture_stderr_false_preserves_stdout() -> None:
     """
-    title: Builder.run should execute run_command with output path.
+    title: run_command with capture_stderr=False should still capture stdout.
+    """
+    result = run_command(
+        [sys.executable, "-c", "print('ok', end='')"],
+        capture_stderr=False,
+    )
+    assert result.stdout == "ok"
+    assert result.stderr == ""
+
+
+def test_run_command_missing_executable_raises() -> None:
+    """
+    title: >-
+      run_command should raise CommandError for a missing executable when
+      raise_on_error=True.
+    """
+    with pytest.raises(CommandError) as exc_info:
+        run_command(["/no/such/binary"], raise_on_error=True)
+    assert exc_info.value.result.returncode == EXIT_CODE_NOT_FOUND
+
+
+def test_run_command_missing_executable_no_raise() -> None:
+    """
+    title: >-
+      run_command with raise_on_error=False should return a result for a
+      missing executable instead of raising.
+    """
+    result = run_command(["/no/such/binary"], raise_on_error=False)
+    assert isinstance(result, CommandResult)
+    assert result.returncode == EXIT_CODE_NOT_FOUND
+    assert result.success is False
+    assert result.stderr != ""
+
+
+def test_builder_run_forwards_all_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    title: >-
+      Builder.run should forward command, capture_stderr, raise_on_error, and
+      debug to run_command.
     parameters:
       monkeypatch:
         type: pytest.MonkeyPatch
     """
-    seen: list[Sequence[str]] = []
+    calls: list[dict[str, Any]] = []
+    fake_result = CommandResult(
+        stdout="done", stderr="", returncode=0, command=["/tmp/fake-bin"]
+    )
 
-    def _fake_run(command: Sequence[str]) -> str:
-        seen.append(command)
-        return "done"
+    def _fake_run(
+        command: Sequence[str],
+        *,
+        capture_stderr: bool = True,
+        raise_on_error: bool = True,
+        debug: bool = False,
+    ) -> CommandResult:
+        calls.append(
+            {
+                "command": list(command),
+                "capture_stderr": capture_stderr,
+                "raise_on_error": raise_on_error,
+                "debug": debug,
+            }
+        )
+        return fake_result
 
     builder = _DummyBuilder()
     builder.output_file = "/tmp/fake-bin"
     monkeypatch.setattr("irx.builders.base.run_command", _fake_run)
 
-    assert builder.run() == "done"
-    assert seen == [["/tmp/fake-bin"]]
+    result = builder.run(
+        capture_stderr=False, raise_on_error=False, debug=True
+    )
+    assert result == fake_result
+    assert calls == [
+        {
+            "command": ["/tmp/fake-bin"],
+            "capture_stderr": False,
+            "raise_on_error": False,
+            "debug": True,
+        }
+    ]

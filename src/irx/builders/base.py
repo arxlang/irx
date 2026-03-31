@@ -4,39 +4,138 @@ title: Define the public irx API.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any, Sequence
 
 import astx
 
 from irx.tools.typing import typechecked
 
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CommandResult:
+    """
+    title: Structured result from a shell command.
+    attributes:
+      stdout:
+        type: str
+      stderr:
+        type: str
+      returncode:
+        type: int
+      command:
+        type: Sequence[str]
+    """
+
+    stdout: str
+    stderr: str
+    returncode: int
+    command: Sequence[str]
+
+    @property
+    def success(self) -> bool:
+        """
+        title: Return True if the command exited with code 0.
+        returns:
+          type: bool
+        """
+        return self.returncode == 0
+
+
+class CommandError(RuntimeError):
+    """
+    title: Raised when a shell command exits with a non-zero status.
+    attributes:
+      result:
+        type: CommandResult
+    """
+
+    def __init__(self, result: CommandResult) -> None:
+        self.result: CommandResult = result
+        super().__init__(
+            f"Command {list(result.command)!r} failed "
+            f"(exit {result.returncode}):\n{result.stderr.strip()}"
+        )
+
 
 @typechecked
-def run_command(command: Sequence[str]) -> str:
+def run_command(
+    command: Sequence[str],
+    *,
+    capture_stderr: bool = True,
+    raise_on_error: bool = True,
+    debug: bool = False,
+) -> CommandResult:
     """
-    title: Run a shell command and return its stdout as a string.
-    summary: >-
-      Raises CalledProcessError if the command exits with a non-zero status.
+    title: Run a shell command and return a structured CommandResult.
     parameters:
       command:
         type: Sequence[str]
+      capture_stderr:
+        type: bool
+        default: true
+      raise_on_error:
+        type: bool
+        default: true
+      debug:
+        type: bool
+        default: false
     returns:
-      type: str
+      type: CommandResult
+    raises:
+      CommandError: When the command exits non-zero and raise_on_error=True.
     """
-    try:
-        result = subprocess.run(
-            command, check=True, capture_output=True, text=True
-        )
-        output = result.stdout
-    except subprocess.CalledProcessError as e:
-        output = str(e.returncode)
+    if debug:
+        logger.debug("run_command: %s", list(command))
 
-    return output
+    stderr_arg = subprocess.PIPE if capture_stderr else None
+
+    try:
+        proc = subprocess.run(
+            command,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=stderr_arg,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        result = CommandResult(
+            stdout="",
+            stderr=str(exc),
+            returncode=127,
+            command=command,
+        )
+        if raise_on_error:
+            raise CommandError(result) from exc
+        return result
+
+    result = CommandResult(
+        stdout=proc.stdout or "",
+        stderr=proc.stderr or "",
+        returncode=proc.returncode,
+        command=command,
+    )
+
+    if debug:
+        logger.debug(
+            "exit=%d stdout=%r stderr=%r",
+            result.returncode,
+            result.stdout[:200],
+            result.stderr[:200],
+        )
+
+    if raise_on_error and not result.success:
+        raise CommandError(result)
+
+    return result
 
 
 @typechecked
@@ -144,10 +243,31 @@ class Builder(ABC):
         """
         ...
 
-    def run(self) -> str:
+    def run(
+        self,
+        *,
+        capture_stderr: bool = True,
+        raise_on_error: bool = True,
+        debug: bool = False,
+    ) -> CommandResult:
         """
         title: Run the generated executable.
+        parameters:
+          capture_stderr:
+            type: bool
+            default: true
+          raise_on_error:
+            type: bool
+            default: true
+          debug:
+            type: bool
+            default: false
         returns:
-          type: str
+          type: CommandResult
         """
-        return run_command([self.output_file])
+        return run_command(
+            [self.output_file],
+            capture_stderr=capture_stderr,
+            raise_on_error=raise_on_error,
+            debug=debug,
+        )
