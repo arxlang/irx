@@ -770,32 +770,42 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         lhs_is_vec = is_vector(lhs)
         rhs_is_vec = is_vector(rhs)
 
-        if lhs_is_vec and rhs_is_vec and lhs.type.count != rhs.type.count:
-            raise Exception(
-                f"Vector size mismatch: {lhs.type.count} vs {rhs.type.count}"
-            )
+        if lhs_is_vec and rhs_is_vec:
+            if lhs.type.count != rhs.type.count:
+                raise Exception(
+                    f"Vector size mismatch: "
+                    f"{lhs.type.count} vs {rhs.type.count}"
+                )
+            if lhs.type.element != rhs.type.element:
+                raise Exception(
+                    f"Vector element type mismatch: "
+                    f"{lhs.type.element} vs {rhs.type.element}"
+                )
+            return lhs, rhs
 
-        target_lanes = None
+        # When one operand is a vector, the scalar casts to match the vector's
+        # element type — vectors have a fixed shape so they take precedence.
         if lhs_is_vec:
             target_lanes = lhs.type.count
+            target_scalar_ty = lhs.type.element
         elif rhs_is_vec:
             target_lanes = rhs.type.count
-
-        lhs_base_ty = lhs.type.element if lhs_is_vec else lhs.type
-        rhs_base_ty = rhs.type.element if rhs_is_vec else rhs.type
-
-        lhs_is_float = is_fp_type(lhs_base_ty)
-        rhs_is_float = is_fp_type(rhs_base_ty)
-
-        if lhs_is_float or rhs_is_float:
-            float_candidates = [
-                ty for ty in (lhs_base_ty, rhs_base_ty) if is_fp_type(ty)
-            ]
-            target_scalar_ty = self._select_float_type(float_candidates)
+            target_scalar_ty = rhs.type.element
         else:
-            lhs_width = getattr(lhs_base_ty, "width", 0)
-            rhs_width = getattr(rhs_base_ty, "width", 0)
-            target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
+            target_lanes = None
+            lhs_base_ty = lhs.type
+            rhs_base_ty = rhs.type
+            lhs_is_float = is_fp_type(lhs_base_ty)
+            rhs_is_float = is_fp_type(rhs_base_ty)
+            if lhs_is_float or rhs_is_float:
+                float_candidates = [
+                    ty for ty in (lhs_base_ty, rhs_base_ty) if is_fp_type(ty)
+                ]
+                target_scalar_ty = self._select_float_type(float_candidates)
+            else:
+                lhs_width = getattr(lhs_base_ty, "width", 0)
+                rhs_width = getattr(rhs_base_ty, "width", 0)
+                target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
 
         lhs = self._cast_value_to_type(lhs, target_scalar_ty)
         rhs = self._cast_value_to_type(rhs, target_scalar_ty)

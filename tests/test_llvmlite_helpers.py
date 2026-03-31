@@ -140,7 +140,11 @@ def test_unify_promotes_scalar_int_to_vector() -> None:
 
 def test_unify_vector_float_rank_matches_double() -> None:
     """
-    title: Float vectors upgrade to match double scalars.
+    title: Double scalar casts down to match float vector element type.
+    summary: >-
+      When a scalar and a vector have different FP precision, the vector's
+      element type wins — the scalar is cast to match, not the other way
+      around.
     """
     visitor = LLVMLiteIRVisitor()
     _prime_builder(visitor)
@@ -155,12 +159,12 @@ def test_unify_vector_float_rank_matches_double() -> None:
     )
     double_scalar = ir.Constant(visitor._llvm.DOUBLE_TYPE, 4.0)
 
-    widened_vec, widened_scalar = visitor._unify_numeric_operands(
+    result_vec, result_scalar = visitor._unify_numeric_operands(
         float_vec, double_scalar
     )
 
-    assert widened_vec.type.element == visitor._llvm.DOUBLE_TYPE
-    assert widened_scalar.type.element == visitor._llvm.DOUBLE_TYPE
+    assert result_vec.type.element == visitor._llvm.FLOAT_TYPE
+    assert result_scalar.type.element == visitor._llvm.FLOAT_TYPE
 
 
 def test_unify_int_and_float_scalars_returns_float() -> None:
