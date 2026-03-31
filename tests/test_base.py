@@ -16,6 +16,7 @@ from irx.builders.base import (
 )
 
 EXIT_CODE = 7
+EXIT_CODE_NOT_FOUND = 127
 
 
 class _DummyVisitor(BuilderVisitor):
@@ -114,7 +115,7 @@ def test_run_command_missing_executable_raises() -> None:
     """
     with pytest.raises(CommandError) as exc_info:
         run_command(["/no/such/binary"], raise_on_error=True)
-    assert exc_info.value.result.returncode == 127
+    assert exc_info.value.result.returncode == EXIT_CODE_NOT_FOUND
 
 
 def test_run_command_missing_executable_no_raise() -> None:
@@ -125,7 +126,7 @@ def test_run_command_missing_executable_no_raise() -> None:
     """
     result = run_command(["/no/such/binary"], raise_on_error=False)
     assert isinstance(result, CommandResult)
-    assert result.returncode == 127
+    assert result.returncode == EXIT_CODE_NOT_FOUND
     assert result.success is False
     assert result.stderr != ""
 
