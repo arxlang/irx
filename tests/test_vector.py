@@ -522,12 +522,12 @@ def test_vector_element_type_mismatch_raises() -> None:
     "op, match",
     [
         ("%", r"Vector binop .* not implemented"),
-        ("==", ""),
-        ("!=", ""),
-        ("<", ""),
-        ("<=", ""),
-        (">", ""),
-        (">=", ""),
+        ("==", r"Vector binop .* not implemented"),
+        ("!=", r"Vector binop .* not implemented"),
+        ("<", r"Vector binop .* not implemented"),
+        ("<=", r"Vector binop .* not implemented"),
+        (">", r"Vector binop .* not implemented"),
+        (">=", r"Vector binop .* not implemented"),
     ],
     ids=[
         "unsupported_%",
