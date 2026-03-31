@@ -93,6 +93,43 @@ def test_builder_translate_delegates_to_translator() -> None:
     assert result == "translated:LiteralInt32"
 
 
+def test_run_command_capture_stderr_false_preserves_stdout() -> None:
+    """
+    title: >-
+      run_command with capture_stderr=False should still capture stdout.
+    """
+    result = run_command(
+        ["/bin/sh", "-c", "printf ok"],
+        capture_stderr=False,
+    )
+    assert result.stdout == "ok"
+    assert result.stderr == ""
+
+
+def test_run_command_missing_executable_raises() -> None:
+    """
+    title: >-
+      run_command should raise CommandError for a missing executable
+      when raise_on_error=True.
+    """
+    with pytest.raises(CommandError) as exc_info:
+        run_command(["/no/such/binary"], raise_on_error=True)
+    assert exc_info.value.result.returncode == 127
+
+
+def test_run_command_missing_executable_no_raise() -> None:
+    """
+    title: >-
+      run_command with raise_on_error=False should return a result
+      for a missing executable instead of raising.
+    """
+    result = run_command(["/no/such/binary"], raise_on_error=False)
+    assert isinstance(result, CommandResult)
+    assert result.returncode == 127
+    assert result.success is False
+    assert result.stderr != ""
+
+
 def test_builder_run_uses_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     title: Builder.run should execute run_command with output path.

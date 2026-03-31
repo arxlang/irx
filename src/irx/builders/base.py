@@ -96,22 +96,26 @@ def run_command(
     if debug:
         logger.debug("run_command: %s", list(command))
 
+    stderr_arg = subprocess.PIPE if capture_stderr else None
+
     try:
         proc = subprocess.run(
             command,
             check=False,
-            capture_output=capture_stderr,
+            stdout=subprocess.PIPE,
+            stderr=stderr_arg,
             text=True,
         )
     except FileNotFoundError as exc:
-        raise CommandError(
-            CommandResult(
-                stdout="",
-                stderr=str(exc),
-                returncode=127,
-                command=command,
-            )
-        ) from exc
+        result = CommandResult(
+            stdout="",
+            stderr=str(exc),
+            returncode=127,
+            command=command,
+        )
+        if raise_on_error:
+            raise CommandError(result) from exc
+        return result
 
     result = CommandResult(
         stdout=proc.stdout or "",
@@ -240,11 +244,18 @@ class Builder(ABC):
         ...
 
     def run(
-        self, *, raise_on_error: bool = True, debug: bool = False
+        self,
+        *,
+        capture_stderr: bool = True,
+        raise_on_error: bool = True,
+        debug: bool = False,
     ) -> CommandResult:
         """
         title: Run the generated executable.
         parameters:
+          capture_stderr:
+            type: bool
+            default: true
           raise_on_error:
             type: bool
             default: true
@@ -256,6 +267,7 @@ class Builder(ABC):
         """
         return run_command(
             [self.output_file],
+            capture_stderr=capture_stderr,
             raise_on_error=raise_on_error,
             debug=debug,
         )
