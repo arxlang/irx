@@ -2,7 +2,9 @@
 title: Tests for builder base helpers.
 """
 
-from typing import Sequence
+import sys
+
+from typing import Any, Sequence
 
 import astx
 import pytest
@@ -48,7 +50,7 @@ def test_run_command_success() -> None:
     """
     title: run_command should return a CommandResult with stdout on success.
     """
-    result = run_command(["/bin/sh", "-c", "printf ok"])
+    result = run_command([sys.executable, "-c", "print('ok', end='')"])
     assert isinstance(result, CommandResult)
     assert result.stdout == "ok"
     assert result.returncode == 0
@@ -60,7 +62,7 @@ def test_run_command_nonzero_raises() -> None:
     title: run_command should raise CommandError on non-zero exit by default.
     """
     with pytest.raises(CommandError) as exc_info:
-        run_command(["/bin/sh", "-c", "exit 7"])
+        run_command([sys.executable, "-c", "raise SystemExit(7)"])
     assert exc_info.value.result.returncode == EXIT_CODE
 
 
@@ -70,7 +72,9 @@ def test_run_command_nonzero_no_raise() -> None:
       run_command with raise_on_error=False should return result instead of
       raising.
     """
-    result = run_command(["/bin/sh", "-c", "exit 7"], raise_on_error=False)
+    result = run_command(
+        [sys.executable, "-c", "raise SystemExit(7)"], raise_on_error=False
+    )
     assert isinstance(result, CommandResult)
     assert result.returncode == EXIT_CODE
     assert result.success is False
@@ -100,7 +104,7 @@ def test_run_command_capture_stderr_false_preserves_stdout() -> None:
       run_command with capture_stderr=False should still capture stdout.
     """
     result = run_command(
-        ["/bin/sh", "-c", "printf ok"],
+        [sys.executable, "-c", "print('ok', end='')"],
         capture_stderr=False,
     )
     assert result.stdout == "ok"
@@ -131,14 +135,18 @@ def test_run_command_missing_executable_no_raise() -> None:
     assert result.stderr != ""
 
 
-def test_builder_run_uses_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_builder_run_forwards_all_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
-    title: Builder.run should execute run_command with output path.
+    title: >-
+      Builder.run should forward command, capture_stderr, raise_on_error,
+      and debug to run_command.
     parameters:
       monkeypatch:
         type: pytest.MonkeyPatch
     """
-    seen: list[Sequence[str]] = []
+    calls: list[dict[str, Any]] = []
     fake_result = CommandResult(
         stdout="done", stderr="", returncode=0, command=["/tmp/fake-bin"]
     )
@@ -146,17 +154,33 @@ def test_builder_run_uses_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
     def _fake_run(
         command: Sequence[str],
         *,
+        capture_stderr: bool = True,
         raise_on_error: bool = True,
         debug: bool = False,
-        capture_stderr: bool = True,
     ) -> CommandResult:
-        seen.append(command)
+        calls.append(
+            {
+                "command": list(command),
+                "capture_stderr": capture_stderr,
+                "raise_on_error": raise_on_error,
+                "debug": debug,
+            }
+        )
         return fake_result
 
     builder = _DummyBuilder()
     builder.output_file = "/tmp/fake-bin"
     monkeypatch.setattr("irx.builders.base.run_command", _fake_run)
 
-    result = builder.run()
+    result = builder.run(
+        capture_stderr=False, raise_on_error=False, debug=True
+    )
     assert result == fake_result
-    assert seen == [["/tmp/fake-bin"]]
+    assert calls == [
+        {
+            "command": ["/tmp/fake-bin"],
+            "capture_stderr": False,
+            "raise_on_error": False,
+            "debug": True,
+        }
+    ]
