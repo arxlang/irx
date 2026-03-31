@@ -67,8 +67,8 @@ def check_result(
             filename_exe = fp.name
             builder.build(module, output_file=filename_exe)
 
-        # todo: fix the code to avoid workarounds
-        exe_result = str(builder.run()).replace("\n", "")
+        result = builder.run(raise_on_error=False)
+        exe_result = result.stdout.strip() or str(result.returncode)
 
         if expected_output:
             message = (
@@ -82,11 +82,11 @@ def check_result(
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:
             expected = f.read()
-        result = builder.translate(module)
+        ir_result = builder.translate(module)
         print(" TEST ".center(80, "="))
         print("==== EXPECTED =====")
         print(f"\n{expected}\n")
         print("==== results =====")
-        print(f"\n{result}\n")
+        print(f"\n{ir_result}\n")
         print("=" * 80)
-        assert similarity(result, expected) >= similarity_factor
+        assert similarity(ir_result, expected) >= similarity_factor

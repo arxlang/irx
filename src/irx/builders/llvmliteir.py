@@ -348,6 +348,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: RuntimeFeatureState
       const_vars:
         type: set[str]
+      struct_types:
+        type: dict[str, ir.IdentifiedStructType]
       _fast_math_enabled:
         type: bool
       target:
@@ -382,6 +384,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+
+        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
+
         self._fast_math_enabled: bool = False
 
         self.initialize()
@@ -684,7 +689,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: ir.Value
         """
         builder = self._llvm.ir_builder
-        if hasattr(builder, "fma"):
+        if not isinstance(lhs.type, ir.VectorType) and hasattr(builder, "fma"):
             return builder.fma(lhs, rhs, addend, name="vfma")
 
         fma_fn = self._get_fma_function(lhs.type)
@@ -3595,7 +3600,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type_str = node.type_.__class__.__name__.lower()
 
         # Emit the initializer
-        if node.value is not None:
+        if node.value is not None and not isinstance(
+            node.value, astx.Undefined
+        ):
             self.visit(node.value)
             init_val = self.result_stack.pop()
             if init_val is None:
@@ -3652,6 +3659,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.mutability == astx.MutabilityKind.constant:
             self.const_vars.add(node.name)
         self.named_values[node.name] = alloca
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StructDefStmt) -> None:
+        """
+        title: Struct Definition Codegen
+        summary: Translate ASTx StructDefStmt to LLVM-IR.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        """
+
+        # Create identified struct type
+        struct_type = self._llvm.module.context.get_identified_type(node.name)
+
+        # Prevent duplicate struct definitions
+        if not struct_type.is_opaque:
+            raise ValueError(f"Struct '{node.name}' already defined.")
+
+        # Convert AST field types → LLVM types
+        field_types = []
+        for attr in node.attributes:
+            type_str = attr.type_.__class__.__name__.lower()
+            field_type = self._llvm.get_data_type(type_str)
+            field_types.append(field_type)
+
+        # Set struct body
+        struct_type.set_body(*field_types)
+
+        # Register struct
+        self.struct_types[node.name] = struct_type
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralInt16) -> None:

@@ -160,7 +160,7 @@ def test_unsigned_vs_signed_comparison(
 
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_output="U_TRUE S_FALSE ")
+    check_result(action, builder, module, expected_output="U_TRUE \nS_FALSE")
 
 
 @pytest.mark.parametrize(
@@ -334,5 +334,5 @@ def test_unsigned_vs_signed_division(
     module.block.append(main_fn)
 
     check_result(
-        action, builder, module, expected_output="U_DIV_GT_ZERO S_DIV_ZERO "
+        action, builder, module, expected_output="U_DIV_GT_ZERO \nS_DIV_ZERO"
     )
