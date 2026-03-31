@@ -772,7 +772,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: ir.Value
         """
         builder = self._llvm.ir_builder
-        if hasattr(builder, "fma"):
+        if not isinstance(lhs.type, ir.VectorType) and hasattr(builder, "fma"):
             return builder.fma(lhs, rhs, addend, name="vfma")
 
         fma_fn = self._get_fma_function(lhs.type)
