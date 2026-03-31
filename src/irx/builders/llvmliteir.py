@@ -345,8 +345,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: set[str]
       struct_types:
         type: dict[str, ir.IdentifiedStructType]
-      struct_defs:
-        type: dict[str, astx.StructDefStmt]
       _fast_math_enabled:
         type: bool
       target:
@@ -383,7 +381,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.result_stack: list[ir.Value | ir.Function] = []
 
         self.struct_types: dict[str, ir.IdentifiedStructType] = {}
-        self.struct_defs: dict[str, astx.StructDefStmt] = {}
 
         self._fast_math_enabled: bool = False
 
@@ -3649,7 +3646,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Register struct
         self.struct_types[node.name] = struct_type
-        self.struct_defs[node.name] = node
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralInt16) -> None:
