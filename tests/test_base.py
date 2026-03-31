@@ -100,8 +100,7 @@ def test_builder_translate_delegates_to_translator() -> None:
 
 def test_run_command_capture_stderr_false_preserves_stdout() -> None:
     """
-    title: >-
-      run_command with capture_stderr=False should still capture stdout.
+    title: run_command with capture_stderr=False should still capture stdout.
     """
     result = run_command(
         [sys.executable, "-c", "print('ok', end='')"],
@@ -114,8 +113,8 @@ def test_run_command_capture_stderr_false_preserves_stdout() -> None:
 def test_run_command_missing_executable_raises() -> None:
     """
     title: >-
-      run_command should raise CommandError for a missing executable
-      when raise_on_error=True.
+      run_command should raise CommandError for a missing executable when
+      raise_on_error=True.
     """
     with pytest.raises(CommandError) as exc_info:
         run_command(["/no/such/binary"], raise_on_error=True)
@@ -125,8 +124,8 @@ def test_run_command_missing_executable_raises() -> None:
 def test_run_command_missing_executable_no_raise() -> None:
     """
     title: >-
-      run_command with raise_on_error=False should return a result
-      for a missing executable instead of raising.
+      run_command with raise_on_error=False should return a result for a
+      missing executable instead of raising.
     """
     result = run_command(["/no/such/binary"], raise_on_error=False)
     assert isinstance(result, CommandResult)
@@ -140,8 +139,8 @@ def test_builder_run_forwards_all_kwargs(
 ) -> None:
     """
     title: >-
-      Builder.run should forward command, capture_stderr, raise_on_error,
-      and debug to run_command.
+      Builder.run should forward command, capture_stderr, raise_on_error, and
+      debug to run_command.
     parameters:
       monkeypatch:
         type: pytest.MonkeyPatch
