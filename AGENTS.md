@@ -55,7 +55,8 @@ Use this guidance for any change inside the IRx repository:
 - Defines `BuilderVisitor` and `Builder` abstractions.
 - `Builder.module()` creates ASTx modules.
 - `Builder.translate()` delegates to visitor translation.
-- `Builder.run()` executes generated binaries via `run_command()`.
+- `Builder.run()` executes generated binaries via `run_command()`; returns
+  `CommandResult`. Raises `CommandError` on non-zero exit by default.
 
 ### `src/irx/builders/llvmliteir.py`
 
@@ -95,7 +96,7 @@ Use this guidance for any change inside the IRx repository:
 
 - `translate()` only returns LLVM IR text.
 - `build()` parses IR, emits object, and links with `clang`.
-- `run()` executes the compiled output file.
+- `run()` executes the compiled output file and returns `CommandResult`.
 - Build-path tests require `clang` available on `PATH`.
 
 ## Code Style And Standards
