@@ -14,11 +14,6 @@ VEC4 = 4
 VEC2 = 2
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def setup_builder() -> LLVMLiteIRVisitor:
     """
     title: Return a visitor with a live IRBuilder positioned inside main().
@@ -104,10 +99,6 @@ def _run_vector_binop(
     return builder.result_stack.pop()
 
 
-# ---------------------------------------------------------------------------
-# Vector arithmetic — all element types x all ops in one table
-# ---------------------------------------------------------------------------
-
 _ARITH_CASES = [
     # float32 x4
     ("FLOAT_TYPE", VEC4, [4.0] * VEC4, [2.0] * VEC4, "+", "fadd", True),
@@ -183,11 +174,6 @@ def test_vector_arithmetic(
     assert result.type.element == elem_ty
 
 
-# ---------------------------------------------------------------------------
-# Integer division — signed vs unsigned
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "unsigned, want, reject",
     [(False, "sdiv", "udiv"), (True, "udiv", "sdiv")],
@@ -220,10 +206,6 @@ def test_int_vector_division(unsigned: bool, want: str, reject: str) -> None:
     assert isinstance(result.type, ir.VectorType)
     assert result.type.count == VEC4
 
-
-# ---------------------------------------------------------------------------
-# Scalar-vector splat promotion
-# ---------------------------------------------------------------------------
 
 # (elem_attr, count, vec_vals, scalar_val, lhs_is_vec, mnemonic)
 _SPLAT_CASES = [
@@ -284,10 +266,6 @@ def test_scalar_splatted_to_vector(
     assert result.type.count == count
     assert result.type.element == elem_ty
 
-
-# ---------------------------------------------------------------------------
-# Cross-precision FP scalar + vector (float <-> double)
-# ---------------------------------------------------------------------------
 
 _CROSS_FP_CASES = [
     (
@@ -366,11 +344,6 @@ def test_fp_scalar_vector_cross_precision(
     assert result.type.element == expected_elem_ty
 
 
-# ---------------------------------------------------------------------------
-# FMA (fused multiply-add)
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "elem_attr, count",
     [("FLOAT_TYPE", VEC4), ("DOUBLE_TYPE", VEC2)],
@@ -434,11 +407,6 @@ def test_fma_missing_fma_rhs_raises() -> None:
         patched.visit(bin_op)
 
 
-# ---------------------------------------------------------------------------
-# fast_math flag lifecycle
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "op, raises",
     [("+", False), ("%", True)],
@@ -473,11 +441,6 @@ def test_fast_math_flag_always_cleared(op: str, raises: bool) -> None:
         assert isinstance(result.type, ir.VectorType)
 
     assert patched._fast_math_enabled is False
-
-
-# ---------------------------------------------------------------------------
-# Error / validation
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -555,11 +518,6 @@ def test_unsupported_vector_op_raises(op: str, match: str) -> None:
     v = ir.Constant(vec_ty, [1.0] * VEC4)
     with pytest.raises(Exception, match=match):
         _run_vector_binop(op, v, v)
-
-
-# ---------------------------------------------------------------------------
-# Edge values
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
