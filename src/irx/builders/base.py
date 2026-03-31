@@ -11,7 +11,7 @@ import sys
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 
 import astx
 
@@ -54,10 +54,12 @@ class CommandError(RuntimeError):
     """
     title: Raised when a shell command exits with a non-zero status.
     attributes:
+      result:
+        type: CommandResult
     """
 
     def __init__(self, result: CommandResult) -> None:
-        self.result = result
+        self.result: CommandResult = result
         super().__init__(
             f"Command {list(result.command)!r} failed "
             f"(exit {result.returncode}):\n{result.stderr.strip()}"
