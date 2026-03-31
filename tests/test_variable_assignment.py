@@ -36,7 +36,7 @@ def test_variable_assignment(
     expected_output: str,
 ) -> None:
     """
-    title: Test VariableAssignment by reassigning and returning.
+    title: Test VariableAssignment by reassigning and printing.
     parameters:
       builder_class:
         type: type[Builder]
