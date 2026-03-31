@@ -19,6 +19,8 @@ from .conftest import check_result
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
         (astx.Int64, astx.LiteralInt64),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
     ],
 )
 @pytest.mark.parametrize(
@@ -75,17 +77,19 @@ def test_if_else_stmt(
     if_stmt = astx.IfStmt(condition=cond, then=then_block, else_=else_block)
 
     main_proto = astx.FunctionPrototype(
-        "main", args=astx.Arguments(), return_type=int_type()
+        "main", args=astx.Arguments(), return_type=astx.Int32()
     )
     main_body = astx.Block()
     main_body.append(init_a)
     main_body.append(if_stmt)
-    main_body.append(astx.FunctionReturn(literal_type(0)))
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(
+        action, builder, module, expected_file, expected_output="then branch"
+    )
 
 
 @pytest.mark.parametrize(
@@ -94,6 +98,8 @@ def test_if_else_stmt(
         (astx.Int32, astx.LiteralInt32),
         (astx.Int16, astx.LiteralInt16),
         (astx.Int8, astx.LiteralInt8),
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
     ],
 )
 @pytest.mark.parametrize(
@@ -146,17 +152,20 @@ def test_if_only_stmt(
     if_stmt = astx.IfStmt(condition=cond, then=then_block)
 
     main_proto = astx.FunctionPrototype(
-        "main", args=astx.Arguments(), return_type=int_type()
+        "main", args=astx.Arguments(), return_type=astx.Int32()
     )
     main_body = astx.Block()
     main_body.append(init_a)
     main_body.append(if_stmt)
-    main_body.append(astx.FunctionReturn(literal_type(0)))
+    main_body.append(PrintExpr(astx.LiteralUTF8String("done")))
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result(
+        action, builder, module, expected_file, expected_output="done"
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
