@@ -365,6 +365,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: set[str]
       loop_stack:
         type: list[dict[str, ir.BasicBlock]]
+      _set_value_ids:
+        type: dict[int, ir.Value]
+      struct_types:
+        type: dict[str, ir.Type]
       _fast_math_enabled:
         type: bool
       target:
@@ -400,6 +404,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
         self.loop_stack: list[dict[str, ir.BasicBlock]] = []
+        self._set_value_ids: dict[int, ir.Value] = {}
+        self.struct_types: dict[str, ir.Type] = {}
         self._fast_math_enabled: bool = False
 
         self.initialize()
