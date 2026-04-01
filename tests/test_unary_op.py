@@ -110,6 +110,73 @@ def test_unary_op_increment_decrement(
 
 
 @pytest.mark.parametrize(
+    "float_type, literal_type",
+    [
+        (astx.Float32, astx.LiteralFloat32),
+        (astx.Float64, astx.LiteralFloat64),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_unary_op_increment_decrement_float(
+    builder_class: type[Builder],
+    float_type: type,
+    literal_type: type,
+) -> None:
+    """
+    title: Test ASTx UnaryOp increment and decrement for float types.
+    parameters:
+      builder_class:
+        type: type[Builder]
+      float_type:
+        type: type
+      literal_type:
+        type: type
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    decl_a = astx.VariableDeclaration(
+        name="a",
+        type_=float_type(),
+        value=literal_type(5.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    decl_b = astx.VariableDeclaration(
+        name="b",
+        type_=float_type(),
+        value=literal_type(10.0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    incr_a = astx.UnaryOp(op_code="++", operand=astx.Identifier("a"))
+    incr_a.type_ = float_type()
+    decr_b = astx.UnaryOp(op_code="--", operand=astx.Identifier("b"))
+    decr_b.type_ = float_type()
+
+    main_proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(decl_b)
+    main_block.append(incr_a)
+    main_block.append(decr_b)
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, "")
+
+
+@pytest.mark.parametrize(
     "int_type, literal_type, value, expected_output",
     [
         (astx.Int32, astx.LiteralInt32, 0, "1"),

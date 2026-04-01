@@ -1002,7 +1002,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             one = ir.Constant(operand_val.type, 1)
 
             # Perform the increment operation
-            result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
+            if is_fp_type(operand_val.type):
+                result = self._llvm.ir_builder.fadd(operand_val, one, "inctmp")
+            else:
+                result = self._llvm.ir_builder.add(operand_val, one, "inctmp")
 
             # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
@@ -1022,7 +1025,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
             one = ir.Constant(operand_val.type, 1)
-            result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
+            if is_fp_type(operand_val.type):
+                result = self._llvm.ir_builder.fsub(operand_val, one, "dectmp")
+            else:
+                result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
             if isinstance(node.operand, astx.Identifier):
                 if node.operand.name in self.const_vars:
@@ -1608,10 +1614,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = safe_pop(self.result_stack)
-
-        if not body_val:
-            return
+        safe_pop(self.result_stack)
 
         # Don't rely on result_stack for control flow.
         # Only branch back if the block isn't already terminated
@@ -1834,7 +1837,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.named_values[node.variable.name] = var_addr
 
         self.visit(node.body)
-        _ = safe_pop(self.result_stack)
+        safe_pop(self.result_stack)
 
         # increment
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
