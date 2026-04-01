@@ -2005,7 +2005,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
-                title: Handle UTF-8 char literals.
+        title: Handle UTF-8 char literals.
         parameters:
           expr:
             type: astx.LiteralUTF8Char
