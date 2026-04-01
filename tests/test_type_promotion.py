@@ -99,6 +99,26 @@ def test_integer_promotion_extends_rhs(visitor: LLVMLiteIRVisitor) -> None:
     assert getattr(rhs_promoted, "opname", "") == "sext"
 
 
+def test_unsigned_integer_promotion_zero_extends_rhs(
+    visitor: LLVMLiteIRVisitor,
+) -> None:
+    """
+    title: Unsigned integer promotion should zero-extend narrower operands.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
+    lhs = ir.Constant(ir.IntType(32), 10)
+    rhs = ir.Constant(ir.IntType(16), 3)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(
+        lhs, rhs, unsigned=True
+    )
+
+    assert lhs_promoted.type == rhs_promoted.type
+    assert str(lhs_promoted.type) == "i32"
+    assert getattr(rhs_promoted, "opname", "") == "zext"
+
+
 def test_float_promotion_extends_rhs(visitor: LLVMLiteIRVisitor) -> None:
     """
     title: Float promotion should extend rhs when lhs has wider fp type.
@@ -145,3 +165,23 @@ def test_int_to_float_promotion_rhs(visitor: LLVMLiteIRVisitor) -> None:
     assert lhs_promoted.type == rhs_promoted.type
     assert str(lhs_promoted.type) == "float"
     assert getattr(rhs_promoted, "opname", "") == "sitofp"
+
+
+def test_unsigned_int_to_float_promotion_rhs_uses_uitofp(
+    visitor: LLVMLiteIRVisitor,
+) -> None:
+    """
+    title: Unsigned integer rhs should use uitofp when lhs is floating-point.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
+    lhs = ir.Constant(ir.FloatType(), 1.5)
+    rhs = ir.Constant(ir.IntType(32), 2)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(
+        lhs, rhs, unsigned=True
+    )
+
+    assert lhs_promoted.type == rhs_promoted.type
+    assert str(lhs_promoted.type) == "float"
+    assert getattr(rhs_promoted, "opname", "") == "uitofp"

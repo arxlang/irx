@@ -95,6 +95,21 @@ def _is_unsigned_node(node: "astx.AST") -> bool:
     return isinstance(type_, astx.UnsignedInteger)
 
 
+def _uses_unsigned_semantics(node: "astx.AST") -> bool:
+    """
+    title: Return True when a node should use unsigned numeric semantics.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
+    if explicit_unsigned is not None:
+        return explicit_unsigned
+    return _is_unsigned_node(node)
+
+
 def emit_int_div(
     ir_builder: "ir.IRBuilder",
     lhs: "ir.Value",
@@ -752,7 +767,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         return isinstance(base_ty, ir.IntType) or is_fp_type(base_ty)
 
     def _unify_numeric_operands(
-        self, lhs: ir.Value, rhs: ir.Value
+        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
     ) -> tuple[ir.Value, ir.Value]:
         """
         title: Ensure numeric operands share shape and scalar type.
@@ -763,6 +778,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           rhs:
             type: ir.Value
             description: Right-hand side operand.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts are unsigned-
+              aware.
         returns:
           type: tuple[ir.Value, ir.Value]
           description: Operands converted to compatible shape and scalar type.
@@ -807,8 +827,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 rhs_width = getattr(rhs_base_ty, "width", 0)
                 target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
 
-        lhs = self._cast_value_to_type(lhs, target_scalar_ty)
-        rhs = self._cast_value_to_type(rhs, target_scalar_ty)
+        lhs = self._cast_value_to_type(
+            lhs, target_scalar_ty, unsigned=unsigned
+        )
+        rhs = self._cast_value_to_type(
+            rhs, target_scalar_ty, unsigned=unsigned
+        )
 
         if target_lanes:
             vec_ty = ir.VectorType(target_scalar_ty, target_lanes)
@@ -875,7 +899,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         raise Exception(f"Unknown floating-point type: {ty}")
 
     def _cast_value_to_type(
-        self, value: ir.Value, target_scalar_ty: ir.Type
+        self,
+        value: ir.Value,
+        target_scalar_ty: ir.Type,
+        unsigned: bool = False,
     ) -> ir.Value:
         """
         title: Cast scalars or vectors to a target scalar type.
@@ -886,6 +913,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           target_scalar_ty:
             type: ir.Type
             description: Desired scalar element type.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts should preserve
+              unsigned semantics.
         returns:
           type: ir.Value
           description: Value converted to the requested scalar type.
@@ -918,6 +950,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 if current_bits < target_bits:
                     return builder.fpext(value, target_ty, "fpext")
                 return builder.fptrunc(value, target_ty, "fptrunc")
+            if unsigned:
+                return builder.uitofp(value, target_ty, "uitofp")
             return builder.sitofp(value, target_ty, "sitofp")
 
         if current_is_float:
@@ -934,6 +968,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return value
 
         if current_width < target_width:
+            if unsigned:
+                return builder.zext(value, target_ty, "zext")
             return builder.sext(value, target_ty, "sext")
 
         return builder.trunc(value, target_ty, "trunc")
@@ -1072,11 +1108,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
+        unsigned = _uses_unsigned_semantics(node)
+
         if self._is_numeric_value(llvm_lhs) and self._is_numeric_value(
             llvm_rhs
         ):
             llvm_lhs, llvm_rhs = self._unify_numeric_operands(
-                llvm_lhs, llvm_rhs
+                llvm_lhs, llvm_rhs, unsigned=unsigned
             )
 
         # If both operands are LLVM vectors, handle as vector ops
@@ -1143,11 +1181,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         )
                         self._apply_fast_math(result)
                     else:
-                        unsigned = getattr(node, "unsigned", False)
-                        if unsigned is None:
-                            # Fallback to signed division (sdiv) by default
-                            unsigned = False
-
                         result = emit_int_div(
                             self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
                         )
@@ -1224,7 +1257,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             # handle it depend on datatype
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1242,7 +1275,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
             # be careful we havn't  handled all the conditions
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1257,7 +1290,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -1272,7 +1305,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -1291,7 +1324,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.udiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1318,7 +1351,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -1345,7 +1378,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
@@ -1361,7 +1394,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.frem(
                     llvm_lhs, llvm_rhs, "fremtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.urem(
                     llvm_lhs, llvm_rhs, "uremtmp"
                 )

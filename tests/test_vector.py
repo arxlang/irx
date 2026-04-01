@@ -267,6 +267,25 @@ def test_scalar_splatted_to_vector(
     assert result.type.element == elem_ty
 
 
+def test_unsigned_scalar_splatted_to_vector_zero_extends() -> None:
+    """
+    title: Unsigned scalar-to-vector promotion zero-extends before splatting.
+    """
+    builder = setup_builder()
+    vec_ty = ir.VectorType(builder._llvm.INT32_TYPE, VEC2)
+    vec = ir.Constant(vec_ty, [1] * VEC2)
+    scalar = ir.Constant(builder._llvm.INT8_TYPE, 255)
+
+    result = _run_vector_binop("+", vec, scalar, unsigned=True)
+
+    splat = result.operands[1]
+    assert getattr(splat, "opname", "") == "shufflevector"
+    insert = splat.operands[0]
+    assert getattr(insert, "opname", "") == "insertelement"
+    promoted_scalar = insert.operands[1]
+    assert getattr(promoted_scalar, "opname", "") == "zext"
+
+
 _CROSS_FP_CASES = [
     (
         "FLOAT_TYPE",
