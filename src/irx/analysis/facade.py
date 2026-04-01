@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-redef
+
 """
 title: Public semantic-analysis entry points.
 """
@@ -8,6 +10,7 @@ from typing import cast
 
 import astx
 
+from plum import dispatch
 from public import public
 
 from irx import arrow as irx_arrow
@@ -70,10 +73,10 @@ class SemanticAnalyzer:
           type: astx.AST
         """
         if isinstance(node, astx.Module):
-            self._visit_module(node)
+            self.visit(node)
         else:
             with self.context.scope("module"):
-                self._visit(node)
+                self.visit(node)
         self.context.diagnostics.raise_if_errors()
         return node
 
@@ -225,92 +228,38 @@ class SemanticAnalyzer:
                 else:
                     self.context.structs[node.name] = node
 
-    def _visit(self, node: astx.AST) -> None:
-        if isinstance(node, astx.Module):
-            self._visit_module(node)
-        elif isinstance(node, astx.Block):
-            self._visit_block(node)
-        elif isinstance(node, astx.FunctionDef):
-            self._visit_function_def(node)
-        elif isinstance(node, astx.FunctionPrototype):
-            self._visit_function_prototype(node)
-        elif isinstance(node, astx.FunctionCall):
-            self._visit_function_call(node)
-        elif isinstance(node, astx.FunctionReturn):
-            self._visit_function_return(node)
-        elif isinstance(node, astx.VariableDeclaration):
-            self._visit_variable_declaration(node)
-        elif isinstance(node, astx.InlineVariableDeclaration):
-            self._visit_inline_variable_declaration(node)
-        elif isinstance(node, astx.VariableAssignment):
-            self._visit_variable_assignment(node)
-        elif isinstance(node, astx.Identifier):
-            self._visit_identifier(node)
-        elif isinstance(node, astx.UnaryOp):
-            self._visit_unary_op(node)
-        elif isinstance(node, astx.BinaryOp):
-            self._visit_binary_op(node)
-        elif isinstance(node, astx.IfStmt):
-            self._visit_if_stmt(node)
-        elif isinstance(node, astx.WhileStmt):
-            self._visit_while_stmt(node)
-        elif isinstance(node, astx.ForCountLoopStmt):
-            self._visit_for_count_loop(node)
-        elif isinstance(node, astx.ForRangeLoopStmt):
-            self._visit_for_range_loop(node)
-        elif isinstance(node, astx.BreakStmt):
-            self._visit_break(node)
-        elif isinstance(node, astx.ContinueStmt):
-            self._visit_continue(node)
-        elif isinstance(node, system.Cast):
-            self._visit_cast(node)
-        elif isinstance(node, system.PrintExpr):
-            self._visit_print(node)
-        elif isinstance(node, irx_arrow.ArrowInt32ArrayLength):
-            self._visit_arrow_length(node)
-        elif isinstance(node, astx.StructDefStmt):
-            self._visit_struct_def(node)
-        elif isinstance(
-            node,
-            (
-                astx.LiteralTime,
-                astx.LiteralTimestamp,
-                astx.LiteralDateTime,
-                astx.LiteralList,
-                astx.LiteralTuple,
-                astx.LiteralSet,
-                astx.LiteralDict,
-                astx.SubscriptExpr,
-            ),
-        ):
-            self._visit_special_literal(node)
-        else:
-            self._visit_plain_typed_node(node)
+    @dispatch
+    def visit(self, node: astx.AST) -> None:
+        self._visit_plain_typed_node(node)
 
-    def _visit_module(self, module: astx.Module) -> None:
+    @dispatch
+    def visit(self, module: astx.Module) -> None:
         self._set_type(module, None)
         with self.context.scope("module"):
             self._predeclare_module_members(module)
             for node in module.nodes:
-                self._visit(node)
+                self.visit(node)
 
-    def _visit_block(self, block: astx.Block) -> None:
+    @dispatch
+    def visit(self, block: astx.Block) -> None:
         self._set_type(block, None)
         for node in block.nodes:
-            self._visit(node)
+            self.visit(node)
 
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
         self._set_type(
             node, cast(astx.DataType | None, getattr(node, "type_", None))
         )
 
-    def _visit_function_prototype(self, node: astx.FunctionPrototype) -> None:
+    @dispatch
+    def visit(self, node: astx.FunctionPrototype) -> None:
         function = self.context.functions.get(node.name)
         if function is None:
             function = self._register_function(node)
         self._set_function(node, function)
 
-    def _visit_function_def(self, node: astx.FunctionDef) -> None:
+    @dispatch
+    def visit(self, node: astx.FunctionDef) -> None:
         function = self.context.functions.get(node.name)
         if function is None:
             function = self._register_function(node.prototype, definition=node)
@@ -324,7 +273,7 @@ class SemanticAnalyzer:
                     self.context.scopes.declare(arg_symbol)
                     self._set_symbol(arg_node, arg_symbol)
                     self._set_type(arg_node, arg_symbol.type_)
-                self._visit_block(node.body)
+                self.visit(node.body)
         if not isinstance(
             function.return_type, astx.NoneType
         ) and not self._guarantees_return(node.body):
@@ -334,13 +283,12 @@ class SemanticAnalyzer:
                 node=node,
             )
 
-    def _visit_variable_declaration(
-        self, node: astx.VariableDeclaration
-    ) -> None:
+    @dispatch
+    def visit(self, node: astx.VariableDeclaration) -> None:
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
-            self._visit(node.value)
+            self.visit(node.value)
             validate_assignment(
                 self.context.diagnostics,
                 target_name=node.name,
@@ -356,13 +304,12 @@ class SemanticAnalyzer:
         )
         self._set_symbol(node, symbol)
 
-    def _visit_inline_variable_declaration(
-        self, node: astx.InlineVariableDeclaration
-    ) -> None:
+    @dispatch
+    def visit(self, node: astx.InlineVariableDeclaration) -> None:
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
-            self._visit(node.value)
+            self.visit(node.value)
             validate_assignment(
                 self.context.diagnostics,
                 target_name=node.name,
@@ -378,7 +325,8 @@ class SemanticAnalyzer:
         )
         self._set_symbol(node, symbol)
 
-    def _visit_identifier(self, node: astx.Identifier) -> None:
+    @dispatch
+    def visit(self, node: astx.Identifier) -> None:
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
             self.context.diagnostics.add(
@@ -391,10 +339,9 @@ class SemanticAnalyzer:
             return
         self._set_symbol(node, symbol)
 
-    def _visit_variable_assignment(
-        self, node: astx.VariableAssignment
-    ) -> None:
-        self._visit(node.value)
+    @dispatch
+    def visit(self, node: astx.VariableAssignment) -> None:
+        self.visit(node.value)
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
             self.context.diagnostics.add(
@@ -418,8 +365,9 @@ class SemanticAnalyzer:
         self._set_assignment(node, symbol)
         self._set_type(node, symbol.type_)
 
-    def _visit_unary_op(self, node: astx.UnaryOp) -> None:
-        self._visit(node.operand)
+    @dispatch
+    def visit(self, node: astx.UnaryOp) -> None:
+        self.visit(node.operand)
         operand_type = self._expr_type(node.operand)
         result_type = unary_result_type(node.op_code, operand_type)
         if node.op_code in {"++", "--"} and isinstance(
@@ -447,9 +395,10 @@ class SemanticAnalyzer:
         )
         self._set_type(node, result_type)
 
-    def _visit_binary_op(self, node: astx.BinaryOp) -> None:
-        self._visit(node.lhs)
-        self._visit(node.rhs)
+    @dispatch
+    def visit(self, node: astx.BinaryOp) -> None:
+        self.visit(node.lhs)
+        self.visit(node.rhs)
         lhs_type = self._expr_type(node.lhs)
         rhs_type = self._expr_type(node.rhs)
         flags = normalize_flags(node, lhs_type=lhs_type, rhs_type=rhs_type)
@@ -503,7 +452,7 @@ class SemanticAnalyzer:
                 node=node,
             )
         if flags.fma and flags.fma_rhs is not None:
-            self._visit(flags.fma_rhs)
+            self.visit(flags.fma_rhs)
 
         if node.op_code in {"+", "-", "*", "/", "%"} and not (
             (is_numeric_type(lhs_type) and is_numeric_type(rhs_type))
@@ -532,11 +481,12 @@ class SemanticAnalyzer:
             ),
         )
 
-    def _visit_function_call(self, node: astx.FunctionCall) -> None:
+    @dispatch
+    def visit(self, node: astx.FunctionCall) -> None:
         function = self.context.functions.get(node.fn)
         arg_types: list[astx.DataType | None] = []
         for arg in node.args:
-            self._visit(arg)
+            self.visit(arg)
             arg_types.append(self._expr_type(arg))
         if function is None:
             self.context.diagnostics.add(
@@ -552,7 +502,8 @@ class SemanticAnalyzer:
             node=node,
         )
 
-    def _visit_function_return(self, node: astx.FunctionReturn) -> None:
+    @dispatch
+    def visit(self, node: astx.FunctionReturn) -> None:
         if self.context.current_function is None:
             self.context.diagnostics.add(
                 "Return statement outside function.",
@@ -560,7 +511,7 @@ class SemanticAnalyzer:
             )
             return
         if node.value is not None:
-            self._visit(node.value)
+            self.visit(node.value)
         return_type = self.context.current_function.return_type
         value_type = self._expr_type(node.value)
         if not is_assignable(return_type, value_type):
@@ -570,23 +521,26 @@ class SemanticAnalyzer:
             )
         self._set_type(node, return_type)
 
-    def _visit_if_stmt(self, node: astx.IfStmt) -> None:
-        self._visit(node.condition)
-        self._visit_block(node.then)
+    @dispatch
+    def visit(self, node: astx.IfStmt) -> None:
+        self.visit(node.condition)
+        self.visit(node.then)
         if node.else_ is not None:
-            self._visit_block(node.else_)
+            self.visit(node.else_)
         self._set_type(node, None)
 
-    def _visit_while_stmt(self, node: astx.WhileStmt) -> None:
-        self._visit(node.condition)
+    @dispatch
+    def visit(self, node: astx.WhileStmt) -> None:
+        self.visit(node.condition)
         with self.context.in_loop():
-            self._visit_block(node.body)
+            self.visit(node.body)
         self._set_type(node, None)
 
-    def _visit_for_count_loop(self, node: astx.ForCountLoopStmt) -> None:
+    @dispatch
+    def visit(self, node: astx.ForCountLoopStmt) -> None:
         with self.context.scope("for-count"):
             if node.initializer.value is not None:
-                self._visit(node.initializer.value)
+                self.visit(node.initializer.value)
             symbol = self._declare_symbol(
                 node.initializer.name,
                 node.initializer.type_,
@@ -596,18 +550,19 @@ class SemanticAnalyzer:
                 declaration=node.initializer,
             )
             self._set_symbol(node.initializer, symbol)
-            self._visit(node.condition)
-            self._visit(node.update)
+            self.visit(node.condition)
+            self.visit(node.update)
             with self.context.in_loop():
-                self._visit_block(node.body)
+                self.visit(node.body)
         self._set_type(node, None)
 
-    def _visit_for_range_loop(self, node: astx.ForRangeLoopStmt) -> None:
+    @dispatch
+    def visit(self, node: astx.ForRangeLoopStmt) -> None:
         with self.context.scope("for-range"):
-            self._visit(node.start)
-            self._visit(node.end)
+            self.visit(node.start)
+            self.visit(node.end)
             if not isinstance(node.step, astx.LiteralNone):
-                self._visit(node.step)
+                self.visit(node.step)
             symbol = self._declare_symbol(
                 node.variable.name,
                 node.variable.type_,
@@ -618,10 +573,11 @@ class SemanticAnalyzer:
             )
             self._set_symbol(node.variable, symbol)
             with self.context.in_loop():
-                self._visit_block(node.body)
+                self.visit(node.body)
         self._set_type(node, None)
 
-    def _visit_break(self, node: astx.BreakStmt) -> None:
+    @dispatch
+    def visit(self, node: astx.BreakStmt) -> None:
         if self.context.loop_depth <= 0:
             self.context.diagnostics.add(
                 "Break statement outside loop.",
@@ -629,7 +585,8 @@ class SemanticAnalyzer:
             )
         self._set_type(node, None)
 
-    def _visit_continue(self, node: astx.ContinueStmt) -> None:
+    @dispatch
+    def visit(self, node: astx.ContinueStmt) -> None:
         if self.context.loop_depth <= 0:
             self.context.diagnostics.add(
                 "Continue statement outside loop.",
@@ -637,8 +594,9 @@ class SemanticAnalyzer:
             )
         self._set_type(node, None)
 
-    def _visit_cast(self, node: system.Cast) -> None:
-        self._visit(node.value)
+    @dispatch
+    def visit(self, node: system.Cast) -> None:
+        self.visit(node.value)
         source_type = self._expr_type(node.value)
         target_type = cast(astx.DataType | None, node.target_type)
         validate_cast(
@@ -649,8 +607,9 @@ class SemanticAnalyzer:
         )
         self._set_type(node, target_type)
 
-    def _visit_print(self, node: system.PrintExpr) -> None:
-        self._visit(node.message)
+    @dispatch
+    def visit(self, node: system.PrintExpr) -> None:
+        self.visit(node.message)
         message_type = self._expr_type(node.message)
         if not (
             is_string_type(message_type)
@@ -664,11 +623,10 @@ class SemanticAnalyzer:
             )
         self._set_type(node, astx.Int32())
 
-    def _visit_arrow_length(
-        self, node: irx_arrow.ArrowInt32ArrayLength
-    ) -> None:
+    @dispatch
+    def visit(self, node: irx_arrow.ArrowInt32ArrayLength) -> None:
         for item in node.values:
-            self._visit(item)
+            self.visit(item)
             if not is_integer_type(self._expr_type(item)):
                 self.context.diagnostics.add(
                     "Arrow helper supports only integer expressions",
@@ -676,7 +634,8 @@ class SemanticAnalyzer:
                 )
         self._set_type(node, astx.Int32())
 
-    def _visit_struct_def(self, node: astx.StructDefStmt) -> None:
+    @dispatch
+    def visit(self, node: astx.StructDefStmt) -> None:
         existing = self.context.structs.get(node.name)
         if existing not in {None, node}:
             self.context.diagnostics.add(
@@ -695,87 +654,114 @@ class SemanticAnalyzer:
             seen.add(attr.name)
         self._set_type(node, None)
 
-    def _visit_special_literal(self, node: astx.AST) -> None:
-        if isinstance(node, astx.LiteralTime):
-            try:
-                parsed_time = validate_literal_time(node.value)
-                self._semantic(node).extras["parsed_value"] = parsed_time
-            except ValueError as exc:
-                self.context.diagnostics.add(str(exc), node=node)
-        elif isinstance(node, astx.LiteralTimestamp):
-            try:
-                parsed_timestamp = validate_literal_timestamp(node.value)
-                self._semantic(node).extras["parsed_value"] = parsed_timestamp
-            except ValueError as exc:
-                self.context.diagnostics.add(str(exc), node=node)
-        elif isinstance(node, astx.LiteralDateTime):
-            try:
-                parsed_datetime = validate_literal_datetime(node.value)
-                self._semantic(node).extras["parsed_value"] = parsed_datetime
-            except ValueError as exc:
-                self.context.diagnostics.add(str(exc), node=node)
-        elif isinstance(node, (astx.LiteralList, astx.LiteralTuple)):
-            for element in node.elements:
-                self._visit(element)
-        elif isinstance(node, astx.LiteralSet):
-            for element in node.elements:
-                self._visit(element)
-            if node.elements:
-                if not all(
-                    isinstance(element, astx.Literal)
-                    for element in node.elements
-                ):
-                    self.context.diagnostics.add(
-                        "LiteralSet: only integer constants are "
-                        "currently supported for lowering",
-                        node=node,
-                    )
-        elif isinstance(node, astx.LiteralDict):
-            for key, value in node.elements.items():
-                self._visit(key)
-                self._visit(value)
-        elif isinstance(node, astx.SubscriptExpr):
-            self._visit(node.value)
-            if not isinstance(node.index, astx.LiteralNone):
-                self._visit(node.index)
-            value_type = self._expr_type(node.value)
-            if isinstance(node.value, astx.LiteralDict):
-                if not node.value.elements:
-                    self.context.diagnostics.add(
-                        "SubscriptExpr: key lookup on empty dict",
-                        node=node,
-                    )
-                elif not isinstance(
-                    node.index,
-                    (
-                        astx.LiteralInt8,
-                        astx.LiteralInt16,
-                        astx.LiteralInt32,
-                        astx.LiteralInt64,
-                        astx.LiteralUInt8,
-                        astx.LiteralUInt16,
-                        astx.LiteralUInt32,
-                        astx.LiteralUInt64,
-                        astx.LiteralFloat32,
-                        astx.LiteralFloat64,
-                        astx.Identifier,
-                    ),
-                ):
-                    self.context.diagnostics.add(
-                        "SubscriptExpr: only integer and floating-point "
-                        "dict keys are supported",
-                        node=node,
-                    )
-            self._set_type(
-                node,
-                cast(
-                    astx.DataType | None,
-                    getattr(value_type, "value_type", None),
-                ),
-            )
-            return
+    def _visit_temporal_literal(self, node: astx.AST) -> None:
+        try:
+            literal_value = cast(str, getattr(node, "value"))
+            parsed_value: object
+            if isinstance(node, astx.LiteralTime):
+                parsed_value = validate_literal_time(literal_value)
+            elif isinstance(node, astx.LiteralTimestamp):
+                parsed_value = validate_literal_timestamp(literal_value)
+            else:
+                parsed_value = validate_literal_datetime(literal_value)
+            self._semantic(node).extras["parsed_value"] = parsed_value
+        except ValueError as exc:
+            self.context.diagnostics.add(str(exc), node=node)
         self._set_type(
             node, cast(astx.DataType | None, getattr(node, "type_", None))
+        )
+
+    @dispatch
+    def visit(self, node: astx.LiteralTime) -> None:
+        self._visit_temporal_literal(node)
+
+    @dispatch
+    def visit(self, node: astx.LiteralTimestamp) -> None:
+        self._visit_temporal_literal(node)
+
+    @dispatch
+    def visit(self, node: astx.LiteralDateTime) -> None:
+        self._visit_temporal_literal(node)
+
+    def _visit_element_sequence_literal(self, node: astx.AST) -> None:
+        for element in cast(list[astx.AST], getattr(node, "elements")):
+            self.visit(element)
+        self._set_type(
+            node, cast(astx.DataType | None, getattr(node, "type_", None))
+        )
+
+    @dispatch
+    def visit(self, node: astx.LiteralList) -> None:
+        self._visit_element_sequence_literal(node)
+
+    @dispatch
+    def visit(self, node: astx.LiteralTuple) -> None:
+        self._visit_element_sequence_literal(node)
+
+    @dispatch
+    def visit(self, node: astx.LiteralSet) -> None:
+        for element in node.elements:
+            self.visit(element)
+        if node.elements and not all(
+            isinstance(element, astx.Literal) for element in node.elements
+        ):
+            self.context.diagnostics.add(
+                "LiteralSet: only integer constants are "
+                "currently supported for lowering",
+                node=node,
+            )
+        self._set_type(
+            node, cast(astx.DataType | None, getattr(node, "type_", None))
+        )
+
+    @dispatch
+    def visit(self, node: astx.LiteralDict) -> None:
+        for key, value in node.elements.items():
+            self.visit(key)
+            self.visit(value)
+        self._set_type(
+            node, cast(astx.DataType | None, getattr(node, "type_", None))
+        )
+
+    @dispatch
+    def visit(self, node: astx.SubscriptExpr) -> None:
+        self.visit(node.value)
+        if not isinstance(node.index, astx.LiteralNone):
+            self.visit(node.index)
+        value_type = self._expr_type(node.value)
+        if isinstance(node.value, astx.LiteralDict):
+            if not node.value.elements:
+                self.context.diagnostics.add(
+                    "SubscriptExpr: key lookup on empty dict",
+                    node=node,
+                )
+            elif not isinstance(
+                node.index,
+                (
+                    astx.LiteralInt8,
+                    astx.LiteralInt16,
+                    astx.LiteralInt32,
+                    astx.LiteralInt64,
+                    astx.LiteralUInt8,
+                    astx.LiteralUInt16,
+                    astx.LiteralUInt32,
+                    astx.LiteralUInt64,
+                    astx.LiteralFloat32,
+                    astx.LiteralFloat64,
+                    astx.Identifier,
+                ),
+            ):
+                self.context.diagnostics.add(
+                    "SubscriptExpr: only integer and floating-point "
+                    "dict keys are supported",
+                    node=node,
+                )
+        self._set_type(
+            node,
+            cast(
+                astx.DataType | None,
+                getattr(value_type, "value_type", None),
+            ),
         )
 
     def _guarantees_return(self, node: astx.AST) -> bool:
