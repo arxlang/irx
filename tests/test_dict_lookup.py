@@ -16,6 +16,8 @@ from llvmlite import ir
 
 from .conftest import check_result
 
+HAS_LITERAL_TIME = hasattr(astx, "LiteralTime")
+
 
 def _make_int_dict() -> astx.LiteralDict:
     return astx.LiteralDict(
@@ -241,6 +243,38 @@ def test_dict_lookup_rejects_incompatible_constant_key_type(
         value=_make_int_dict(), index=astx.LiteralFloat32(2.0)
     )
     with pytest.raises(TypeError, match="incompatible with dict key type"):
+        visitor.visit(expr)
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_rejects_unsupported_constant_time_keys(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: SubscriptExpr rejects unsupported non-numeric constant key types.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.SubscriptExpr(
+        value=astx.LiteralDict(
+            elements={
+                astx.LiteralTime("12:34:56"): astx.LiteralInt32(7),
+            }
+        ),
+        index=astx.LiteralTime("12:34:56"),
+    )
+    with pytest.raises(
+        TypeError,
+        match="only integer and floating-point dict keys are supported",
+    ):
         visitor.visit(expr)
 
 

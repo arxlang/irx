@@ -2806,7 +2806,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: ir.Type
         """
         if lhs_ty == rhs_ty:
-            return lhs_ty
+            if is_int_type(lhs_ty) or is_fp_type(lhs_ty):
+                return lhs_ty
+            raise TypeError(
+                "SubscriptExpr: only integer and floating-point dict keys "
+                "are supported"
+            )
 
         if is_int_type(lhs_ty) and is_int_type(rhs_ty):
             return ir.IntType(max(lhs_ty.width, rhs_ty.width))
