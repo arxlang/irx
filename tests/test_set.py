@@ -17,6 +17,8 @@ from llvmlite import ir
 
 EXPECTED_SET_LENGTH = 2
 EXPECTED_PROMOTED_WIDTH = 32
+EXPECTED_WIDEST_SET_OP_WIDTH = 64
+HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
 
 
 def _array_i32_values(const: ir.Constant) -> list[int]:
@@ -29,6 +31,28 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
       type: list[int]
     """
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
+
+
+def _make_visitor_in_function(
+    builder_class: type[Builder],
+) -> LLVMLiteIRVisitor:
+    """
+    title: Return a visitor whose ir_builder is inside a live basic block.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    returns:
+      type: LLVMLiteIRVisitor
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    fn_ty = ir.FunctionType(visitor._llvm.VOID_TYPE, [])
+    fn = ir.Function(visitor._llvm.module, fn_ty, name="_test_dummy")
+    bb = fn.append_basic_block("entry")
+    visitor._llvm.ir_builder = ir.IRBuilder(bb)
+    return visitor
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -251,3 +275,95 @@ def test_set_disjoint_intersection_is_empty(
     assert isinstance(result, ir.Constant)
     assert isinstance(result.type, ir.ArrayType)
     assert result.type.count == 0
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_set_union_mixed_widths_in_function(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Mixed-width set union stays constant in function context.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    visitor = _make_visitor_in_function(builder_class)
+
+    expr = astx.BinaryOp(
+        op_code="|",
+        lhs=astx.LiteralSet(
+            elements={astx.LiteralInt16(1), astx.LiteralInt32(2)}
+        ),
+        rhs=astx.LiteralSet(
+            elements={astx.LiteralInt32(2), astx.LiteralInt64(4)}
+        ),
+    )
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert isinstance(result.type, ir.ArrayType)
+    assert isinstance(result.type.element, ir.IntType)
+    assert result.type.element.width == EXPECTED_WIDEST_SET_OP_WIDTH
+    assert _set_values(result) == [1, 2, 4]
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_nested_set_binary_ops_preserve_set_semantics(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Chained set binary ops keep using set semantics.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(
+        op_code="-",
+        lhs=astx.BinaryOp(
+            op_code="|",
+            lhs=_make_set(1, 2),
+            rhs=_make_set(2, 3),
+        ),
+        rhs=_make_set(1),
+    )
+    visitor.visit(expr)
+    result = visitor.result_stack.pop()
+
+    assert isinstance(result, ir.Constant)
+    assert _set_values(result) == [2, 3]
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
+)
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_literal_list_binary_or_does_not_use_set_semantics(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: LiteralList operands do not opt into set binary operators.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.BinaryOp(
+        op_code="|",
+        lhs=astx.LiteralList(
+            elements=[astx.LiteralInt32(1), astx.LiteralInt32(2)]
+        ),
+        rhs=astx.LiteralList(
+            elements=[astx.LiteralInt32(2), astx.LiteralInt32(3)]
+        ),
+    )
+
+    with pytest.raises(Exception, match=r"Binary op \| not implemented yet\."):
+        visitor.visit(expr)

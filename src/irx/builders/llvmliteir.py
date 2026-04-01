@@ -363,6 +363,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: RuntimeFeatureState
       const_vars:
         type: set[str]
+      _set_value_ids:
+        type: dict[int, ir.Value]
       struct_types:
         type: dict[str, ir.IdentifiedStructType]
       _fast_math_enabled:
@@ -399,6 +401,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+        self._set_value_ids: dict[int, ir.Value] = {}
 
         self.struct_types: dict[str, ir.IdentifiedStructType] = {}
 
@@ -2554,6 +2557,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         raise TypeError(f"LiteralList: cannot coerce {v.type} to {target_ty}")
 
+    def _mark_set_value(self, value: ir.Value) -> ir.Value:
+        """
+        title: Mark a lowered value as originating from set semantics.
+        parameters:
+          value:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
+        self._set_value_ids[id(value)] = value
+        return value
+
+    def _is_set_value(self, value: ir.Value | None) -> bool:
+        """
+        title: Check whether a value originated from set lowering.
+        parameters:
+          value:
+            type: ir.Value | None
+        returns:
+          type: bool
+        """
+        if value is None:
+            return False
+
+        return self._set_value_ids.get(id(value)) is value
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralSet) -> None:
         """
@@ -2588,68 +2617,31 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Empty set
         if n == 0:
             empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
-            self.result_stack.append(ir.Constant(empty_ty, []))
+            self.result_stack.append(
+                self._mark_set_value(ir.Constant(empty_ty, []))
+            )
             return
 
-        first_ty = llvm_elems[0].type
         is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
-        homogeneous = all(v.type == first_ty for v in llvm_elems)
         all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
 
-        # Homogeneous integer constants → constant array
-        if is_ints and homogeneous and all_constants:
-            arr_ty = ir.ArrayType(first_ty, n)
-            const_arr = ir.Constant(arr_ty, llvm_elems)
-            self.result_stack.append(const_arr)
-            return
-
-        # Mixed-width integer constants → promote to widest type
-        if is_ints and all_constants and not homogeneous:
+        # Integer constants always lower to a constant array, promoted to the
+        # widest element type when needed.
+        if is_ints and all_constants:
             widest = max(v.type.width for v in llvm_elems)
             elem_ty = ir.IntType(widest)
             arr_ty = ir.ArrayType(elem_ty, n)
+            promoted_vals: list[ir.Constant] = []
+            for v in llvm_elems:
+                if v.type.width != widest:
+                    promoted_vals.append(ir.Constant(elem_ty, v.constant))
+                else:
+                    promoted_vals.append(v)
 
-            builder = self._llvm.ir_builder
-
-            # If outside function context (tests), fallback to constant array
-            if builder.block is None:
-                promoted_vals: list[ir.Constant] = []
-                for v in llvm_elems:
-                    if v.type.width != widest:
-                        promoted_vals.append(ir.Constant(elem_ty, v.constant))
-                    else:
-                        promoted_vals.append(v)
-
-                const_arr = ir.Constant(arr_ty, promoted_vals)
-                self.result_stack.append(const_arr)
-                return
-
-            # Runtime lowering using alloca + store
-            entry_bb = builder.function.entry_basic_block
-            current_bb = builder.block
-
-            builder.position_at_start(entry_bb)
-            alloca = builder.alloca(arr_ty, name="set.lit")
-            builder.position_at_end(current_bb)
-
-            i32 = self._llvm.INT32_TYPE
-
-            for i, v in enumerate(llvm_elems):
-                cast_val = v
-                if cast_val.type != elem_ty:
-                    cast_val = builder.sext(
-                        cast_val, elem_ty, name=f"set_sext{i}"
-                    )
-
-                ptr = builder.gep(
-                    alloca,
-                    [ir.Constant(i32, 0), ir.Constant(i32, i)],
-                    inbounds=True,
-                )
-
-                builder.store(cast_val, ptr)
-
-            self.result_stack.append(alloca)
+            const_arr = self._mark_set_value(
+                ir.Constant(arr_ty, promoted_vals)
+            )
+            self.result_stack.append(const_arr)
             return
 
         raise TypeError(
@@ -2664,7 +2656,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         op_code: str,
     ) -> bool:
         """
-        title: Attempt a compile-time set operation on two constant int arrays.
+        title: >-
+          Attempt a compile-time set operation on two lowered set constants.
         parameters:
           lhs:
             type: ir.Value | None
@@ -2676,6 +2669,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: bool
         """
         if op_code not in ("|", "&", "-", "^"):
+            return False
+
+        if not (self._is_set_value(lhs) and self._is_set_value(rhs)):
             return False
 
         if not (
@@ -2705,7 +2701,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         sorted_vals = sorted(result_vals)
         consts = [ir.Constant(elem_ty, v) for v in sorted_vals]
         arr_ty = ir.ArrayType(elem_ty, len(consts))
-        self.result_stack.append(ir.Constant(arr_ty, consts))
+        self.result_stack.append(
+            self._mark_set_value(ir.Constant(arr_ty, consts))
+        )
         return True
 
     @dispatch  # type: ignore[no-redef]
