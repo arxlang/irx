@@ -1040,10 +1040,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "!":
             self.visit(node.operand)
             val = safe_pop(self.result_stack)
-            result = self._llvm.ir_builder.xor(
-                val, ir.Constant(val.type, 1), "nottmp"
+
+            zero = ir.Constant(val.type, 0)
+
+            # Logical NOT using comparison
+            is_zero = self._llvm.ir_builder.icmp_signed(
+                "==", val, zero, "iszero"
             )
 
+            # Match original type
+            if isinstance(val.type, ir.IntType) and val.type.width == 1:
+                result = is_zero
+            else:
+                result = self._llvm.ir_builder.zext(
+                    is_zero, val.type, "nottmp"
+                )
+
+            # Maintain IRx mutation behavior + const check
             if isinstance(node.operand, astx.Identifier):
                 if node.operand.name in self.const_vars:
                     raise Exception(
