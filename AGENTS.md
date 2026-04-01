@@ -1,139 +1,27 @@
 # AI Skill: IRx Contributor Guide
 
-This file is the shared operating manual for AI contributors working in `irx`.
-Use it to keep implementation style, review standards, and delivery quality
-consistent across different agents.
+This file is the shared operating manual for AI contributors working in the
+`irx` repository. Use it to keep implementation style, architecture decisions,
+and verification habits consistent across different agents.
 
-## When To Use This Skill
+## Repository Identity
 
-Use this guidance for any change inside the IRx repository:
+- Repository name: `irx`
+- Canonical upstream repository: `git@github.com:arxlang/irx.git`
+- Typical fork remote in this workspace: `git@github.com:xmnlab/irx.git`
+- Expected git remotes in this clone:
+  - `origin` -> personal or workspace fork
+  - `upstream` -> `arxlang/irx`
 
-- LLVM lowering or codegen behavior
-- ASTx node support in visitors/builders
-- build/link/run behavior
-- tests, typing, lint, and coverage work
-- docs/examples updates
-- CI/release-related maintenance
+If a task depends on repository provenance, check `git remote -v` from the repo
+root instead of guessing.
 
-## Core Objectives
+## Environment And Command Execution
 
-1. Preserve existing IR semantics unless the task explicitly changes behavior.
-2. Keep lowering code, tests, and docs aligned.
-3. Keep quality gates green (tests, mypy, ruff, pre-commit, coverage).
-4. Make minimal, targeted edits with clear intent.
+IRx development uses the Conda environment named `irx` plus Poetry-managed
+dependencies.
 
-## Project Snapshot
-
-- Package: `pyirx`
-- Runtime: Python `>=3.10,<4`
-- Main architecture:
-  `ASTx -> LLVMLiteIRVisitor -> LLVM IR -> object -> clang link`
-- Key dependencies:
-  - `astx` for AST nodes
-  - `llvmlite` for IR and object emission
-  - `plum-dispatch` for visitor dispatch
-  - `xhell` for invoking `clang`
-- Docs stack: MkDocs + Material + mkdocstrings
-
-## Repository Layout
-
-- `src/irx/builders/base.py`: generic builder interfaces and command runner
-- `src/irx/builders/llvmliteir.py`: main LLVM visitor/builder implementation
-- `src/irx/system.py`: IRx-specific ASTx expression helpers (`PrintExpr`,
-  `Cast`)
-- `src/irx/symbol_table.py`: register/symbol table helpers
-- `src/irx/tools/typing.py`: typing/typeguard helpers
-- `tests/`: unit/integration tests (translate and build/run flows)
-- `docs/`: project documentation and notebook tutorials
-- `.makim.yaml`: local task runner definitions
-- `.github/workflows/main.yaml`: CI pipeline
-
-## Architecture And Responsibilities
-
-### `src/irx/builders/base.py`
-
-- Defines `BuilderVisitor` and `Builder` abstractions.
-- `Builder.module()` creates ASTx modules.
-- `Builder.translate()` delegates to visitor translation.
-- `Builder.run()` executes generated binaries via `run_command()`; returns
-  `CommandResult`. Raises `CommandError` on non-zero exit by default.
-
-### `src/irx/builders/llvmliteir.py`
-
-- `VariablesLLVM`: canonical LLVM types and module/builder state.
-- `LLVMLiteIRVisitor`: ASTx -> LLVM lowering via `@dispatch` methods.
-- `LLVMLiteIR`: public builder API (`translate`, `build`, `run`).
-- Handles:
-  - literals, identifiers, assignments, unary/binary ops
-  - functions/prototypes/calls/returns
-  - control flow (`if`, loops)
-  - system expressions (`PrintExpr`, `Cast`)
-
-### `src/irx/system.py`
-
-- Defines IRx expression helpers used by lowering:
-  - `PrintExpr`
-  - `Cast`
-- These are ASTx expressions and should remain structurally serializable.
-
-## Codegen Invariants You Must Preserve
-
-- `result_stack` discipline:
-  - push only real produced values
-  - never assume a value exists after statement-only or terminating branches
-- Terminator safety:
-  - never emit instructions after a block terminator (`ret`, `br`, etc.)
-  - when temporarily moving insertion point (entry allocas), restore the
-    previous block
-- If/merge behavior:
-  - build PHI only when both incoming paths fall through and value types match
-  - allow branch-terminating paths without forced stack pops
-- `safe_pop()` behavior is optional (`None` on empty stack); callers must guard
-  appropriately
-- Keep generated IR parseable by LLVM (`llvm.parse_assembly`).
-
-## Build And Runtime Contract
-
-- `translate()` only returns LLVM IR text.
-- `build()` parses IR, emits object, and links with `clang`.
-- `run()` executes the compiled output file and returns `CommandResult`.
-- Build-path tests require `clang` available on `PATH`.
-
-## Code Style And Standards
-
-### Formatting and static quality
-
-- Python style:
-  - 4-space indentation (`.editorconfig`)
-  - keep lines shorter than 80 characters (`ruff` uses 79)
-- Ruff:
-  - `ruff check src tests`
-  - `ruff format src tests`
-- Typing:
-  - `mypy` strict mode (`check_untyped_defs = true`, `strict = true`)
-- Pre-commit also runs:
-  - `bandit`, `vulture`, `mccabe`, and project hooks
-- Design:
-  - follow SOLID principles
-  - prefer the Never Nest philosophy as much as possible
-  - do not reuse the same variable for different types
-  - avoid unnecessary or obvious comments in code
-
-### Python docstring convention in this repo
-
-- Docstrings are written in Douki format:
-  - https://github.com/arxlang/douki/
-- Keep existing docstring style (`title: ...`, optional metadata fields).
-- Preserve docstrings for public-facing symbols when adding/updating code.
-
-### Error handling
-
-- Keep errors explicit and local to failure context.
-- Avoid introducing broad catch-all behavior that hides IR-generation faults.
-
-## Tooling And Commands
-
-Environment setup:
+Create the environment with:
 
 ```bash
 mamba env create --file conda/dev.yaml
@@ -141,98 +29,271 @@ conda activate irx
 poetry install
 ```
 
-High-value commands:
+For AI agents, prefer running commands through Conda explicitly instead of
+relying on shell activation state.
+
+Use:
 
 ```bash
-# tests
-pytest tests -q
-
-# strict typing
-mypy src tests
-
-# lint/format
-ruff check src tests
-ruff format src tests
-
-# project lint stack
-makim tests.linter
-
-# CI-like local run
-makim tests.ci
-
-# coverage-gated unit run (fails under 80%)
-makim tests.unit
-
-# docs
-mkdocs build --config-file mkdocs.yaml
+conda run -n irx <command>
 ```
 
-IR/build debug helpers:
+The important rule is: run tooling inside the `irx` Conda environment, and do
+not assume the current shell is already activated correctly.
+
+Recommended command style:
 
 ```bash
-# generate temporary C test binary
-makim tests.build
-
-# emit LLVM IR from C for comparison experiments
-makim tests.emit-ir
-
-# build binary from .ll
-makim tests.build-from-ir --file <path-without-extension>
+conda run -n irx pytest tests/test_semantic_pipeline.py -q
+conda run -n irx mypy .
+conda run -n irx ruff check src tests
+conda run -n irx ruff format src tests
+conda run -n irx pre-commit run -a
 ```
 
-## CI Contract (What Must Stay Green)
+Run commands from the repository root unless a task explicitly needs another
+working directory.
 
-GitHub Actions (`.github/workflows/main.yaml`) runs:
+## When To Use This Guide
 
-- tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
-- operating systems: ubuntu + windows (windows/3.13 excluded)
-- linter job on ubuntu (Python 3.13) with pre-commit stack
+Use this guidance for any change inside the IRx repository, including:
 
-Do not merge feature work that assumes only one interpreter/OS path.
+- semantic analysis
+- LLVM lowering or backend behavior
+- runtime feature registration
+- build, link, or execution behavior
+- tests, typing, lint, and coverage work
+- docs and tutorial updates
+- CI or release-related maintenance
 
-## Testing Contract
+## Core Objectives
 
-- Prefer targeted tests near changed behavior (`tests/test_*.py`).
-- For lowering/control-flow work:
-  - add at least one `translate`-path assertion (IR validity/shape)
-  - add `build`/runtime assertions when behavior depends on execution
-- Keep/extend regressions for previously fixed edge cases (e.g.,
-  terminator-sensitive branches).
+1. Preserve existing language behavior unless the task explicitly changes it.
+2. Keep semantic analysis, codegen, tests, and docs aligned.
+3. Keep quality gates green before finalizing work.
+4. Make minimal, targeted edits with clear architectural intent.
 
-## Documentation Contract
+## Project Snapshot
 
-When behavior changes, update docs in the same PR:
+- Python package: `pyirx`
+- Python support: `>=3.10,<4`
+- Core dependencies:
+  - `astx`
+  - `llvmlite`
+  - `plum-dispatch`
+  - `xhell`
+- Docs stack:
+  - MkDocs
+  - Material for MkDocs
+  - mkdocstrings
+  - mkdocs-jupyter
 
-- `README.md` usage/examples
-- `docs/installation.md` / `docs/contributing.md` when setup changes
-- tutorial notebooks when user-facing behavior changes
+Architecture reference:
 
-## Change Playbooks
+- [`docs/architecture.md`](./docs/architecture.md)
 
-### Adding support for a new ASTx node
+## Current Compiler Architecture
 
-1. Add/adjust a `@dispatch` visitor in `llvmliteir.py`.
-2. Ensure type handling and stack behavior are explicit.
-3. Add tests for both happy path and at least one invalid/edge path.
-4. Validate generated IR is parseable.
-5. Update README/docs if feature is user-visible.
+IRx now treats semantic analysis as a first-class phase before backend lowering:
 
-### Changing control flow or PHI logic
+`ASTx -> semantic analysis -> resolved semantic sidecars -> backend codegen`
 
-1. Validate block terminator states before branching/merging.
-2. Avoid unconditional pops from `result_stack`.
-3. Add branch-termination regressions (both terminate, one terminates, neither).
-4. Verify IR parse + runtime behavior.
+### Semantic analysis
 
-### Changing build/link behavior
+The semantic layer lives in `src/irx/analysis/` and is responsible for meaning
+and validity, including:
 
-1. Keep `translate` and `build` responsibilities separate.
-2. Preserve `clang` invocation behavior across platforms where possible.
-3. Add tests that fail clearly when toolchain assumptions are not met.
+- symbol resolution
+- scope tracking
+- type inference and compatibility
+- promotion and signedness policy
+- mutability and assignment validation
+- loop and return legality
+- operator normalization
+- semantic diagnostics
+
+The public entry points are `irx.analysis.analyze(...)` and
+`irx.analysis.analyze_module(...)`.
+
+### LLVM backend
+
+The LLVM backend lives in `src/irx/builders/llvmliteir/`.
+
+Important public backend names:
+
+- `irx.builders.llvmliteir.Builder`
+- `irx.builders.llvmliteir.Visitor`
+- `irx.builders.llvmliteir.VisitorProtocol`
+
+Important rule: the package path identifies the backend. Do not reintroduce
+public names like `LLVMLiteIRVisitor` or `LLVMLiteIR`. Backend class names are
+intentionally short and generic.
+
+### Dispatch boundary
+
+Codegen keeps method-based Plum multiple dispatch as its public lowering
+boundary:
+
+- `visit(self, node: ...)`
+
+Do not replace it with a free-function registry or add a second public lowering
+API.
+
+## Repository Layout
+
+- `src/irx/analysis/`: semantic analysis package
+- `src/irx/builders/base.py`: generic builder abstractions
+- `src/irx/builders/llvmliteir/`: LLVM backend package
+- `src/irx/builders/_llvmliteir_legacy.py`: internal transitional detail; avoid
+  adding new behavior here unless the task specifically requires it
+- `src/irx/runtime/`: runtime feature declarations and linking helpers
+- `src/irx/system.py`: IRx-specific ASTx expression helpers
+- `src/irx/arrow.py`: Arrow-related ASTx helpers
+- `src/irx/symbol_table.py`: older symbol-table utilities still present in the
+  repo
+- `tests/`: unit and integration tests
+- `docs/`: documentation and notebook tutorials
+- `.pre-commit-config.yaml`: authoritative local hook stack
+- `.github/workflows/`: CI definitions
+
+## Architectural Rules To Preserve
+
+- Put semantic meaning and validation in `src/irx/analysis/`, not in backend
+  codegen.
+- Let backends consume analyzed or normalized node information instead of
+  re-deriving raw AST meaning.
+- Keep foundational backend infrastructure at the backend package root instead
+  of creating a generic `helpers/` folder.
+- Keep mutable codegen state instance-local.
+- Preserve `visit(self, node: ...)` as the public codegen dispatch boundary.
+- Use package names, not class prefixes, to distinguish backends.
+
+## Working In `llvmliteir`
+
+The LLVM backend package is structured around:
+
+- `facade.py`: public `Builder` and `Visitor`
+- `core.py`: shared concrete visitor state and lifecycle
+- `protocols.py`: typing contract for mixins and runtime features
+- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared
+  lowering infrastructure
+- `visitors/`: concern-grouped `visit(...)` overloads
+
+When changing LLVM lowering:
+
+- keep semantic checks out of codegen when they belong in analysis
+- preserve `result_stack` discipline
+- avoid emitting instructions after block terminators
+- validate generated IR with LLVM parsing whenever behavior changes
+
+## Tooling And Verification
+
+### Preferred commands
+
+Run these from the repo root through the `irx` Conda environment:
+
+```bash
+conda run -n irx pytest tests -q
+conda run -n irx mypy .
+conda run -n irx ruff check src tests
+conda run -n irx ruff format src tests
+conda run -n irx mkdocs build --config-file mkdocs.yaml
+```
+
+### Pre-commit
+
+Pre-commit is an important quality gate in this repository. Before finalizing a
+change, prefer running:
+
+```bash
+conda run -n irx pre-commit run -a
+```
+
+Current pre-commit hooks include:
+
+- `trailing-whitespace`
+- `end-of-file-fixer`
+- `check-json`
+- `check-toml`
+- `check-xml`
+- `debug-statements`
+- `check-builtin-literals`
+- `check-case-conflict`
+- `check-docstring-first`
+- `detect-private-key`
+- `prettier`
+- `ruff format`
+- `ruff check`
+- `douki sync`
+- `mypy .`
+- `shellcheck`
+- `bandit`
+- `vulture --min-confidence 80`
+- `python -m mccabe --min 10`
+
+Notes for agents:
+
+- `ruff format` can rewrite files.
+- `ruff check` can surface issues fixed by formatting first.
+- `douki sync` validates and can normalize docstring metadata.
+- `mypy .` runs repo-wide, not only on changed files.
+- `prettier` covers docs and non-Python formatting concerns.
+
+## Build And Runtime Contract
+
+- `translate()` returns LLVM IR text.
+- `build()` parses IR, emits an object file, and links with `clang`.
+- `run()` executes the compiled output and returns a command result.
+
+Build-path tests require a working `clang` on `PATH`. If `clang` is missing, say
+so clearly in your final update instead of implying full verification passed.
+
+## Testing Expectations
+
+- Prefer targeted tests near changed behavior.
+- For semantic changes, add or update analysis tests first.
+- For backend changes, keep at least one LLVM-IR-level assertion when practical.
+- For behavior that depends on execution, add or update build/run coverage.
+- When changing public imports or documentation-facing behavior, add a small
+  surface regression test.
+
+Useful examples:
+
+```bash
+conda run -n irx pytest tests/test_semantic_pipeline.py -q
+conda run -n irx pytest tests/test_vector.py -q
+conda run -n irx pytest tests/test_cast.py -q
+```
+
+## Documentation Expectations
+
+When behavior or workflow changes, update docs in the same change set.
+
+Common places to touch:
+
+- `README.md`
+- `docs/installation.md`
+- `docs/contributing.md`
+- `docs/architecture.md`
+- tutorial notebooks under `docs/tutorials/`
+
+## AI-Agent Workflow Guidance
+
+- Inspect the current file layout before assuming an older design still applies.
+- Prefer `rg` and focused test runs for fast feedback.
+- Do not revert unrelated user changes in a dirty worktree.
+- If you touch Python files, expect `pre-commit`, `ruff`, `mypy`, and `vulture`
+  to matter.
+- If you change docstrings, remember that Douki validation is part of the repo's
+  workflow.
+- If you touch semantic behavior, verify that failures happen in analysis before
+  codegen when appropriate.
+- If you touch backend naming, preserve the generic `Builder` / `Visitor`
+  convention inside backend packages.
 
 ## Contributor Workflow Expectations
 
 1. Make minimal focused changes.
-2. Add/update tests for behavior changes.
-3. Run local checks before finalizing (`ruff`, `mypy`, targeted `pytest`).
-4. Keep AGENTS/docs consistent with any workflow or architecture changes.
+2. Add or update tests for behavior changes.
+3. Run local checks through the Conda environment before finalizing.
+4. Keep `AGENTS.md` and docs aligned with workflow or architecture changes.
