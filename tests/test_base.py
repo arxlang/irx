@@ -89,6 +89,18 @@ def test_builder_visitor_translate_not_implemented() -> None:
         visitor.translate(astx.LiteralInt32(1))
 
 
+def test_builder_visitor_visit_not_implemented() -> None:
+    """
+    title: Shared base visit should raise for unimplemented builder nodes.
+    """
+    visitor = BuilderVisitor()
+    with pytest.raises(
+        NotImplementedError,
+        match=r"BuilderVisitor\.visit\(LiteralInt32\) is not implemented",
+    ):
+        visitor.visit(astx.LiteralInt32(1))
+
+
 def test_builder_translate_delegates_to_translator() -> None:
     """
     title: Builder.translate should delegate to configured translator.

@@ -66,6 +66,29 @@ is needed.
 If the language grows to the point where a true HIR becomes useful, the current
 phase split still leaves room for that evolution.
 
+## Shared Visitor Foundation
+
+IRx also has a shared visitor layer in `src/irx/visitors/`.
+
+It currently provides:
+
+- `BaseVisitorProtocol`: the minimal typing contract shared by visitor-style
+  classes
+- `BaseVisitor`: a concrete Plum-dispatch scaffold with explicit
+  `NotImplementedError` defaults for the current ASTx node surface
+
+This keeps typing and runtime behavior separate:
+
+- protocols define what visitor-like objects must expose
+- the concrete base class defines what happens for unsupported nodes
+
+In practice:
+
+- `SemanticAnalyzer` inherits `BaseVisitor`
+- `BuilderVisitor` inherits `BaseVisitor`
+- backend-specific protocols such as `llvmliteir.VisitorProtocol` extend
+  `BaseVisitorProtocol`
+
 ## Backend Architecture
 
 Each backend should live in its own package under `src/irx/builders/`. The
@@ -88,6 +111,7 @@ already provides the context.
 The LLVM backend is split into first-class modules instead of one monolithic
 builder:
 
+- `../src/irx/visitors/`: shared visitor protocol and runtime scaffold
 - `facade.py`: public backend entry points
 - `core.py`: shared mutable lowering state and backend lifecycle
 - `protocols.py`: typing contract used by mixins and runtime features
@@ -120,7 +144,7 @@ That choice keeps backend code readable and local:
 `VisitorProtocol` and `_VisitorCore` serve different purposes:
 
 - `VisitorProtocol` defines the stable interface that mixins and runtime feature
-  declarations depend on for typing.
+  declarations depend on for typing, building on `BaseVisitorProtocol`.
 - `_VisitorCore` is the concrete implementation center that owns mutable state,
   module setup, helper methods, and backend lifecycle.
 
@@ -153,6 +177,8 @@ When extending IRx, these rules help preserve the architecture:
 
 - Put semantic meaning and validation in `analysis/`, not in a backend.
 - Let codegen consume normalized semantic information instead of re-deriving it.
+- Keep shared visitor dispatch defaults in `src/irx/visitors/` so semantic and
+  backend visitors fail consistently for unsupported ASTx nodes.
 - Add new backend-wide infrastructure at the package root, not under `helpers/`.
 - Keep mutable lowering state instance-local.
 - Prefer explicit code over clever abstractions.

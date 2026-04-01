@@ -142,6 +142,7 @@ API.
 ## Repository Layout
 
 - `src/irx/analysis/`: semantic analysis package
+- `src/irx/visitors/`: shared visitor protocol and concrete dispatch scaffold
 - `src/irx/builders/base.py`: generic builder abstractions
 - `src/irx/builders/llvmliteir/`: LLVM backend package
 - `src/irx/builders/_llvmliteir_legacy.py`: internal transitional detail; avoid
@@ -162,6 +163,8 @@ API.
   codegen.
 - Let backends consume analyzed or normalized node information instead of
   re-deriving raw AST meaning.
+- Keep shared visitor behavior in `src/irx/visitors/` so semantic and backend
+  visitors fail consistently for unsupported ASTx nodes.
 - Keep foundational backend infrastructure at the backend package root instead
   of creating a generic `helpers/` folder.
 - Keep mutable codegen state instance-local.
@@ -172,9 +175,10 @@ API.
 
 The LLVM backend package is structured around:
 
+- `../src/irx/visitors/`: shared `BaseVisitor` and `BaseVisitorProtocol`
 - `facade.py`: public `Builder` and `Visitor`
 - `core.py`: shared concrete visitor state and lifecycle
-- `protocols.py`: typing contract for mixins and runtime features
+- `protocols.py`: LLVM-specific typing contract layered on `BaseVisitorProtocol`
 - `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared
   lowering infrastructure
 - `visitors/`: concern-grouped `visit(...)` overloads

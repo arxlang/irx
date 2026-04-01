@@ -16,6 +16,7 @@ from typing import Any, Sequence
 import astx
 
 from irx.tools.typing import typechecked
+from irx.visitors.base import BaseVisitor
 
 logger = logging.getLogger(__name__)
 
@@ -139,9 +140,9 @@ def run_command(
 
 
 @typechecked
-class BuilderVisitor:
+class BuilderVisitor(BaseVisitor):
     """
-    title: Builder translator visitor.
+    title: Builder translator visitor built on the shared visitor base.
     """
 
     def translate(self, expr: astx.AST) -> str:

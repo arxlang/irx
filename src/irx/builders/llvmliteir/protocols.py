@@ -12,9 +12,10 @@ from llvmlite import binding as llvm
 from llvmlite import ir
 
 from irx.builders.llvmliteir.types import VariablesLLVM
+from irx.visitors.protocols import BaseVisitorProtocol
 
 
-class VisitorProtocol(Protocol):
+class VisitorProtocol(BaseVisitorProtocol, Protocol):
     """
     title: Stable interface used by visitor mixins and runtime features.
     attributes:
@@ -41,8 +42,6 @@ class VisitorProtocol(Protocol):
     result_stack: list[ir.Value | ir.Function]
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
-
-    def visit(self, _node: astx.AST) -> None: ...
 
     def get_function(self, _name: str) -> ir.Function | None: ...
 

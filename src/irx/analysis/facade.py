@@ -48,9 +48,10 @@ from irx.analysis.validation import (
     validate_literal_time,
     validate_literal_timestamp,
 )
+from irx.visitors.base import BaseVisitor
 
 
-class SemanticAnalyzer:
+class SemanticAnalyzer(BaseVisitor):
     """
     title: Walk the AST and attach node.semantic information.
     attributes:
