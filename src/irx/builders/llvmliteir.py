@@ -2879,22 +2879,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         compare_ty = self._subscript_compare_type(entry_key.type, key_val.type)
 
-        if compare_ty == entry_key.type == key_val.type and not (
-            is_int_type(compare_ty) or is_fp_type(compare_ty)
-        ):
-            return bool(entry_key.constant == key_val.constant)
-
-        lhs = self._coerce_subscript_key_for_compare(
-            entry_key, compare_ty, unsigned=False
+        lhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            ),
         )
-        rhs = self._coerce_subscript_key_for_compare(
-            key_val, compare_ty, unsigned=False
+        rhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                key_val, compare_ty, unsigned=False
+            ),
         )
-
-        if not isinstance(lhs, ir.Constant) or not isinstance(
-            rhs, ir.Constant
-        ):
-            return False
 
         return bool(lhs.constant == rhs.constant)
 
