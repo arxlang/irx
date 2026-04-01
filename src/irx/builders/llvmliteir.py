@@ -1675,7 +1675,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """
-        title: Translate ASTx For Range Loop to LLVM-IR.
+        title: Translate ASTx For Count Loop to LLVM-IR.
         parameters:
           node:
             type: astx.ForCountLoopStmt
@@ -1686,11 +1686,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         )
         self._llvm.ir_builder.position_at_end(saved_block)
 
-        # Emit the start code first, without 'variable' in scope.
+        # Emit the initializer first, without the loop variable in scope.
         self.visit(node.initializer)
         initializer_val = self.result_stack.pop()
         if not initializer_val:
-            raise Exception("codegen: Invalid start argument.")
+            raise Exception("codegen: Invalid initializer expression.")
 
         # Store the value into the alloca.
         self._llvm.ir_builder.store(initializer_val, var_addr)
@@ -1782,7 +1782,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         saved_block = self._llvm.ir_builder.block
 
         var_addr = self.create_entry_block_alloca(
-            "for_count_loop",
+            "for_range_loop",
             node.variable.type_.__class__.__name__.lower(),
         )
 
@@ -1876,7 +1876,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self.loop_stack.pop()
 
-        # increment
+        # Emit the step expression before the next header check.
         self._llvm.ir_builder.position_at_start(step_bb)
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         next_var = emit_add(

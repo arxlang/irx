@@ -57,8 +57,7 @@ def test_break_exits_to_after_block(builder_class: type[Builder]) -> None:
     ir_text = str(visitor._llvm.module)
 
     # Must contain a branch (break → after block)
-    assert "br label" in ir_text
-    assert "after" in ir_text.lower()
+    assert 'br label %"afterwhile"' in ir_text
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -97,8 +96,8 @@ def test_break_skips_remaining_statements(
 
     ir_text = str(visitor._llvm.module)
 
-    # No store for x after break path
-    assert "x" not in ir_text or "store" not in ir_text
+    # The unreachable assignment must not emit a store.
+    assert "store i32 10" not in ir_text
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -137,8 +136,9 @@ def test_nested_loop_break_affects_only_inner(
 
     ir_text = str(visitor._llvm.module)
 
-    # Should still contain outer loop structure
-    assert "while" in ir_text.lower()
+    # Inner break must target the inner after-block, then outer flow continues.
+    assert 'br label %"afterwhile.1"' in ir_text
+    assert 'br label %"whilecond"' in ir_text
 
 
 # CONTINUE TESTS
@@ -169,8 +169,7 @@ def test_continue_branches_to_condition(builder_class: type[Builder]) -> None:
     ir_text = str(visitor._llvm.module)
 
     # Continue should branch back (cond block)
-    assert "br label" in ir_text
-    assert "cond" in ir_text.lower() or "while" in ir_text.lower()
+    assert 'br label %"whilecond"' in ir_text
 
 
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
@@ -209,7 +208,7 @@ def test_continue_skips_remaining_statements(
 
     ir_text = str(visitor._llvm.module)
 
-    assert "y" not in ir_text or "store" not in ir_text
+    assert "store i32 20" not in ir_text
 
 
 # ERROR CASES
