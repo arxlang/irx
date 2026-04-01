@@ -6,6 +6,7 @@ summary: Verify StructDefStmt generates an LLVM identified struct type.
 import astx
 import pytest
 
+from irx.analysis import SemanticError
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 
@@ -143,5 +144,5 @@ def test_struct_definition_duplicate_name(
 
     module.block.append(main_fn)
 
-    with pytest.raises(ValueError, match="already defined"):
+    with pytest.raises(SemanticError, match="already defined"):
         builder.translate(module)

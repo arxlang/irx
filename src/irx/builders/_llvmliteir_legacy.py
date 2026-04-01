@@ -104,10 +104,92 @@ def _uses_unsigned_semantics(node: "astx.AST") -> bool:
     returns:
       type: bool
     """
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    semantic_unsigned = getattr(semantic_flags, "unsigned", None)
+    if semantic_unsigned is not None:
+        return cast(bool, semantic_unsigned)
+
     explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
     if explicit_unsigned is not None:
         return explicit_unsigned
     return _is_unsigned_node(node)
+
+
+def _semantic_symbol_key(node: "astx.AST", fallback: str) -> str:
+    """
+    title: Return the resolved symbol id for a node when available.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    symbol = getattr(semantic, "resolved_symbol", None)
+    symbol_id = getattr(symbol, "symbol_id", None)
+    if symbol_id is not None:
+        return cast(str, symbol_id)
+    return fallback
+
+
+def _semantic_assignment_key(node: "astx.AST", fallback: str) -> str:
+    """
+    title: Return the resolved assignment target id when available.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    assignment = getattr(semantic, "resolved_assignment", None)
+    target = getattr(assignment, "target", None)
+    symbol_id = getattr(target, "symbol_id", None)
+    if symbol_id is not None:
+        return cast(str, symbol_id)
+    return fallback
+
+
+def _semantic_flag(node: "astx.AST", name: str, default: bool = False) -> bool:
+    """
+    title: Return a normalized semantic flag when available.
+    parameters:
+      node:
+        type: astx.AST
+      name:
+        type: str
+      default:
+        type: bool
+    returns:
+      type: bool
+    """
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    if semantic_flags is not None and hasattr(semantic_flags, name):
+        return bool(getattr(semantic_flags, name))
+    return bool(getattr(node, name, default))
+
+
+def _semantic_fma_rhs(node: "astx.AST") -> "astx.AST | None":
+    """
+    title: Return the normalized FMA rhs node when available.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: astx.AST | None
+    """
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    fma_rhs = getattr(semantic_flags, "fma_rhs", None)
+    if fma_rhs is not None:
+        return cast(astx.AST, fma_rhs)
+    return cast(astx.AST | None, getattr(node, "fma_rhs", None))
 
 
 def emit_int_div(
@@ -1000,6 +1082,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.op_code == "++":
             self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
+            operand_key = (
+                _semantic_symbol_key(node.operand, node.operand.name)
+                if isinstance(node.operand, astx.Identifier)
+                else ""
+            )
 
             one = ir.Constant(operand_val.type, 1)
 
@@ -1011,12 +1098,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             # If operand is a variable, store the new value back
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                if operand_key in self.const_vars:
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
                     )
-                var_addr = self.named_values.get(node.operand.name)
+                var_addr = self.named_values.get(operand_key)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
 
@@ -1026,6 +1113,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "--":
             self.visit(node.operand)
             operand_val = safe_pop(self.result_stack)
+            operand_key = (
+                _semantic_symbol_key(node.operand, node.operand.name)
+                if isinstance(node.operand, astx.Identifier)
+                else ""
+            )
             one = ir.Constant(operand_val.type, 1)
             if is_fp_type(operand_val.type):
                 result = self._llvm.ir_builder.fsub(operand_val, one, "dectmp")
@@ -1033,12 +1125,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.sub(operand_val, one, "dectmp")
 
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                if operand_key in self.const_vars:
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
                     )
-                var_addr = self.named_values.get(node.operand.name)
+                var_addr = self.named_values.get(operand_key)
                 if var_addr:
                     self._llvm.ir_builder.store(result, var_addr)
 
@@ -1066,12 +1158,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
             # Maintain IRx mutation behavior + const check
             if isinstance(node.operand, astx.Identifier):
-                if node.operand.name in self.const_vars:
+                operand_key = _semantic_symbol_key(
+                    node.operand, node.operand.name
+                )
+                if operand_key in self.const_vars:
                     raise Exception(
                         f"Cannot mutate '{node.operand.name}':"
                         "declared as constant"
                     )
-                addr = self.named_values.get(node.operand.name)
+                addr = self.named_values.get(operand_key)
                 if addr:
                     self._llvm.ir_builder.store(result, addr)
 
@@ -1098,11 +1193,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             # dynamic_cast for automatic error checking.
             var_lhs = node.lhs
 
-            if not isinstance(var_lhs, astx.VariableExprAST):
+            if not isinstance(var_lhs, astx.Identifier):
                 raise Exception("destination of '=' must be a variable")
 
-            lhs_name = var_lhs.get_name()
-            if lhs_name in self.const_vars:
+            lhs_name = var_lhs.name
+            lhs_key = _semantic_symbol_key(var_lhs, lhs_name)
+            if lhs_key in self.const_vars:
                 raise Exception(
                     f"Cannot assign to '{lhs_name}': declared as constant"
                 )
@@ -1113,7 +1209,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             if not llvm_rhs:
                 raise Exception("codegen: Invalid rhs expression.")
 
-            llvm_lhs = self.named_values.get(var_lhs.get_name())
+            llvm_lhs = self.named_values.get(lhs_key)
 
             if not llvm_lhs:
                 raise Exception("codegen: Invalid lhs variable name")
@@ -1148,11 +1244,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
-            set_fast = is_float_vec and getattr(node, "fast_math", False)
-            if op == "*" and is_float_vec and getattr(node, "fma", False):
-                if not hasattr(node, "fma_rhs"):
+            set_fast = is_float_vec and _semantic_flag(node, "fast_math")
+            if op == "*" and is_float_vec and _semantic_flag(node, "fma"):
+                fma_rhs_node = _semantic_fma_rhs(node)
+                if fma_rhs_node is None:
                     raise Exception("FMA requires a third operand (fma_rhs)")
-                self.visit(node.fma_rhs)
+                self.visit(fma_rhs_node)
                 llvm_fma_rhs = safe_pop(self.result_stack)
                 if llvm_fma_rhs.type != llvm_lhs.type:
                     raise Exception(
@@ -1647,8 +1744,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         """
         # Get the name of the variable to assign to
         var_name = expr.name
+        var_key = _semantic_assignment_key(expr, var_name)
 
-        if var_name in self.const_vars:
+        if var_key in self.const_vars:
             raise Exception(
                 f"Cannot assign to '{var_name}': declared as constant"
             )
@@ -1660,7 +1758,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             raise Exception("codegen: Invalid value in VariableAssignment.")
 
         # Look up the variable in the named values
-        llvm_var = self.named_values.get(var_name)
+        llvm_var = self.named_values.get(var_key)
 
         if not llvm_var:
             raise Exception(
@@ -1705,8 +1803,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_start(loop_header_bb)
 
         # Save old value if variable shadows an existing one
-        old_val = self.named_values.get(node.initializer.name)
-        self.named_values[node.initializer.name] = var_addr
+        initializer_key = _semantic_symbol_key(
+            node.initializer, node.initializer.name
+        )
+        old_val = self.named_values.get(initializer_key)
+        self.named_values[initializer_key] = var_addr
 
         # Emit condition check (e.g., i < 10)
         self.visit(node.condition)
@@ -1760,9 +1861,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Restore the unshadowed variable.
         if old_val:
-            self.named_values[node.initializer.name] = old_val
+            self.named_values[initializer_key] = old_val
         else:
-            self.named_values.pop(node.initializer.name, None)
+            self.named_values.pop(initializer_key, None)
 
         result = ir.Constant(
             self._llvm.get_data_type(
@@ -1866,8 +1967,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # LOOP BODY
         self._llvm.ir_builder.position_at_start(body_bb)
 
-        old_val = self.named_values.get(node.variable.name)
-        self.named_values[node.variable.name] = var_addr
+        variable_key = _semantic_symbol_key(node.variable, node.variable.name)
+        old_val = self.named_values.get(variable_key)
+        self.named_values[variable_key] = var_addr
 
         self.visit(node.body)
         safe_pop(self.result_stack)
@@ -1891,9 +1993,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.position_at_start(after_bb)
 
         if old_val:
-            self.named_values[node.variable.name] = old_val
+            self.named_values[variable_key] = old_val
         else:
-            self.named_values.pop(node.variable.name, None)
+            self.named_values.pop(variable_key, None)
 
         result = ir.Constant(
             self._llvm.get_data_type(
@@ -3647,6 +3749,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             arg_ast = proto.args.nodes[idx]
             type_str = arg_ast.type_.__class__.__name__.lower()
             arg_type = self._llvm.get_data_type(type_str)
+            symbol_key = _semantic_symbol_key(arg_ast, llvm_arg.name)
 
             # Create an alloca for this variable.
             alloca = self._llvm.ir_builder.alloca(arg_type, name=llvm_arg.name)
@@ -3655,7 +3758,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ir_builder.store(llvm_arg, alloca)
 
             # Add arguments to variable symbol table.
-            self.named_values[llvm_arg.name] = alloca
+            self.named_values[symbol_key] = alloca
 
         self.visit(node.body)
         # Emit implicit terminator if the body did not produce one.
@@ -3735,7 +3838,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           node:
             type: astx.InlineVariableDeclaration
         """
-        if self.named_values.get(node.name):
+        symbol_key = _semantic_symbol_key(node, node.name)
+        if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
@@ -3759,8 +3863,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         self._llvm.ir_builder.store(init_val, alloca)
         if node.mutability == astx.MutabilityKind.constant:
-            self.const_vars.add(node.name)
-        self.named_values[node.name] = alloca
+            self.const_vars.add(symbol_key)
+        self.named_values[symbol_key] = alloca
 
         self.result_stack.append(init_val)
 
@@ -4107,7 +4211,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           node:
             type: astx.Identifier
         """
-        expr_var = self.named_values.get(node.name)
+        symbol_key = _semantic_symbol_key(node, node.name)
+        expr_var = self.named_values.get(symbol_key)
 
         if not expr_var:
             raise Exception(f"Unknown variable name: {node.name}")
@@ -4123,7 +4228,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           node:
             type: astx.VariableDeclaration
         """
-        if self.named_values.get(node.name):
+        symbol_key = _semantic_symbol_key(node, node.name)
+        if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
@@ -4186,8 +4292,8 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ir_builder.store(init_val, alloca)
 
         if node.mutability == astx.MutabilityKind.constant:
-            self.const_vars.add(node.name)
-        self.named_values[node.name] = alloca
+            self.const_vars.add(symbol_key)
+        self.named_values[symbol_key] = alloca
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.StructDefStmt) -> None:

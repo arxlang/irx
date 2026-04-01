@@ -88,7 +88,7 @@ def test_emit_fma_direct_path_calls_apply_fast_math() -> None:
 
     visitor.set_fast_math(True)
     apply_fast_math = Mock(wraps=visitor._apply_fast_math)
-    visitor._apply_fast_math = apply_fast_math  # type: ignore[method-assign]
+    setattr(visitor, "_apply_fast_math", apply_fast_math)
 
     ty = visitor._llvm.FLOAT_TYPE
     lhs = ir.Constant(ty, 1.0)

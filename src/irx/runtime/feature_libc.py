@@ -15,7 +15,7 @@ from irx.runtime.features import (
 )
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir import LLVMLiteIRVisitor
+    from irx.builders.llvmliteir.protocols import LLVMLiteIRVisitorProtocol
 
 
 def build_libc_runtime_feature() -> RuntimeFeature:
@@ -35,7 +35,7 @@ def build_libc_runtime_feature() -> RuntimeFeature:
     )
 
 
-def _declare_exit(visitor: LLVMLiteIRVisitor) -> ir.Function:
+def _declare_exit(visitor: LLVMLiteIRVisitorProtocol) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
         [visitor._llvm.INT32_TYPE],
@@ -43,7 +43,7 @@ def _declare_exit(visitor: LLVMLiteIRVisitor) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "exit", fn_type)
 
 
-def _declare_malloc(visitor: LLVMLiteIRVisitor) -> ir.Function:
+def _declare_malloc(visitor: LLVMLiteIRVisitorProtocol) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT8_TYPE.as_pointer(),
         [visitor._llvm.SIZE_T_TYPE],
@@ -51,7 +51,7 @@ def _declare_malloc(visitor: LLVMLiteIRVisitor) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "malloc", fn_type)
 
 
-def _declare_puts(visitor: LLVMLiteIRVisitor) -> ir.Function:
+def _declare_puts(visitor: LLVMLiteIRVisitorProtocol) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [visitor._llvm.INT8_TYPE.as_pointer()],
@@ -59,7 +59,7 @@ def _declare_puts(visitor: LLVMLiteIRVisitor) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "puts", fn_type)
 
 
-def _declare_snprintf(visitor: LLVMLiteIRVisitor) -> ir.Function:
+def _declare_snprintf(visitor: LLVMLiteIRVisitorProtocol) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [

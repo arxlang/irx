@@ -5,6 +5,7 @@ title: Tests for the runtime feature registry and activation state.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import astx
 import pytest
@@ -20,8 +21,11 @@ from irx.runtime.registry import RuntimeFeatureRegistry, RuntimeFeatureState
 from irx.system import PrintExpr
 from llvmlite import ir
 
+if TYPE_CHECKING:
+    from irx.builders.llvmliteir.protocols import LLVMLiteIRVisitorProtocol
 
-def _declare_dummy_symbol(visitor: LLVMLiteIRVisitor) -> ir.Function:
+
+def _declare_dummy_symbol(visitor: "LLVMLiteIRVisitorProtocol") -> ir.Function:
     fn_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
     return declare_external_function(visitor._llvm.module, "dummy_rt", fn_type)
 

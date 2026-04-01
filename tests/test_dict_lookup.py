@@ -9,6 +9,7 @@ from typing import cast
 import astx
 import pytest
 
+from irx.analysis import SemanticError
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
 from irx.system import PrintExpr
@@ -193,7 +194,7 @@ def test_dict_lookup_empty_dict_runtime_key_raises_keyerror(
     )
     module = _make_lookup_module(lookup, key_decl)
 
-    with pytest.raises(KeyError, match="empty dict"):
+    with pytest.raises(SemanticError, match="empty dict"):
         builder.translate(module)
 
 

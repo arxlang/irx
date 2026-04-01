@@ -7,6 +7,7 @@ from __future__ import annotations
 import astx
 import pytest
 
+from irx.analysis import SemanticError
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
 from irx.system import PrintExpr
@@ -198,5 +199,5 @@ def test_non_void_function_missing_return_raises_error(
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)
 
-    with pytest.raises(SyntaxError, match="missing a return statement"):
+    with pytest.raises(SemanticError, match="missing a return statement"):
         builder.translate(module)
