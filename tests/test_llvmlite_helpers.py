@@ -77,6 +77,29 @@ def test_emit_fma_fallback_intrinsic() -> None:
     assert "llvm.fma.f32" in visitor._llvm.module.globals
 
 
+def test_emit_fma_direct_path_calls_apply_fast_math() -> None:
+    """
+    title: Native builder.fma path should still route through _apply_fast_math.
+    """
+    visitor = LLVMLiteIRVisitor()
+    _prime_builder(visitor)
+    if not hasattr(visitor._llvm.ir_builder, "fma"):
+        pytest.skip("llvmlite IRBuilder has no native fma")
+
+    visitor.set_fast_math(True)
+    apply_fast_math = Mock(wraps=visitor._apply_fast_math)
+    visitor._apply_fast_math = apply_fast_math  # type: ignore[method-assign]
+
+    ty = visitor._llvm.FLOAT_TYPE
+    lhs = ir.Constant(ty, 1.0)
+    rhs = ir.Constant(ty, 2.0)
+    addend = ir.Constant(ty, 3.0)
+
+    inst = visitor._emit_fma(lhs, rhs, addend)
+
+    apply_fast_math.assert_called_once_with(inst)
+
+
 def test_splat_scalar_broadcasts_all_lanes() -> None:
     """
     title: splat_scalar should broadcast the scalar into every lane.

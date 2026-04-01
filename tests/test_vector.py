@@ -69,6 +69,7 @@ def _run_vector_binop(
     rhs_val: ir.Value,
     unsigned: bool | None = None,
     fma_rhs: ir.Value | None = None,
+    fast_math: bool = False,
 ) -> ir.Value:
     """
     title: Drive a BinaryOp through the visitor and return the result.
@@ -83,6 +84,8 @@ def _run_vector_binop(
         type: bool | None
       fma_rhs:
         type: ir.Value | None
+      fast_math:
+        type: bool
     returns:
       type: ir.Value
     """
@@ -92,6 +95,8 @@ def _run_vector_binop(
     )
     if unsigned is not None:
         bin_op.unsigned = unsigned  # type: ignore[attr-defined]
+    if fast_math:
+        bin_op.fast_math = True  # type: ignore[attr-defined]
     if fma_rhs is not None:
         bin_op.fma = True  # type: ignore[attr-defined]
         bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
@@ -427,18 +432,69 @@ def test_fma_missing_fma_rhs_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "op, raises",
-    [("+", False), ("%", True)],
-    ids=["success", "failure"],
+    "op, fast_math, expect_fast",
+    [
+        ("+", False, False),
+        ("+", True, True),
+        ("-", True, True),
+        ("*", True, True),
+        ("/", True, True),
+    ],
+    ids=["no_fast", "add_fast", "sub_fast", "mul_fast", "div_fast"],
 )
-def test_fast_math_flag_always_cleared(op: str, raises: bool) -> None:
+def test_vector_float_binop_uses_node_fast_math(
+    op: str,
+    fast_math: bool,
+    expect_fast: bool,
+) -> None:
     """
     title: >-
-      _fast_math_enabled is reset to False after the op regardless of whether
-      it succeeds or raises.
+      Float vector BinaryOp nodes honour the node fast_math attribute when they
+      go through visit().
     parameters:
       op:
         type: str
+      fast_math:
+        type: bool
+      expect_fast:
+        type: bool
+    """
+    builder = setup_builder()
+    vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
+    v = ir.Constant(vec_ty, [1.0] * VEC4)
+    result = _run_vector_binop(op, v, v, fast_math=fast_math)
+
+    assert isinstance(result.type, ir.VectorType)
+    if expect_fast:
+        assert "fast" in result.flags
+    else:
+        assert "fast" not in result.flags
+
+
+@pytest.mark.parametrize(
+    "op, initial_fast_math, raises",
+    [
+        ("+", False, False),
+        ("+", True, False),
+        ("%", False, True),
+        ("%", True, True),
+    ],
+    ids=["success_false", "success_true", "failure_false", "failure_true"],
+)
+def test_fast_math_flag_restored_after_vector_binop(
+    op: str,
+    initial_fast_math: bool,
+    raises: bool,
+) -> None:
+    """
+    title: >-
+      Vector BinaryOp visits restore the prior fast-math state after success or
+      failure.
+    parameters:
+      op:
+        type: str
+      initial_fast_math:
+        type: bool
       raises:
         type: bool
     """
@@ -446,6 +502,7 @@ def test_fast_math_flag_always_cleared(op: str, raises: bool) -> None:
     vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
     v = ir.Constant(vec_ty, [1.0] * VEC4)
     patched = _make_binop_visitor(v, v)
+    patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp(op, astx.Identifier("LHS"), astx.Identifier("RHS"))
     bin_op.fast_math = True  # type: ignore[attr-defined]
@@ -455,11 +512,40 @@ def test_fast_math_flag_always_cleared(op: str, raises: bool) -> None:
             patched.visit(bin_op)
     else:
         patched.visit(bin_op)
-        result = patched.result_stack.pop()
-        assert "fadd" in str(result)
-        assert isinstance(result.type, ir.VectorType)
+        patched.result_stack.pop()
 
-    assert patched._fast_math_enabled is False
+    assert patched._fast_math_enabled is initial_fast_math
+
+
+@pytest.mark.parametrize(
+    "initial_fast_math",
+    [False, True],
+    ids=["restore_false", "restore_true"],
+)
+def test_fast_math_flag_restored_after_vector_fma(
+    initial_fast_math: bool,
+) -> None:
+    """
+    title: Vector FMA visits restore the prior fast-math state.
+    parameters:
+      initial_fast_math:
+        type: bool
+    """
+    builder = setup_builder()
+    vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
+    v = ir.Constant(vec_ty, [1.0] * VEC4)
+    patched = _make_binop_visitor(v, v, v)
+    patched.set_fast_math(initial_fast_math)
+
+    bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
+    bin_op.fast_math = True  # type: ignore[attr-defined]
+    bin_op.fma = True  # type: ignore[attr-defined]
+    bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
+
+    patched.visit(bin_op)
+    patched.result_stack.pop()
+
+    assert patched._fast_math_enabled is initial_fast_math
 
 
 @pytest.mark.parametrize(
