@@ -37,6 +37,11 @@ from irx.runtime.registry import (
 )
 from irx.tools.typing import typechecked
 
+FLOAT16_BITS = 16
+FLOAT32_BITS = 32
+FLOAT64_BITS = 64
+FLOAT128_BITS = 128
+
 
 def is_fp_type(t: "ir.Type") -> bool:
     """
@@ -88,6 +93,21 @@ def _is_unsigned_node(node: "astx.AST") -> bool:
     """
     type_ = getattr(node, "type_", None)
     return isinstance(type_, astx.UnsignedInteger)
+
+
+def _uses_unsigned_semantics(node: "astx.AST") -> bool:
+    """
+    title: Return True when a node should use unsigned numeric semantics.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
+    if explicit_unsigned is not None:
+        return explicit_unsigned
+    return _is_unsigned_node(node)
 
 
 def emit_int_div(
@@ -343,6 +363,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type: RuntimeFeatureState
       const_vars:
         type: set[str]
+      _set_value_ids:
+        type: dict[int, ir.Value]
+      struct_types:
+        type: dict[str, ir.IdentifiedStructType]
       _fast_math_enabled:
         type: bool
       target:
@@ -377,6 +401,10 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.const_vars: set[str] = set()
         self.function_protos: dict[str, astx.FunctionPrototype] = {}
         self.result_stack: list[ir.Value | ir.Function] = []
+        self._set_value_ids: dict[int, ir.Value] = {}
+
+        self.struct_types: dict[str, ir.IdentifiedStructType] = {}
+
         self._fast_math_enabled: bool = False
 
         self.initialize()
@@ -626,99 +654,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self._llvm.ir_builder.position_at_end(current_block)
         return alloca
 
-    def fp_rank(self, t: ir.Type) -> int:
-        """
-        title: Rank floating-point types half, float, double.
-        parameters:
-          t:
-            type: ir.Type
-        returns:
-          type: int
-        """
-        if isinstance(t, ir.HalfType):
-            return 1
-        if isinstance(t, ir.FloatType):
-            return 2
-        if isinstance(t, ir.DoubleType):
-            return 3
-        return 0
-
-    def promote_operands(
-        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
-    ) -> tuple[ir.Value, ir.Value]:
-        """
-        title: Promote two LLVM IR numeric operands to a common type.
-        parameters:
-          lhs:
-            type: ir.Value
-            description: The left-hand operand.
-          rhs:
-            type: ir.Value
-            description: The right-hand operand.
-          unsigned:
-            type: bool
-        returns:
-          type: tuple[ir.Value, ir.Value]
-          description: A tuple containing the promoted operands.
-        """
-        if lhs.type == rhs.type:
-            return lhs, rhs
-
-        # perform sign/zero extension (for integer operands)
-        if is_int_type(lhs.type) and is_int_type(rhs.type):
-            if unsigned:
-                if lhs.type.width < rhs.type.width:
-                    lhs = self._llvm.ir_builder.zext(
-                        lhs, rhs.type, "promote_lhs"
-                    )
-                elif lhs.type.width > rhs.type.width:
-                    rhs = self._llvm.ir_builder.zext(
-                        rhs, lhs.type, "promote_rhs"
-                    )
-            elif lhs.type.width < rhs.type.width:
-                lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
-            elif lhs.type.width > rhs.type.width:
-                rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
-            return lhs, rhs
-
-        lhs_fp_rank = self.fp_rank(lhs.type)
-        rhs_fp_rank = self.fp_rank(rhs.type)
-
-        if lhs_fp_rank > 0 and rhs_fp_rank > 0:
-            # make both the wider FP
-            if lhs_fp_rank < rhs_fp_rank:
-                lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
-            elif lhs_fp_rank > rhs_fp_rank:
-                rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
-            return lhs, rhs
-
-        # If one is int and other is FP, convert int -> FP
-        if is_int_type(lhs.type) and rhs_fp_rank > 0:
-            target_fp = rhs.type
-            if unsigned:
-                lhs_fp = self._llvm.ir_builder.uitofp(
-                    lhs, target_fp, "uint_to_fp"
-                )
-            else:
-                lhs_fp = self._llvm.ir_builder.sitofp(
-                    lhs, target_fp, "int_to_fp"
-                )
-            return lhs_fp, rhs
-
-        if is_int_type(rhs.type) and lhs_fp_rank > 0:
-            target_fp = lhs.type
-            if unsigned:
-                rhs_fp = self._llvm.ir_builder.uitofp(
-                    rhs, target_fp, "uint_to_fp"
-                )
-            else:
-                rhs_fp = self._llvm.ir_builder.sitofp(
-                    rhs, target_fp, "int_to_fp"
-                )
-            return lhs, rhs_fp
-
-        return lhs, rhs
-
     def _get_fma_function(self, ty: ir.Type) -> ir.Function:
         """
         title: Return (and cache) the llvm.fma.* intrinsic for a type.
@@ -772,7 +707,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           type: ir.Value
         """
         builder = self._llvm.ir_builder
-        if hasattr(builder, "fma"):
+        if not isinstance(lhs.type, ir.VectorType) and hasattr(builder, "fma"):
             return builder.fma(lhs, rhs, addend, name="vfma")
 
         fma_fn = self._get_fma_function(lhs.type)
@@ -816,6 +751,231 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             flags.append("fast")
         except (AttributeError, TypeError):
             return
+
+    def _is_numeric_value(self, value: ir.Value) -> bool:
+        """
+        title: Check if value is an int or floating-point scalar or vector.
+        parameters:
+          value:
+            type: ir.Value
+            description: LLVM IR value to classify.
+        returns:
+          type: bool
+          description: True if the value is an int/float scalar or vector.
+        """
+        if is_vector(value):
+            elem_ty = value.type.element
+            return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
+        base_ty = value.type
+        return isinstance(base_ty, ir.IntType) or is_fp_type(base_ty)
+
+    def _unify_numeric_operands(
+        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Ensure numeric operands share shape and scalar type.
+        parameters:
+          lhs:
+            type: ir.Value
+            description: Left-hand side operand.
+          rhs:
+            type: ir.Value
+            description: Right-hand side operand.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts are unsigned-
+              aware.
+        returns:
+          type: tuple[ir.Value, ir.Value]
+          description: Operands converted to compatible shape and scalar type.
+        """
+        lhs_is_vec = is_vector(lhs)
+        rhs_is_vec = is_vector(rhs)
+
+        if lhs_is_vec and rhs_is_vec:
+            if lhs.type.count != rhs.type.count:
+                raise Exception(
+                    f"Vector size mismatch: "
+                    f"{lhs.type.count} vs {rhs.type.count}"
+                )
+            if lhs.type.element != rhs.type.element:
+                raise Exception(
+                    f"Vector element type mismatch: "
+                    f"{lhs.type.element} vs {rhs.type.element}"
+                )
+            return lhs, rhs
+
+        # When one operand is a vector, the scalar casts to match the vector's
+        # element type — vectors have a fixed shape so they take precedence.
+        if lhs_is_vec:
+            target_lanes = lhs.type.count
+            target_scalar_ty = lhs.type.element
+        elif rhs_is_vec:
+            target_lanes = rhs.type.count
+            target_scalar_ty = rhs.type.element
+        else:
+            target_lanes = None
+            lhs_base_ty = lhs.type
+            rhs_base_ty = rhs.type
+            lhs_is_float = is_fp_type(lhs_base_ty)
+            rhs_is_float = is_fp_type(rhs_base_ty)
+            if lhs_is_float or rhs_is_float:
+                float_candidates = [
+                    ty for ty in (lhs_base_ty, rhs_base_ty) if is_fp_type(ty)
+                ]
+                target_scalar_ty = self._select_float_type(float_candidates)
+            else:
+                lhs_width = getattr(lhs_base_ty, "width", 0)
+                rhs_width = getattr(rhs_base_ty, "width", 0)
+                target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
+
+        lhs = self._cast_value_to_type(
+            lhs, target_scalar_ty, unsigned=unsigned
+        )
+        rhs = self._cast_value_to_type(
+            rhs, target_scalar_ty, unsigned=unsigned
+        )
+
+        if target_lanes:
+            vec_ty = ir.VectorType(target_scalar_ty, target_lanes)
+            if not is_vector(lhs):
+                lhs = splat_scalar(self._llvm.ir_builder, lhs, vec_ty)
+            if not is_vector(rhs):
+                rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
+
+        return lhs, rhs
+
+    def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
+        """
+        title: Choose the widest floating-point type from candidates.
+        parameters:
+          candidates:
+            type: list[ir.Type]
+            description: Candidate floating-point types.
+        returns:
+          type: ir.Type
+          description: The widest floating-point type; defaults to float32.
+        """
+        if not candidates:
+            return self._llvm.FLOAT_TYPE
+
+        width = max(self._float_bit_width(ty) for ty in candidates)
+        return self._float_type_from_width(width)
+
+    def _float_type_from_width(self, width: int) -> ir.Type:
+        """
+        title: Map a bit width to the corresponding LLVM FP type.
+        parameters:
+          width:
+            type: int
+        returns:
+          type: ir.Type
+        """
+        if width <= FLOAT16_BITS and hasattr(self._llvm, "FLOAT16_TYPE"):
+            return self._llvm.FLOAT16_TYPE
+        if width <= FLOAT32_BITS:
+            return self._llvm.FLOAT_TYPE
+        if width <= FLOAT64_BITS:
+            return self._llvm.DOUBLE_TYPE
+        if FP128Type is not None and width >= FLOAT128_BITS:
+            return FP128Type()
+        return self._llvm.FLOAT_TYPE
+
+    def _float_bit_width(self, ty: ir.Type) -> int:
+        """
+        title: Return bit width for a floating-point type.
+        parameters:
+          ty:
+            type: ir.Type
+        returns:
+          type: int
+        """
+        if isinstance(ty, DoubleType):
+            return FLOAT64_BITS
+        if isinstance(ty, FloatType):
+            return FLOAT32_BITS
+        if isinstance(ty, HalfType):
+            return FLOAT16_BITS
+        if FP128Type is not None and isinstance(ty, FP128Type):
+            return FLOAT128_BITS
+        raise Exception(f"Unknown floating-point type: {ty}")
+
+    def _cast_value_to_type(
+        self,
+        value: ir.Value,
+        target_scalar_ty: ir.Type,
+        unsigned: bool = False,
+    ) -> ir.Value:
+        """
+        title: Cast scalars or vectors to a target scalar type.
+        parameters:
+          value:
+            type: ir.Value
+            description: Source scalar or vector value.
+          target_scalar_ty:
+            type: ir.Type
+            description: Desired scalar element type.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts should preserve
+              unsigned semantics.
+        returns:
+          type: ir.Value
+          description: Value converted to the requested scalar type.
+        """
+        builder = self._llvm.ir_builder
+        value_is_vec = is_vector(value)
+        if value_is_vec:
+            lanes = value.type.count
+            current_scalar_ty = value.type.element
+            target_ty = ir.VectorType(target_scalar_ty, lanes)
+        else:
+            lanes = None
+            current_scalar_ty = value.type
+            target_ty = target_scalar_ty
+
+        if current_scalar_ty == target_scalar_ty and value.type == target_ty:
+            return value
+
+        current_is_float = is_fp_type(current_scalar_ty)
+        target_is_float = is_fp_type(target_scalar_ty)
+
+        if target_is_float:
+            if current_is_float:
+                current_bits = self._float_bit_width(current_scalar_ty)
+                target_bits = self._float_bit_width(target_scalar_ty)
+                if current_bits == target_bits:
+                    if value.type != target_ty:
+                        return builder.bitcast(value, target_ty)
+                    return value
+                if current_bits < target_bits:
+                    return builder.fpext(value, target_ty, "fpext")
+                return builder.fptrunc(value, target_ty, "fptrunc")
+            if unsigned:
+                return builder.uitofp(value, target_ty, "uitofp")
+            return builder.sitofp(value, target_ty, "sitofp")
+
+        if current_is_float:
+            raise Exception(
+                "Cannot implicitly convert floating-point to integer"
+            )
+
+        current_width = getattr(current_scalar_ty, "width", 0)
+        target_width = getattr(target_scalar_ty, "width", 0)
+
+        if current_width == target_width:
+            if value.type != target_ty:
+                return builder.bitcast(value, target_ty)
+            return value
+
+        if current_width < target_width:
+            if unsigned:
+                return builder.zext(value, target_ty, "zext")
+            return builder.sext(value, target_ty, "sext")
+
+        return builder.trunc(value, target_ty, "trunc")
 
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
@@ -886,10 +1046,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "!":
             self.visit(node.operand)
             val = safe_pop(self.result_stack)
-            result = self._llvm.ir_builder.xor(
-                val, ir.Constant(val.type, 1), "nottmp"
+
+            zero = ir.Constant(val.type, 0)
+
+            # Logical NOT using comparison
+            is_zero = self._llvm.ir_builder.icmp_signed(
+                "==", val, zero, "iszero"
             )
 
+            # Match original type
+            if isinstance(val.type, ir.IntType) and val.type.width == 1:
+                result = is_zero
+            else:
+                result = self._llvm.ir_builder.zext(
+                    is_zero, val.type, "nottmp"
+                )
+
+            # Maintain IRx mutation behavior + const check
             if isinstance(node.operand, astx.Identifier):
                 if node.operand.name in self.const_vars:
                     raise Exception(
@@ -954,74 +1127,23 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.rhs)
         llvm_rhs = safe_pop(self.result_stack)
 
+        if self._try_set_binary_op(llvm_lhs, llvm_rhs, node.op_code):
+            return
+
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # Scalar-vector promotion: one vector + matching scalar -> splat scalar
-        lhs_is_vec = is_vector(llvm_lhs)
-        rhs_is_vec = is_vector(llvm_rhs)
-        if lhs_is_vec and not rhs_is_vec:
-            elem_ty = llvm_lhs.type.element
-            if llvm_rhs.type == elem_ty:
-                llvm_rhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_rhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_rhs.type, DoubleType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fptrunc(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_rhs.type, FloatType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fpext(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-        elif rhs_is_vec and not lhs_is_vec:
-            elem_ty = llvm_rhs.type.element
-            if llvm_lhs.type == elem_ty:
-                llvm_lhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_lhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_lhs.type, DoubleType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fptrunc(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_lhs.type, FloatType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fpext(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
+        unsigned = _uses_unsigned_semantics(node)
+
+        if self._is_numeric_value(llvm_lhs) and self._is_numeric_value(
+            llvm_rhs
+        ):
+            llvm_lhs, llvm_rhs = self._unify_numeric_operands(
+                llvm_lhs, llvm_rhs, unsigned=unsigned
+            )
 
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            if llvm_lhs.type.count != llvm_rhs.type.count:
-                raise Exception(
-                    f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}"
-                )
-            if llvm_lhs.type.element != llvm_rhs.type.element:
-                raise Exception(
-                    f"Vector element type mismatch: "
-                    f"{llvm_lhs.type.element} vs {llvm_rhs.type.element}"
-                )
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
             set_fast = is_float_vec and getattr(node, "fast_math", False)
@@ -1084,11 +1206,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         )
                         self._apply_fast_math(result)
                     else:
-                        unsigned = getattr(node, "unsigned", False)
-                        if unsigned is None:
-                            # Fallback to signed division (sdiv) by default
-                            unsigned = False
-
                         result = emit_int_div(
                             self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
                         )
@@ -1099,13 +1216,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     self.set_fast_math(False)
             self.result_stack.append(result)
             return
-
-        # Scalar Fallback: Original scalar promotion logic
-        llvm_lhs, llvm_rhs = self.promote_operands(
-            llvm_lhs,
-            llvm_rhs,
-            unsigned=_is_unsigned_node(node),
-        )
 
         if node.op_code in ("&&", "and"):
             result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
@@ -1137,7 +1247,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
         elif node.op_code == "-":
             # note: it should be according the datatype,
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
@@ -1152,7 +1262,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
@@ -1167,12 +1277,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             # handle it depend on datatype
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1185,12 +1295,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
             # be careful we havn't  handled all the conditions
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1201,11 +1311,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "<=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -1216,11 +1326,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == ">=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -1233,13 +1343,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
             # division
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 # Floating-point division
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.udiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1262,11 +1372,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "=="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -1289,11 +1399,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "!="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
@@ -1309,7 +1419,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.frem(
                     llvm_lhs, llvm_rhs, "fremtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.urem(
                     llvm_lhs, llvm_rhs, "uremtmp"
                 )
@@ -1914,7 +2024,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
     @dispatch  # type: ignore[no-redef]
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
-        title: Handle ASCII string literals.
+        title: Handle UTF-8 char literals.
         parameters:
           expr:
             type: astx.LiteralUTF8Char
@@ -2379,15 +2489,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return a if a.width >= b.width else b
 
         # Both FP → pick higher rank
-        a_rank = self.fp_rank(a)
-        b_rank = self.fp_rank(b)
-        if a_rank > 0 and b_rank > 0:
-            return a if a_rank >= b_rank else b
+        a_is_fp = is_fp_type(a)
+        b_is_fp = is_fp_type(b)
+        if a_is_fp and b_is_fp:
+            return self._select_float_type([a, b])
 
         # Int + FP → promote int to FP
-        if is_int_type(a) and b_rank > 0:
+        if is_int_type(a) and b_is_fp:
             return b
-        if is_int_type(b) and a_rank > 0:
+        if is_int_type(b) and a_is_fp:
             return a
 
         # Pointer types (strings) must match exactly
@@ -2454,9 +2564,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # fp → wider/narrower fp
         if is_fp_type(v.type) and is_fp_type(target_ty):
-            src_rank = self.fp_rank(v.type)
-            dst_rank = self.fp_rank(target_ty)
-            if src_rank < dst_rank:
+            if self._float_bit_width(v.type) < self._float_bit_width(
+                target_ty
+            ):
                 return b.fpext(v, target_ty, "list_fpext")
             return b.fptrunc(v, target_ty, "list_fptrunc")
 
@@ -2465,6 +2575,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return b.fptosi(v, target_ty, "list_fptosi")
 
         raise TypeError(f"LiteralList: cannot coerce {v.type} to {target_ty}")
+
+    def _mark_set_value(self, value: ir.Value) -> ir.Value:
+        """
+        title: Mark a lowered value as originating from set semantics.
+        parameters:
+          value:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
+        self._set_value_ids[id(value)] = value
+        return value
+
+    def _is_set_value(self, value: ir.Value | None) -> bool:
+        """
+        title: Check whether a value originated from set lowering.
+        parameters:
+          value:
+            type: ir.Value | None
+        returns:
+          type: bool
+        """
+        if value is None:
+            return False
+
+        return self._set_value_ids.get(id(value)) is value
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralSet) -> None:
@@ -2500,74 +2636,94 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Empty set
         if n == 0:
             empty_ty = ir.ArrayType(self._llvm.INT32_TYPE, 0)
-            self.result_stack.append(ir.Constant(empty_ty, []))
+            self.result_stack.append(
+                self._mark_set_value(ir.Constant(empty_ty, []))
+            )
             return
 
-        first_ty = llvm_elems[0].type
         is_ints = all(isinstance(v.type, ir.IntType) for v in llvm_elems)
-        homogeneous = all(v.type == first_ty for v in llvm_elems)
         all_constants = all(isinstance(v, ir.Constant) for v in llvm_elems)
 
-        # Homogeneous integer constants → constant array
-        if is_ints and homogeneous and all_constants:
-            arr_ty = ir.ArrayType(first_ty, n)
-            const_arr = ir.Constant(arr_ty, llvm_elems)
-            self.result_stack.append(const_arr)
-            return
-
-        # Mixed-width integer constants → promote to widest type
-        if is_ints and all_constants and not homogeneous:
+        # Integer constants always lower to a constant array, promoted to the
+        # widest element type when needed.
+        if is_ints and all_constants:
             widest = max(v.type.width for v in llvm_elems)
             elem_ty = ir.IntType(widest)
             arr_ty = ir.ArrayType(elem_ty, n)
+            promoted_vals: list[ir.Constant] = []
+            for v in llvm_elems:
+                if v.type.width != widest:
+                    promoted_vals.append(ir.Constant(elem_ty, v.constant))
+                else:
+                    promoted_vals.append(v)
 
-            builder = self._llvm.ir_builder
-
-            # If outside function context (tests), fallback to constant array
-            if builder.block is None:
-                promoted_vals: list[ir.Constant] = []
-                for v in llvm_elems:
-                    if v.type.width != widest:
-                        promoted_vals.append(ir.Constant(elem_ty, v.constant))
-                    else:
-                        promoted_vals.append(v)
-
-                const_arr = ir.Constant(arr_ty, promoted_vals)
-                self.result_stack.append(const_arr)
-                return
-
-            # Runtime lowering using alloca + store
-            entry_bb = builder.function.entry_basic_block
-            current_bb = builder.block
-
-            builder.position_at_start(entry_bb)
-            alloca = builder.alloca(arr_ty, name="set.lit")
-            builder.position_at_end(current_bb)
-
-            i32 = self._llvm.INT32_TYPE
-
-            for i, v in enumerate(llvm_elems):
-                cast_val = v
-                if cast_val.type != elem_ty:
-                    cast_val = builder.sext(
-                        cast_val, elem_ty, name=f"set_sext{i}"
-                    )
-
-                ptr = builder.gep(
-                    alloca,
-                    [ir.Constant(i32, 0), ir.Constant(i32, i)],
-                    inbounds=True,
-                )
-
-                builder.store(cast_val, ptr)
-
-            self.result_stack.append(alloca)
+            const_arr = self._mark_set_value(
+                ir.Constant(arr_ty, promoted_vals)
+            )
+            self.result_stack.append(const_arr)
             return
 
         raise TypeError(
             "LiteralSet: only integer constants are currently supported "
             "(homogeneous or mixed-width)"
         )
+
+    def _try_set_binary_op(
+        self,
+        lhs: ir.Value | None,
+        rhs: ir.Value | None,
+        op_code: str,
+    ) -> bool:
+        """
+        title: >-
+          Attempt a compile-time set operation on two lowered set constants.
+        parameters:
+          lhs:
+            type: ir.Value | None
+          rhs:
+            type: ir.Value | None
+          op_code:
+            type: str
+        returns:
+          type: bool
+        """
+        if op_code not in ("|", "&", "-", "^"):
+            return False
+
+        if not (self._is_set_value(lhs) and self._is_set_value(rhs)):
+            return False
+
+        if not (
+            isinstance(lhs, ir.Constant)
+            and isinstance(lhs.type, ir.ArrayType)
+            and isinstance(lhs.type.element, ir.IntType)
+            and isinstance(rhs, ir.Constant)
+            and isinstance(rhs.type, ir.ArrayType)
+            and isinstance(rhs.type.element, ir.IntType)
+        ):
+            return False
+
+        a_vals: set[int] = {e.constant for e in lhs.constant}
+        b_vals: set[int] = {e.constant for e in rhs.constant}
+
+        if op_code == "|":
+            result_vals = a_vals | b_vals
+        elif op_code == "&":
+            result_vals = a_vals & b_vals
+        elif op_code == "-":
+            result_vals = a_vals - b_vals
+        else:
+            result_vals = a_vals ^ b_vals
+
+        widest = max(lhs.type.element.width, rhs.type.element.width)
+        elem_ty = ir.IntType(widest)
+        sorted_vals = sorted(result_vals)
+        consts = [ir.Constant(elem_ty, v) for v in sorted_vals]
+        arr_ty = ir.ArrayType(elem_ty, len(consts))
+        self.result_stack.append(
+            self._mark_set_value(ir.Constant(arr_ty, consts))
+        )
+        return True
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralTuple) -> None:
@@ -2686,6 +2842,345 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "LiteralDict: only empty or all-constant dictionaries "
             "are supported in this version"
         )
+
+    def _subscript_uses_unsigned_semantics(
+        self, node: astx.SubscriptExpr
+    ) -> bool:
+        """
+        title: Return True when dict lookup key coercion should be unsigned.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        returns:
+          type: bool
+        """
+        if _uses_unsigned_semantics(node.index):
+            return True
+
+        if isinstance(node.value, astx.LiteralDict) and node.value.elements:
+            first_key_node = next(iter(node.value.elements))
+            return _uses_unsigned_semantics(first_key_node)
+
+        return False
+
+    def _subscript_compare_type(
+        self, lhs_ty: ir.Type, rhs_ty: ir.Type
+    ) -> ir.Type:
+        """
+        title: Return the comparison type for dict key lookup.
+        parameters:
+          lhs_ty:
+            type: ir.Type
+          rhs_ty:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
+        if lhs_ty == rhs_ty:
+            if is_int_type(lhs_ty) or is_fp_type(lhs_ty):
+                return lhs_ty
+            raise TypeError(
+                "SubscriptExpr: only integer and floating-point dict keys "
+                "are supported"
+            )
+
+        if is_int_type(lhs_ty) and is_int_type(rhs_ty):
+            return ir.IntType(max(lhs_ty.width, rhs_ty.width))
+
+        if is_fp_type(lhs_ty) and is_fp_type(rhs_ty):
+            return self._select_float_type([lhs_ty, rhs_ty])
+
+        raise TypeError(
+            "SubscriptExpr: key type "
+            f"{rhs_ty} is incompatible with dict key type {lhs_ty}"
+        )
+
+    def _coerce_subscript_key_for_compare(
+        self,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+        *,
+        unsigned: bool,
+    ) -> ir.Value:
+        """
+        title: Coerce a dict lookup key to the chosen comparison type.
+        parameters:
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value
+        """
+        if key_val.type == compare_ty:
+            return key_val
+
+        if isinstance(key_val, ir.Constant):
+            if is_int_type(key_val.type) and is_int_type(compare_ty):
+                return ir.Constant(compare_ty, int(key_val.constant))
+            if is_fp_type(key_val.type) and is_fp_type(compare_ty):
+                return ir.Constant(compare_ty, float(key_val.constant))
+
+        if (is_int_type(key_val.type) and is_int_type(compare_ty)) or (
+            is_fp_type(key_val.type) and is_fp_type(compare_ty)
+        ):
+            return self._cast_value_to_type(
+                key_val, compare_ty, unsigned=unsigned
+            )
+
+        raise TypeError(
+            "SubscriptExpr: cannot compare dict key type "
+            f"{key_val.type} against {compare_ty}"
+        )
+
+    def _constant_subscript_key_matches(
+        self, entry_key: ir.Constant, key_val: ir.Constant
+    ) -> bool:
+        """
+        title: Compare constant dict keys without ignoring type compatibility.
+        parameters:
+          entry_key:
+            type: ir.Constant
+          key_val:
+            type: ir.Constant
+        returns:
+          type: bool
+        """
+        compare_ty = self._subscript_compare_type(entry_key.type, key_val.type)
+
+        lhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            ),
+        )
+        rhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                key_val, compare_ty, unsigned=False
+            ),
+        )
+
+        return bool(lhs.constant == rhs.constant)
+
+    def _emit_subscript_miss(self) -> None:
+        """
+        title: Terminate execution for a runtime dict key miss.
+        """
+        builder = self._llvm.ir_builder
+        exit_fn = self.require_runtime_symbol("libc", "exit")
+        builder.call(exit_fn, [ir.Constant(self._llvm.INT32_TYPE, 1)])
+        builder.unreachable()
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.SubscriptExpr) -> None:
+        """
+        title: SubscriptExpr lowering — dict key lookup.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        """
+        self.visit(node.value)
+        dict_val = self.result_stack.pop()
+
+        _DICT_PAIR_FIELDS = 2
+        if not (
+            isinstance(dict_val, ir.Constant)
+            and isinstance(dict_val.type, ir.ArrayType)
+            and isinstance(dict_val.type.element, ir.LiteralStructType)
+            and len(dict_val.type.element.elements) == _DICT_PAIR_FIELDS
+        ):
+            raise TypeError(
+                "SubscriptExpr: only constant LiteralDict subscript "
+                "is supported in this version"
+            )
+
+        self.visit(node.index)
+        key_val = self.result_stack.pop()
+
+        if dict_val.type.count == 0:
+            raise KeyError("SubscriptExpr: key lookup on empty dict")
+
+        # Fast path: constant key -> compile-time linear scan.
+        if isinstance(key_val, ir.Constant):
+            for entry in dict_val.constant:
+                entry_key = entry.constant[0]
+                if self._constant_subscript_key_matches(entry_key, key_val):
+                    self.result_stack.append(entry.constant[1])
+                    return
+            raise KeyError(
+                f"SubscriptExpr: key {key_val.constant!r} not found in dict"
+            )
+
+        self._visit_subscript_runtime(
+            dict_val,
+            key_val,
+            unsigned=self._subscript_uses_unsigned_semantics(node),
+        )
+
+    def _visit_subscript_runtime(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        *,
+        unsigned: bool,
+    ) -> None:
+        """
+        title: Emit runtime dict key lookup.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          unsigned:
+            type: bool
+        """
+        key_type = dict_val.type.element.elements[0]
+        compare_ty = self._subscript_compare_type(key_type, key_val.type)
+        key_val = self._coerce_subscript_key_for_compare(
+            key_val, compare_ty, unsigned=unsigned
+        )
+
+        if isinstance(compare_ty, ir.IntType):
+            self._visit_subscript_switch(dict_val, key_val, compare_ty)
+            return
+
+        if is_fp_type(compare_ty):
+            self._visit_subscript_select(dict_val, key_val, compare_ty)
+            return
+
+        raise TypeError(
+            "SubscriptExpr: runtime lookup supports only integer and "
+            "floating-point dict keys"
+        )
+
+    def _visit_subscript_switch(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+    ) -> None:
+        """
+        title: Emit switch-based dict lookup for integer keys.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+        """
+        builder = self._llvm.ir_builder
+        fn = builder.function
+        n = dict_val.type.count
+        val_type = dict_val.type.element.elements[1]
+
+        miss_bb = fn.append_basic_block("dict.miss")
+        merge_bb = fn.append_basic_block("dict.merge")
+
+        case_blocks: list[tuple[ir.Constant, ir.Block]] = []
+        for i in range(n):
+            entry_key = dict_val.constant[i].constant[0]
+            case_key = self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            )
+            bb = fn.append_basic_block(f"dict.case.{i}")
+            case_blocks.append((cast(ir.Constant, case_key), bb))
+
+        switch = builder.switch(key_val, miss_bb)
+        for case_key, case_bb in case_blocks:
+            switch.add_case(case_key, case_bb)
+
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
+
+        for i, (_, case_bb) in enumerate(case_blocks):
+            with builder.goto_block(case_bb):
+                builder.branch(merge_bb)
+
+        builder.position_at_end(merge_bb)
+
+        phi = builder.phi(val_type, name="dict.result")
+        for i, (_, case_bb) in enumerate(case_blocks):
+            entry_val = dict_val.constant[i].constant[1]
+            phi.add_incoming(entry_val, case_bb)
+
+        self.result_stack.append(phi)
+
+    def _visit_subscript_select(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+    ) -> None:
+        """
+        title: Emit select-chain dict lookup for floating-point keys.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+        """
+        builder = self._llvm.ir_builder
+        n = dict_val.type.count
+
+        zero = ir.Constant(ir.IntType(32), 0)
+        key_field = ir.Constant(ir.IntType(32), 0)
+        val_field = ir.Constant(ir.IntType(32), 1)
+
+        current_bb = builder.block
+        builder.position_at_start(builder.function.entry_basic_block)
+        arr_alloca = builder.alloca(dict_val.type, name="dict_arr")
+        builder.position_at_end(current_bb)
+        builder.store(dict_val, arr_alloca)
+
+        last_idx = ir.Constant(ir.IntType(32), n - 1)
+        last_key_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, key_field], inbounds=True
+        )
+        last_key = builder.load(last_key_ptr, name=f"k_{n - 1}")
+        last_key = self._coerce_subscript_key_for_compare(
+            last_key, compare_ty, unsigned=False
+        )
+        matched = builder.fcmp_ordered(
+            "==", last_key, key_val, name=f"cmp_{n - 1}"
+        )
+
+        last_val_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, val_field], inbounds=True
+        )
+        result: ir.Value = builder.load(last_val_ptr, name=f"v_{n - 1}")
+
+        for i in reversed(range(n - 1)):
+            idx = ir.Constant(ir.IntType(32), i)
+            key_ptr = builder.gep(
+                arr_alloca, [zero, idx, key_field], inbounds=True
+            )
+            key_i = builder.load(key_ptr, name=f"k_{i}")
+            key_i = self._coerce_subscript_key_for_compare(
+                key_i, compare_ty, unsigned=False
+            )
+            cmp = builder.fcmp_ordered("==", key_i, key_val, name=f"cmp_{i}")
+            val_ptr = builder.gep(
+                arr_alloca, [zero, idx, val_field], inbounds=True
+            )
+            val_i = builder.load(val_ptr, name=f"v_{i}")
+            result = builder.select(cmp, val_i, result, name=f"sel_{i}")
+            matched = builder.or_(cmp, matched, name=f"match_{i}")
+
+        found_bb = builder.function.append_basic_block("dict.found")
+        miss_bb = builder.function.append_basic_block("dict.miss")
+        builder.cbranch(matched, found_bb, miss_bb)
+
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
+
+        builder.position_at_end(found_bb)
+        self.result_stack.append(result)
 
     def _create_string_concat_function(self) -> ir.Function:
         """
@@ -3099,6 +3594,18 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.named_values[llvm_arg.name] = alloca
 
         self.visit(node.body)
+        # Emit implicit terminator if the body did not produce one.
+        # Void functions get ret_void(); non-void functions that fall
+        # off the end are a missing-return error.
+        if not self._llvm.ir_builder.block.is_terminated:
+            return_type = fn.function_type.return_type
+            if isinstance(return_type, ir.VoidType):
+                self._llvm.ir_builder.ret_void()
+            else:
+                raise SyntaxError(
+                    f"Function '{proto.name}' with return type "
+                    f"'{return_type}' is missing a return statement"
+                )
         self.result_stack.append(fn)
 
     @dispatch  # type: ignore[no-redef]
@@ -3558,7 +4065,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         type_str = node.type_.__class__.__name__.lower()
 
         # Emit the initializer
-        if node.value is not None:
+        if node.value is not None and not isinstance(
+            node.value, astx.Undefined
+        ):
             self.visit(node.value)
             init_val = self.result_stack.pop()
             if init_val is None:
@@ -3615,6 +4124,36 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.mutability == astx.MutabilityKind.constant:
             self.const_vars.add(node.name)
         self.named_values[node.name] = alloca
+
+    @dispatch  # type: ignore[no-redef]
+    def visit(self, node: astx.StructDefStmt) -> None:
+        """
+        title: Struct Definition Codegen
+        summary: Translate ASTx StructDefStmt to LLVM-IR.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        """
+
+        # Create identified struct type
+        struct_type = self._llvm.module.context.get_identified_type(node.name)
+
+        # Prevent duplicate struct definitions
+        if not struct_type.is_opaque:
+            raise ValueError(f"Struct '{node.name}' already defined.")
+
+        # Convert AST field types → LLVM types
+        field_types = []
+        for attr in node.attributes:
+            type_str = attr.type_.__class__.__name__.lower()
+            field_type = self._llvm.get_data_type(type_str)
+            field_types.append(field_type)
+
+        # Set struct body
+        struct_type.set_body(*field_types)
+
+        # Register struct
+        self.struct_types[node.name] = struct_type
 
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.LiteralInt16) -> None:

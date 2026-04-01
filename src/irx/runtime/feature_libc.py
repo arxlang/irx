@@ -27,11 +27,20 @@ def build_libc_runtime_feature() -> RuntimeFeature:
     return RuntimeFeature(
         name="libc",
         symbols={
+            "exit": ExternalSymbolSpec("exit", _declare_exit),
             "malloc": ExternalSymbolSpec("malloc", _declare_malloc),
             "puts": ExternalSymbolSpec("puts", _declare_puts),
             "snprintf": ExternalSymbolSpec("snprintf", _declare_snprintf),
         },
     )
+
+
+def _declare_exit(visitor: LLVMLiteIRVisitor) -> ir.Function:
+    fn_type = ir.FunctionType(
+        visitor._llvm.VOID_TYPE,
+        [visitor._llvm.INT32_TYPE],
+    )
+    return declare_external_function(visitor._llvm.module, "exit", fn_type)
 
 
 def _declare_malloc(visitor: LLVMLiteIRVisitor) -> ir.Function:
