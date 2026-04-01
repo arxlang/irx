@@ -34,7 +34,7 @@ def test_same_type(visitor: LLVMLiteIRVisitor) -> None:
     """
     a = ir.Constant(ir.IntType(32), 5)
     b = ir.Constant(ir.IntType(32), 10)
-    a_promoted, b_promoted = visitor.promote_operands(a, b)
+    a_promoted, b_promoted = visitor._unify_numeric_operands(a, b)
     assert a_promoted.type == b_promoted.type
     assert str(a_promoted.type) == "i32"
 
@@ -48,7 +48,7 @@ def test_integer_promotion(visitor: LLVMLiteIRVisitor) -> None:
     """
     a = ir.Constant(ir.IntType(16), 5)
     b = ir.Constant(ir.IntType(32), 10)
-    a_promoted, b_promoted = visitor.promote_operands(a, b)
+    a_promoted, b_promoted = visitor._unify_numeric_operands(a, b)
     assert a_promoted.type == b_promoted.type
     assert str(a_promoted.type) == "i32"
 
@@ -62,7 +62,7 @@ def test_float_promotion(visitor: LLVMLiteIRVisitor) -> None:
     """
     a = ir.Constant(ir.FloatType(), 3.14)
     b = ir.Constant(ir.DoubleType(), 3.14)
-    a_promoted, b_promoted = visitor.promote_operands(a, b)
+    a_promoted, b_promoted = visitor._unify_numeric_operands(a, b)
     assert a_promoted.type == b_promoted.type
     assert str(a_promoted.type) == "double"
 
@@ -78,7 +78,7 @@ def test_same_type_returns_original_operands(
     """
     a = ir.Constant(ir.IntType(8), 2)
     b = ir.Constant(ir.IntType(8), 3)
-    a_promoted, b_promoted = visitor.promote_operands(a, b)
+    a_promoted, b_promoted = visitor._unify_numeric_operands(a, b)
     assert a_promoted is a
     assert b_promoted is b
 
@@ -92,11 +92,31 @@ def test_integer_promotion_extends_rhs(visitor: LLVMLiteIRVisitor) -> None:
     """
     lhs = ir.Constant(ir.IntType(32), 10)
     rhs = ir.Constant(ir.IntType(16), 3)
-    lhs_promoted, rhs_promoted = visitor.promote_operands(lhs, rhs)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(lhs, rhs)
 
     assert lhs_promoted.type == rhs_promoted.type
     assert str(lhs_promoted.type) == "i32"
     assert getattr(rhs_promoted, "opname", "") == "sext"
+
+
+def test_unsigned_integer_promotion_zero_extends_rhs(
+    visitor: LLVMLiteIRVisitor,
+) -> None:
+    """
+    title: Unsigned integer promotion should zero-extend narrower operands.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
+    lhs = ir.Constant(ir.IntType(32), 10)
+    rhs = ir.Constant(ir.IntType(16), 3)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(
+        lhs, rhs, unsigned=True
+    )
+
+    assert lhs_promoted.type == rhs_promoted.type
+    assert str(lhs_promoted.type) == "i32"
+    assert getattr(rhs_promoted, "opname", "") == "zext"
 
 
 def test_float_promotion_extends_rhs(visitor: LLVMLiteIRVisitor) -> None:
@@ -108,7 +128,7 @@ def test_float_promotion_extends_rhs(visitor: LLVMLiteIRVisitor) -> None:
     """
     lhs = ir.Constant(ir.DoubleType(), 3.14)
     rhs = ir.Constant(ir.FloatType(), 2.71)
-    lhs_promoted, rhs_promoted = visitor.promote_operands(lhs, rhs)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(lhs, rhs)
 
     assert lhs_promoted.type == rhs_promoted.type
     assert str(lhs_promoted.type) == "double"
@@ -124,7 +144,7 @@ def test_int_to_float_promotion_lhs(visitor: LLVMLiteIRVisitor) -> None:
     """
     lhs = ir.Constant(ir.IntType(32), 2)
     rhs = ir.Constant(ir.FloatType(), 1.5)
-    lhs_promoted, rhs_promoted = visitor.promote_operands(lhs, rhs)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(lhs, rhs)
 
     assert lhs_promoted.type == rhs_promoted.type
     assert str(lhs_promoted.type) == "float"
@@ -140,8 +160,28 @@ def test_int_to_float_promotion_rhs(visitor: LLVMLiteIRVisitor) -> None:
     """
     lhs = ir.Constant(ir.FloatType(), 1.5)
     rhs = ir.Constant(ir.IntType(32), 2)
-    lhs_promoted, rhs_promoted = visitor.promote_operands(lhs, rhs)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(lhs, rhs)
 
     assert lhs_promoted.type == rhs_promoted.type
     assert str(lhs_promoted.type) == "float"
     assert getattr(rhs_promoted, "opname", "") == "sitofp"
+
+
+def test_unsigned_int_to_float_promotion_rhs_uses_uitofp(
+    visitor: LLVMLiteIRVisitor,
+) -> None:
+    """
+    title: Unsigned integer rhs should use uitofp when lhs is floating-point.
+    parameters:
+      visitor:
+        type: LLVMLiteIRVisitor
+    """
+    lhs = ir.Constant(ir.FloatType(), 1.5)
+    rhs = ir.Constant(ir.IntType(32), 2)
+    lhs_promoted, rhs_promoted = visitor._unify_numeric_operands(
+        lhs, rhs, unsigned=True
+    )
+
+    assert lhs_promoted.type == rhs_promoted.type
+    assert str(lhs_promoted.type) == "float"
+    assert getattr(rhs_promoted, "opname", "") == "uitofp"

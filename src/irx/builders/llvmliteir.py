@@ -11,7 +11,7 @@ import tempfile
 from datetime import datetime
 from datetime import time as _time
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import astx
 
@@ -36,6 +36,11 @@ from irx.runtime.registry import (
     get_default_runtime_feature_registry,
 )
 from irx.tools.typing import typechecked
+
+FLOAT16_BITS = 16
+FLOAT32_BITS = 32
+FLOAT64_BITS = 64
+FLOAT128_BITS = 128
 
 
 def is_fp_type(t: "ir.Type") -> bool:
@@ -88,6 +93,21 @@ def _is_unsigned_node(node: "astx.AST") -> bool:
     """
     type_ = getattr(node, "type_", None)
     return isinstance(type_, astx.UnsignedInteger)
+
+
+def _uses_unsigned_semantics(node: "astx.AST") -> bool:
+    """
+    title: Return True when a node should use unsigned numeric semantics.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
+    explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
+    if explicit_unsigned is not None:
+        return explicit_unsigned
+    return _is_unsigned_node(node)
 
 
 def emit_int_div(
@@ -168,14 +188,14 @@ def splat_scalar(
 @typechecked
 def safe_pop(
     lst: list[ir.Value | ir.Function],
-) -> Optional[ir.Value | ir.Function]:
+) -> ir.Value | ir.Function | None:
     """
     title: Implement a safe pop operation for lists.
     parameters:
       lst:
         type: list[ir.Value | ir.Function]
     returns:
-      type: Optional[ir.Value | ir.Function]
+      type: ir.Value | ir.Function | None
     """
     try:
         return lst.pop()
@@ -364,13 +384,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
     def __init__(
         self,
-        active_runtime_features: Optional[set[str]] = None,
+        active_runtime_features: set[str] | None = None,
     ) -> None:
         """
         title: Initialize LLVMTranslator object.
         parameters:
           active_runtime_features:
-            type: Optional[set[str]]
+            type: set[str] | None
         """
         super().__init__()
 
@@ -584,7 +604,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         ir_builder.call(putchar, [ival])
         ir_builder.ret(ir.Constant(self._llvm.INT32_TYPE, 0))
 
-    def get_function(self, name: str) -> Optional[ir.Function]:
+    def get_function(self, name: str) -> ir.Function | None:
         """
         title: Put the function defined by the given name to result stack.
         parameters:
@@ -592,7 +612,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: str
             description: Function name.
         returns:
-          type: Optional[ir.Function]
+          type: ir.Function | None
         """
         if name in self._llvm.module.globals:
             return self._llvm.module.get_global(name)
@@ -630,99 +650,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if current_block is not None:
             self._llvm.ir_builder.position_at_end(current_block)
         return alloca
-
-    def fp_rank(self, t: ir.Type) -> int:
-        """
-        title: Rank floating-point types half, float, double.
-        parameters:
-          t:
-            type: ir.Type
-        returns:
-          type: int
-        """
-        if isinstance(t, ir.HalfType):
-            return 1
-        if isinstance(t, ir.FloatType):
-            return 2
-        if isinstance(t, ir.DoubleType):
-            return 3
-        return 0
-
-    def promote_operands(
-        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
-    ) -> tuple[ir.Value, ir.Value]:
-        """
-        title: Promote two LLVM IR numeric operands to a common type.
-        parameters:
-          lhs:
-            type: ir.Value
-            description: The left-hand operand.
-          rhs:
-            type: ir.Value
-            description: The right-hand operand.
-          unsigned:
-            type: bool
-        returns:
-          type: tuple[ir.Value, ir.Value]
-          description: A tuple containing the promoted operands.
-        """
-        if lhs.type == rhs.type:
-            return lhs, rhs
-
-        # perform sign/zero extension (for integer operands)
-        if is_int_type(lhs.type) and is_int_type(rhs.type):
-            if unsigned:
-                if lhs.type.width < rhs.type.width:
-                    lhs = self._llvm.ir_builder.zext(
-                        lhs, rhs.type, "promote_lhs"
-                    )
-                elif lhs.type.width > rhs.type.width:
-                    rhs = self._llvm.ir_builder.zext(
-                        rhs, lhs.type, "promote_rhs"
-                    )
-            elif lhs.type.width < rhs.type.width:
-                lhs = self._llvm.ir_builder.sext(lhs, rhs.type, "promote_lhs")
-            elif lhs.type.width > rhs.type.width:
-                rhs = self._llvm.ir_builder.sext(rhs, lhs.type, "promote_rhs")
-            return lhs, rhs
-
-        lhs_fp_rank = self.fp_rank(lhs.type)
-        rhs_fp_rank = self.fp_rank(rhs.type)
-
-        if lhs_fp_rank > 0 and rhs_fp_rank > 0:
-            # make both the wider FP
-            if lhs_fp_rank < rhs_fp_rank:
-                lhs = self._llvm.ir_builder.fpext(lhs, rhs.type, "promote_lhs")
-            elif lhs_fp_rank > rhs_fp_rank:
-                rhs = self._llvm.ir_builder.fpext(rhs, lhs.type, "promote_rhs")
-            return lhs, rhs
-
-        # If one is int and other is FP, convert int -> FP
-        if is_int_type(lhs.type) and rhs_fp_rank > 0:
-            target_fp = rhs.type
-            if unsigned:
-                lhs_fp = self._llvm.ir_builder.uitofp(
-                    lhs, target_fp, "uint_to_fp"
-                )
-            else:
-                lhs_fp = self._llvm.ir_builder.sitofp(
-                    lhs, target_fp, "int_to_fp"
-                )
-            return lhs_fp, rhs
-
-        if is_int_type(rhs.type) and lhs_fp_rank > 0:
-            target_fp = lhs.type
-            if unsigned:
-                rhs_fp = self._llvm.ir_builder.uitofp(
-                    rhs, target_fp, "uint_to_fp"
-                )
-            else:
-                rhs_fp = self._llvm.ir_builder.sitofp(
-                    rhs, target_fp, "int_to_fp"
-                )
-            return lhs, rhs_fp
-
-        return lhs, rhs
 
     def _get_fma_function(self, ty: ir.Type) -> ir.Function:
         """
@@ -821,6 +748,231 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             flags.append("fast")
         except (AttributeError, TypeError):
             return
+
+    def _is_numeric_value(self, value: ir.Value) -> bool:
+        """
+        title: Check if value is an int or floating-point scalar or vector.
+        parameters:
+          value:
+            type: ir.Value
+            description: LLVM IR value to classify.
+        returns:
+          type: bool
+          description: True if the value is an int/float scalar or vector.
+        """
+        if is_vector(value):
+            elem_ty = value.type.element
+            return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
+        base_ty = value.type
+        return isinstance(base_ty, ir.IntType) or is_fp_type(base_ty)
+
+    def _unify_numeric_operands(
+        self, lhs: ir.Value, rhs: ir.Value, unsigned: bool = False
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Ensure numeric operands share shape and scalar type.
+        parameters:
+          lhs:
+            type: ir.Value
+            description: Left-hand side operand.
+          rhs:
+            type: ir.Value
+            description: Right-hand side operand.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts are unsigned-
+              aware.
+        returns:
+          type: tuple[ir.Value, ir.Value]
+          description: Operands converted to compatible shape and scalar type.
+        """
+        lhs_is_vec = is_vector(lhs)
+        rhs_is_vec = is_vector(rhs)
+
+        if lhs_is_vec and rhs_is_vec:
+            if lhs.type.count != rhs.type.count:
+                raise Exception(
+                    f"Vector size mismatch: "
+                    f"{lhs.type.count} vs {rhs.type.count}"
+                )
+            if lhs.type.element != rhs.type.element:
+                raise Exception(
+                    f"Vector element type mismatch: "
+                    f"{lhs.type.element} vs {rhs.type.element}"
+                )
+            return lhs, rhs
+
+        # When one operand is a vector, the scalar casts to match the vector's
+        # element type — vectors have a fixed shape so they take precedence.
+        if lhs_is_vec:
+            target_lanes = lhs.type.count
+            target_scalar_ty = lhs.type.element
+        elif rhs_is_vec:
+            target_lanes = rhs.type.count
+            target_scalar_ty = rhs.type.element
+        else:
+            target_lanes = None
+            lhs_base_ty = lhs.type
+            rhs_base_ty = rhs.type
+            lhs_is_float = is_fp_type(lhs_base_ty)
+            rhs_is_float = is_fp_type(rhs_base_ty)
+            if lhs_is_float or rhs_is_float:
+                float_candidates = [
+                    ty for ty in (lhs_base_ty, rhs_base_ty) if is_fp_type(ty)
+                ]
+                target_scalar_ty = self._select_float_type(float_candidates)
+            else:
+                lhs_width = getattr(lhs_base_ty, "width", 0)
+                rhs_width = getattr(rhs_base_ty, "width", 0)
+                target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
+
+        lhs = self._cast_value_to_type(
+            lhs, target_scalar_ty, unsigned=unsigned
+        )
+        rhs = self._cast_value_to_type(
+            rhs, target_scalar_ty, unsigned=unsigned
+        )
+
+        if target_lanes:
+            vec_ty = ir.VectorType(target_scalar_ty, target_lanes)
+            if not is_vector(lhs):
+                lhs = splat_scalar(self._llvm.ir_builder, lhs, vec_ty)
+            if not is_vector(rhs):
+                rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
+
+        return lhs, rhs
+
+    def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
+        """
+        title: Choose the widest floating-point type from candidates.
+        parameters:
+          candidates:
+            type: list[ir.Type]
+            description: Candidate floating-point types.
+        returns:
+          type: ir.Type
+          description: The widest floating-point type; defaults to float32.
+        """
+        if not candidates:
+            return self._llvm.FLOAT_TYPE
+
+        width = max(self._float_bit_width(ty) for ty in candidates)
+        return self._float_type_from_width(width)
+
+    def _float_type_from_width(self, width: int) -> ir.Type:
+        """
+        title: Map a bit width to the corresponding LLVM FP type.
+        parameters:
+          width:
+            type: int
+        returns:
+          type: ir.Type
+        """
+        if width <= FLOAT16_BITS and hasattr(self._llvm, "FLOAT16_TYPE"):
+            return self._llvm.FLOAT16_TYPE
+        if width <= FLOAT32_BITS:
+            return self._llvm.FLOAT_TYPE
+        if width <= FLOAT64_BITS:
+            return self._llvm.DOUBLE_TYPE
+        if FP128Type is not None and width >= FLOAT128_BITS:
+            return FP128Type()
+        return self._llvm.FLOAT_TYPE
+
+    def _float_bit_width(self, ty: ir.Type) -> int:
+        """
+        title: Return bit width for a floating-point type.
+        parameters:
+          ty:
+            type: ir.Type
+        returns:
+          type: int
+        """
+        if isinstance(ty, DoubleType):
+            return FLOAT64_BITS
+        if isinstance(ty, FloatType):
+            return FLOAT32_BITS
+        if isinstance(ty, HalfType):
+            return FLOAT16_BITS
+        if FP128Type is not None and isinstance(ty, FP128Type):
+            return FLOAT128_BITS
+        raise Exception(f"Unknown floating-point type: {ty}")
+
+    def _cast_value_to_type(
+        self,
+        value: ir.Value,
+        target_scalar_ty: ir.Type,
+        unsigned: bool = False,
+    ) -> ir.Value:
+        """
+        title: Cast scalars or vectors to a target scalar type.
+        parameters:
+          value:
+            type: ir.Value
+            description: Source scalar or vector value.
+          target_scalar_ty:
+            type: ir.Type
+            description: Desired scalar element type.
+          unsigned:
+            type: bool
+            description: >-
+              Whether integer widening and int-to-float casts should preserve
+              unsigned semantics.
+        returns:
+          type: ir.Value
+          description: Value converted to the requested scalar type.
+        """
+        builder = self._llvm.ir_builder
+        value_is_vec = is_vector(value)
+        if value_is_vec:
+            lanes = value.type.count
+            current_scalar_ty = value.type.element
+            target_ty = ir.VectorType(target_scalar_ty, lanes)
+        else:
+            lanes = None
+            current_scalar_ty = value.type
+            target_ty = target_scalar_ty
+
+        if current_scalar_ty == target_scalar_ty and value.type == target_ty:
+            return value
+
+        current_is_float = is_fp_type(current_scalar_ty)
+        target_is_float = is_fp_type(target_scalar_ty)
+
+        if target_is_float:
+            if current_is_float:
+                current_bits = self._float_bit_width(current_scalar_ty)
+                target_bits = self._float_bit_width(target_scalar_ty)
+                if current_bits == target_bits:
+                    if value.type != target_ty:
+                        return builder.bitcast(value, target_ty)
+                    return value
+                if current_bits < target_bits:
+                    return builder.fpext(value, target_ty, "fpext")
+                return builder.fptrunc(value, target_ty, "fptrunc")
+            if unsigned:
+                return builder.uitofp(value, target_ty, "uitofp")
+            return builder.sitofp(value, target_ty, "sitofp")
+
+        if current_is_float:
+            raise Exception(
+                "Cannot implicitly convert floating-point to integer"
+            )
+
+        current_width = getattr(current_scalar_ty, "width", 0)
+        target_width = getattr(target_scalar_ty, "width", 0)
+
+        if current_width == target_width:
+            if value.type != target_ty:
+                return builder.bitcast(value, target_ty)
+            return value
+
+        if current_width < target_width:
+            if unsigned:
+                return builder.zext(value, target_ty, "zext")
+            return builder.sext(value, target_ty, "sext")
+
+        return builder.trunc(value, target_ty, "trunc")
 
     @dispatch.abstract
     def visit(self, node: astx.AST) -> None:
@@ -956,71 +1108,17 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if not llvm_lhs or not llvm_rhs:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        # Scalar-vector promotion: one vector + matching scalar -> splat scalar
-        lhs_is_vec = is_vector(llvm_lhs)
-        rhs_is_vec = is_vector(llvm_rhs)
-        if lhs_is_vec and not rhs_is_vec:
-            elem_ty = llvm_lhs.type.element
-            if llvm_rhs.type == elem_ty:
-                llvm_rhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_rhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_rhs.type, DoubleType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fptrunc(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_rhs.type, FloatType
-                ):
-                    llvm_rhs = self._llvm.ir_builder.fpext(
-                        llvm_rhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_rhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_rhs, llvm_lhs.type
-                    )
-        elif rhs_is_vec and not lhs_is_vec:
-            elem_ty = llvm_rhs.type.element
-            if llvm_lhs.type == elem_ty:
-                llvm_lhs = splat_scalar(
-                    self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                )
-            elif is_fp_type(elem_ty) and is_fp_type(llvm_lhs.type):
-                if isinstance(elem_ty, FloatType) and isinstance(
-                    llvm_lhs.type, DoubleType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fptrunc(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
-                elif isinstance(elem_ty, DoubleType) and isinstance(
-                    llvm_lhs.type, FloatType
-                ):
-                    llvm_lhs = self._llvm.ir_builder.fpext(
-                        llvm_lhs, elem_ty, "vec_promote_scalar"
-                    )
-                    llvm_lhs = splat_scalar(
-                        self._llvm.ir_builder, llvm_lhs, llvm_rhs.type
-                    )
+        unsigned = _uses_unsigned_semantics(node)
+
+        if self._is_numeric_value(llvm_lhs) and self._is_numeric_value(
+            llvm_rhs
+        ):
+            llvm_lhs, llvm_rhs = self._unify_numeric_operands(
+                llvm_lhs, llvm_rhs, unsigned=unsigned
+            )
 
         # If both operands are LLVM vectors, handle as vector ops
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            if llvm_lhs.type.count != llvm_rhs.type.count:
-                raise Exception(
-                    f"Vector size mismatch: {llvm_lhs.type} vs {llvm_rhs.type}"
-                )
-            if llvm_lhs.type.element != llvm_rhs.type.element:
-                raise Exception(
-                    f"Vector element type mismatch: "
-                    f"{llvm_lhs.type.element} vs {llvm_rhs.type.element}"
-                )
             is_float_vec = is_fp_type(llvm_lhs.type.element)
             op = node.op_code
             set_fast = is_float_vec and getattr(node, "fast_math", False)
@@ -1083,11 +1181,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                         )
                         self._apply_fast_math(result)
                     else:
-                        unsigned = getattr(node, "unsigned", False)
-                        if unsigned is None:
-                            # Fallback to signed division (sdiv) by default
-                            unsigned = False
-
                         result = emit_int_div(
                             self._llvm.ir_builder, llvm_lhs, llvm_rhs, unsigned
                         )
@@ -1098,13 +1191,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                     self.set_fast_math(False)
             self.result_stack.append(result)
             return
-
-        # Scalar Fallback: Original scalar promotion logic
-        llvm_lhs, llvm_rhs = self.promote_operands(
-            llvm_lhs,
-            llvm_rhs,
-            unsigned=_is_unsigned_node(node),
-        )
 
         if node.op_code in ("&&", "and"):
             result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
@@ -1136,7 +1222,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return
         elif node.op_code == "-":
             # note: it should be according the datatype,
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fsub(
                     llvm_lhs, llvm_rhs, "subtmp"
                 )
@@ -1151,7 +1237,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "*":
             # note: it should be according the datatype,
             #       e.g. for float it should be fmul
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fmul(
                     llvm_lhs, llvm_rhs, "multmp"
                 )
@@ -1166,12 +1252,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "<":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
             # handle it depend on datatype
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<", llvm_lhs, llvm_rhs, "lttmp"
                 )
@@ -1184,12 +1270,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == ">":
             # note: it should be according the datatype,
             #       e.g. for float it should be fcmp
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
             # be careful we havn't  handled all the conditions
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">", llvm_lhs, llvm_rhs, "gttmp"
                 )
@@ -1200,11 +1286,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == "<=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     "<=", llvm_lhs, llvm_rhs, "letmp"
                 )
@@ -1215,11 +1301,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             self.result_stack.append(result)
             return
         elif node.op_code == ">=":
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 result = self._llvm.ir_builder.fcmp_ordered(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.icmp_unsigned(
                     ">=", llvm_lhs, llvm_rhs, "getmp"
                 )
@@ -1232,13 +1318,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         elif node.op_code == "/":
             # Check the datatype to decide between floating-point and integer
             # division
-            if is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            if is_fp_type(llvm_lhs.type):
                 # Floating-point division
                 result = self._llvm.ir_builder.fdiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
                 self._apply_fast_math(result)
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.udiv(
                     llvm_lhs, llvm_rhs, "divtmp"
                 )
@@ -1261,11 +1347,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "=="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "==", llvm_lhs, llvm_rhs, "eqtmp"
                 )
@@ -1288,11 +1374,11 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 cmp_result = self._handle_string_comparison(
                     llvm_lhs, llvm_rhs, "!="
                 )
-            elif is_fp_type(llvm_lhs.type) or is_fp_type(llvm_rhs.type):
+            elif is_fp_type(llvm_lhs.type):
                 cmp_result = self._llvm.ir_builder.fcmp_ordered(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 cmp_result = self._llvm.ir_builder.icmp_unsigned(
                     "!=", llvm_lhs, llvm_rhs, "netmp"
                 )
@@ -1308,7 +1394,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
                 result = self._llvm.ir_builder.frem(
                     llvm_lhs, llvm_rhs, "fremtmp"
                 )
-            elif _is_unsigned_node(node):
+            elif unsigned:
                 result = self._llvm.ir_builder.urem(
                     llvm_lhs, llvm_rhs, "uremtmp"
                 )
@@ -1329,7 +1415,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
           block:
             type: astx.Block
         """
-        result: Optional[ir.Value | ir.Function] = None
+        result: ir.Value | ir.Function | None = None
         for node in block.nodes:
             if self._llvm.ir_builder.block.terminator is not None:
                 break
@@ -1390,7 +1476,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         then_stack_size = len(self.result_stack)
         self.visit(node.then)
         then_terminated = self._llvm.ir_builder.block.terminator is not None
-        then_v: Optional[ir.Value | ir.Function] = None
+        then_v: ir.Value | ir.Function | None = None
         if len(self.result_stack) > then_stack_size:
             then_v = self.result_stack.pop()
         if not then_terminated:
@@ -1403,7 +1489,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         if node.else_ is not None:
             self.visit(node.else_)
         else_terminated = self._llvm.ir_builder.block.terminator is not None
-        else_v: Optional[ir.Value | ir.Function] = None
+        else_v: ir.Value | ir.Function | None = None
         if len(self.result_stack) > else_stack_size:
             else_v = self.result_stack.pop()
         if not else_terminated:
@@ -2378,15 +2464,15 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             return a if a.width >= b.width else b
 
         # Both FP → pick higher rank
-        a_rank = self.fp_rank(a)
-        b_rank = self.fp_rank(b)
-        if a_rank > 0 and b_rank > 0:
-            return a if a_rank >= b_rank else b
+        a_is_fp = is_fp_type(a)
+        b_is_fp = is_fp_type(b)
+        if a_is_fp and b_is_fp:
+            return self._select_float_type([a, b])
 
         # Int + FP → promote int to FP
-        if is_int_type(a) and b_rank > 0:
+        if is_int_type(a) and b_is_fp:
             return b
-        if is_int_type(b) and a_rank > 0:
+        if is_int_type(b) and a_is_fp:
             return a
 
         # Pointer types (strings) must match exactly
@@ -2453,9 +2539,9 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # fp → wider/narrower fp
         if is_fp_type(v.type) and is_fp_type(target_ty):
-            src_rank = self.fp_rank(v.type)
-            dst_rank = self.fp_rank(target_ty)
-            if src_rank < dst_rank:
+            if self._float_bit_width(v.type) < self._float_bit_width(
+                target_ty
+            ):
                 return b.fpext(v, target_ty, "list_fpext")
             return b.fptrunc(v, target_ty, "list_fptrunc")
 
