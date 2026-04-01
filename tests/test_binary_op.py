@@ -255,3 +255,44 @@ def test_binary_op_logical_and_or(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expect)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_binary_op_rejects_assignment_operator(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Verify BinaryOp does not handle assignment.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    decl = astx.InlineVariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    invalid_assign = astx.BinaryOp(
+        op_code="=", lhs=astx.Identifier("x"), rhs=astx.LiteralInt32(5)
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    fn_block = astx.Block()
+    fn_block.append(decl)
+    fn_block.append(invalid_assign)
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module.block.append(fn_main)
+
+    with pytest.raises(
+        Exception,
+        match="Assignment '=' should not be handled in BinaryOp",
+    ):
+        builder.translate(module)
