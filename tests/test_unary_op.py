@@ -176,3 +176,61 @@ def test_unary_op_logical_not_int(
     module.block.append(main_fn)
 
     check_result("build", builder, module, expected_output=expected_output)
+
+
+@pytest.mark.parametrize(
+    "value, expected_output",
+    [
+        (False, "1"),
+        (True, "0"),
+    ],
+)
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_unary_op_logical_not_boolean(
+    builder_class: type[Builder],
+    value: bool,
+    expected_output: str,
+) -> None:
+    """
+    title: Test logical NOT (!) for boolean type.
+    parameters:
+      builder_class:
+        type: type[Builder]
+      value:
+        type: bool
+      expected_output:
+        type: str
+    """
+    builder = builder_class()
+    module = builder.module()
+
+    decl_a = astx.VariableDeclaration(
+        name="a",
+        type_=astx.Boolean(),
+        value=astx.LiteralBoolean(value),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    not_a = astx.UnaryOp(op_code="!", operand=astx.Identifier("a"))
+    not_a.type_ = astx.Boolean()
+
+    main_proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Boolean(),
+    )
+    main_block = astx.Block()
+    main_block.append(decl_a)
+    main_block.append(not_a)
+    main_block.append(astx.FunctionReturn(astx.Identifier("a")))
+
+    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
+
+    module.block.append(main_fn)
+
+    check_result("build", builder, module, expected_output=expected_output)
