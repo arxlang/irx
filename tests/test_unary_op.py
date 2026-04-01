@@ -110,21 +110,15 @@ def test_unary_op_increment_decrement(
 
 
 @pytest.mark.parametrize(
-    "int_type, literal_type, value",
+    "int_type, literal_type, value, expected_output",
     [
-        (astx.Int32, astx.LiteralInt32, 0),
-        (astx.Int32, astx.LiteralInt32, 5),
-        (astx.Int32, astx.LiteralInt32, -3),
-        (astx.Int16, astx.LiteralInt16, 0),
-        (astx.Int16, astx.LiteralInt16, 7),
-        (astx.UInt32, astx.LiteralUInt32, 0),
-        (astx.UInt32, astx.LiteralUInt32, 10),
-    ],
-)
-@pytest.mark.parametrize(
-    "action,expected_file",
-    [
-        ("build", ""),
+        (astx.Int32, astx.LiteralInt32, 0, "1"),
+        (astx.Int32, astx.LiteralInt32, 5, "0"),
+        (astx.Int32, astx.LiteralInt32, -3, "0"),
+        (astx.Int16, astx.LiteralInt16, 0, "1"),
+        (astx.Int16, astx.LiteralInt16, 7, "0"),
+        (astx.UInt32, astx.LiteralUInt32, 0, "1"),
+        (astx.UInt32, astx.LiteralUInt32, 10, "0"),
     ],
 )
 @pytest.mark.parametrize(
@@ -134,20 +128,15 @@ def test_unary_op_increment_decrement(
     ],
 )
 def test_unary_op_logical_not_int(
-    action: str,
-    expected_file: str,
     builder_class: type[Builder],
     int_type: type,
     literal_type: type,
     value: int,
+    expected_output: str,
 ) -> None:
     """
     title: Test logical NOT (!) for integer types.
     parameters:
-      action:
-        type: str
-      expected_file:
-        type: str
       builder_class:
         type: type[Builder]
       int_type:
@@ -156,6 +145,8 @@ def test_unary_op_logical_not_int(
         type: type
       value:
         type: int
+      expected_output:
+        type: str
     """
     builder = builder_class()
     module = builder.module()
@@ -178,10 +169,10 @@ def test_unary_op_logical_not_int(
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(not_a)
-    main_block.append(astx.FunctionReturn(literal_type(0)))
+    main_block.append(astx.FunctionReturn(astx.Identifier("a")))
 
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
 
-    check_result(action, builder, module, expected_file)
+    check_result("build", builder, module, expected_output=expected_output)
