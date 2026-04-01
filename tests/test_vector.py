@@ -7,20 +7,20 @@ from typing import Any
 import astx
 import pytest
 
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder, Visitor
 from llvmlite import ir
 
 VEC4 = 4
 VEC2 = 2
 
 
-def setup_builder() -> LLVMLiteIRVisitor:
+def setup_builder() -> Visitor:
     """
     title: Return a visitor with a live IRBuilder positioned inside main().
     returns:
-      type: LLVMLiteIRVisitor
+      type: Visitor
     """
-    main_builder = LLVMLiteIR()
+    main_builder = Builder()
     visitor = main_builder.translator
     func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
     fn = ir.Function(visitor._llvm.module, func_type, name="main")
@@ -33,7 +33,7 @@ def _make_binop_visitor(
     lhs_val: ir.Value,
     rhs_val: ir.Value,
     fma_rhs: ir.Value | None = None,
-) -> LLVMLiteIRVisitor:
+) -> Visitor:
     """
     title: >-
       Return a fresh visitor patched to inject pre-built IR values for the LHS,
@@ -46,7 +46,7 @@ def _make_binop_visitor(
       fma_rhs:
         type: ir.Value | None
     returns:
-      type: LLVMLiteIRVisitor
+      type: Visitor
     """
     builder = setup_builder()
     original_visit = builder.visit

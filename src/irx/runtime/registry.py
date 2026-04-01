@@ -14,7 +14,7 @@ from irx.runtime.feature_libc import build_libc_runtime_feature
 from irx.runtime.features import NativeArtifact, RuntimeFeature
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir.protocols import LLVMLiteIRVisitorProtocol
+    from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 
 class RuntimeFeatureRegistry:
@@ -69,7 +69,7 @@ class RuntimeFeatureState:
     title: Track feature activation and symbol declarations for one module.
     attributes:
       _owner:
-        type: LLVMLiteIRVisitorProtocol
+        type: VisitorProtocol
       _registry:
         type: RuntimeFeatureRegistry
       _active_features:
@@ -78,14 +78,14 @@ class RuntimeFeatureState:
         type: dict[tuple[str, str], ir.Function]
     """
 
-    _owner: LLVMLiteIRVisitorProtocol
+    _owner: VisitorProtocol
     _registry: RuntimeFeatureRegistry
     _active_features: set[str]
     _declared_symbols: dict[tuple[str, str], ir.Function]
 
     def __init__(
         self,
-        owner: "LLVMLiteIRVisitorProtocol",
+        owner: "VisitorProtocol",
         registry: RuntimeFeatureRegistry,
         active_features: Iterable[str] | None = None,
     ) -> None:

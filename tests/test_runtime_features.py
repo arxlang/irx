@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import astx
 import pytest
 
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder, Visitor
 from irx.runtime.features import (
     ExternalSymbolSpec,
     NativeArtifact,
@@ -22,10 +22,10 @@ from irx.system import PrintExpr
 from llvmlite import ir
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir.protocols import LLVMLiteIRVisitorProtocol
+    from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 
-def _declare_dummy_symbol(visitor: "LLVMLiteIRVisitorProtocol") -> ir.Function:
+def _declare_dummy_symbol(visitor: "VisitorProtocol") -> ir.Function:
     fn_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
     return declare_external_function(visitor._llvm.module, "dummy_rt", fn_type)
 
@@ -71,7 +71,7 @@ def test_runtime_feature_state_reuses_symbol_declarations() -> None:
             },
         )
     )
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     state = RuntimeFeatureState(visitor, registry)
 
     fn_first = state.require_symbol("dummy", "dummy_rt")
@@ -101,7 +101,7 @@ def test_runtime_feature_state_collects_only_active_artifacts() -> None:
             artifacts=(NativeArtifact("c_source", Path("/tmp/b.c")),),
         )
     )
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     state = RuntimeFeatureState(
         visitor,
         registry,
@@ -117,7 +117,7 @@ def test_print_expr_uses_libc_feature_without_arrow() -> None:
     """
     title: PrintExpr should activate libc without pulling in Arrow.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = astx.Module()
 
     main_proto = astx.FunctionPrototype(
@@ -144,7 +144,7 @@ def test_simple_module_has_no_native_runtime_artifacts() -> None:
     """
     title: A simple module should not request any native runtime artifacts.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
 
     builder.translate(_main_return_zero_module())
 

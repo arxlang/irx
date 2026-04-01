@@ -6,7 +6,7 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 
 from .conftest import check_result
 
@@ -53,7 +53,7 @@ def build_int32_main_module(builder: Builder, body: astx.Block) -> astx.Module:
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_range(
@@ -114,7 +114,7 @@ def test_for_range(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_range_empty_body_no_crash(
@@ -160,7 +160,7 @@ def test_for_range_empty_body_no_crash(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_range_break_allows_following_statements(
@@ -209,7 +209,7 @@ def test_for_range_break_allows_following_statements(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_range_continue_uses_step_block(
@@ -253,7 +253,7 @@ def test_for_range_continue_uses_step_block(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_count_break_allows_following_statements(
@@ -307,7 +307,7 @@ def test_for_count_break_allows_following_statements(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_count_continue_uses_update_block(
@@ -372,7 +372,7 @@ def test_for_count_continue_uses_update_block(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_count(
@@ -435,7 +435,7 @@ def test_for_count(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_for_count_empty_body_no_crash(

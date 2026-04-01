@@ -12,7 +12,8 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 EXPECTED_TUPLE_LENGTH = 3
@@ -30,7 +31,7 @@ def _struct_int_values(const: ir.Constant) -> list[int]:
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_tuple_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty LiteralTuple lowering
@@ -39,7 +40,7 @@ def test_literal_tuple_empty(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralTuple(elements=()))
@@ -50,7 +51,7 @@ def test_literal_tuple_empty(builder_class: type[Builder]) -> None:
     assert len(const.type.elements) == 0
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_tuple_homogeneous_ints(
     builder_class: type[Builder],
 ) -> None:
@@ -61,7 +62,7 @@ def test_literal_tuple_homogeneous_ints(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(
@@ -85,7 +86,7 @@ def test_literal_tuple_homogeneous_ints(
     assert vals == [1, 2, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_tuple_heterogeneous_unsupported(
     builder_class: type[Builder],
 ) -> None:
@@ -96,7 +97,7 @@ def test_literal_tuple_heterogeneous_unsupported(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     with pytest.raises(TypeError, match="homogeneous"):

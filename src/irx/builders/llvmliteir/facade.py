@@ -1,5 +1,5 @@
 """
-title: Public LLVMLiteIR facade and composed visitor.
+title: Public llvmliteir facade and composed backend classes.
 """
 
 from __future__ import annotations
@@ -7,9 +7,9 @@ from __future__ import annotations
 from public import public
 
 from irx.builders._llvmliteir_legacy import (
-    LLVMLiteIR as _LegacyLLVMLiteIR,
+    LLVMLiteIR as _LegacyBuilder,
 )
-from irx.builders.llvmliteir.core import _LLVMLiteIRVisitorCore
+from irx.builders.llvmliteir.core import _VisitorCore
 from irx.builders.llvmliteir.visitors import (
     ArrowVisitorMixin,
     BinaryOpVisitorMixin,
@@ -25,8 +25,8 @@ from irx.builders.llvmliteir.visitors import (
 
 
 @public
-class LLVMLiteIRVisitor(
-    _LLVMLiteIRVisitorCore,
+class Visitor(
+    _VisitorCore,
     LiteralVisitorMixin,
     VariableVisitorMixin,
     UnaryOpVisitorMixin,
@@ -39,26 +39,24 @@ class LLVMLiteIRVisitor(
     ModuleVisitorMixin,
 ):
     """
-    title: Package-composed LLVMLiteIR visitor.
+    title: Package-composed backend visitor.
     """
 
 
 @public
-class LLVMLiteIR(_LegacyLLVMLiteIR):
+class Builder(_LegacyBuilder):
     """
-    title: Public LLVMLiteIR builder facade.
+    title: Public llvmliteir backend facade.
     attributes:
       translator:
-        type: LLVMLiteIRVisitor
+        type: Visitor
     """
 
-    translator: LLVMLiteIRVisitor
+    translator: Visitor
 
     def __init__(self) -> None:
         super().__init__()
         self.translator = self._new_translator()
 
-    def _new_translator(self) -> LLVMLiteIRVisitor:
-        return LLVMLiteIRVisitor(
-            active_runtime_features=set(self.runtime_feature_names)
-        )
+    def _new_translator(self) -> Visitor:
+        return Visitor(active_runtime_features=set(self.runtime_feature_names))

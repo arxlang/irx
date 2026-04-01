@@ -6,7 +6,7 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 
 from .conftest import check_result
 
@@ -34,7 +34,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unary_op_increment_decrement(
@@ -119,7 +119,7 @@ def test_unary_op_increment_decrement(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unary_op_increment_decrement_float(
@@ -191,7 +191,7 @@ def test_unary_op_increment_decrement_float(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unary_op_logical_not_int(
@@ -255,7 +255,7 @@ def test_unary_op_logical_not_int(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unary_op_logical_not_boolean(

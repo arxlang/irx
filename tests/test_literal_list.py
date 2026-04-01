@@ -12,7 +12,8 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
@@ -30,7 +31,7 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
     return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
 
 
-def _make_visitor_in_function() -> LLVMLiteIRVisitor:
+def _make_visitor_in_function() -> LLVMVisitor:
     """
     title: Return a visitor whose ir_builder is inside a live basic block.
     summary: >-
@@ -38,9 +39,9 @@ def _make_visitor_in_function() -> LLVMLiteIRVisitor:
       create a dummy function and position the builder at its entry block so
       instructions can be emitted without an AssertionError from llvmlite.
     returns:
-      type: LLVMLiteIRVisitor
+      type: LLVMVisitor
     """
-    builder = LLVMLiteIR()
+    builder = LLVMBuilder()
     visitor = builder.translator
     visitor.result_stack.clear()
 
@@ -53,7 +54,7 @@ def _make_visitor_in_function() -> LLVMLiteIRVisitor:
     return visitor
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty list lowers to constant [0 x i32].
@@ -62,7 +63,7 @@ def test_literal_list_empty(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralList(elements=[]))
@@ -73,7 +74,7 @@ def test_literal_list_empty(builder_class: type[Builder]) -> None:
     assert const.type.count == 0
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
     """
     title: Homogeneous integer constants lower to constant array [N x i32].
@@ -82,7 +83,7 @@ def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(
@@ -103,7 +104,7 @@ def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
     assert vals == [1, 2, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_mixed_int_widths_widens(
     builder_class: type[Builder],
 ) -> None:
@@ -132,7 +133,7 @@ def test_literal_list_mixed_int_widths_widens(
     assert vals == [1, 2]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_homogeneous_floats(
     builder_class: type[Builder],
 ) -> None:
@@ -161,7 +162,7 @@ def test_literal_list_homogeneous_floats(
     assert isinstance(const.type.element, ir.FloatType)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_mixed_int_and_float_promotes(
     builder_class: type[Builder],
 ) -> None:
@@ -190,7 +191,7 @@ def test_literal_list_mixed_int_and_float_promotes(
 @pytest.mark.skipif(
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_incompatible_types_raises(
     builder_class: type[Builder],
 ) -> None:
@@ -216,7 +217,7 @@ def test_literal_list_incompatible_types_raises(
         )
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_mixed_float_widths_widens(
     builder_class: type[Builder],
 ) -> None:
@@ -248,7 +249,7 @@ def test_literal_list_mixed_float_widths_widens(
 @pytest.mark.skipif(
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_nested_unsupported(
     builder_class: type[Builder],
 ) -> None:
@@ -259,7 +260,7 @@ def test_literal_list_nested_unsupported(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     # Nested lists fail at AST construction time (before lowering)

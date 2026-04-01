@@ -10,16 +10,17 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 
-def setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
+def setup_function_context(visitor: LLVMVisitor) -> None:
     """
     title: Setup LLVM function context for IR generation
     parameters:
       visitor:
-        type: LLVMLiteIRVisitor
+        type: LLVMVisitor
     """
     module = visitor._llvm.module
     func_ty = ir.FunctionType(ir.IntType(32), [])
@@ -30,7 +31,7 @@ def setup_function_context(visitor: LLVMLiteIRVisitor) -> None:
 
 
 # BREAK TESTS
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_break_exits_to_after_block(builder_class: type[Builder]) -> None:
     """
     title: Break must branch to exit block (after loop)
@@ -39,7 +40,7 @@ def test_break_exits_to_after_block(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     setup_function_context(visitor)
@@ -60,7 +61,7 @@ def test_break_exits_to_after_block(builder_class: type[Builder]) -> None:
     assert 'br label %"afterwhile"' in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_break_skips_remaining_statements(
     builder_class: type[Builder],
 ) -> None:
@@ -71,7 +72,7 @@ def test_break_skips_remaining_statements(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     setup_function_context(visitor)
@@ -100,7 +101,7 @@ def test_break_skips_remaining_statements(
     assert "store i32 10" not in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_nested_loop_break_affects_only_inner(
     builder_class: type[Builder],
 ) -> None:
@@ -111,7 +112,7 @@ def test_nested_loop_break_affects_only_inner(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     setup_function_context(visitor)
@@ -142,7 +143,7 @@ def test_nested_loop_break_affects_only_inner(
 
 
 # CONTINUE TESTS
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_continue_branches_to_condition(builder_class: type[Builder]) -> None:
     """
     title: Continue must jump back to loop condition
@@ -151,7 +152,7 @@ def test_continue_branches_to_condition(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     setup_function_context(visitor)
@@ -172,7 +173,7 @@ def test_continue_branches_to_condition(builder_class: type[Builder]) -> None:
     assert 'br label %"whilecond"' in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_continue_skips_remaining_statements(
     builder_class: type[Builder],
 ) -> None:
@@ -183,7 +184,7 @@ def test_continue_skips_remaining_statements(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     setup_function_context(visitor)
@@ -212,7 +213,7 @@ def test_continue_skips_remaining_statements(
 
 
 # ERROR CASES
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_break_outside_loop_raises(builder_class: type[Builder]) -> None:
     """
     title: Break outside loop must raise exception
@@ -221,14 +222,14 @@ def test_break_outside_loop_raises(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     with pytest.raises(Exception, match="Break statement outside loop"):
         visitor.visit(astx.BreakStmt())
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_continue_outside_loop_raises(builder_class: type[Builder]) -> None:
     """
     title: Continue outside loop must raise exception
@@ -237,7 +238,7 @@ def test_continue_outside_loop_raises(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     with pytest.raises(Exception, match="Continue statement outside loop"):

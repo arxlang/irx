@@ -1,5 +1,5 @@
 """
-title: Typing protocols for LLVMLiteIR visitors.
+title: Typing protocols for llvmliteir visitors.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from llvmlite import ir
 from irx.builders.llvmliteir.types import VariablesLLVM
 
 
-class LLVMLiteIRVisitorProtocol(Protocol):
+class VisitorProtocol(Protocol):
     """
     title: Stable interface used by visitor mixins and runtime features.
     attributes:
@@ -42,9 +42,9 @@ class LLVMLiteIRVisitorProtocol(Protocol):
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
-    def visit(self, node: astx.AST) -> None: ...
+    def visit(self, _node: astx.AST) -> None: ...
 
-    def get_function(self, name: str) -> ir.Function | None: ...
+    def get_function(self, _name: str) -> ir.Function | None: ...
 
     def create_entry_block_alloca(
         self, _var_name: str, _type_name: str

@@ -18,7 +18,7 @@ from irx.runtime.features import (
 )
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir.protocols import LLVMLiteIRVisitorProtocol
+    from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 IRX_ARROW_TYPE_INT32 = 1
 
@@ -119,7 +119,7 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
 
 
 def _declare_builder_int32_new(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -133,7 +133,7 @@ def _declare_builder_int32_new(
 
 
 def _declare_builder_append_int32(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -150,7 +150,7 @@ def _declare_builder_append_int32(
 
 
 def _declare_builder_finish(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -167,7 +167,7 @@ def _declare_builder_finish(
 
 
 def _declare_builder_release(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
@@ -181,7 +181,7 @@ def _declare_builder_release(
 
 
 def _declare_array_length(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT64_TYPE,
@@ -195,7 +195,7 @@ def _declare_array_length(
 
 
 def _declare_array_null_count(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT64_TYPE,
@@ -209,7 +209,7 @@ def _declare_array_null_count(
 
 
 def _declare_array_type_id(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -223,7 +223,7 @@ def _declare_array_type_id(
 
 
 def _declare_array_export(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     opaque_ptr = visitor._llvm.OPAQUE_POINTER_TYPE
     fn_type = ir.FunctionType(
@@ -242,7 +242,7 @@ def _declare_array_export(
 
 
 def _declare_array_import(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     opaque_ptr = visitor._llvm.OPAQUE_POINTER_TYPE
     fn_type = ir.FunctionType(
@@ -261,7 +261,7 @@ def _declare_array_import(
 
 
 def _declare_array_release(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
@@ -275,7 +275,7 @@ def _declare_array_release(
 
 
 def _declare_last_error(
-    visitor: LLVMLiteIRVisitorProtocol,
+    visitor: VisitorProtocol,
 ) -> ir.Function:
     fn_type = ir.FunctionType(visitor._llvm.INT8_TYPE.as_pointer(), [])
     return declare_external_function(

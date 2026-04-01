@@ -12,7 +12,8 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 HAS_LITERAL_TIME = hasattr(astx, "LiteralTime")
@@ -33,7 +34,7 @@ def _time_values(const: ir.Constant) -> list[int]:
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_time_hh_mm_ss(
     builder_class: type[Builder],
 ) -> None:
@@ -44,7 +45,7 @@ def test_literal_time_hh_mm_ss(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralTime("12:34:56"))
@@ -60,7 +61,7 @@ def test_literal_time_hh_mm_ss(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_time_hh_mm(
     builder_class: type[Builder],
 ) -> None:
@@ -71,7 +72,7 @@ def test_literal_time_hh_mm(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralTime("08:15"))
@@ -87,7 +88,7 @@ def test_literal_time_hh_mm(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_time_midnight(
     builder_class: type[Builder],
 ) -> None:
@@ -98,7 +99,7 @@ def test_literal_time_midnight(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralTime("00:00:00"))
@@ -114,7 +115,7 @@ def test_literal_time_midnight(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_time_hour_out_of_range(
     builder_class: type[Builder],
 ) -> None:
@@ -125,7 +126,7 @@ def test_literal_time_hour_out_of_range(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     with pytest.raises(Exception, match="hour out of range"):
         visitor.visit(astx.LiteralTime("25:00:00"))
@@ -134,7 +135,7 @@ def test_literal_time_hour_out_of_range(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_time_fractional_rejected(
     builder_class: type[Builder],
 ) -> None:
@@ -145,7 +146,7 @@ def test_literal_time_fractional_rejected(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     with pytest.raises(Exception, match="fractional seconds"):
         visitor.visit(astx.LiteralTime("12:34:56.789"))

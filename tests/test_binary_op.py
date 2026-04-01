@@ -6,7 +6,7 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
@@ -24,7 +24,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_binary_op_literals(
@@ -89,7 +89,7 @@ def test_binary_op_literals(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_binary_op_basic(
@@ -158,7 +158,7 @@ def test_binary_op_basic(
     check_result(action, builder, module, expected_file)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_binary_op_string_not_equals(builder_class: type[Builder]) -> None:
     """
     title: Verify string '!=' uses strcmp_inline + xor 1 path.
@@ -196,7 +196,7 @@ def test_binary_op_string_not_equals(builder_class: type[Builder]) -> None:
         (astx.Int16, astx.LiteralInt16, 1, 1, "1"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_binary_op_logical_and_or(
     builder_class: type[Builder],
     int_type: type,

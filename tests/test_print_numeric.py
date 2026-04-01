@@ -4,13 +4,13 @@ title: Tests for numeric and expression-based PrintExpr lowering.
 
 import astx
 
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder
 from irx.system import PrintExpr
 from llvmlite import binding as llvm
 
 
 def _translate_and_validate(module: astx.Module) -> str:
-    builder = LLVMLiteIR()
+    builder = Builder()
     ir_text = builder.translate(module)
     llvm.parse_assembly(ir_text)
     return ir_text

@@ -1,8 +1,8 @@
 """
-title: Package-based LLVMLiteIR builder.
+title: Package-based llvmliteir backend.
 """
 
-from irx.builders.llvmliteir.facade import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir.facade import Builder, Visitor
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import (
     VariablesLLVM,
@@ -17,9 +17,9 @@ from irx.builders.llvmliteir.vector import (
 )
 
 __all__ = [
-    "LLVMLiteIR",
-    "LLVMLiteIRVisitor",
+    "Builder",
     "VariablesLLVM",
+    "Visitor",
     "emit_add",
     "emit_int_div",
     "is_fp_type",

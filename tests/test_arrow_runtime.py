@@ -21,7 +21,7 @@ import pytest
 
 from arx_nanoarrow_sources import get_include_dir, get_source_files
 from irx.arrow import ArrowInt32ArrayLength
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder
 from irx.runtime.arrow.feature import (
     IRX_ARROW_TYPE_INT32,
     build_arrow_runtime_feature,
@@ -241,12 +241,12 @@ def test_arrow_symbols_absent_when_unused() -> None:
     """
     title: Arrow runtime declarations should be absent when unused.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
 
     ir_text = builder.translate(_arrow_length_module([]))
     assert "irx_arrow_array_builder_int32_new" in ir_text
 
-    plain_builder = LLVMLiteIR()
+    plain_builder = Builder()
     plain_ir = plain_builder.translate(_plain_main_module())
     assert "irx_arrow_" not in plain_ir
 
@@ -255,7 +255,7 @@ def test_arrow_length_codegen_declares_runtime_symbols() -> None:
     """
     title: Arrow lowering should declare runtime symbols and parse as LLVM.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
     ir_text = builder.translate(_arrow_length_module([1, 2, 3]))
 
     llvm.parse_assembly(ir_text)
@@ -294,7 +294,7 @@ def test_arrow_length_build_returns_length() -> None:
     title: >-
       Building an Arrow-backed module should link and return the array length.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = _arrow_length_module([10, 20, 30])
 
     with tempfile.TemporaryDirectory() as tmp_dir:

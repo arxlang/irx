@@ -5,13 +5,14 @@ title: Integration tests for the semantic-analysis pipeline.
 from __future__ import annotations
 
 import astx
+import irx.builders.llvmliteir as llvmliteir_backend
 import pytest
 
 from irx.analysis import SemanticError
 from irx.builders.llvmliteir import (
-    LLVMLiteIR,
-    LLVMLiteIRVisitor,
+    Builder,
     VariablesLLVM,
+    Visitor,
     emit_int_div,
     is_fp_type,
     safe_pop,
@@ -35,7 +36,7 @@ def _main_module(*nodes: astx.AST) -> astx.Module:
 
 
 def test_builder_translate_runs_analysis_before_codegen() -> None:
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = _main_module(
         astx.BreakStmt(),
         astx.FunctionReturn(astx.LiteralInt32(0)),
@@ -46,7 +47,7 @@ def test_builder_translate_runs_analysis_before_codegen() -> None:
 
 
 def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     module = _main_module(astx.FunctionReturn(astx.Identifier("missing")))
 
     with pytest.raises(SemanticError, match="Unknown variable name"):
@@ -54,7 +55,7 @@ def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
 
 
 def test_valid_modules_still_emit_ir_after_analysis() -> None:
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = _main_module(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     ir_text = builder.translate(module)
@@ -64,17 +65,19 @@ def test_valid_modules_still_emit_ir_after_analysis() -> None:
 
 
 def test_public_imports_remain_stable() -> None:
-    assert LLVMLiteIR.__name__ == "LLVMLiteIR"
-    assert LLVMLiteIRVisitor.__name__ == "LLVMLiteIRVisitor"
+    assert Builder.__name__ == "Builder"
+    assert Visitor.__name__ == "Visitor"
     assert VariablesLLVM.__name__ == "VariablesLLVM"
     assert callable(emit_int_div)
     assert callable(is_fp_type)
     assert callable(safe_pop)
     assert callable(splat_scalar)
+    assert not hasattr(llvmliteir_backend, "LLVMLiteIR")
+    assert not hasattr(llvmliteir_backend, "LLVMLiteIRVisitor")
 
 
 def test_helper_reexports_work_from_package() -> None:
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     fn_ty = ir.FunctionType(visitor._llvm.FLOAT_TYPE, [])
     fn = ir.Function(visitor._llvm.module, fn_ty, name="helper_cover")
     block = fn.append_basic_block("entry")

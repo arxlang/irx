@@ -6,7 +6,7 @@ import astx
 import pytest
 
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from llvmlite import binding as llvm
 
 from .conftest import check_result
@@ -31,7 +31,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_while_expr(
@@ -99,7 +99,7 @@ def test_while_expr(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_while_empty_body_no_crash(
@@ -153,7 +153,7 @@ def test_while_empty_body_no_crash(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_while_falsy_body_value_no_crash(
@@ -224,7 +224,7 @@ def test_while_falsy_body_value_no_crash(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_while_false_condition(

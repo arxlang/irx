@@ -1,5 +1,5 @@
 """
-title: Shared concrete core for LLVMLiteIR visitors.
+title: Shared concrete core for llvmliteir visitors.
 """
 
 from __future__ import annotations
@@ -10,11 +10,11 @@ import astx
 
 from irx.analysis import analyze
 from irx.builders._llvmliteir_legacy import (
-    LLVMLiteIRVisitor as _LegacyLLVMLiteIRVisitor,
+    LLVMLiteIRVisitor as _LegacyVisitor,
 )
 from irx.runtime.registry import RuntimeFeatureState
 
-_LEGACY_VISIT = _LegacyLLVMLiteIRVisitor.visit
+_LEGACY_VISIT = _LegacyVisitor.visit
 
 
 def _dispatch_legacy_visit(self: Any, node: astx.AST) -> None:
@@ -29,9 +29,9 @@ def _dispatch_legacy_visit(self: Any, node: astx.AST) -> None:
     _LEGACY_VISIT(self, node)
 
 
-class _LLVMLiteIRVisitorCore(_LegacyLLVMLiteIRVisitor):
+class _VisitorCore(_LegacyVisitor):
     """
-    title: Shared concrete core for LLVMLiteIR visitor state and helpers.
+    title: Shared concrete core for the package visitor state and helpers.
     attributes:
       runtime_features:
         type: RuntimeFeatureState
@@ -52,4 +52,4 @@ class _LLVMLiteIRVisitorCore(_LegacyLLVMLiteIRVisitor):
         return super().translate(analyzed)
 
 
-__all__ = ["_LLVMLiteIRVisitorCore", "_dispatch_legacy_visit"]
+__all__ = ["_VisitorCore", "_dispatch_legacy_visit"]
