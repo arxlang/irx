@@ -1614,10 +1614,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         # Emit the body of the loop.
         self.visit(expr.body)
-        body_val = safe_pop(self.result_stack)
-
-        if not body_val:
-            return
+        safe_pop(self.result_stack)
 
         # Don't rely on result_stack for control flow.
         # Only branch back if the block isn't already terminated
@@ -1720,7 +1717,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
-        _body_val = safe_pop(self.result_stack)
+        safe_pop(self.result_stack)
 
         # Emit update expression
         self.visit(node.update)

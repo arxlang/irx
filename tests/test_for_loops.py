@@ -90,6 +90,52 @@ def test_for_range(
 
 
 @pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_for_range_empty_body_no_crash(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: ForRangeLoopStmt with empty body must not crash on empty stack.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    variable = astx.InlineVariableDeclaration(
+        "a",
+        type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    for_loop = astx.ForRangeLoopStmt(
+        variable=variable,
+        start=astx.LiteralInt32(1),
+        end=astx.LiteralInt32(10),
+        step=astx.LiteralInt32(1),
+        body=astx.Block(),
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    block = astx.Block()
+    block.append(for_loop)
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn_main = astx.FunctionDef(prototype=proto, body=block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result("build", builder, module, "")
+
+
+@pytest.mark.parametrize(
     "int_type, literal_type",
     [
         (astx.Int32, astx.LiteralInt32),
@@ -166,3 +212,54 @@ def test_for_count(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_for_count_empty_body_no_crash(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: ForCountLoopStmt with empty body must not crash on empty stack.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    initializer = astx.InlineVariableDeclaration(
+        "a2",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    variable = astx.Identifier("a2")
+    for_loop = astx.ForCountLoopStmt(
+        initializer=initializer,
+        condition=astx.BinaryOp(
+            op_code="<",
+            lhs=variable,
+            rhs=astx.LiteralInt32(10),
+        ),
+        update=astx.UnaryOp(op_code="++", operand=variable),
+        body=astx.Block(),
+    )
+
+    proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    fn_block = astx.Block()
+    fn_block.append(for_loop)
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    check_result("build", builder, module, "")
