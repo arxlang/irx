@@ -2772,6 +2772,136 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             "are supported in this version"
         )
 
+    def _subscript_uses_unsigned_semantics(
+        self, node: astx.SubscriptExpr
+    ) -> bool:
+        """
+        title: Return True when dict lookup key coercion should be unsigned.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        returns:
+          type: bool
+        """
+        if _uses_unsigned_semantics(node.index):
+            return True
+
+        if isinstance(node.value, astx.LiteralDict) and node.value.elements:
+            first_key_node = next(iter(node.value.elements))
+            return _uses_unsigned_semantics(first_key_node)
+
+        return False
+
+    def _subscript_compare_type(
+        self, lhs_ty: ir.Type, rhs_ty: ir.Type
+    ) -> ir.Type:
+        """
+        title: Return the comparison type for dict key lookup.
+        parameters:
+          lhs_ty:
+            type: ir.Type
+          rhs_ty:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
+        if lhs_ty == rhs_ty:
+            return lhs_ty
+
+        if is_int_type(lhs_ty) and is_int_type(rhs_ty):
+            return ir.IntType(max(lhs_ty.width, rhs_ty.width))
+
+        if is_fp_type(lhs_ty) and is_fp_type(rhs_ty):
+            return self._select_float_type([lhs_ty, rhs_ty])
+
+        raise TypeError(
+            "SubscriptExpr: key type "
+            f"{rhs_ty} is incompatible with dict key type {lhs_ty}"
+        )
+
+    def _coerce_subscript_key_for_compare(
+        self,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+        *,
+        unsigned: bool,
+    ) -> ir.Value:
+        """
+        title: Coerce a dict lookup key to the chosen comparison type.
+        parameters:
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value
+        """
+        if key_val.type == compare_ty:
+            return key_val
+
+        if isinstance(key_val, ir.Constant):
+            if is_int_type(key_val.type) and is_int_type(compare_ty):
+                return ir.Constant(compare_ty, int(key_val.constant))
+            if is_fp_type(key_val.type) and is_fp_type(compare_ty):
+                return ir.Constant(compare_ty, float(key_val.constant))
+
+        if (is_int_type(key_val.type) and is_int_type(compare_ty)) or (
+            is_fp_type(key_val.type) and is_fp_type(compare_ty)
+        ):
+            return self._cast_value_to_type(
+                key_val, compare_ty, unsigned=unsigned
+            )
+
+        raise TypeError(
+            "SubscriptExpr: cannot compare dict key type "
+            f"{key_val.type} against {compare_ty}"
+        )
+
+    def _constant_subscript_key_matches(
+        self, entry_key: ir.Constant, key_val: ir.Constant
+    ) -> bool:
+        """
+        title: Compare constant dict keys without ignoring type compatibility.
+        parameters:
+          entry_key:
+            type: ir.Constant
+          key_val:
+            type: ir.Constant
+        returns:
+          type: bool
+        """
+        compare_ty = self._subscript_compare_type(entry_key.type, key_val.type)
+
+        if compare_ty == entry_key.type == key_val.type and not (
+            is_int_type(compare_ty) or is_fp_type(compare_ty)
+        ):
+            return bool(entry_key.constant == key_val.constant)
+
+        lhs = self._coerce_subscript_key_for_compare(
+            entry_key, compare_ty, unsigned=False
+        )
+        rhs = self._coerce_subscript_key_for_compare(
+            key_val, compare_ty, unsigned=False
+        )
+
+        if not isinstance(lhs, ir.Constant) or not isinstance(
+            rhs, ir.Constant
+        ):
+            return False
+
+        return bool(lhs.constant == rhs.constant)
+
+    def _emit_subscript_miss(self) -> None:
+        """
+        title: Terminate execution for a runtime dict key miss.
+        """
+        builder = self._llvm.ir_builder
+        exit_fn = self.require_runtime_symbol("libc", "exit")
+        builder.call(exit_fn, [ir.Constant(self._llvm.INT32_TYPE, 1)])
+        builder.unreachable()
+
     @dispatch  # type: ignore[no-redef]
     def visit(self, node: astx.SubscriptExpr) -> None:
         """
@@ -2798,24 +2928,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.index)
         key_val = self.result_stack.pop()
 
-        # Fast path: constant key → compile-time linear scan
+        if dict_val.type.count == 0:
+            raise KeyError("SubscriptExpr: key lookup on empty dict")
+
+        # Fast path: constant key -> compile-time linear scan.
         if isinstance(key_val, ir.Constant):
             for entry in dict_val.constant:
                 entry_key = entry.constant[0]
-                if entry_key.constant == key_val.constant:
+                if self._constant_subscript_key_matches(entry_key, key_val):
                     self.result_stack.append(entry.constant[1])
                     return
             raise KeyError(
                 f"SubscriptExpr: key {key_val.constant!r} not found in dict"
             )
 
-        # Runtime path: variable key → LLVM IR select chain (branchless)
-        self._visit_subscript_runtime(dict_val, key_val)
+        self._visit_subscript_runtime(
+            dict_val,
+            key_val,
+            unsigned=self._subscript_uses_unsigned_semantics(node),
+        )
 
     def _visit_subscript_runtime(
         self,
         dict_val: ir.Constant,
         key_val: ir.Value,
+        *,
+        unsigned: bool,
     ) -> None:
         """
         title: Emit runtime dict key lookup.
@@ -2824,18 +2962,33 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: ir.Constant
           key_val:
             type: ir.Value
+          unsigned:
+            type: bool
         """
         key_type = dict_val.type.element.elements[0]
+        compare_ty = self._subscript_compare_type(key_type, key_val.type)
+        key_val = self._coerce_subscript_key_for_compare(
+            key_val, compare_ty, unsigned=unsigned
+        )
 
-        if isinstance(key_type, ir.IntType):
-            self._visit_subscript_switch(dict_val, key_val)
-        else:
-            self._visit_subscript_select(dict_val, key_val)
+        if isinstance(compare_ty, ir.IntType):
+            self._visit_subscript_switch(dict_val, key_val, compare_ty)
+            return
+
+        if is_fp_type(compare_ty):
+            self._visit_subscript_select(dict_val, key_val, compare_ty)
+            return
+
+        raise TypeError(
+            "SubscriptExpr: runtime lookup supports only integer and "
+            "floating-point dict keys"
+        )
 
     def _visit_subscript_switch(
         self,
         dict_val: ir.Constant,
         key_val: ir.Value,
+        compare_ty: ir.Type,
     ) -> None:
         """
         title: Emit switch-based dict lookup for integer keys.
@@ -2844,28 +2997,32 @@ class LLVMLiteIRVisitor(BuilderVisitor):
             type: ir.Constant
           key_val:
             type: ir.Value
+          compare_ty:
+            type: ir.Type
         """
         builder = self._llvm.ir_builder
         fn = builder.function
         n = dict_val.type.count
         val_type = dict_val.type.element.elements[1]
-        default_val = ir.Constant(val_type, 0)
 
-        default_bb = fn.append_basic_block("dict.default")
+        miss_bb = fn.append_basic_block("dict.miss")
         merge_bb = fn.append_basic_block("dict.merge")
 
         case_blocks: list[tuple[ir.Constant, ir.Block]] = []
         for i in range(n):
             entry_key = dict_val.constant[i].constant[0]
+            case_key = self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            )
             bb = fn.append_basic_block(f"dict.case.{i}")
-            case_blocks.append((entry_key, bb))
+            case_blocks.append((cast(ir.Constant, case_key), bb))
 
-        switch = builder.switch(key_val, default_bb)
+        switch = builder.switch(key_val, miss_bb)
         for case_key, case_bb in case_blocks:
             switch.add_case(case_key, case_bb)
 
-        with builder.goto_block(default_bb):
-            builder.branch(merge_bb)
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
 
         for i, (_, case_bb) in enumerate(case_blocks):
             with builder.goto_block(case_bb):
@@ -2874,7 +3031,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         builder.position_at_end(merge_bb)
 
         phi = builder.phi(val_type, name="dict.result")
-        phi.add_incoming(default_val, default_bb)
         for i, (_, case_bb) in enumerate(case_blocks):
             entry_val = dict_val.constant[i].constant[1]
             phi.add_incoming(entry_val, case_bb)
@@ -2885,19 +3041,20 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self,
         dict_val: ir.Constant,
         key_val: ir.Value,
+        compare_ty: ir.Type,
     ) -> None:
         """
-        title: Emit select-chain dict lookup for non-integer keys.
+        title: Emit select-chain dict lookup for floating-point keys.
         parameters:
           dict_val:
             type: ir.Constant
           key_val:
             type: ir.Value
+          compare_ty:
+            type: ir.Type
         """
         builder = self._llvm.ir_builder
         n = dict_val.type.count
-        key_type = dict_val.type.element.elements[0]
-        val_type = dict_val.type.element.elements[1]
 
         zero = ir.Constant(ir.IntType(32), 0)
         key_field = ir.Constant(ir.IntType(32), 0)
@@ -2909,28 +3066,48 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         builder.position_at_end(current_bb)
         builder.store(dict_val, arr_alloca)
 
-        result: ir.Value = ir.Constant(val_type, 0)
+        last_idx = ir.Constant(ir.IntType(32), n - 1)
+        last_key_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, key_field], inbounds=True
+        )
+        last_key = builder.load(last_key_ptr, name=f"k_{n - 1}")
+        last_key = self._coerce_subscript_key_for_compare(
+            last_key, compare_ty, unsigned=False
+        )
+        matched = builder.fcmp_ordered(
+            "==", last_key, key_val, name=f"cmp_{n - 1}"
+        )
 
-        for i in reversed(range(n)):
+        last_val_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, val_field], inbounds=True
+        )
+        result: ir.Value = builder.load(last_val_ptr, name=f"v_{n - 1}")
+
+        for i in reversed(range(n - 1)):
             idx = ir.Constant(ir.IntType(32), i)
             key_ptr = builder.gep(
                 arr_alloca, [zero, idx, key_field], inbounds=True
             )
             key_i = builder.load(key_ptr, name=f"k_{i}")
-            if isinstance(key_type, ir.IntType):
-                cmp = builder.icmp_signed(
-                    "==", key_i, key_val, name=f"cmp_{i}"
-                )
-            else:
-                cmp = builder.fcmp_ordered(
-                    "==", key_i, key_val, name=f"cmp_{i}"
-                )
+            key_i = self._coerce_subscript_key_for_compare(
+                key_i, compare_ty, unsigned=False
+            )
+            cmp = builder.fcmp_ordered("==", key_i, key_val, name=f"cmp_{i}")
             val_ptr = builder.gep(
                 arr_alloca, [zero, idx, val_field], inbounds=True
             )
             val_i = builder.load(val_ptr, name=f"v_{i}")
             result = builder.select(cmp, val_i, result, name=f"sel_{i}")
+            matched = builder.or_(cmp, matched, name=f"match_{i}")
 
+        found_bb = builder.function.append_basic_block("dict.found")
+        miss_bb = builder.function.append_basic_block("dict.miss")
+        builder.cbranch(matched, found_bb, miss_bb)
+
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
+
+        builder.position_at_end(found_bb)
         self.result_stack.append(result)
 
     def _create_string_concat_function(self) -> ir.Function:

@@ -26,6 +26,34 @@ def _make_int_dict() -> astx.LiteralDict:
     )
 
 
+def _make_float_dict() -> astx.LiteralDict:
+    return astx.LiteralDict(
+        elements={
+            astx.LiteralFloat32(1.5): astx.LiteralInt32(10),
+            astx.LiteralFloat32(2.5): astx.LiteralInt32(20),
+        }
+    )
+
+
+def _make_lookup_module(
+    lookup: astx.SubscriptExpr, *setup_nodes: astx.AST
+) -> astx.Module:
+    module = astx.Module()
+
+    proto = astx.FunctionPrototype(
+        name="main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    block = astx.Block()
+    for setup_node in setup_nodes:
+        block.append(setup_node)
+    block.append(PrintExpr(lookup))
+    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    fn = astx.FunctionDef(prototype=proto, body=block)
+    module.block.append(fn)
+
+    return module
+
+
 @pytest.mark.parametrize("builder_class", [LLVMLiteIR])
 def test_dict_lookup_hit(builder_class: type[Builder]) -> None:
     """
@@ -77,20 +105,10 @@ def test_dict_lookup_build(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    module = builder.module()
-
     lookup = astx.SubscriptExpr(
         value=_make_int_dict(), index=astx.LiteralInt32(1)
     )
-
-    proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
-    )
-    block = astx.Block()
-    block.append(PrintExpr(lookup))
-    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    fn = astx.FunctionDef(prototype=proto, body=block)
-    module.block.append(fn)
+    module = _make_lookup_module(lookup)
 
     check_result("build", builder, module, expected_output="10")
 
@@ -101,14 +119,13 @@ def test_dict_lookup_runtime_variable_key(
 ) -> None:
     """
     title: >-
-      SubscriptExpr variable key does runtime linear scan and returns the
+      SubscriptExpr variable integer key does runtime lookup and returns the
       correct value.
     parameters:
       builder_class:
         type: type[Builder]
     """
     builder = builder_class()
-    module = builder.module()
 
     key_decl = astx.InlineVariableDeclaration(
         name="k",
@@ -118,15 +135,138 @@ def test_dict_lookup_runtime_variable_key(
     lookup = astx.SubscriptExpr(
         value=_make_int_dict(), index=astx.Identifier("k")
     )
-
-    proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Int32()
-    )
-    block = astx.Block()
-    block.append(key_decl)
-    block.append(PrintExpr(lookup))
-    block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
-    fn = astx.FunctionDef(prototype=proto, body=block)
-    module.block.append(fn)
+    module = _make_lookup_module(lookup, key_decl)
 
     check_result("build", builder, module, expected_output="20")
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_runtime_variable_key_miss_exits(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: SubscriptExpr runtime miss lowers to an explicit exit path.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    key_decl = astx.InlineVariableDeclaration(
+        name="k",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(99),
+    )
+    lookup = astx.SubscriptExpr(
+        value=_make_int_dict(), index=astx.Identifier("k")
+    )
+    module = _make_lookup_module(lookup, key_decl)
+
+    ir_text = builder.translate(module)
+
+    assert 'call void @"exit"(i32 1)' in ir_text
+    assert "switch i32" in ir_text
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_empty_dict_runtime_key_raises_keyerror(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Empty dict lookup with a runtime key fails during compilation.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    key_decl = astx.InlineVariableDeclaration(
+        name="k",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(1),
+    )
+    lookup = astx.SubscriptExpr(
+        value=astx.LiteralDict(elements={}),
+        index=astx.Identifier("k"),
+    )
+    module = _make_lookup_module(lookup, key_decl)
+
+    with pytest.raises(KeyError, match="empty dict"):
+        builder.translate(module)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_runtime_variable_key_mismatched_integer_widths(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: SubscriptExpr widens runtime integer keys before switch lookup.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    key_decl = astx.InlineVariableDeclaration(
+        name="k",
+        type_=astx.Int16(),
+        value=astx.LiteralInt16(2),
+    )
+    lookup = astx.SubscriptExpr(
+        value=_make_int_dict(), index=astx.Identifier("k")
+    )
+    module = _make_lookup_module(lookup, key_decl)
+
+    ir_text = builder.translate(module)
+
+    assert "sext i16" in ir_text
+    assert "switch i32" in ir_text
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_rejects_incompatible_constant_key_type(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: SubscriptExpr rejects incompatible constant key categories.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor.result_stack.clear()
+
+    expr = astx.SubscriptExpr(
+        value=_make_int_dict(), index=astx.LiteralFloat32(2.0)
+    )
+    with pytest.raises(TypeError, match="incompatible with dict key type"):
+        visitor.visit(expr)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+def test_dict_lookup_runtime_float_variable_key(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: SubscriptExpr runtime float key lowers to float comparisons.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    key_decl = astx.InlineVariableDeclaration(
+        name="k",
+        type_=astx.Float32(),
+        value=astx.LiteralFloat32(2.5),
+    )
+    lookup = astx.SubscriptExpr(
+        value=_make_float_dict(), index=astx.Identifier("k")
+    )
+    module = _make_lookup_module(lookup, key_decl)
+
+    ir_text = builder.translate(module)
+
+    assert "fcmp oeq float" in ir_text
+    assert 'call void @"exit"(i32 1)' in ir_text
