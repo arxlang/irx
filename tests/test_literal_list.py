@@ -4,210 +4,191 @@ title: Tests for LiteralList lowering using project conventions.
 
 from __future__ import annotations
 
-import re
-
-from typing import cast
+from dataclasses import dataclass
+from typing import Callable, cast
 
 import astx
 import pytest
 
-from irx.builders.base import Builder
-from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
 
+pytestmark = pytest.mark.skipif(
+    not HAS_LITERAL_LIST,
+    reason="astx.LiteralList not available",
+)
 
-def _array_i32_values(const: ir.Constant) -> list[int]:
+
+@dataclass(frozen=True)
+class LiteralListScenario:
     """
-    title: Extract i32-like values from array constant via regex (suite style).
+    title: One positive LiteralList lowering scenario.
+    attributes:
+      elements_factory:
+        type: Callable[[], list[astx.Literal]]
+      requires_live_builder:
+        type: bool
+      expected_length:
+        type: int
+      expected_element_type:
+        type: ir.Type
+      expected_values:
+        type: list[int | float]
+    """
+
+    elements_factory: Callable[[], list[astx.Literal]]
+    requires_live_builder: bool
+    expected_length: int
+    expected_element_type: ir.Type
+    expected_values: list[int | float]
+
+
+def _constant_scalars(const: ir.Constant) -> list[int | float]:
+    """
+    title: Extract scalar values from an array constant payload.
     parameters:
       const:
         type: ir.Constant
     returns:
-      type: list[int]
+      type: list[int | float]
     """
-    return [int(v) for v in re.findall(r"i\d+\s+(-?\d+)", str(const))]
+    items = cast(list[ir.Constant], const.constant)
+    return [cast(int | float, item.constant) for item in items]
 
 
-def _make_visitor_in_function() -> LLVMVisitor:
-    """
-    title: Return a visitor whose ir_builder is inside a live basic block.
-    summary: >-
-      _coerce_to and the alloca path both need an active insertion point. We
-      create a dummy function and position the builder at its entry block so
-      instructions can be emitted without an AssertionError from llvmlite.
-    returns:
-      type: LLVMVisitor
-    """
-    builder = LLVMBuilder()
-    visitor = builder.translator
-    visitor.result_stack.clear()
-
-    # Create a dummy void() function to give the builder a valid block
-    fn_ty = ir.FunctionType(visitor._llvm.VOID_TYPE, [])
-    fn = ir.Function(visitor._llvm.module, fn_ty, name="_test_dummy")
-    bb = fn.append_basic_block("entry")
-    visitor._llvm.ir_builder = ir.IRBuilder(bb)
-
-    return visitor
-
-
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_empty(builder_class: type[Builder]) -> None:
-    """
-    title: Empty list lowers to constant [0 x i32].
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    builder = builder_class()
-    visitor = cast(LLVMVisitor, builder.translator)
-    visitor.result_stack.clear()
-
-    visitor.visit(astx.LiteralList(elements=[]))
-    const = visitor.result_stack.pop()
-
-    assert isinstance(const, ir.Constant)
-    assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 0
-
-
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_homogeneous_ints(builder_class: type[Builder]) -> None:
-    """
-    title: Homogeneous integer constants lower to constant array [N x i32].
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    builder = builder_class()
-    visitor = cast(LLVMVisitor, builder.translator)
-    visitor.result_stack.clear()
-
-    visitor.visit(
-        astx.LiteralList(
-            elements=[
+POSITIVE_SCENARIOS = [
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [],
+            requires_live_builder=False,
+            expected_length=0,
+            expected_element_type=ir.IntType(32),
+            expected_values=[],
+        ),
+        id="empty",
+    ),
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [
                 astx.LiteralInt32(1),
                 astx.LiteralInt32(2),
                 astx.LiteralInt32(3),
-            ]
-        )
-    )
-    const = visitor.result_stack.pop()
-
-    assert isinstance(const, ir.Constant)
-    assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 3  # noqa: PLR2004
-    vals = _array_i32_values(const)
-    assert vals == [1, 2, 3]
-
-
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_mixed_int_widths_widens(
-    builder_class: type[Builder],
-) -> None:
-    """
-    title: Mixed-width integer list widens all elements to the widest type.
-    summary: >-
-      [i16(1), i32(2)] should produce a constant [2 x i32] where the i16 has
-      been sign-extended.  Requires a live IR builder block.
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    visitor = _make_visitor_in_function()
-
-    visitor.visit(
-        astx.LiteralList(elements=[astx.LiteralInt16(1), astx.LiteralInt32(2)])
-    )
-    const = visitor.result_stack.pop()
-
-    # Must be a constant array of i32 with count 2
-    assert isinstance(const, ir.Constant)
-    assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 2  # noqa: PLR2004
-    assert const.type.element == ir.IntType(32)
-    vals = _array_i32_values(const)
-    assert vals == [1, 2]
-
-
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_homogeneous_floats(
-    builder_class: type[Builder],
-) -> None:
-    """
-    title: Homogeneous float constants lower to constant array [N x float].
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    visitor = _make_visitor_in_function()
-
-    visitor.visit(
-        astx.LiteralList(
-            elements=[
+            ],
+            requires_live_builder=False,
+            expected_length=3,
+            expected_element_type=ir.IntType(32),
+            expected_values=[1, 2, 3],
+        ),
+        id="homogeneous-ints",
+    ),
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [
+                astx.LiteralInt16(1),
+                astx.LiteralInt32(2),
+            ],
+            requires_live_builder=True,
+            expected_length=2,
+            expected_element_type=ir.IntType(32),
+            expected_values=[1, 2],
+        ),
+        id="mixed-int-widths",
+    ),
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [
                 astx.LiteralFloat32(1.0),
                 astx.LiteralFloat32(2.0),
                 astx.LiteralFloat32(3.0),
-            ]
-        )
+            ],
+            requires_live_builder=True,
+            expected_length=3,
+            expected_element_type=ir.FloatType(),
+            expected_values=[1.0, 2.0, 3.0],
+        ),
+        id="homogeneous-floats",
+    ),
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [
+                astx.LiteralInt32(1),
+                astx.LiteralFloat32(2.0),
+            ],
+            requires_live_builder=True,
+            expected_length=2,
+            expected_element_type=ir.FloatType(),
+            expected_values=[1.0, 2.0],
+        ),
+        id="mixed-int-and-float",
+    ),
+    pytest.param(
+        LiteralListScenario(
+            elements_factory=lambda: [
+                astx.LiteralFloat32(1.0),
+                astx.LiteralFloat64(2.0),
+            ],
+            requires_live_builder=True,
+            expected_length=2,
+            expected_element_type=ir.DoubleType(),
+            expected_values=[1.0, 2.0],
+        ),
+        id="mixed-float-widths",
+    ),
+]
+
+
+@pytest.mark.parametrize("scenario", POSITIVE_SCENARIOS)
+def test_literal_list_positive_scenarios(
+    request: pytest.FixtureRequest,
+    scenario: LiteralListScenario,
+) -> None:
+    """
+    title: LiteralList should lower expected array constants across scenarios.
+    parameters:
+      request:
+        type: pytest.FixtureRequest
+      scenario:
+        type: LiteralListScenario
+    """
+    fixture_name = (
+        "llvm_visitor_in_function"
+        if scenario.requires_live_builder
+        else "llvm_visitor"
     )
+    visitor = cast(LLVMVisitor, request.getfixturevalue(fixture_name))
+
+    visitor.visit(astx.LiteralList(elements=scenario.elements_factory()))
     const = visitor.result_stack.pop()
 
     assert isinstance(const, ir.Constant)
     assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 3  # noqa: PLR2004
-    assert isinstance(const.type.element, ir.FloatType)
+    assert const.type.count == scenario.expected_length
+    assert const.type.element == scenario.expected_element_type
+
+    actual_values = _constant_scalars(const)
+    if any(isinstance(value, float) for value in scenario.expected_values):
+        assert actual_values == pytest.approx(scenario.expected_values)
+    else:
+        assert actual_values == scenario.expected_values
+
+    assert not visitor.result_stack
 
 
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_mixed_int_and_float_promotes(
-    builder_class: type[Builder],
+def test_literal_list_incompatible_types_raise(
+    llvm_visitor_in_function: LLVMVisitor,
 ) -> None:
     """
-    title: Mixed int+float list promotes the integer to float.
-    summary: '[i32(1), float(2.0)] should produce a constant [2 x float].'
+    title: Incompatible LiteralList element types should raise TypeError.
     parameters:
-      builder_class:
-        type: type[Builder]
+      llvm_visitor_in_function:
+        type: LLVMVisitor
     """
-    visitor = _make_visitor_in_function()
-
-    visitor.visit(
-        astx.LiteralList(
-            elements=[astx.LiteralInt32(1), astx.LiteralFloat32(2.0)]
-        )
-    )
-    const = visitor.result_stack.pop()
-
-    assert isinstance(const, ir.Constant)
-    assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 2  # noqa: PLR2004
-    assert isinstance(const.type.element, ir.FloatType)
-
-
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_incompatible_types_raises(
-    builder_class: type[Builder],
-) -> None:
-    """
-    title: Incompatible types (e.g. pointer + int) raise TypeError.
-    summary: >-
-      Mixing a string (i8*) with an integer has no valid common type and must
-      raise TypeError.
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    visitor = _make_visitor_in_function()
-
-    with pytest.raises(TypeError):
-        visitor.visit(
+    with pytest.raises(
+        TypeError, match="LiteralList: cannot find common type"
+    ):
+        llvm_visitor_in_function.visit(
             astx.LiteralList(
                 elements=[
                     astx.LiteralUTF8String("hello"),
@@ -217,54 +198,9 @@ def test_literal_list_incompatible_types_raises(
         )
 
 
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_mixed_float_widths_widens(
-    builder_class: type[Builder],
-) -> None:
+def test_literal_list_nested_unsupported_raises_at_ast_construction() -> None:
     """
-    title: Mixed float32+float64 list widens all elements to float64.
-    summary: >-
-      [float32(1.0), float64(2.0)] should produce a [2 x double] where the
-      float32 has been extended. Exercises _common_list_element_type and
-      _coerce_to with the unified _select_float_type / _float_bit_width paths.
-    parameters:
-      builder_class:
-        type: type[Builder]
+    title: Nested LiteralList values are not currently constructible.
     """
-    visitor = _make_visitor_in_function()
-
-    visitor.visit(
-        astx.LiteralList(
-            elements=[astx.LiteralFloat32(1.0), astx.LiteralFloat64(2.0)]
-        )
-    )
-    const = visitor.result_stack.pop()
-
-    assert isinstance(const, ir.Constant)
-    assert isinstance(const.type, ir.ArrayType)
-    assert const.type.count == 2  # noqa: PLR2004
-    assert isinstance(const.type.element, ir.DoubleType)
-
-
-@pytest.mark.skipif(
-    not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
-)
-@pytest.mark.parametrize("builder_class", [LLVMBuilder])
-def test_literal_list_nested_unsupported(
-    builder_class: type[Builder],
-) -> None:
-    """
-    title: Nested lists (list containing lists) are not yet supported.
-    parameters:
-      builder_class:
-        type: type[Builder]
-    """
-    builder = builder_class()
-    visitor = cast(LLVMVisitor, builder.translator)
-    visitor.result_stack.clear()
-
-    # Nested lists fail at AST construction time (before lowering)
     with pytest.raises(TypeError, match=r"missing.*argument.*element_types"):
-        visitor.visit(
-            astx.LiteralList(elements=[astx.LiteralList(elements=[])])
-        )
+        astx.LiteralList(elements=[astx.LiteralList(elements=[])])

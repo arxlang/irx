@@ -7,10 +7,16 @@ import tempfile
 
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Any, cast
 
 import astx
+import pytest
 
-from irx.builders.base import Builder
+from irx.builders.base import Builder, CommandResult
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
+from llvmlite import binding as llvm
+from llvmlite import ir
 
 TEST_DATA_PATH = Path(__file__).parent / "data"
 
@@ -57,32 +63,15 @@ def check_result(
         type: float
     """
     if action == "build":
-        filename_exe = ""
-        with tempfile.NamedTemporaryFile(
-            suffix=".exe",
-            prefix="arx",
-            dir="/tmp",
-            delete=False,
-        ) as fp:
-            filename_exe = fp.name
-            builder.build(module, output_file=filename_exe)
-
-        result = builder.run(raise_on_error=False)
-        exe_result = result.stdout.strip() or str(result.returncode)
-
-        if expected_output:
-            message = (
-                f"Expected `{expected_output}`, "
-                f"but the result is `{exe_result}`"
-            )
-            assert expected_output == exe_result, message
-
-        os.unlink(filename_exe)
+        if expected_output is not None:
+            assert_build_output(builder, module, expected_output)
+        else:
+            build_and_run(builder, module)
 
     elif action == "translate":
         with open(TEST_DATA_PATH / expected_file, "r") as f:
             expected = f.read()
-        ir_result = builder.translate(module)
+        ir_result = translate_ir(builder, module)
         print(" TEST ".center(80, "="))
         print("==== EXPECTED =====")
         print(f"\n{expected}\n")
@@ -90,3 +79,165 @@ def check_result(
         print(f"\n{ir_result}\n")
         print("=" * 80)
         assert similarity(ir_result, expected) >= similarity_factor
+
+
+def build_and_run(builder: Builder, module: astx.Module) -> CommandResult:
+    """
+    title: Build a module and run the resulting executable.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+    returns:
+      type: CommandResult
+    """
+    output_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=".exe",
+            prefix="arx",
+            dir="/tmp",
+            delete=False,
+        ) as fp:
+            output_path = fp.name
+
+        builder.build(module, output_file=output_path)
+        return builder.run(raise_on_error=False)
+    finally:
+        if output_path and os.path.exists(output_path):
+            os.unlink(output_path)
+
+
+def assert_build_output(
+    builder: Builder,
+    module: astx.Module,
+    expected_output: str,
+) -> None:
+    """
+    title: Assert that building and running a module yields exact output.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+      expected_output:
+        type: str
+    """
+    result = build_and_run(builder, module)
+    actual_output = result.stdout.strip() or str(result.returncode)
+    assert actual_output == expected_output, (
+        f"Expected `{expected_output}`, but got `{actual_output}` "
+        f"(stderr={result.stderr.strip()!r})"
+    )
+
+
+def assert_build_succeeds(builder: Builder, module: astx.Module) -> None:
+    """
+    title: Assert that a module builds and runs successfully.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+    """
+    result = build_and_run(builder, module)
+    assert result.returncode == 0, (
+        f"Expected build/run success, got exit {result.returncode} "
+        f"with stderr {result.stderr.strip()!r}"
+    )
+
+
+def translate_ir(builder: Builder, module: astx.Module) -> str:
+    """
+    title: Translate a module to LLVM IR text.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+    returns:
+      type: str
+    """
+    return builder.translate(module)
+
+
+def assert_ir_parses(ir_text: str) -> None:
+    """
+    title: Assert that LLVM can parse generated IR.
+    parameters:
+      ir_text:
+        type: str
+    """
+    llvm.parse_assembly(ir_text)
+
+
+def make_main_module(
+    *nodes: astx.AST,
+    return_type: astx.DataType | None = None,
+) -> astx.Module:
+    """
+    title: Build a small module with a single main function.
+    parameters:
+      return_type:
+        type: astx.DataType | None
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
+    module = astx.Module()
+    prototype = astx.FunctionPrototype(
+        "main",
+        args=astx.Arguments(),
+        return_type=cast(Any, return_type or astx.Int32()),
+    )
+    body = astx.Block()
+    for node in nodes:
+        body.append(node)
+    module.block.append(astx.FunctionDef(prototype=prototype, body=body))
+    return module
+
+
+@pytest.fixture
+def llvm_builder() -> LLVMBuilder:
+    """
+    title: Return a fresh llvmliteir builder.
+    returns:
+      type: LLVMBuilder
+    """
+    return LLVMBuilder()
+
+
+@pytest.fixture
+def llvm_visitor() -> LLVMVisitor:
+    """
+    title: Return a fresh llvmliteir visitor with an empty result stack.
+    returns:
+      type: LLVMVisitor
+    """
+    builder = LLVMBuilder()
+    visitor = builder.translator
+    visitor.result_stack.clear()
+    return visitor
+
+
+@pytest.fixture
+def llvm_visitor_in_function() -> LLVMVisitor:
+    """
+    title: Return a fresh llvmliteir visitor inside a live basic block.
+    summary: >-
+      Some lowering helpers require a valid insertion point. This fixture
+      creates a dummy function and positions the IRBuilder at its entry block.
+    returns:
+      type: LLVMVisitor
+    """
+    builder = LLVMBuilder()
+    visitor = builder.translator
+    visitor.result_stack.clear()
+    fn_type = ir.FunctionType(visitor._llvm.VOID_TYPE, [])
+    function = ir.Function(visitor._llvm.module, fn_type, name="_test_dummy")
+    block = function.append_basic_block("entry")
+    visitor._llvm.ir_builder = ir.IRBuilder(block)
+    return visitor
