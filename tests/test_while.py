@@ -7,6 +7,7 @@ import pytest
 
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import LLVMLiteIR
+from llvmlite import binding as llvm
 
 from .conftest import check_result
 
@@ -93,6 +94,116 @@ def test_while_expr(
     module.block.append(fn_main)
 
     check_result(action, builder, module, expected_file)
+
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_while_empty_body_no_crash(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: WhileStmt with empty body must not crash on empty stack.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    init_var = astx.InlineVariableDeclaration(
+        "a",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    var_a = astx.Identifier("a")
+    cond = astx.BinaryOp(
+        op_code="<",
+        lhs=var_a,
+        rhs=astx.LiteralInt32(5),
+    )
+
+    # Empty body leaves no value on result_stack.
+    body = astx.Block()
+
+    while_expr = astx.WhileStmt(condition=cond, body=body)
+
+    proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    fn_block = astx.Block()
+    fn_block.append(init_var)
+    fn_block.append(while_expr)
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    llvm.parse_assembly(builder.translate(module))
+
+
+@pytest.mark.parametrize(
+    "builder_class",
+    [
+        LLVMLiteIR,
+    ],
+)
+def test_while_falsy_body_value_no_crash(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: WhileStmt must keep its back-edge when body leaves a falsy value.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+
+    init_var = astx.InlineVariableDeclaration(
+        "a",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+
+    var_a = astx.Identifier("a")
+    cond = astx.BinaryOp(
+        op_code="<",
+        lhs=var_a,
+        rhs=astx.LiteralInt32(5),
+    )
+    update = astx.UnaryOp(op_code="++", operand=var_a)
+
+    body = astx.Block()
+    body.append(update)
+    body.append(astx.LiteralInt32(0))
+
+    while_expr = astx.WhileStmt(condition=cond, body=body)
+
+    proto = astx.FunctionPrototype(
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    fn_block = astx.Block()
+    fn_block.append(init_var)
+    fn_block.append(while_expr)
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
+
+    module = builder.module()
+    module.block.append(fn_main)
+
+    llvm.parse_assembly(builder.translate(module))
 
 
 @pytest.mark.parametrize(
