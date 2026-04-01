@@ -10,10 +10,14 @@ import astx
 
 from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import SemanticFunction
-from irx.analysis.types import is_assignable
+from irx.analysis.types import is_assignable, is_boolean_type, is_numeric_type
 
 TIME_PARTS_HOUR_MINUTE = 2
 TIME_PARTS_HOUR_MINUTE_SECOND = 3
+MAX_HOUR = 23
+MAX_MINUTE_SECOND = 59
+INT32_MIN = -(2**31)
+INT32_MAX = 2**31 - 1
 
 
 def validate_assignment(
@@ -99,12 +103,20 @@ def validate_cast(
         return
     if is_assignable(target_type, source_type):
         return
+    if _is_numeric_cast_type(source_type) and _is_numeric_cast_type(
+        target_type
+    ):
+        return
     if isinstance(target_type, (astx.String, astx.UTF8String)):
         return
     diagnostics.add(
         f"Unsupported cast from {source_type} to {target_type}",
         node=node,
     )
+
+
+def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
+    return is_numeric_type(type_) or is_boolean_type(type_)
 
 
 def validate_literal_time(value: str) -> time:
@@ -124,10 +136,22 @@ def validate_literal_time(value: str) -> time:
         TIME_PARTS_HOUR_MINUTE_SECOND,
     }:
         raise ValueError("invalid time format")
-    parsed = [int(part) for part in parts]
-    if len(parsed) == TIME_PARTS_HOUR_MINUTE:
-        return time(parsed[0], parsed[1], 0)
-    return time(parsed[0], parsed[1], parsed[2])
+    try:
+        parsed = [int(part) for part in parts]
+    except ValueError as exc:
+        raise ValueError("invalid time format") from exc
+
+    hour, minute = parsed[0], parsed[1]
+    second = parsed[2] if len(parsed) == TIME_PARTS_HOUR_MINUTE_SECOND else 0
+
+    if not (0 <= hour <= MAX_HOUR):
+        raise ValueError("hour out of range")
+    if not (0 <= minute <= MAX_MINUTE_SECOND):
+        raise ValueError("minute out of range")
+    if not (0 <= second <= MAX_MINUTE_SECOND):
+        raise ValueError("second out of range")
+
+    return time(hour, minute, second)
 
 
 def validate_literal_timestamp(value: str) -> datetime:
@@ -158,7 +182,59 @@ def validate_literal_datetime(value: str) -> datetime:
     returns:
       type: datetime
     """
-    return validate_literal_timestamp(value)
+    stripped = value.strip()
+
+    if "T" in stripped:
+        date_part, time_part = stripped.split("T", 1)
+    elif " " in stripped:
+        date_part, time_part = stripped.split(" ", 1)
+    else:
+        raise ValueError("invalid datetime format")
+
+    if "." in time_part:
+        raise ValueError("fractional seconds are not supported")
+    if time_part.endswith("Z") or "+" in time_part or "-" in time_part[2:]:
+        raise ValueError("timezone offsets are not supported")
+
+    try:
+        year_str, month_str, day_str = date_part.split("-")
+        year = int(year_str)
+        month = int(month_str)
+        day = int(day_str)
+    except Exception as exc:
+        raise ValueError("invalid date part") from exc
+
+    if not (INT32_MIN <= year <= INT32_MAX):
+        raise ValueError("year out of 32-bit range")
+
+    try:
+        time_parts = time_part.split(":")
+        if len(time_parts) not in {
+            TIME_PARTS_HOUR_MINUTE,
+            TIME_PARTS_HOUR_MINUTE_SECOND,
+        }:
+            raise ValueError("invalid time part")
+        hour = int(time_parts[0])
+        minute = int(time_parts[1])
+        second = (
+            int(time_parts[2])
+            if len(time_parts) == TIME_PARTS_HOUR_MINUTE_SECOND
+            else 0
+        )
+    except Exception as exc:
+        raise ValueError("invalid time part") from exc
+
+    if not (0 <= hour <= MAX_HOUR):
+        raise ValueError("hour out of range")
+    if not (0 <= minute <= MAX_MINUTE_SECOND):
+        raise ValueError("minute out of range")
+    if not (0 <= second <= MAX_MINUTE_SECOND):
+        raise ValueError("second out of range")
+
+    try:
+        return datetime(year, month, day, hour, minute, second)
+    except ValueError as exc:
+        raise ValueError("invalid calendar date/time") from exc
 
 
 def validate_calendar_date(value: str) -> date:

@@ -296,9 +296,8 @@ class SemanticAnalyzer:
 
     def _visit_block(self, block: astx.Block) -> None:
         self._set_type(block, None)
-        with self.context.scope("block"):
-            for node in block.nodes:
-                self._visit(node)
+        for node in block.nodes:
+            self._visit(node)
 
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
         self._set_type(

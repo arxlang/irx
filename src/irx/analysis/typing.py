@@ -31,8 +31,15 @@ def binary_result_type(
     returns:
       type: astx.DataType | None
     """
-    if op_code in {"&&", "and", "||", "or", "<", ">", "<=", ">=", "==", "!="}:
+    if op_code in {"<", ">", "<=", ">=", "==", "!="}:
         return astx.Boolean()
+
+    if op_code in {"&&", "and", "||", "or"}:
+        if is_boolean_type(lhs_type) and is_boolean_type(rhs_type):
+            return astx.Boolean()
+        if is_numeric_type(lhs_type) and is_numeric_type(rhs_type):
+            return common_numeric_type(lhs_type, rhs_type)
+        return lhs_type if lhs_type == rhs_type else None
 
     if op_code == "=":
         return lhs_type

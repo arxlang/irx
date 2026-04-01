@@ -11,6 +11,7 @@ import pytest
 
 from irx.analysis import DiagnosticBag, SemanticError, analyze
 from irx.analysis.resolved_nodes import SemanticInfo
+from irx.system import Cast
 
 
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
@@ -144,6 +145,57 @@ def test_analyze_normalizes_binary_flags() -> None:
     assert semantic.semantic_flags.fast_math is True
     assert semantic.semantic_flags.fma is True
     assert semantic.semantic_flags.fma_rhs is fma_rhs
+
+
+def test_analyze_allows_numeric_casts() -> None:
+    expr = Cast(
+        value=astx.LiteralFloat32(7.9),
+        target_type=astx.Int32(),
+    )
+
+    analyze(expr)
+
+    assert _semantic(expr).resolved_type.__class__ is astx.Int32
+
+
+def test_analyze_keeps_if_branch_bindings_visible_after_if() -> None:
+    branchy_proto = astx.FunctionPrototype(
+        "branchy",
+        args=astx.Arguments(astx.Argument("x", astx.Int32())),
+        return_type=astx.Int32(),
+    )
+    branchy_body = astx.Block()
+
+    cond = astx.BinaryOp(
+        op_code="<",
+        lhs=astx.Identifier("x"),
+        rhs=astx.LiteralInt32(0),
+    )
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(7)))
+    else_block = astx.Block()
+    else_block.append(
+        astx.InlineVariableDeclaration(
+            "y", type_=astx.Int32(), value=astx.LiteralInt32(5)
+        )
+    )
+    branchy_body.append(
+        astx.IfStmt(condition=cond, then=then_block, else_=else_block)
+    )
+    return_ident = astx.Identifier("y")
+    branchy_body.append(astx.FunctionReturn(return_ident))
+
+    module = astx.Module()
+    module.block.append(
+        astx.FunctionDef(prototype=branchy_proto, body=branchy_body)
+    )
+
+    analyze(module)
+
+    resolved_symbol = _semantic(return_ident).resolved_symbol
+
+    assert resolved_symbol is not None
+    assert resolved_symbol.name == "y"
 
 
 def test_diagnostic_bag_formats_messages() -> None:
