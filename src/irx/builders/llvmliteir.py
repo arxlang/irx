@@ -1711,9 +1711,12 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.condition)
         cond_val = self.result_stack.pop()
 
-        # Create blocks for loop body and after loop
+        # Create blocks for loop body, update, and after loop
         loop_body_bb = self._llvm.ir_builder.function.append_basic_block(
             "loop.body"
+        )
+        loop_update_bb = self._llvm.ir_builder.function.append_basic_block(
+            "loop.update"
         )
         after_loop_bb = self._llvm.ir_builder.function.append_basic_block(
             "after.loop"
@@ -1722,20 +1725,33 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         # Branch based on condition
         self._llvm.ir_builder.cbranch(cond_val, loop_body_bb, after_loop_bb)
 
+        loop_context = {
+            "break_target": after_loop_bb,
+            "continue_target": loop_update_bb,
+        }
+        self.loop_stack.append(loop_context)
+
         # Emit loop body
         self._llvm.ir_builder.position_at_start(loop_body_bb)
         self.visit(node.body)
+        safe_pop(self.result_stack)
 
-        _body_val = self.result_stack.pop() if self.result_stack else None
+        if not self._llvm.ir_builder.block.is_terminated:
+            self._llvm.ir_builder.branch(loop_update_bb)
+
+        self.loop_stack.pop()
 
         # Emit update expression
+        self._llvm.ir_builder.position_at_start(loop_update_bb)
         self.visit(node.update)
-        update_val = self.result_stack.pop()
+        update_val = safe_pop(self.result_stack)
+        if update_val is None:
+            raise Exception("codegen: Invalid update expression.")
 
-        # Store updated value
+        # Store updated value.
         self._llvm.ir_builder.store(update_val, var_addr)
 
-        # Branch back to loop header
+        # Branch back to loop header.
         self._llvm.ir_builder.branch(loop_header_bb)
 
         # Move to after-loop block
@@ -1785,6 +1801,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         header_bb = func.append_basic_block("for.header")
         body_bb = func.append_basic_block("for.body")
+        step_bb = func.append_basic_block("for.step")
         after_bb = func.append_basic_block("for.after")
 
         # jump to header
@@ -1841,7 +1858,7 @@ class LLVMLiteIRVisitor(BuilderVisitor):
 
         loop_context = {
             "break_target": after_bb,
-            "continue_target": header_bb,
+            "continue_target": step_bb,
         }
         self.loop_stack.append(loop_context)
 
@@ -1854,7 +1871,13 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self.visit(node.body)
         safe_pop(self.result_stack)
 
+        if not self._llvm.ir_builder.block.is_terminated:
+            self._llvm.ir_builder.branch(step_bb)
+
+        self.loop_stack.pop()
+
         # increment
+        self._llvm.ir_builder.position_at_start(step_bb)
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         next_var = emit_add(
             self._llvm.ir_builder, cur_var, step_val, "nextvar"
@@ -1862,8 +1885,6 @@ class LLVMLiteIRVisitor(BuilderVisitor):
         self._llvm.ir_builder.store(next_var, var_addr)
 
         self._llvm.ir_builder.branch(header_bb)
-
-        self.loop_stack.pop()
 
         # AFTER LOOP
         self._llvm.ir_builder.position_at_start(after_bb)
