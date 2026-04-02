@@ -2,9 +2,9 @@
 title: Test For Loop statements.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import Builder as LLVMBuilder
 

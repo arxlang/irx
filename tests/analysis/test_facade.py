@@ -6,16 +6,15 @@ from __future__ import annotations
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.analysis import DiagnosticBag, SemanticError, analyze
-from irx.analysis.resolved_nodes import (
+from irx.analysis.resolved_nodes import SemanticInfo
+from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     AddBinOp,
-    SemanticInfo,
 )
-from irx.system import Cast
 
 
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
@@ -137,10 +136,10 @@ def test_analyze_normalizes_binary_flags() -> None:
         astx.LiteralFloat32(1.0),
         astx.LiteralFloat32(2.0),
     )
-    expr.fast_math = True  # type: ignore[attr-defined]
-    expr.fma = True  # type: ignore[attr-defined]
+    expr.fast_math = True
+    expr.fma = True
     fma_rhs = astx.LiteralFloat32(3.0)
-    expr.fma_rhs = fma_rhs  # type: ignore[attr-defined]
+    expr.fma_rhs = fma_rhs
 
     analyze(expr)
 
@@ -169,7 +168,7 @@ def test_analyze_attaches_specialized_binary_op() -> None:
 
 
 def test_analyze_allows_numeric_casts() -> None:
-    expr = Cast(
+    expr = astx.Cast(
         value=astx.LiteralFloat32(7.9),
         target_type=astx.Int32(),
     )

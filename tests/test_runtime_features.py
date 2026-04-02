@@ -7,9 +7,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.llvmliteir import Builder, Visitor
 from irx.runtime.features import (
     ExternalSymbolSpec,

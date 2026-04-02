@@ -7,9 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-import astx
-
 from public import public
+
+from irx import astx
 
 
 @public

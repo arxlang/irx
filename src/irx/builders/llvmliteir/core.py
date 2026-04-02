@@ -8,11 +8,11 @@ import ctypes
 
 from typing import Any, cast
 
-import astx
-
 from llvmlite import binding as llvm
 from llvmlite import ir
 from llvmlite.ir import DoubleType, FloatType, HalfType
+
+from irx import astx
 
 try:  # FP128 may not exist depending on llvmlite build.
     from llvmlite.ir import FP128Type
@@ -94,7 +94,7 @@ def _semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
     fma_rhs = getattr(semantic_flags, "fma_rhs", None)
     if fma_rhs is not None:
         return cast(astx.AST, fma_rhs)
-    return cast(astx.AST | None, getattr(node, "fma_rhs", None))
+    return getattr(node, "fma_rhs", None)
 
 
 class _VisitorCore(BuilderVisitor):

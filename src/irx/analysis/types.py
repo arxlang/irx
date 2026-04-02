@@ -4,9 +4,9 @@ title: Type helpers for semantic analysis.
 
 from __future__ import annotations
 
-import astx
-
 from public import public
+
+from irx import astx
 
 INT_TYPES = (astx.Int8, astx.Int16, astx.Int32, astx.Int64)
 UINT_TYPES = (astx.UInt8, astx.UInt16, astx.UInt32, astx.UInt64, astx.UInt128)

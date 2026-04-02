@@ -4,8 +4,7 @@ title: Type-computation helpers for semantic analysis.
 
 from __future__ import annotations
 
-import astx
-
+from irx import astx
 from irx.analysis.types import (
     common_numeric_type,
     is_boolean_type,

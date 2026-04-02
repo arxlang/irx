@@ -4,9 +4,9 @@ title: Tests for vector operations in the LLVM-IR builder.
 
 from typing import Any
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.llvmliteir import Builder, Visitor
 from llvmlite import ir
 
@@ -94,12 +94,12 @@ def _run_vector_binop(
         op_code, astx.Identifier("LHS"), astx.Identifier("RHS")
     )
     if unsigned is not None:
-        bin_op.unsigned = unsigned  # type: ignore[attr-defined]
+        bin_op.unsigned = unsigned
     if fast_math:
-        bin_op.fast_math = True  # type: ignore[attr-defined]
+        bin_op.fast_math = True
     if fma_rhs is not None:
-        bin_op.fma = True  # type: ignore[attr-defined]
-        bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
+        bin_op.fma = True
+        bin_op.fma_rhs = astx.Identifier("FMA_RHS")
     builder.visit(bin_op)
     return builder.result_stack.pop()
 
@@ -425,7 +425,7 @@ def test_fma_missing_fma_rhs_raises() -> None:
     patched = _make_binop_visitor(v, v)
 
     bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fma = True  # type: ignore[attr-defined]
+    bin_op.fma = True
 
     with pytest.raises(Exception, match="FMA requires a third operand"):
         patched.visit(bin_op)
@@ -505,7 +505,7 @@ def test_fast_math_flag_restored_after_vector_binop(
     patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp(op, astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fast_math = True  # type: ignore[attr-defined]
+    bin_op.fast_math = True
 
     if raises:
         with pytest.raises(Exception):
@@ -538,9 +538,9 @@ def test_fast_math_flag_restored_after_vector_fma(
     patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fast_math = True  # type: ignore[attr-defined]
-    bin_op.fma = True  # type: ignore[attr-defined]
-    bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
+    bin_op.fast_math = True
+    bin_op.fma = True
+    bin_op.fma_rhs = astx.Identifier("FMA_RHS")
 
     patched.visit(bin_op)
     patched.result_stack.pop()

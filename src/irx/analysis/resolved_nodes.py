@@ -7,11 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import astx
-
 from public import public
 
-SPECIALIZED_BINARY_OP_EXTRA = "specialized_binary_op"
+from irx import astx
 
 
 @public
@@ -159,114 +157,3 @@ class SemanticInfo:
     resolved_assignment: ResolvedAssignment | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)
-
-
-class AssignmentBinOp(astx.BinaryOp):
-    pass
-
-
-class AddBinOp(astx.BinaryOp):
-    pass
-
-
-class SubBinOp(astx.BinaryOp):
-    pass
-
-
-class MulBinOp(astx.BinaryOp):
-    pass
-
-
-class DivBinOp(astx.BinaryOp):
-    pass
-
-
-class ModBinOp(astx.BinaryOp):
-    pass
-
-
-class EqBinOp(astx.BinaryOp):
-    pass
-
-
-class NeBinOp(astx.BinaryOp):
-    pass
-
-
-class LtBinOp(astx.BinaryOp):
-    pass
-
-
-class GtBinOp(astx.BinaryOp):
-    pass
-
-
-class LeBinOp(astx.BinaryOp):
-    pass
-
-
-class GeBinOp(astx.BinaryOp):
-    pass
-
-
-class LogicalAndBinOp(astx.BinaryOp):
-    pass
-
-
-class LogicalOrBinOp(astx.BinaryOp):
-    pass
-
-
-class BitOrBinOp(astx.BinaryOp):
-    pass
-
-
-class BitAndBinOp(astx.BinaryOp):
-    pass
-
-
-class BitXorBinOp(astx.BinaryOp):
-    pass
-
-
-_BINARY_OP_TYPES: dict[str, type[astx.BinaryOp]] = {
-    "=": AssignmentBinOp,
-    "+": AddBinOp,
-    "-": SubBinOp,
-    "*": MulBinOp,
-    "/": DivBinOp,
-    "%": ModBinOp,
-    "==": EqBinOp,
-    "!=": NeBinOp,
-    "<": LtBinOp,
-    ">": GtBinOp,
-    "<=": LeBinOp,
-    ">=": GeBinOp,
-    "&&": LogicalAndBinOp,
-    "and": LogicalAndBinOp,
-    "||": LogicalOrBinOp,
-    "or": LogicalOrBinOp,
-    "|": BitOrBinOp,
-    "&": BitAndBinOp,
-    "^": BitXorBinOp,
-}
-
-
-def binary_op_type_for_opcode(op_code: str) -> type[astx.BinaryOp]:
-    return _BINARY_OP_TYPES.get(op_code, astx.BinaryOp)
-
-
-def specialize_binary_op(node: astx.BinaryOp) -> astx.BinaryOp:
-    target_type = binary_op_type_for_opcode(node.op_code)
-    if target_type is astx.BinaryOp or isinstance(node, target_type):
-        return node
-
-    specialized = target_type(
-        node.op_code,
-        node.lhs,
-        node.rhs,
-        loc=node.loc,
-        parent=node.parent,
-    )
-    specialized.__dict__.update(vars(node))
-    return specialized

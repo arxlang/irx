@@ -8,10 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import astx
-
 from llvmlite import ir
 
+from irx import astx
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 

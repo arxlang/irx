@@ -1,5 +1,5 @@
 """
-title: Arrow-specific AST helpers.
+title: IRX-owned Arrow AST nodes.
 """
 
 from typing import cast
@@ -11,7 +11,7 @@ class ArrowInt32ArrayLength(astx.base.DataType):
     """
     title: Internal Arrow helper AST node.
     summary: >-
-      Build an Arrow int32 array using the IRx runtime, then return its length.
+      Build an Arrow int32 array using the IRX runtime, then return its length.
     attributes:
       values:
         type: list[astx.AST]
@@ -42,3 +42,6 @@ class ArrowInt32ArrayLength(astx.base.DataType):
             [item.get_struct(simplified) for item in self.values],
         )
         return self._prepare_struct(key, value, simplified)
+
+
+__all__ = ["ArrowInt32ArrayLength"]

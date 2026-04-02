@@ -6,9 +6,9 @@ title: Tests for the shared visitor base.
 
 from pathlib import Path
 
-import astx
 import pytest
 
+from irx import astx
 from irx.analysis.facade import SemanticAnalyzer
 from irx.builders.llvmliteir import Visitor
 from irx.visitors import BaseVisitor

@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.analysis import SemanticError
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import Builder as LLVMBuilder

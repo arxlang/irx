@@ -4,9 +4,7 @@ title: Structural tests for Arrow AST nodes.
 
 from typing import Any, cast
 
-import astx
-
-from irx.arrow import ArrowInt32ArrayLength
+from irx import astx
 
 
 def test_arrow_int32_array_length_get_struct_shapes() -> None:
@@ -15,7 +13,7 @@ def test_arrow_int32_array_length_get_struct_shapes() -> None:
     """
     first = astx.LiteralInt32(1)
     second = astx.LiteralInt32(2)
-    node = ArrowInt32ArrayLength([first, second])
+    node = astx.ArrowInt32ArrayLength([first, second])
 
     full = node.get_struct()
     assert isinstance(full, dict)

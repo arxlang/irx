@@ -6,9 +6,9 @@ import sys
 
 from typing import Any, Sequence
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import (
     Builder,
     BuilderVisitor,

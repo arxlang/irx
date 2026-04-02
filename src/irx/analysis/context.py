@@ -8,10 +8,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Iterator
 
-import astx
-
 from public import public
 
+from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import SemanticFunction
 from irx.analysis.scopes import ScopeStack

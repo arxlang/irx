@@ -9,9 +9,9 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder, CommandResult
 from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.builders.llvmliteir import Visitor as LLVMVisitor

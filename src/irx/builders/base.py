@@ -13,10 +13,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-import astx
-
 from plum import dispatch
 
+from irx import astx
 from irx.tools.typing import typechecked
 from irx.visitors.base import BaseVisitor
 

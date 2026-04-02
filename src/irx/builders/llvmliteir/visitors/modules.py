@@ -4,10 +4,9 @@
 title: Module-level visitor mixins for llvmliteir.
 """
 
-import astx
-
 from llvmlite import ir
 
+from irx import astx
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 

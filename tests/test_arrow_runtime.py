@@ -15,12 +15,11 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-import astx
 import nanoarrow
 import pytest
 
 from arx_nanoarrow_sources import get_include_dir, get_source_files
-from irx.arrow import ArrowInt32ArrayLength
+from irx import astx
 from irx.builders.llvmliteir import Builder
 from irx.runtime.arrow.feature import (
     IRX_ARROW_TYPE_INT32,
@@ -41,7 +40,7 @@ def _arrow_length_module(values: list[int]) -> astx.Module:
     body = astx.Block()
     body.append(
         astx.FunctionReturn(
-            ArrowInt32ArrayLength(
+            astx.ArrowInt32ArrayLength(
                 [astx.LiteralInt32(value) for value in values]
             )
         )

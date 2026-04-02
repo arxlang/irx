@@ -7,9 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 

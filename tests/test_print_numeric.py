@@ -2,8 +2,7 @@
 title: Tests for numeric and expression-based PrintExpr lowering.
 """
 
-import astx
-
+from irx import astx
 from irx.builders.llvmliteir import Builder
 from irx.system import PrintExpr
 from llvmlite import binding as llvm

@@ -6,8 +6,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 
-import astx
-
+from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import SemanticFunction
 from irx.analysis.types import is_assignable, is_boolean_type, is_numeric_type

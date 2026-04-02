@@ -4,8 +4,7 @@ title: Semantic normalization helpers.
 
 from __future__ import annotations
 
-import astx
-
+from irx import astx
 from irx.analysis.resolved_nodes import ResolvedOperator, SemanticFlags
 from irx.analysis.types import is_unsigned_type
 

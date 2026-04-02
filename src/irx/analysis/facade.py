@@ -8,24 +8,19 @@ from __future__ import annotations
 
 from typing import cast
 
-import astx
-
 from plum import dispatch
 from public import public
 
-from irx import arrow as irx_arrow
-from irx import system
+from irx import astx
 from irx.analysis.context import SemanticContext
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
-    SPECIALIZED_BINARY_OP_EXTRA,
     ResolvedAssignment,
     ResolvedOperator,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
     SemanticSymbol,
-    specialize_binary_op,
 )
 from irx.analysis.symbols import (
     function_symbol,
@@ -49,6 +44,10 @@ from irx.analysis.validation import (
     validate_literal_datetime,
     validate_literal_time,
     validate_literal_timestamp,
+)
+from irx.astx.binary_op import (
+    SPECIALIZED_BINARY_OP_EXTRA,
+    specialize_binary_op,
 )
 from irx.visitors.base import BaseVisitor
 
@@ -147,7 +146,7 @@ class SemanticAnalyzer(BaseVisitor):
         info = cast(SemanticInfo | None, getattr(node, "semantic", None))
         if info is not None and info.resolved_type is not None:
             return info.resolved_type
-        return cast(astx.DataType | None, getattr(node, "type_", None))
+        return getattr(node, "type_", None)
 
     def _declare_symbol(
         self,
@@ -250,9 +249,7 @@ class SemanticAnalyzer(BaseVisitor):
             self.visit(node)
 
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
-        self._set_type(
-            node, cast(astx.DataType | None, getattr(node, "type_", None))
-        )
+        self._set_type(node, getattr(node, "type_", None))
 
     @dispatch
     def visit(self, node: astx.FunctionPrototype) -> None:
@@ -602,7 +599,7 @@ class SemanticAnalyzer(BaseVisitor):
         self._set_type(node, None)
 
     @dispatch
-    def visit(self, node: system.Cast) -> None:
+    def visit(self, node: astx.Cast) -> None:
         self.visit(node.value)
         source_type = self._expr_type(node.value)
         target_type = cast(astx.DataType | None, node.target_type)
@@ -615,7 +612,7 @@ class SemanticAnalyzer(BaseVisitor):
         self._set_type(node, target_type)
 
     @dispatch
-    def visit(self, node: system.PrintExpr) -> None:
+    def visit(self, node: astx.PrintExpr) -> None:
         self.visit(node.message)
         message_type = self._expr_type(node.message)
         if not (
@@ -631,7 +628,7 @@ class SemanticAnalyzer(BaseVisitor):
         self._set_type(node, astx.Int32())
 
     @dispatch
-    def visit(self, node: irx_arrow.ArrowInt32ArrayLength) -> None:
+    def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
         for item in node.values:
             self.visit(item)
             if not is_integer_type(self._expr_type(item)):
@@ -674,9 +671,7 @@ class SemanticAnalyzer(BaseVisitor):
             self._semantic(node).extras["parsed_value"] = parsed_value
         except ValueError as exc:
             self.context.diagnostics.add(str(exc), node=node)
-        self._set_type(
-            node, cast(astx.DataType | None, getattr(node, "type_", None))
-        )
+        self._set_type(node, getattr(node, "type_", None))
 
     @dispatch
     def visit(self, node: astx.LiteralTime) -> None:
@@ -693,9 +688,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _visit_element_sequence_literal(self, node: astx.AST) -> None:
         for element in cast(list[astx.AST], getattr(node, "elements")):
             self.visit(element)
-        self._set_type(
-            node, cast(astx.DataType | None, getattr(node, "type_", None))
-        )
+        self._set_type(node, getattr(node, "type_", None))
 
     @dispatch
     def visit(self, node: astx.LiteralList) -> None:

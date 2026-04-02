@@ -6,11 +6,10 @@ title: Binary-operator visitor mixins for llvmliteir.
 
 from __future__ import annotations
 
-import astx
-
 from llvmlite import ir
 
-from irx.analysis.resolved_nodes import (
+from irx import astx
+from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     AddBinOp,
     AssignmentBinOp,

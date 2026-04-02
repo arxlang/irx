@@ -4,10 +4,10 @@ title: Integration tests for the semantic-analysis pipeline.
 
 from __future__ import annotations
 
-import astx
 import irx.builders.llvmliteir as llvmliteir_backend
 import pytest
 
+from irx import astx
 from irx.analysis import SemanticError
 from irx.builders.llvmliteir import (
     Builder,

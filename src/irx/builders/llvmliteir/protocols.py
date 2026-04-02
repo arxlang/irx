@@ -6,11 +6,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-import astx
-
 from llvmlite import binding as llvm
 from llvmlite import ir
 
+from irx import astx
 from irx.builders.llvmliteir.state import NamedValueMap, ResultStackValue
 from irx.builders.llvmliteir.types import VariablesLLVM
 from irx.visitors.protocols import BaseVisitorProtocol
