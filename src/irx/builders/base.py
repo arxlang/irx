@@ -15,6 +15,8 @@ from typing import Any, Sequence
 
 import astx
 
+from plum import dispatch
+
 from irx.tools.typing import typechecked
 from irx.visitors.base import BaseVisitor
 
@@ -144,6 +146,10 @@ class BuilderVisitor(BaseVisitor):
     """
     title: Builder translator visitor built on the shared visitor base.
     """
+
+    @dispatch
+    def visit(self, node: astx.AST) -> None:
+        super().visit(node)
 
     def translate(self, expr: astx.AST) -> str:
         """

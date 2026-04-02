@@ -8,7 +8,7 @@ from typing import Any
 
 from llvmlite import ir
 
-ResultStackValue = ir.Value | ir.Function
+ResultStackValue = ir.Value | ir.Function | None
 NamedValueMap = dict[str, Any]
 
 __all__ = ["NamedValueMap", "ResultStackValue"]

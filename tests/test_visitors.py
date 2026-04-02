@@ -4,6 +4,8 @@
 title: Tests for the shared visitor base.
 """
 
+from pathlib import Path
+
 import astx
 import pytest
 
@@ -75,3 +77,37 @@ def test_llvmlite_visitor_inherits_shared_visit_contract() -> None:
     visitor.visit(astx.LiteralInt32(1))
 
     assert visitor.result_stack
+
+
+def test_llvmlite_backend_has_no_legacy_bridge_imports() -> None:
+    """
+    title: llvmliteir should not depend on the removed legacy backend file.
+    """
+    package_root = (
+        Path(__file__).resolve().parents[1] / "src/irx/builders/llvmliteir"
+    )
+    legacy_file = (
+        Path(__file__).resolve().parents[1]
+        / "src/irx/builders/_llvmliteir_legacy.py"
+    )
+
+    assert not legacy_file.exists()
+
+    for path in package_root.rglob("*.py"):
+        text = path.read_text()
+        assert "_llvmliteir_legacy" not in text
+
+
+def test_llvmlite_backend_avoids_node_specific_private_visit_trampolines() -> (
+    None
+):
+    """
+    title: llvmliteir should keep node lowering in visit overloads.
+    """
+    package_root = (
+        Path(__file__).resolve().parents[1] / "src/irx/builders/llvmliteir"
+    )
+
+    for path in package_root.rglob("*.py"):
+        text = path.read_text()
+        assert "def _visit_" not in text

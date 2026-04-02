@@ -4,52 +4,1209 @@ title: Shared concrete core for llvmliteir visitors.
 
 from __future__ import annotations
 
-from typing import Any
+import ctypes
+
+from typing import Any, cast
 
 import astx
 
+from llvmlite import binding as llvm
+from llvmlite import ir
+from llvmlite.ir import DoubleType, FloatType, HalfType
+
+try:  # FP128 may not exist depending on llvmlite build.
+    from llvmlite.ir import FP128Type
+except ImportError:  # pragma: no cover - optional
+    FP128Type = None
+
 from irx.analysis import analyze
-from irx.builders._llvmliteir_legacy import (
-    LLVMLiteIRVisitor as _LegacyVisitor,
+from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.runtime import safe_pop
+from irx.builders.llvmliteir.state import NamedValueMap, ResultStackValue
+from irx.builders.llvmliteir.types import (
+    VariablesLLVM,
+    is_fp_type,
+    is_int_type,
 )
-from irx.runtime.registry import RuntimeFeatureState
+from irx.builders.llvmliteir.vector import (
+    is_vector,
+    splat_scalar,
+)
+from irx.runtime.registry import (
+    RuntimeFeatureState,
+    get_default_runtime_feature_registry,
+)
 
-_LEGACY_VISIT = _LegacyVisitor.visit
-
-
-def _dispatch_legacy_visit(self: Any, node: astx.AST) -> None:
-    """
-    title: Delegate one visit overload to the legacy implementation.
-    parameters:
-      self:
-        type: Any
-      node:
-        type: astx.AST
-    """
-    _LEGACY_VISIT(self, node)
+FLOAT16_BITS = 16
+FLOAT32_BITS = 32
+FLOAT64_BITS = 64
+FLOAT128_BITS = 128
 
 
-class _VisitorCore(_LegacyVisitor):
-    """
-    title: Shared concrete core for the package visitor state and helpers.
-    attributes:
-      runtime_features:
-        type: RuntimeFeatureState
-    """
+def _is_unsigned_node(node: astx.AST) -> bool:
+    type_ = getattr(node, "type_", None)
+    return isinstance(type_, astx.UnsignedInteger)
 
+
+def _uses_unsigned_semantics(node: astx.AST) -> bool:
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    semantic_unsigned = getattr(semantic_flags, "unsigned", None)
+    if semantic_unsigned is not None:
+        return cast(bool, semantic_unsigned)
+
+    explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
+    if explicit_unsigned is not None:
+        return explicit_unsigned
+    return _is_unsigned_node(node)
+
+
+def _semantic_symbol_key(node: astx.AST, fallback: str) -> str:
+    semantic = getattr(node, "semantic", None)
+    symbol = getattr(semantic, "resolved_symbol", None)
+    symbol_id = getattr(symbol, "symbol_id", None)
+    if symbol_id is not None:
+        return cast(str, symbol_id)
+    return fallback
+
+
+def _semantic_assignment_key(node: astx.AST, fallback: str) -> str:
+    semantic = getattr(node, "semantic", None)
+    assignment = getattr(semantic, "resolved_assignment", None)
+    target = getattr(assignment, "target", None)
+    symbol_id = getattr(target, "symbol_id", None)
+    if symbol_id is not None:
+        return cast(str, symbol_id)
+    return fallback
+
+
+def _semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    if semantic_flags is not None and hasattr(semantic_flags, name):
+        return bool(getattr(semantic_flags, name))
+    return bool(getattr(node, name, default))
+
+
+def _semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
+    semantic = getattr(node, "semantic", None)
+    semantic_flags = getattr(semantic, "semantic_flags", None)
+    fma_rhs = getattr(semantic_flags, "fma_rhs", None)
+    if fma_rhs is not None:
+        return cast(astx.AST, fma_rhs)
+    return cast(astx.AST | None, getattr(node, "fma_rhs", None))
+
+
+class _VisitorCore(BuilderVisitor):
+    named_values: NamedValueMap
+    _llvm: VariablesLLVM
+    function_protos: dict[str, astx.FunctionPrototype]
+    result_stack: list[ResultStackValue]
     runtime_features: RuntimeFeatureState
+    const_vars: set[str]
+    loop_stack: list[dict[str, ir.Block]]
+    _set_value_ids: dict[int, ir.Value]
+    struct_types: dict[str, ir.Type]
+    _fast_math_enabled: bool
+    target: llvm.TargetRef
+    target_machine: llvm.TargetMachine
+
+    def __init__(
+        self,
+        active_runtime_features: set[str] | None = None,
+    ) -> None:
+        super().__init__()
+        self.named_values = {}
+        self.const_vars = set()
+        self.function_protos = {}
+        self.result_stack = []
+        self.loop_stack = []
+        self._set_value_ids = {}
+        self.struct_types = {}
+        self._fast_math_enabled = False
+
+        self.initialize()
+
+        self.target = llvm.Target.from_default_triple()
+        try:
+            self.target_machine = self.target.create_target_machine(
+                codemodel="small",
+                reloc="pic",
+            )
+        except TypeError:
+            self.target_machine = self.target.create_target_machine(
+                codemodel="small"
+            )
+
+        self._llvm.module.triple = self.target_machine.triple
+        self._llvm.module.data_layout = str(self.target_machine.target_data)
+
+        if self._llvm.SIZE_T_TYPE is None:
+            self._llvm.SIZE_T_TYPE = self._get_size_t_type_from_triple()
+
+        self._add_builtins()
+        self.runtime_features = RuntimeFeatureState(
+            owner=self,
+            registry=get_default_runtime_feature_registry(),
+            active_features=active_runtime_features,
+        )
 
     def translate(self, node: astx.AST) -> str:
-        """
-        title: Analyze and lower an AST to LLVM IR text.
-        parameters:
-          node:
-            type: astx.AST
-        returns:
-          type: str
-        """
         analyzed = analyze(node)
-        return super().translate(analyzed)
+        self.visit(analyzed)
+        return str(self._llvm.module)
+
+    def activate_runtime_feature(self, feature_name: str) -> None:
+        self.runtime_features.activate(feature_name)
+
+    def require_runtime_symbol(
+        self, feature_name: str, symbol_name: str
+    ) -> ir.Function:
+        return self.runtime_features.require_symbol(feature_name, symbol_name)
+
+    def _init_native_size_types(self) -> None:
+        self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
+        self._llvm.SIZE_T_TYPE = None
+
+    def _get_size_t_type_from_triple(self) -> ir.IntType:
+        triple = self.target_machine.triple.lower()
+
+        if any(
+            arch in triple
+            for arch in [
+                "x86_64",
+                "amd64",
+                "aarch64",
+                "arm64",
+                "ppc64",
+                "mips64",
+            ]
+        ):
+            return ir.IntType(64)
+        if any(arch in triple for arch in ["i386", "i686", "arm", "mips"]):
+            if "64" in triple:
+                return ir.IntType(64)
+            return ir.IntType(32)
+
+        return ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
+
+    def initialize(self) -> None:
+        self._llvm = VariablesLLVM()
+        self._llvm.module = ir.module.Module("Arx")
+        self._llvm.context = self._llvm.module.context
+        self._init_native_size_types()
+
+        llvm.initialize_all_targets()
+        llvm.initialize_all_asmprinters()
+        llvm.initialize_native_target()
+        llvm.initialize_native_asmparser()
+        llvm.initialize_native_asmprinter()
+
+        self._llvm.ir_builder = ir.IRBuilder()
+        self._llvm.FLOAT_TYPE = ir.FloatType()
+        self._llvm.FLOAT16_TYPE = ir.HalfType()
+        self._llvm.DOUBLE_TYPE = ir.DoubleType()
+        self._llvm.BOOLEAN_TYPE = ir.IntType(1)
+        self._llvm.INT8_TYPE = ir.IntType(8)
+        self._llvm.INT16_TYPE = ir.IntType(16)
+        self._llvm.INT32_TYPE = ir.IntType(32)
+        self._llvm.INT64_TYPE = ir.IntType(64)
+        self._llvm.UINT8_TYPE = ir.IntType(8)
+        self._llvm.UINT16_TYPE = ir.IntType(16)
+        self._llvm.UINT32_TYPE = ir.IntType(32)
+        self._llvm.UINT64_TYPE = ir.IntType(64)
+        self._llvm.UINT128_TYPE = ir.IntType(128)
+        self._llvm.VOID_TYPE = ir.VoidType()
+        self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
+        self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
+        self._llvm.OPAQUE_POINTER_TYPE = self._llvm.INT8_TYPE.as_pointer()
+        self._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE = (
+            self._llvm.OPAQUE_POINTER_TYPE
+        )
+        self._llvm.ARROW_ARRAY_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        self._llvm.TIME_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+        self._llvm.TIMESTAMP_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+        self._llvm.DATETIME_TYPE = ir.LiteralStructType(
+            [
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ]
+        )
+
+    def _add_builtins(self) -> None:
+        putchar_ty = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [self._llvm.INT32_TYPE],
+        )
+        putchar = ir.Function(self._llvm.module, putchar_ty, "putchar")
+
+        putchard_ty = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [self._llvm.DOUBLE_TYPE],
+        )
+        putchard = ir.Function(self._llvm.module, putchard_ty, "putchard")
+
+        ir_builder = ir.IRBuilder(putchard.append_basic_block("entry"))
+        ival = ir_builder.fptoui(
+            putchard.args[0], self._llvm.INT32_TYPE, "intcast"
+        )
+        ir_builder.call(putchar, [ival])
+        ir_builder.ret(ir.Constant(self._llvm.INT32_TYPE, 0))
+
+    def get_function(self, name: str) -> ir.Function | None:
+        if name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(name))
+
+        if name in self.function_protos:
+            self.visit(self.function_protos[name])
+            return cast(ir.Function, safe_pop(self.result_stack))
+
+        return None
+
+    def create_entry_block_alloca(
+        self,
+        var_name: str,
+        type_name: str,
+    ) -> Any:
+        current_block = self._llvm.ir_builder.block
+        self._llvm.ir_builder.position_at_start(
+            self._llvm.ir_builder.function.entry_basic_block
+        )
+        alloca = self._llvm.ir_builder.alloca(
+            self._llvm.get_data_type(type_name), None, var_name
+        )
+        if current_block is not None:
+            self._llvm.ir_builder.position_at_end(current_block)
+        return alloca
+
+    def _get_fma_function(self, ty: ir.Type) -> ir.Function:
+        if isinstance(ty, ir.VectorType):
+            elem_ty = ty.element
+            count = ty.count
+        else:
+            elem_ty = ty
+            count = None
+
+        if isinstance(elem_ty, FloatType):
+            suffix = "f32"
+        elif isinstance(elem_ty, DoubleType):
+            suffix = "f64"
+        elif isinstance(elem_ty, HalfType):
+            suffix = "f16"
+        else:
+            raise Exception("FMA supports only floating-point operands")
+
+        if count is not None:
+            suffix = f"v{count}{suffix}"
+
+        name = f"llvm.fma.{suffix}"
+        if name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(name))
+
+        fn_ty = ir.FunctionType(ty, [ty, ty, ty])
+        fn = ir.Function(self._llvm.module, fn_ty, name)
+        fn.linkage = "external"
+        return fn
+
+    def _emit_fma(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        addend: ir.Value,
+    ) -> ir.Value:
+        builder = self._llvm.ir_builder
+        if not isinstance(lhs.type, ir.VectorType) and hasattr(builder, "fma"):
+            inst = builder.fma(lhs, rhs, addend, name="vfma")
+            self._apply_fast_math(inst)
+            return inst
+        fma_fn = self._get_fma_function(lhs.type)
+        inst = builder.call(fma_fn, [lhs, rhs, addend], name="vfma")
+        self._apply_fast_math(inst)
+        return inst
+
+    def set_fast_math(self, enabled: bool) -> None:
+        self._fast_math_enabled = enabled
+
+    def _apply_fast_math(self, inst: ir.Instruction) -> None:
+        if not self._fast_math_enabled:
+            return
+
+        type_ = inst.type
+        if isinstance(type_, ir.VectorType):
+            if not is_fp_type(type_.element):
+                return
+        elif not is_fp_type(type_):
+            return
+
+        flags = getattr(inst, "flags", None)
+        if flags is None or "fast" in flags:
+            return
+
+        try:
+            flags.append("fast")
+        except (AttributeError, TypeError):
+            return
+
+    def _is_numeric_value(self, value: ir.Value) -> bool:
+        if is_vector(value):
+            elem_ty = value.type.element
+            return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
+        return isinstance(value.type, ir.IntType) or is_fp_type(value.type)
+
+    def _unify_numeric_operands(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        unsigned: bool = False,
+    ) -> tuple[ir.Value, ir.Value]:
+        lhs_is_vec = is_vector(lhs)
+        rhs_is_vec = is_vector(rhs)
+
+        if lhs_is_vec and rhs_is_vec:
+            if lhs.type.count != rhs.type.count:
+                raise Exception(
+                    "Vector size mismatch: "
+                    f"{lhs.type.count} vs {rhs.type.count}"
+                )
+            if lhs.type.element != rhs.type.element:
+                raise Exception(
+                    "Vector element type mismatch: "
+                    f"{lhs.type.element} vs {rhs.type.element}"
+                )
+            return lhs, rhs
+
+        if lhs_is_vec:
+            target_lanes = lhs.type.count
+            target_scalar_ty = lhs.type.element
+        elif rhs_is_vec:
+            target_lanes = rhs.type.count
+            target_scalar_ty = rhs.type.element
+        else:
+            target_lanes = None
+            lhs_base_ty = lhs.type
+            rhs_base_ty = rhs.type
+            if is_fp_type(lhs_base_ty) or is_fp_type(rhs_base_ty):
+                candidates = [
+                    type_
+                    for type_ in (lhs_base_ty, rhs_base_ty)
+                    if is_fp_type(type_)
+                ]
+                target_scalar_ty = self._select_float_type(candidates)
+            else:
+                lhs_width = getattr(lhs_base_ty, "width", 0)
+                rhs_width = getattr(rhs_base_ty, "width", 0)
+                target_scalar_ty = ir.IntType(max(lhs_width, rhs_width, 1))
+
+        lhs = self._cast_value_to_type(
+            lhs, target_scalar_ty, unsigned=unsigned
+        )
+        rhs = self._cast_value_to_type(
+            rhs, target_scalar_ty, unsigned=unsigned
+        )
+
+        if target_lanes:
+            vec_ty = ir.VectorType(target_scalar_ty, target_lanes)
+            if not is_vector(lhs):
+                lhs = splat_scalar(self._llvm.ir_builder, lhs, vec_ty)
+            if not is_vector(rhs):
+                rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
+
+        return lhs, rhs
+
+    def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
+        if not candidates:
+            return self._llvm.FLOAT_TYPE
+
+        width = max(self._float_bit_width(type_) for type_ in candidates)
+        return self._float_type_from_width(width)
+
+    def _float_type_from_width(self, width: int) -> ir.Type:
+        if width <= FLOAT16_BITS and hasattr(self._llvm, "FLOAT16_TYPE"):
+            return self._llvm.FLOAT16_TYPE
+        if width <= FLOAT32_BITS:
+            return self._llvm.FLOAT_TYPE
+        if width <= FLOAT64_BITS:
+            return self._llvm.DOUBLE_TYPE
+        if FP128Type is not None and width >= FLOAT128_BITS:
+            return FP128Type()
+        return self._llvm.FLOAT_TYPE
+
+    def _float_bit_width(self, type_: ir.Type) -> int:
+        if isinstance(type_, DoubleType):
+            return FLOAT64_BITS
+        if isinstance(type_, FloatType):
+            return FLOAT32_BITS
+        if isinstance(type_, HalfType):
+            return FLOAT16_BITS
+        if FP128Type is not None and isinstance(type_, FP128Type):
+            return FLOAT128_BITS
+        raise Exception(f"Unknown floating-point type: {type_}")
+
+    def _cast_value_to_type(
+        self,
+        value: ir.Value,
+        target_scalar_ty: ir.Type,
+        unsigned: bool = False,
+    ) -> ir.Value:
+        builder = self._llvm.ir_builder
+        value_is_vec = is_vector(value)
+        if value_is_vec:
+            lanes = value.type.count
+            current_scalar_ty = value.type.element
+            target_ty = ir.VectorType(target_scalar_ty, lanes)
+        else:
+            lanes = None
+            current_scalar_ty = value.type
+            target_ty = target_scalar_ty
+
+        if current_scalar_ty == target_scalar_ty and value.type == target_ty:
+            return value
+
+        current_is_float = is_fp_type(current_scalar_ty)
+        target_is_float = is_fp_type(target_scalar_ty)
+
+        if target_is_float:
+            if current_is_float:
+                current_bits = self._float_bit_width(current_scalar_ty)
+                target_bits = self._float_bit_width(target_scalar_ty)
+                if current_bits == target_bits:
+                    if value.type != target_ty:
+                        return builder.bitcast(value, target_ty)
+                    return value
+                if current_bits < target_bits:
+                    return builder.fpext(value, target_ty, "fpext")
+                return builder.fptrunc(value, target_ty, "fptrunc")
+            if unsigned:
+                return builder.uitofp(value, target_ty, "uitofp")
+            return builder.sitofp(value, target_ty, "sitofp")
+
+        if current_is_float:
+            raise Exception(
+                "Cannot implicitly convert floating-point to integer"
+            )
+
+        current_width = getattr(current_scalar_ty, "width", 0)
+        target_width = getattr(target_scalar_ty, "width", 0)
+        if current_width == target_width:
+            if value.type != target_ty:
+                return builder.bitcast(value, target_ty)
+            return value
+
+        if current_width < target_width:
+            if unsigned:
+                return builder.zext(value, target_ty, "zext")
+            return builder.sext(value, target_ty, "sext")
+
+        return builder.trunc(value, target_ty, "trunc")
+
+    def _common_list_element_type(
+        self, lhs_ty: ir.Type, rhs_ty: ir.Type
+    ) -> ir.Type:
+        if lhs_ty == rhs_ty:
+            return lhs_ty
+
+        if is_int_type(lhs_ty) and is_int_type(rhs_ty):
+            return lhs_ty if lhs_ty.width >= rhs_ty.width else rhs_ty
+
+        lhs_is_fp = is_fp_type(lhs_ty)
+        rhs_is_fp = is_fp_type(rhs_ty)
+        if lhs_is_fp and rhs_is_fp:
+            return self._select_float_type([lhs_ty, rhs_ty])
+
+        if is_int_type(lhs_ty) and rhs_is_fp:
+            return rhs_ty
+        if is_int_type(rhs_ty) and lhs_is_fp:
+            return lhs_ty
+
+        if isinstance(lhs_ty, ir.PointerType) and isinstance(
+            rhs_ty, ir.PointerType
+        ):
+            if lhs_ty == rhs_ty:
+                return lhs_ty
+            raise TypeError(
+                "LiteralList: incompatible pointer types "
+                f"{lhs_ty} and {rhs_ty}"
+            )
+
+        raise TypeError(
+            f"LiteralList: cannot find common type for {lhs_ty} and {rhs_ty}"
+        )
+
+    def _coerce_to(self, value: ir.Value, target_ty: ir.Type) -> ir.Value:
+        if value.type == target_ty:
+            return value
+
+        if isinstance(value, ir.Constant):
+            raw = value.constant
+            if is_int_type(value.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+            if is_int_type(value.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+            if is_fp_type(value.type) and is_fp_type(target_ty):
+                return ir.Constant(target_ty, float(raw))
+            if is_fp_type(value.type) and is_int_type(target_ty):
+                return ir.Constant(target_ty, int(raw))
+
+        builder = self._llvm.ir_builder
+        if is_int_type(value.type) and is_int_type(target_ty):
+            if value.type.width < target_ty.width:
+                return builder.sext(value, target_ty, "list_sext")
+            return builder.trunc(value, target_ty, "list_trunc")
+
+        if is_int_type(value.type) and is_fp_type(target_ty):
+            return builder.sitofp(value, target_ty, "list_itofp")
+
+        if is_fp_type(value.type) and is_fp_type(target_ty):
+            if self._float_bit_width(value.type) < self._float_bit_width(
+                target_ty
+            ):
+                return builder.fpext(value, target_ty, "list_fpext")
+            return builder.fptrunc(value, target_ty, "list_fptrunc")
+
+        if is_fp_type(value.type) and is_int_type(target_ty):
+            return builder.fptosi(value, target_ty, "list_fptosi")
+
+        raise TypeError(
+            f"LiteralList: cannot coerce {value.type} to {target_ty}"
+        )
+
+    def _mark_set_value(self, value: ir.Value) -> ir.Value:
+        self._set_value_ids[id(value)] = value
+        return value
+
+    def _is_set_value(self, value: ir.Value | None) -> bool:
+        if value is None:
+            return False
+        return self._set_value_ids.get(id(value)) is value
+
+    def _try_set_binary_op(
+        self,
+        lhs: ir.Value | None,
+        rhs: ir.Value | None,
+        op_code: str,
+    ) -> bool:
+        if op_code not in ("|", "&", "-", "^"):
+            return False
+
+        if not (self._is_set_value(lhs) and self._is_set_value(rhs)):
+            return False
+
+        if not (
+            isinstance(lhs, ir.Constant)
+            and isinstance(lhs.type, ir.ArrayType)
+            and isinstance(lhs.type.element, ir.IntType)
+            and isinstance(rhs, ir.Constant)
+            and isinstance(rhs.type, ir.ArrayType)
+            and isinstance(rhs.type.element, ir.IntType)
+        ):
+            return False
+
+        lhs_values: set[int] = {element.constant for element in lhs.constant}
+        rhs_values: set[int] = {element.constant for element in rhs.constant}
+
+        if op_code == "|":
+            result_vals = lhs_values | rhs_values
+        elif op_code == "&":
+            result_vals = lhs_values & rhs_values
+        elif op_code == "-":
+            result_vals = lhs_values - rhs_values
+        else:
+            result_vals = lhs_values ^ rhs_values
+
+        widest = max(lhs.type.element.width, rhs.type.element.width)
+        elem_ty = ir.IntType(widest)
+        consts = [ir.Constant(elem_ty, value) for value in sorted(result_vals)]
+        arr_ty = ir.ArrayType(elem_ty, len(consts))
+        self.result_stack.append(
+            self._mark_set_value(ir.Constant(arr_ty, consts))
+        )
+        return True
+
+    def _subscript_uses_unsigned_semantics(
+        self, node: astx.SubscriptExpr
+    ) -> bool:
+        if _uses_unsigned_semantics(node.index):
+            return True
+
+        if isinstance(node.value, astx.LiteralDict) and node.value.elements:
+            first_key_node = next(iter(node.value.elements))
+            return _uses_unsigned_semantics(first_key_node)
+
+        return False
+
+    def _subscript_compare_type(
+        self, lhs_ty: ir.Type, rhs_ty: ir.Type
+    ) -> ir.Type:
+        if lhs_ty == rhs_ty:
+            if is_int_type(lhs_ty) or is_fp_type(lhs_ty):
+                return lhs_ty
+            raise TypeError(
+                "SubscriptExpr: only integer and floating-point dict keys "
+                "are supported"
+            )
+
+        if is_int_type(lhs_ty) and is_int_type(rhs_ty):
+            return ir.IntType(max(lhs_ty.width, rhs_ty.width))
+
+        if is_fp_type(lhs_ty) and is_fp_type(rhs_ty):
+            return self._select_float_type([lhs_ty, rhs_ty])
+
+        raise TypeError(
+            "SubscriptExpr: key type "
+            f"{rhs_ty} is incompatible with dict key type {lhs_ty}"
+        )
+
+    def _coerce_subscript_key_for_compare(
+        self,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+        *,
+        unsigned: bool,
+    ) -> ir.Value:
+        if key_val.type == compare_ty:
+            return key_val
+
+        if isinstance(key_val, ir.Constant):
+            if is_int_type(key_val.type) and is_int_type(compare_ty):
+                return ir.Constant(compare_ty, int(key_val.constant))
+            if is_fp_type(key_val.type) and is_fp_type(compare_ty):
+                return ir.Constant(compare_ty, float(key_val.constant))
+
+        if (is_int_type(key_val.type) and is_int_type(compare_ty)) or (
+            is_fp_type(key_val.type) and is_fp_type(compare_ty)
+        ):
+            return self._cast_value_to_type(
+                key_val, compare_ty, unsigned=unsigned
+            )
+
+        raise TypeError(
+            "SubscriptExpr: cannot compare dict key type "
+            f"{key_val.type} against {compare_ty}"
+        )
+
+    def _constant_subscript_key_matches(
+        self,
+        entry_key: ir.Constant,
+        key_val: ir.Constant,
+    ) -> bool:
+        compare_ty = self._subscript_compare_type(entry_key.type, key_val.type)
+        lhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            ),
+        )
+        rhs = cast(
+            ir.Constant,
+            self._coerce_subscript_key_for_compare(
+                key_val, compare_ty, unsigned=False
+            ),
+        )
+        return bool(lhs.constant == rhs.constant)
+
+    def _emit_subscript_miss(self) -> None:
+        builder = self._llvm.ir_builder
+        exit_fn = self.require_runtime_symbol("libc", "exit")
+        builder.call(exit_fn, [ir.Constant(self._llvm.INT32_TYPE, 1)])
+        builder.unreachable()
+
+    def _emit_runtime_subscript_lookup(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        *,
+        unsigned: bool,
+    ) -> None:
+        key_type = dict_val.type.element.elements[0]
+        compare_ty = self._subscript_compare_type(key_type, key_val.type)
+        key_val = self._coerce_subscript_key_for_compare(
+            key_val, compare_ty, unsigned=unsigned
+        )
+
+        if isinstance(compare_ty, ir.IntType):
+            self._emit_integer_subscript_switch(dict_val, key_val, compare_ty)
+            return
+
+        if is_fp_type(compare_ty):
+            self._emit_float_subscript_select(dict_val, key_val, compare_ty)
+            return
+
+        raise TypeError(
+            "SubscriptExpr: runtime lookup supports only integer and "
+            "floating-point dict keys"
+        )
+
+    def _emit_integer_subscript_switch(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+    ) -> None:
+        builder = self._llvm.ir_builder
+        function = builder.function
+        count = dict_val.type.count
+        val_type = dict_val.type.element.elements[1]
+
+        miss_bb = function.append_basic_block("dict.miss")
+        merge_bb = function.append_basic_block("dict.merge")
+
+        case_blocks: list[tuple[ir.Constant, Any]] = []
+        for index in range(count):
+            entry_key = dict_val.constant[index].constant[0]
+            case_key = self._coerce_subscript_key_for_compare(
+                entry_key, compare_ty, unsigned=False
+            )
+            case_bb = function.append_basic_block(f"dict.case.{index}")
+            case_blocks.append((cast(ir.Constant, case_key), case_bb))
+
+        switch = builder.switch(key_val, miss_bb)
+        for case_key, case_bb in case_blocks:
+            switch.add_case(case_key, case_bb)
+
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
+
+        for _, case_bb in case_blocks:
+            with builder.goto_block(case_bb):
+                builder.branch(merge_bb)
+
+        builder.position_at_end(merge_bb)
+
+        phi = builder.phi(val_type, name="dict.result")
+        for index, (_, case_bb) in enumerate(case_blocks):
+            entry_val = dict_val.constant[index].constant[1]
+            phi.add_incoming(entry_val, case_bb)
+
+        self.result_stack.append(phi)
+
+    def _emit_float_subscript_select(
+        self,
+        dict_val: ir.Constant,
+        key_val: ir.Value,
+        compare_ty: ir.Type,
+    ) -> None:
+        builder = self._llvm.ir_builder
+        count = dict_val.type.count
+
+        zero = ir.Constant(ir.IntType(32), 0)
+        key_field = ir.Constant(ir.IntType(32), 0)
+        val_field = ir.Constant(ir.IntType(32), 1)
+
+        current_bb = builder.block
+        builder.position_at_start(builder.function.entry_basic_block)
+        arr_alloca = builder.alloca(dict_val.type, name="dict_arr")
+        builder.position_at_end(current_bb)
+        builder.store(dict_val, arr_alloca)
+
+        last_idx = ir.Constant(ir.IntType(32), count - 1)
+        last_key_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, key_field], inbounds=True
+        )
+        last_key = builder.load(last_key_ptr, name=f"k_{count - 1}")
+        last_key = self._coerce_subscript_key_for_compare(
+            last_key, compare_ty, unsigned=False
+        )
+        matched = builder.fcmp_ordered(
+            "==", last_key, key_val, name=f"cmp_{count - 1}"
+        )
+
+        last_val_ptr = builder.gep(
+            arr_alloca, [zero, last_idx, val_field], inbounds=True
+        )
+        result: ir.Value = builder.load(last_val_ptr, name=f"v_{count - 1}")
+
+        for index in reversed(range(count - 1)):
+            idx = ir.Constant(ir.IntType(32), index)
+            key_ptr = builder.gep(
+                arr_alloca, [zero, idx, key_field], inbounds=True
+            )
+            key_i = builder.load(key_ptr, name=f"k_{index}")
+            key_i = self._coerce_subscript_key_for_compare(
+                key_i, compare_ty, unsigned=False
+            )
+            cmp = builder.fcmp_ordered(
+                "==", key_i, key_val, name=f"cmp_{index}"
+            )
+            val_ptr = builder.gep(
+                arr_alloca, [zero, idx, val_field], inbounds=True
+            )
+            val_i = builder.load(val_ptr, name=f"v_{index}")
+            result = builder.select(cmp, val_i, result, name=f"sel_{index}")
+            matched = builder.or_(cmp, matched, name=f"match_{index}")
+
+        found_bb = builder.function.append_basic_block("dict.found")
+        miss_bb = builder.function.append_basic_block("dict.miss")
+        builder.cbranch(matched, found_bb, miss_bb)
+
+        with builder.goto_block(miss_bb):
+            self._emit_subscript_miss()
+
+        builder.position_at_end(found_bb)
+        self.result_stack.append(result)
+
+    def _create_string_concat_function(self) -> ir.Function:
+        func_name = "string_concat"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.ASCII_STRING_TYPE,
+            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        func.linkage = "external"
+        return func
+
+    def _create_string_length_function(self) -> ir.Function:
+        func_name = "string_length"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [self._llvm.ASCII_STRING_TYPE],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        block = func.append_basic_block("entry")
+        builder = ir.IRBuilder(block)
+        strlen_func = self._create_strlen_inline()
+        result = builder.call(strlen_func, [func.args[0]], "len")
+        builder.ret(result)
+        return func
+
+    def _create_string_equals_function(self) -> ir.Function:
+        func_name = "string_equals"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.BOOLEAN_TYPE,
+            [self._llvm.ASCII_STRING_TYPE, self._llvm.ASCII_STRING_TYPE],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        block = func.append_basic_block("entry")
+        builder = ir.IRBuilder(block)
+        strcmp_func = self._create_strcmp_inline()
+        result = builder.call(strcmp_func, [func.args[0], func.args[1]], "cmp")
+        builder.ret(result)
+        return func
+
+    def _create_string_substring_function(self) -> ir.Function:
+        func_name = "string_substring"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.ASCII_STRING_TYPE,
+            [
+                self._llvm.ASCII_STRING_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT32_TYPE,
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+        func.linkage = "external"
+        return func
+
+    def _handle_string_concatenation(
+        self, lhs: ir.Value, rhs: ir.Value
+    ) -> ir.Value:
+        strcat_func = self._create_strcat_inline()
+        return self._llvm.ir_builder.call(
+            strcat_func, [lhs, rhs], "str_concat"
+        )
+
+    def _create_strcat_inline(self) -> ir.Function:
+        func_name = "strcat_inline"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.INT8_TYPE.as_pointer(),
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        builder = ir.IRBuilder(entry)
+        strlen_func = self._create_string_length_function()
+        len1 = builder.call(strlen_func, [func.args[0]], "len1")
+        len2 = builder.call(strlen_func, [func.args[1]], "len2")
+
+        total_len = builder.add(len1, len2, "total_len")
+        total_len = builder.add(
+            total_len,
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+            "total_len_with_null",
+        )
+
+        malloc = self._create_malloc_decl()
+        total_len_szt = builder.zext(total_len, self._llvm.SIZE_T_TYPE)
+        result_ptr = builder.call(malloc, [total_len_szt], "result")
+
+        self._generate_strcpy(builder, result_ptr, func.args[0])
+        result_end = builder.gep(result_ptr, [len1], inbounds=True)
+        self._generate_strcpy(builder, result_end, func.args[1])
+
+        builder.ret(result_ptr)
+        return func
+
+    def _generate_strcpy(
+        self,
+        builder: ir.IRBuilder,
+        dest: ir.Value,
+        src: ir.Value,
+    ) -> None:
+        loop_bb = builder.function.append_basic_block("strcpy_loop")
+        end_bb = builder.function.append_basic_block("strcpy_end")
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="strcpy_index")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop_bb)
+
+        builder.position_at_start(loop_bb)
+        idx_val = builder.load(index, "idx_val")
+        src_char_ptr = builder.gep(src, [idx_val], inbounds=True)
+        char_val = builder.load(src_char_ptr, "char_val")
+        dest_char_ptr = builder.gep(dest, [idx_val], inbounds=True)
+        builder.store(char_val, dest_char_ptr)
+
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+        builder.cbranch(is_null, end_bb, loop_bb)
+        builder.position_at_start(end_bb)
+
+    def _create_strcmp_inline(self) -> ir.Function:
+        func_name = "strcmp_inline"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.BOOLEAN_TYPE,
+            [
+                self._llvm.INT8_TYPE.as_pointer(),
+                self._llvm.INT8_TYPE.as_pointer(),
+            ],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        not_equal = func.append_basic_block("not_equal")
+        equal = func.append_basic_block("equal")
+        builder = ir.IRBuilder(entry)
+
+        index = builder.alloca(self._llvm.INT32_TYPE, name="index")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), index)
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        idx_val = builder.load(index, "idx_val")
+        char1_ptr = builder.gep(func.args[0], [idx_val], inbounds=True)
+        char2_ptr = builder.gep(func.args[1], [idx_val], inbounds=True)
+        char1 = builder.load(char1_ptr, "char1")
+        char2 = builder.load(char2_ptr, "char2")
+        chars_equal = builder.icmp_signed("==", char1, char2)
+        char1_null = builder.icmp_signed(
+            "==", char1, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        builder.cbranch(
+            chars_equal,
+            builder.function.append_basic_block("check_null"),
+            not_equal,
+        )
+        check_null_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(check_null_bb)
+        builder.cbranch(
+            char1_null,
+            equal,
+            builder.function.append_basic_block("continue_loop"),
+        )
+        continue_bb = builder.function.basic_blocks[-1]
+        builder.position_at_start(continue_bb)
+        next_idx = builder.add(idx_val, ir.Constant(self._llvm.INT32_TYPE, 1))
+        builder.store(next_idx, index)
+        builder.branch(loop)
+
+        builder.position_at_start(not_equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 0))
+        builder.position_at_start(equal)
+        builder.ret(ir.Constant(self._llvm.BOOLEAN_TYPE, 1))
+        return func
+
+    def _create_strlen_inline(self) -> ir.Function:
+        func_name = "strlen_inline"
+        if func_name in self._llvm.module.globals:
+            return cast(ir.Function, self._llvm.module.get_global(func_name))
+
+        func_type = ir.FunctionType(
+            self._llvm.INT32_TYPE,
+            [self._llvm.INT8_TYPE.as_pointer()],
+        )
+        func = ir.Function(self._llvm.module, func_type, func_name)
+
+        entry = func.append_basic_block("entry")
+        loop = func.append_basic_block("loop")
+        end = func.append_basic_block("end")
+        builder = ir.IRBuilder(entry)
+
+        counter = builder.alloca(self._llvm.INT32_TYPE, name="counter")
+        builder.store(ir.Constant(self._llvm.INT32_TYPE, 0), counter)
+        builder.branch(loop)
+
+        builder.position_at_start(loop)
+        count_val = builder.load(counter, "count_val")
+        char_ptr = builder.gep(func.args[0], [count_val], inbounds=True)
+        char_val = builder.load(char_ptr, "char_val")
+        is_null = builder.icmp_signed(
+            "==", char_val, ir.Constant(self._llvm.INT8_TYPE, 0)
+        )
+
+        next_count = builder.add(
+            count_val,
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+        )
+        builder.store(next_count, counter)
+        builder.cbranch(is_null, end, loop)
+
+        builder.position_at_start(end)
+        builder.ret(count_val)
+        return func
+
+    def _handle_string_comparison(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        op: str,
+    ) -> ir.Value:
+        if op == "==":
+            equals_func = self._create_string_equals_function()
+            return self._llvm.ir_builder.call(
+                equals_func, [lhs, rhs], "str_equals"
+            )
+        if op == "!=":
+            equals_func = self._create_string_equals_function()
+            equals_result = self._llvm.ir_builder.call(
+                equals_func, [lhs, rhs], "str_equals"
+            )
+            return self._llvm.ir_builder.xor(
+                equals_result,
+                ir.Constant(self._llvm.BOOLEAN_TYPE, 1),
+                "str_not_equals",
+            )
+        raise Exception(f"String comparison operator {op} not implemented")
+
+    def _normalize_int_for_printf(
+        self, value: ir.Value
+    ) -> tuple[ir.Value, str]:
+        int64_width = 64
+        if not is_int_type(value.type):
+            raise Exception("Expected integer value")
+        width = value.type.width
+        if width < int64_width:
+            if width == 1:
+                arg = self._llvm.ir_builder.zext(value, self._llvm.INT64_TYPE)
+            else:
+                arg = self._llvm.ir_builder.sext(value, self._llvm.INT64_TYPE)
+            return arg, "%lld"
+        if width == int64_width:
+            return value, "%lld"
+        raise Exception(
+            "Casting integers wider than 64 bits to string is not supported"
+        )
+
+    def _create_malloc_decl(self) -> ir.Function:
+        return self.require_runtime_symbol("libc", "malloc")
+
+    def _snprintf_heap(
+        self,
+        fmt_gv: ir.GlobalVariable,
+        args: list[ir.Value],
+    ) -> ir.Value:
+        snprintf = self._create_snprintf_decl()
+        malloc = self._create_malloc_decl()
+
+        zero_size = ir.Constant(self._llvm.SIZE_T_TYPE, 0)
+        null_ptr = ir.Constant(self._llvm.INT8_TYPE.as_pointer(), None)
+        fmt_ptr = self._llvm.ir_builder.gep(
+            fmt_gv,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+            ],
+            inbounds=True,
+        )
+
+        needed_i32 = self._llvm.ir_builder.call(
+            snprintf, [null_ptr, zero_size, fmt_ptr, *args]
+        )
+
+        zero_i32 = ir.Constant(self._llvm.INT32_TYPE, 0)
+        min_needed = self._llvm.ir_builder.select(
+            self._llvm.ir_builder.icmp_signed("<", needed_i32, zero_i32),
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+            needed_i32,
+        )
+        need_plus_1 = self._llvm.ir_builder.add(
+            min_needed,
+            ir.Constant(self._llvm.INT32_TYPE, 1),
+        )
+        need_szt = self._llvm.ir_builder.zext(
+            need_plus_1, self._llvm.SIZE_T_TYPE
+        )
+        mem = self._llvm.ir_builder.call(malloc, [need_szt])
+        self._llvm.ir_builder.call(snprintf, [mem, need_szt, fmt_ptr, *args])
+        return mem
+
+    def _create_snprintf_decl(self) -> ir.Function:
+        return self.require_runtime_symbol("libc", "snprintf")
+
+    def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
+        name = f"fmt_{abs(hash(fmt))}"
+        if name in self._llvm.module.globals:
+            return cast(ir.GlobalVariable, self._llvm.module.get_global(name))
+
+        data = bytearray(fmt + "\0", "utf8")
+        arr_ty = ir.ArrayType(self._llvm.INT8_TYPE, len(data))
+        gv = ir.GlobalVariable(self._llvm.module, arr_ty, name=name)
+        gv.linkage = "internal"
+        gv.global_constant = True
+        gv.initializer = ir.Constant(arr_ty, data)
+        return gv
 
 
-__all__ = ["_VisitorCore", "_dispatch_legacy_visit"]
+__all__ = [
+    "_VisitorCore",
+    "_semantic_assignment_key",
+    "_semantic_flag",
+    "_semantic_fma_rhs",
+    "_semantic_symbol_key",
+    "_uses_unsigned_semantics",
+]
