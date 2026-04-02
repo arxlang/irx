@@ -8,11 +8,12 @@ import re
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 EXPECTED_SET_LENGTH = 2
@@ -35,17 +36,17 @@ def _array_i32_values(const: ir.Constant) -> list[int]:
 
 def _make_visitor_in_function(
     builder_class: type[Builder],
-) -> LLVMLiteIRVisitor:
+) -> LLVMVisitor:
     """
     title: Return a visitor whose ir_builder is inside a live basic block.
     parameters:
       builder_class:
         type: type[Builder]
     returns:
-      type: LLVMLiteIRVisitor
+      type: LLVMVisitor
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     fn_ty = ir.FunctionType(visitor._llvm.VOID_TYPE, [])
@@ -55,7 +56,7 @@ def _make_visitor_in_function(
     return visitor
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_set_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty set lowers to constant [0 x i32].
@@ -64,7 +65,7 @@ def test_literal_set_empty(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralSet(elements=set()))
@@ -76,7 +77,7 @@ def test_literal_set_empty(builder_class: type[Builder]) -> None:
     assert const.type.element == ir.IntType(32)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
     """
     title: Homogeneous integer constants lower to constant array [N x i32].
@@ -85,7 +86,7 @@ def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(
@@ -108,7 +109,7 @@ def test_literal_set_homogeneous_ints(builder_class: type[Builder]) -> None:
     assert vals == [1, 2, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
     """
     title: Mixed-width integer constants lower correctly.
@@ -117,7 +118,7 @@ def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(
@@ -139,7 +140,7 @@ def test_literal_set_mixed_int_widths(builder_class: type[Builder]) -> None:
     assert vals == [1, 2]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_set_non_integer_unsupported(
     builder_class: type[Builder],
 ) -> None:
@@ -150,7 +151,7 @@ def test_literal_set_non_integer_unsupported(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     with pytest.raises(TypeError, match="integer constants"):
@@ -162,14 +163,31 @@ def test_literal_set_non_integer_unsupported(
 
 
 def _make_set(*vals: int) -> astx.LiteralSet:
+    """
+    title: Make set.
+    parameters:
+      vals:
+        type: int
+        variadic: positional
+    returns:
+      type: astx.LiteralSet
+    """
     return astx.LiteralSet(elements={astx.LiteralInt32(v) for v in vals})
 
 
 def _set_values(const: ir.Value) -> list[int]:
+    """
+    title: Set values.
+    parameters:
+      const:
+        type: ir.Value
+    returns:
+      type: list[int]
+    """
     return _array_i32_values(const)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_union(builder_class: type[Builder]) -> None:
     """
     title: BinaryOp | on two LiteralSets produces their union.
@@ -178,7 +196,7 @@ def test_set_union(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(op_code="|", lhs=_make_set(1, 2), rhs=_make_set(2, 3))
@@ -190,7 +208,7 @@ def test_set_union(builder_class: type[Builder]) -> None:
     assert _set_values(result) == [1, 2, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_intersection(builder_class: type[Builder]) -> None:
     """
     title: BinaryOp & on two LiteralSets produces their intersection.
@@ -199,7 +217,7 @@ def test_set_intersection(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(
@@ -212,7 +230,7 @@ def test_set_intersection(builder_class: type[Builder]) -> None:
     assert _set_values(result) == [2, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_difference(builder_class: type[Builder]) -> None:
     """
     title: BinaryOp - on two LiteralSets produces their difference.
@@ -221,7 +239,7 @@ def test_set_difference(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(
@@ -234,7 +252,7 @@ def test_set_difference(builder_class: type[Builder]) -> None:
     assert _set_values(result) == [1]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_symmetric_difference(builder_class: type[Builder]) -> None:
     """
     title: BinaryOp ^ on two LiteralSets produces their symmetric difference.
@@ -243,7 +261,7 @@ def test_set_symmetric_difference(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(op_code="^", lhs=_make_set(1, 2), rhs=_make_set(2, 3))
@@ -254,7 +272,7 @@ def test_set_symmetric_difference(builder_class: type[Builder]) -> None:
     assert _set_values(result) == [1, 3]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_disjoint_intersection_is_empty(
     builder_class: type[Builder],
 ) -> None:
@@ -265,7 +283,7 @@ def test_set_disjoint_intersection_is_empty(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(op_code="&", lhs=_make_set(1, 2), rhs=_make_set(3, 4))
@@ -277,7 +295,7 @@ def test_set_disjoint_intersection_is_empty(
     assert result.type.count == 0
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_set_union_mixed_widths_in_function(
     builder_class: type[Builder],
 ) -> None:
@@ -308,7 +326,7 @@ def test_set_union_mixed_widths_in_function(
     assert _set_values(result) == [1, 2, 4]
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_nested_set_binary_ops_preserve_set_semantics(
     builder_class: type[Builder],
 ) -> None:
@@ -319,7 +337,7 @@ def test_nested_set_binary_ops_preserve_set_semantics(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(
@@ -341,7 +359,7 @@ def test_nested_set_binary_ops_preserve_set_semantics(
 @pytest.mark.skipif(
     not HAS_LITERAL_LIST, reason="astx.LiteralList not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_list_binary_or_does_not_use_set_semantics(
     builder_class: type[Builder],
 ) -> None:
@@ -352,7 +370,7 @@ def test_literal_list_binary_or_does_not_use_set_semantics(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.BinaryOp(

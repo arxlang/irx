@@ -4,11 +4,11 @@ title: Test irx with a fibonnaci function.
 
 from __future__ import annotations
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 
 from .conftest import check_result
 
@@ -25,7 +25,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_function_call_fibonacci(

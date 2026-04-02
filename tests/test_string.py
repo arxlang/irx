@@ -2,17 +2,17 @@
 title: Tests for string operations.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_literal_utf8_with_print(
     builder_class: type[Builder],
 ) -> None:
@@ -47,7 +47,7 @@ def test_string_literal_utf8_with_print(
     check_result("build", builder, module, expected_output=expected)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_literal_utf8_char_with_print(
     builder_class: type[Builder],
 ) -> None:
@@ -82,7 +82,7 @@ def test_string_literal_utf8_char_with_print(
     check_result("build", builder, module, expected_output=expected)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_literal_generic_with_print(
     builder_class: type[Builder],
 ) -> None:
@@ -125,7 +125,7 @@ def test_string_literal_generic_with_print(
         ("123", "456", "123456"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_concatenation_with_print(
     builder_class: type[Builder],
     lhs_str: str,
@@ -179,7 +179,7 @@ def test_string_concatenation_with_print(
         ("", "!=", "nonempty", True),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_comparison_with_print(
     builder_class: type[Builder],
     lhs_str: str,
@@ -228,7 +228,7 @@ def test_string_comparison_with_print(
     )
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_empty_string_with_print(
     builder_class: type[Builder],
 ) -> None:
@@ -263,7 +263,7 @@ def test_empty_string_with_print(
     check_result("build", builder, module, expected_output="EMPTY")
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_string_with_special_characters_with_print(
     builder_class: type[Builder],
 ) -> None:
@@ -305,7 +305,7 @@ def test_utf8_char_lowering_correctness() -> None:
     title: Verify LiteralUTF8Char correctly lowers to UTF-8 hex in IR.
     """
 
-    builder = LLVMLiteIR()
+    builder = LLVMBuilder()
     module = builder.module()
 
     # 'é' is represented as \xc3\xa9 in UTF-8

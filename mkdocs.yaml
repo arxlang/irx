@@ -7,6 +7,7 @@ site_dir: ./build
 nav:
   - index.md
   - Installation: installation.md
+  - Architecture: architecture.md
   - Changelog: changelog.md
   - Contributing: contributing.md
   # from gen-files

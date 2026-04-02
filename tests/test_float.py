@@ -2,11 +2,11 @@
 title: Tests for float.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
@@ -21,7 +21,7 @@ from .conftest import check_result
         (2.0, "/", 1.0, 2.0),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_float_operations_with_print(
     builder_class: type[Builder],
     lhs: float,

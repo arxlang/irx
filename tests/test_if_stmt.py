@@ -2,11 +2,11 @@
 title: Test If statements with and without else.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
@@ -33,7 +33,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_if_else_stmt(
@@ -111,7 +111,7 @@ def test_if_else_stmt(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_if_only_stmt(
@@ -168,7 +168,7 @@ def test_if_only_stmt(
     )
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_if_both_branches_return(builder_class: type[Builder]) -> None:
     """
     title: Test IfStmt when both branches terminate with return.
@@ -217,7 +217,7 @@ def test_if_both_branches_return(builder_class: type[Builder]) -> None:
     check_result("build", builder, module, expected_output="1")
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_if_one_branch_returns_other_falls_through(
     builder_class: type[Builder],
 ) -> None:
@@ -272,7 +272,7 @@ def test_if_one_branch_returns_other_falls_through(
     check_result("build", builder, module, expected_output="12")
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_if_recursive_fibonacci_with_returning_branches(
     builder_class: type[Builder],
 ) -> None:

@@ -2,11 +2,11 @@
 title: Tests for Unsigned Integer Operations.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
@@ -49,7 +49,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unsigned_vs_signed_comparison(
@@ -200,7 +200,7 @@ def test_unsigned_vs_signed_comparison(
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_unsigned_vs_signed_division(

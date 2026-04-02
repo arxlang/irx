@@ -3,14 +3,15 @@ title: Test Struct Definition
 summary: Verify StructDefStmt generates an LLVM identified struct type.
 """
 
-import astx
 import pytest
 
+from irx import astx
+from irx.analysis import SemanticError
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_struct_definition(builder_class: type[Builder]) -> None:
     """
     title: Struct definition code generation
@@ -54,7 +55,7 @@ def test_struct_definition(builder_class: type[Builder]) -> None:
     assert '%"Point" = type {i32, i32}' in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_struct_definition_single_field(builder_class: type[Builder]) -> None:
     """
     title: Single field struct definition
@@ -95,7 +96,7 @@ def test_struct_definition_single_field(builder_class: type[Builder]) -> None:
     assert '%"Value" = type {i32}' in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_struct_definition_duplicate_name(
     builder_class: type[Builder],
 ) -> None:
@@ -143,5 +144,5 @@ def test_struct_definition_duplicate_name(
 
     module.block.append(main_fn)
 
-    with pytest.raises(ValueError, match="already defined"):
+    with pytest.raises(SemanticError, match="already defined"):
         builder.translate(module)

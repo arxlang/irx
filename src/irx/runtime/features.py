@@ -6,15 +6,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Mapping, cast
+from typing import TYPE_CHECKING, Callable, Literal, Mapping, TypeAlias, cast
 
 from llvmlite import ir
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir import LLVMLiteIRVisitor
+    from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 NativeArtifactKind = Literal["c_source", "object", "static_library"]
-RuntimeSymbolFactory = Callable[["LLVMLiteIRVisitor"], ir.Function]
+if TYPE_CHECKING:
+    RuntimeSymbolFactory: TypeAlias = Callable[[VisitorProtocol], ir.Function]
+else:
+    RuntimeSymbolFactory: TypeAlias = Callable[[object], ir.Function]
 
 
 @dataclass(frozen=True)

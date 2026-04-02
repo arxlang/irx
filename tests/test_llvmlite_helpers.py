@@ -1,5 +1,5 @@
 """
-title: Targeted helper coverage for LLVMLiteIRVisitor.
+title: Targeted helper coverage for the llvmliteir visitor.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import pytest
 
 from irx.builders.llvmliteir import (
-    LLVMLiteIRVisitor,
+    Visitor,
     emit_int_div,
     is_fp_type,
     safe_pop,
@@ -30,10 +30,24 @@ class _NoFmaBuilder:
     """
 
     def __init__(self, real: ir.IRBuilder) -> None:
+        """
+        title: Initialize _NoFmaBuilder.
+        parameters:
+          real:
+            type: ir.IRBuilder
+        """
         self._real: ir.IRBuilder = real
         self.called: list[str] = []
 
     def __getattr__(self, name: str) -> Any:
+        """
+        title: Return one attribute.
+        parameters:
+          name:
+            type: str
+        returns:
+          type: Any
+        """
         if name == "fma":
             raise AttributeError
         return getattr(self._real, name)
@@ -44,11 +58,29 @@ class _NoFmaBuilder:
         args: list[ir.Value],
         name: str | None = None,
     ) -> ir.Instruction:
+        """
+        title: Call.
+        parameters:
+          fn:
+            type: ir.Function
+          args:
+            type: list[ir.Value]
+          name:
+            type: str | None
+        returns:
+          type: ir.Instruction
+        """
         self.called.append(fn.name)
         return self._real.call(fn, args, name=name)
 
 
-def _prime_builder(visitor: LLVMLiteIRVisitor) -> None:
+def _prime_builder(visitor: Visitor) -> None:
+    """
+    title: Prime builder.
+    parameters:
+      visitor:
+        type: Visitor
+    """
     float_ty = visitor._llvm.FLOAT_TYPE
     fn_ty = ir.FunctionType(float_ty, [])
     fn = ir.Function(visitor._llvm.module, fn_ty, name="fma_cover")
@@ -60,7 +92,7 @@ def test_emit_fma_fallback_intrinsic() -> None:
     """
     title: Ensure fallback uses llvm.fma intrinsic when builder lacks fma.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
     proxy = _NoFmaBuilder(visitor._llvm.ir_builder)
     visitor._llvm.ir_builder = cast(ir.IRBuilder, proxy)
@@ -81,14 +113,14 @@ def test_emit_fma_direct_path_calls_apply_fast_math() -> None:
     """
     title: Native builder.fma path should still route through _apply_fast_math.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
     if not hasattr(visitor._llvm.ir_builder, "fma"):
         pytest.skip("llvmlite IRBuilder has no native fma")
 
     visitor.set_fast_math(True)
     apply_fast_math = Mock(wraps=visitor._apply_fast_math)
-    visitor._apply_fast_math = apply_fast_math  # type: ignore[method-assign]
+    setattr(visitor, "_apply_fast_math", apply_fast_math)
 
     ty = visitor._llvm.FLOAT_TYPE
     lhs = ir.Constant(ty, 1.0)
@@ -104,7 +136,7 @@ def test_splat_scalar_broadcasts_all_lanes() -> None:
     """
     title: splat_scalar should broadcast the scalar into every lane.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     float_ty = visitor._llvm.FLOAT_TYPE
@@ -125,7 +157,7 @@ def test_emit_int_div_signed_and_unsigned() -> None:
     """
     title: emit_int_div should honour the unsigned flag.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     builder = visitor._llvm.ir_builder
@@ -144,7 +176,7 @@ def test_unify_promotes_scalar_int_to_vector() -> None:
     """
     title: Scalar ints splat to match vector operands and widen width.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     vec_ty = ir.VectorType(ir.IntType(32), 2)
@@ -169,7 +201,7 @@ def test_unify_vector_float_rank_matches_double() -> None:
       element type wins — the scalar is cast to match, not the other way
       around.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     float_vec_ty = ir.VectorType(visitor._llvm.FLOAT_TYPE, 2)
@@ -194,7 +226,7 @@ def test_unify_int_and_float_scalars_returns_float() -> None:
     """
     title: Scalar int plus float promotes both operands to float.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     int_scalar = ir.Constant(visitor._llvm.INT32_TYPE, 7)
@@ -220,7 +252,7 @@ def test_get_data_type_aliases_and_invalid() -> None:
     title: >-
       VariablesLLVM.get_data_type should resolve aliases and reject invalid.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     llvm_vars = visitor._llvm
 
     assert llvm_vars.get_data_type("float16") == llvm_vars.FLOAT16_TYPE
@@ -236,7 +268,7 @@ def test_get_size_t_type_from_triple_32bit() -> None:
     """
     title: Test _get_size_t_type_from_triple for 32-bit architectures.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
 
     mock_tm = Mock()
     mock_tm.triple = "i386-unknown-linux-gnu"
@@ -250,7 +282,7 @@ def test_get_size_t_type_from_triple_32bit_family_with_64_tag() -> None:
     """
     title: 32-bit family triples carrying '64' should map to i64.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
 
     mock_tm = Mock()
     mock_tm.triple = "arm-unknown-linux-gnu64"
@@ -265,7 +297,7 @@ def test_get_size_t_type_from_triple_fallback() -> None:
     title: >-
       Test _get_size_t_type_from_triple fallback for unknown architectures.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
 
     mock_tm = Mock()
     mock_tm.triple = "unknown-arch-unknown-os"
@@ -281,7 +313,7 @@ def test_get_fma_function_vector_half_and_cache() -> None:
     title: >-
       Vector-half FMA intrinsic naming should include lane count and cache.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     vec_ty = ir.VectorType(visitor._llvm.FLOAT16_TYPE, 4)
 
     first = visitor._get_fma_function(vec_ty)
@@ -295,7 +327,7 @@ def test_get_fma_function_invalid_type_raises() -> None:
     """
     title: _get_fma_function should reject non-floating element types.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     with pytest.raises(Exception, match="FMA supports only floating-point"):
         visitor._get_fma_function(ir.IntType(32))
 
@@ -304,7 +336,7 @@ def test_scalar_vector_float_conversion_fptrunc() -> None:
     """
     title: Test scalar-vector promotion with float truncation.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     double_ty = visitor._llvm.DOUBLE_TYPE
@@ -323,7 +355,7 @@ def test_scalar_vector_float_conversion_fpext() -> None:
     """
     title: Test scalar-vector promotion with float extension.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     float_ty = visitor._llvm.FLOAT_TYPE
@@ -343,7 +375,7 @@ def test_set_fast_math_marks_float_ops() -> None:
     """
     title: set_fast_math should add fast flag to floating instructions.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
 
     float_ty = visitor._llvm.FLOAT_TYPE
@@ -367,7 +399,7 @@ def test_apply_fast_math_noop_for_non_fp_values() -> None:
     """
     title: _apply_fast_math should no-op for scalar and vector integer ops.
     """
-    visitor = LLVMLiteIRVisitor()
+    visitor = Visitor()
     _prime_builder(visitor)
     visitor.set_fast_math(True)
 

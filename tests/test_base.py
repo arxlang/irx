@@ -6,9 +6,9 @@ import sys
 
 from typing import Any, Sequence
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import (
     Builder,
     BuilderVisitor,
@@ -27,6 +27,14 @@ class _DummyVisitor(BuilderVisitor):
     """
 
     def translate(self, expr: astx.AST) -> str:
+        """
+        title: Translate.
+        parameters:
+          expr:
+            type: astx.AST
+        returns:
+          type: str
+        """
         return f"translated:{expr.__class__.__name__}"
 
 
@@ -39,10 +47,21 @@ class _DummyBuilder(Builder):
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize _DummyBuilder.
+        """
         super().__init__()
         self.translator: _DummyVisitor = _DummyVisitor()
 
     def build(self, expr: astx.AST, output_file: str) -> None:
+        """
+        title: Build.
+        parameters:
+          expr:
+            type: astx.AST
+          output_file:
+            type: str
+        """
         self.output_file = output_file
 
 
@@ -87,6 +106,18 @@ def test_builder_visitor_translate_not_implemented() -> None:
     visitor = BuilderVisitor()
     with pytest.raises(Exception, match=r"Not implemented yet\."):
         visitor.translate(astx.LiteralInt32(1))
+
+
+def test_builder_visitor_visit_not_implemented() -> None:
+    """
+    title: Shared base visit should raise for unimplemented builder nodes.
+    """
+    visitor = BuilderVisitor()
+    with pytest.raises(
+        NotImplementedError,
+        match=r"BuilderVisitor\.visit\(LiteralInt32\) is not implemented",
+    ):
+        visitor.visit(astx.LiteralInt32(1))
 
 
 def test_builder_translate_delegates_to_translator() -> None:
@@ -157,6 +188,20 @@ def test_builder_run_forwards_all_kwargs(
         raise_on_error: bool = True,
         debug: bool = False,
     ) -> CommandResult:
+        """
+        title: Fake run.
+        parameters:
+          command:
+            type: Sequence[str]
+          capture_stderr:
+            type: bool
+          raise_on_error:
+            type: bool
+          debug:
+            type: bool
+        returns:
+          type: CommandResult
+        """
         calls.append(
             {
                 "command": list(command),

@@ -6,11 +6,13 @@ from __future__ import annotations
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
+from irx.analysis import SemanticError
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from irx.system import PrintExpr
 from llvmlite import ir
 
@@ -20,6 +22,11 @@ HAS_LITERAL_TIME = hasattr(astx, "LiteralTime")
 
 
 def _make_int_dict() -> astx.LiteralDict:
+    """
+    title: Make int dict.
+    returns:
+      type: astx.LiteralDict
+    """
     return astx.LiteralDict(
         elements={
             astx.LiteralInt32(1): astx.LiteralInt32(10),
@@ -29,6 +36,11 @@ def _make_int_dict() -> astx.LiteralDict:
 
 
 def _make_float_dict() -> astx.LiteralDict:
+    """
+    title: Make float dict.
+    returns:
+      type: astx.LiteralDict
+    """
     return astx.LiteralDict(
         elements={
             astx.LiteralFloat32(1.5): astx.LiteralInt32(10),
@@ -40,6 +52,17 @@ def _make_float_dict() -> astx.LiteralDict:
 def _make_lookup_module(
     lookup: astx.SubscriptExpr, *setup_nodes: astx.AST
 ) -> astx.Module:
+    """
+    title: Make lookup module.
+    parameters:
+      lookup:
+        type: astx.SubscriptExpr
+      setup_nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
 
     proto = astx.FunctionPrototype(
@@ -56,7 +79,7 @@ def _make_lookup_module(
     return module
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_hit(builder_class: type[Builder]) -> None:
     """
     title: SubscriptExpr constant key returns the correct value.
@@ -65,7 +88,7 @@ def test_dict_lookup_hit(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.SubscriptExpr(
@@ -79,7 +102,7 @@ def test_dict_lookup_hit(builder_class: type[Builder]) -> None:
     assert result.constant == EXPECTED_VAL_FOR_KEY_2
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_miss(builder_class: type[Builder]) -> None:
     """
     title: SubscriptExpr constant key raises KeyError for a missing key.
@@ -88,7 +111,7 @@ def test_dict_lookup_miss(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.SubscriptExpr(
@@ -98,7 +121,7 @@ def test_dict_lookup_miss(builder_class: type[Builder]) -> None:
         visitor.visit(expr)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_build(builder_class: type[Builder]) -> None:
     """
     title: SubscriptExpr constant key compiles and prints the correct value.
@@ -115,7 +138,7 @@ def test_dict_lookup_build(builder_class: type[Builder]) -> None:
     check_result("build", builder, module, expected_output="10")
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_runtime_variable_key(
     builder_class: type[Builder],
 ) -> None:
@@ -142,7 +165,7 @@ def test_dict_lookup_runtime_variable_key(
     check_result("build", builder, module, expected_output="20")
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_runtime_variable_key_miss_exits(
     builder_class: type[Builder],
 ) -> None:
@@ -170,7 +193,7 @@ def test_dict_lookup_runtime_variable_key_miss_exits(
     assert "switch i32" in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_empty_dict_runtime_key_raises_keyerror(
     builder_class: type[Builder],
 ) -> None:
@@ -193,11 +216,11 @@ def test_dict_lookup_empty_dict_runtime_key_raises_keyerror(
     )
     module = _make_lookup_module(lookup, key_decl)
 
-    with pytest.raises(KeyError, match="empty dict"):
+    with pytest.raises(SemanticError, match="empty dict"):
         builder.translate(module)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_runtime_variable_key_mismatched_integer_widths(
     builder_class: type[Builder],
 ) -> None:
@@ -225,7 +248,7 @@ def test_dict_lookup_runtime_variable_key_mismatched_integer_widths(
     assert "switch i32" in ir_text
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_rejects_incompatible_constant_key_type(
     builder_class: type[Builder],
 ) -> None:
@@ -236,7 +259,7 @@ def test_dict_lookup_rejects_incompatible_constant_key_type(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.SubscriptExpr(
@@ -249,7 +272,7 @@ def test_dict_lookup_rejects_incompatible_constant_key_type(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIME, reason="astx.LiteralTime not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_rejects_unsupported_constant_time_keys(
     builder_class: type[Builder],
 ) -> None:
@@ -260,7 +283,7 @@ def test_dict_lookup_rejects_unsupported_constant_time_keys(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     expr = astx.SubscriptExpr(
@@ -278,7 +301,7 @@ def test_dict_lookup_rejects_unsupported_constant_time_keys(
         visitor.visit(expr)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_dict_lookup_runtime_float_variable_key(
     builder_class: type[Builder],
 ) -> None:

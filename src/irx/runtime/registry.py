@@ -14,7 +14,7 @@ from irx.runtime.feature_libc import build_libc_runtime_feature
 from irx.runtime.features import NativeArtifact, RuntimeFeature
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir import LLVMLiteIRVisitor
+    from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 
 class RuntimeFeatureRegistry:
@@ -26,6 +26,9 @@ class RuntimeFeatureRegistry:
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize RuntimeFeatureRegistry.
+        """
         self._features: dict[str, RuntimeFeature] = {}
 
     def register(self, feature: RuntimeFeature) -> None:
@@ -69,7 +72,7 @@ class RuntimeFeatureState:
     title: Track feature activation and symbol declarations for one module.
     attributes:
       _owner:
-        type: LLVMLiteIRVisitor
+        type: VisitorProtocol
       _registry:
         type: RuntimeFeatureRegistry
       _active_features:
@@ -78,17 +81,27 @@ class RuntimeFeatureState:
         type: dict[tuple[str, str], ir.Function]
     """
 
-    _owner: LLVMLiteIRVisitor
+    _owner: VisitorProtocol
     _registry: RuntimeFeatureRegistry
     _active_features: set[str]
     _declared_symbols: dict[tuple[str, str], ir.Function]
 
     def __init__(
         self,
-        owner: "LLVMLiteIRVisitor",
+        owner: "VisitorProtocol",
         registry: RuntimeFeatureRegistry,
         active_features: Iterable[str] | None = None,
     ) -> None:
+        """
+        title: Initialize RuntimeFeatureState.
+        parameters:
+          owner:
+            type: VisitorProtocol
+          registry:
+            type: RuntimeFeatureRegistry
+          active_features:
+            type: Iterable[str] | None
+        """
         self._owner = owner
         self._registry = registry
         self._active_features: set[str] = set()

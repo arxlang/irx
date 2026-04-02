@@ -6,18 +6,19 @@ from __future__ import annotations
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 EXPECTED_DICT_LENGTH = 2
 EXPECTED_STRUCT_FIELDS = 2
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_dict_empty(builder_class: type[Builder]) -> None:
     """
     title: Empty LiteralDict lowering
@@ -26,7 +27,7 @@ def test_literal_dict_empty(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(astx.LiteralDict(elements={}))
@@ -37,7 +38,7 @@ def test_literal_dict_empty(builder_class: type[Builder]) -> None:
     assert const.type.count == 0
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_dict_homogeneous_int_constants(
     builder_class: type[Builder],
 ) -> None:
@@ -48,7 +49,7 @@ def test_literal_dict_homogeneous_int_constants(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     visitor.visit(
@@ -73,7 +74,7 @@ def test_literal_dict_homogeneous_int_constants(
     assert all(isinstance(t, ir.IntType) for t in struct_ty.elements)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_dict_heterogeneous_constants_unsupported(
     builder_class: type[Builder],
 ) -> None:
@@ -84,7 +85,7 @@ def test_literal_dict_heterogeneous_constants_unsupported(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
     with pytest.raises(TypeError, match="heterogeneous"):

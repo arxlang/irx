@@ -15,13 +15,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-import astx
 import nanoarrow
 import pytest
 
 from arx_nanoarrow_sources import get_include_dir, get_source_files
-from irx.arrow import ArrowInt32ArrayLength
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx import astx
+from irx.builders.llvmliteir import Builder
 from irx.runtime.arrow.feature import (
     IRX_ARROW_TYPE_INT32,
     build_arrow_runtime_feature,
@@ -34,6 +33,14 @@ from nanoarrow.c_schema import allocate_c_schema
 
 
 def _arrow_length_module(values: list[int]) -> astx.Module:
+    """
+    title: Arrow length module.
+    parameters:
+      values:
+        type: list[int]
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     main_proto = astx.FunctionPrototype(
         "main", args=astx.Arguments(), return_type=astx.Int32()
@@ -41,7 +48,7 @@ def _arrow_length_module(values: list[int]) -> astx.Module:
     body = astx.Block()
     body.append(
         astx.FunctionReturn(
-            ArrowInt32ArrayLength(
+            astx.ArrowInt32ArrayLength(
                 [astx.LiteralInt32(value) for value in values]
             )
         )
@@ -51,6 +58,11 @@ def _arrow_length_module(values: list[int]) -> astx.Module:
 
 
 def _plain_main_module() -> astx.Module:
+    """
+    title: Plain main module.
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     main_proto = astx.FunctionPrototype(
         "main", args=astx.Arguments(), return_type=astx.Int32()
@@ -62,6 +74,14 @@ def _plain_main_module() -> astx.Module:
 
 
 def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
+    """
+    title: Compile arrow harness.
+    parameters:
+      source:
+        type: str
+    returns:
+      type: subprocess.CompletedProcess[str]
+    """
     feature = build_arrow_runtime_feature()
     native_root = (
         Path(__file__).resolve().parents[1]
@@ -113,6 +133,11 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
 
 
 def _shared_library_suffix() -> str:
+    """
+    title: Shared library suffix.
+    returns:
+      type: str
+    """
     if sys.platform == "darwin":
         return ".dylib"
 
@@ -121,6 +146,11 @@ def _shared_library_suffix() -> str:
 
 @contextmanager
 def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
+    """
+    title: Load arrow runtime library.
+    returns:
+      type: Iterator[ctypes.CDLL]
+    """
     if sys.platform == "win32":
         pytest.skip("nanoarrow interop shared-library tests require Unix")
 
@@ -162,6 +192,12 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
 
 
 def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
+    """
+    title: Configure arrow runtime library.
+    parameters:
+      library:
+        type: ctypes.CDLL
+    """
     library.irx_arrow_array_builder_int32_new.argtypes = [
         ctypes.POINTER(ctypes.c_void_p)
     ]
@@ -203,12 +239,30 @@ def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
 
 
 def _assert_arrow_ok(library: ctypes.CDLL, code: int) -> None:
+    """
+    title: Assert arrow ok.
+    parameters:
+      library:
+        type: ctypes.CDLL
+      code:
+        type: int
+    """
     assert code == 0, library.irx_arrow_last_error().decode()
 
 
 def _build_runtime_array(
     library: ctypes.CDLL, values: list[int]
 ) -> ctypes.c_void_p:
+    """
+    title: Build runtime array.
+    parameters:
+      library:
+        type: ctypes.CDLL
+      values:
+        type: list[int]
+    returns:
+      type: ctypes.c_void_p
+    """
     builder = ctypes.c_void_p()
     array_handle = ctypes.c_void_p()
 
@@ -241,12 +295,12 @@ def test_arrow_symbols_absent_when_unused() -> None:
     """
     title: Arrow runtime declarations should be absent when unused.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
 
     ir_text = builder.translate(_arrow_length_module([]))
     assert "irx_arrow_array_builder_int32_new" in ir_text
 
-    plain_builder = LLVMLiteIR()
+    plain_builder = Builder()
     plain_ir = plain_builder.translate(_plain_main_module())
     assert "irx_arrow_" not in plain_ir
 
@@ -255,7 +309,7 @@ def test_arrow_length_codegen_declares_runtime_symbols() -> None:
     """
     title: Arrow lowering should declare runtime symbols and parse as LLVM.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
     ir_text = builder.translate(_arrow_length_module([1, 2, 3]))
 
     llvm.parse_assembly(ir_text)
@@ -294,7 +348,7 @@ def test_arrow_length_build_returns_length() -> None:
     title: >-
       Building an Arrow-backed module should link and return the array length.
     """
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = _arrow_length_module([10, 20, 30])
 
     with tempfile.TemporaryDirectory() as tmp_dir:

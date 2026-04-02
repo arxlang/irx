@@ -4,8 +4,7 @@ title: Structural tests for system AST nodes.
 
 from typing import Any, cast
 
-import astx
-
+from irx import astx
 from irx.system import Cast, PrintExpr
 
 

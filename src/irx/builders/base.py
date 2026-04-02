@@ -13,9 +13,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-import astx
+from plum import dispatch
 
-from irx.tools.typing import typechecked
+from irx import astx
+from irx.base.visitors.base import BaseVisitor
+from irx.typecheck import typechecked
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,12 @@ class CommandError(RuntimeError):
     """
 
     def __init__(self, result: CommandResult) -> None:
+        """
+        title: Initialize CommandError.
+        parameters:
+          result:
+            type: CommandResult
+        """
         self.result: CommandResult = result
         super().__init__(
             f"Command {list(result.command)!r} failed "
@@ -139,10 +147,29 @@ def run_command(
 
 
 @typechecked
-class BuilderVisitor:
+class BuilderVisitor(BaseVisitor):
     """
-    title: Builder translator visitor.
+    title: Builder translator visitor built on the shared visitor base.
     """
+
+    @dispatch
+    def visit(self, node: astx.AST) -> None:
+        """
+        title: Visit AST nodes.
+        parameters:
+          node:
+            type: astx.AST
+        """
+        super().visit(node)
+
+    def visit_child(self, node: astx.AST) -> None:
+        """
+        title: Forward a child AST node through the public visit dispatcher.
+        parameters:
+          node:
+            type: astx.AST
+        """
+        self.visit(node)
 
     def translate(self, expr: astx.AST) -> str:
         """

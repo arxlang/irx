@@ -2,11 +2,11 @@
 title: Tests for the Module AST.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 
 from .conftest import check_result
 
@@ -53,7 +53,7 @@ def make_fn_add(int_type: type, literal_type: type) -> astx.AST:
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_module_fn_main(

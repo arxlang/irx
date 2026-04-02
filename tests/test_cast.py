@@ -2,11 +2,11 @@
 title: Tests for the Casting.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import Cast, PrintExpr
 
 from .conftest import check_result
@@ -23,7 +23,7 @@ from .conftest import check_result
         (astx.Int16, astx.LiteralInt16, 42, astx.Int8, "42"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_cast_basic(
     builder_class: type[Builder],
     int_type_from: type,
@@ -83,7 +83,7 @@ def test_cast_basic(
         (astx.Boolean, astx.LiteralBoolean, False, "0"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_cast_to_string(
     builder_class: type[Builder],
     astx_type: type,
@@ -141,7 +141,7 @@ def test_cast_to_string(
         (astx.Int64, astx.LiteralInt64, "7.000000"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_cast_int_to_float(
     builder_class: type[Builder],
     int_type: type,
@@ -201,7 +201,7 @@ def test_cast_int_to_float(
         (astx.Float32, astx.LiteralFloat32, -3.9, astx.Int32, "-3"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_cast_float_to_int(
     builder_class: type[Builder],
     float_type: type,
@@ -254,7 +254,7 @@ def test_cast_float_to_int(
     check_result("build", builder, module, expected_output=expected_output)
 
 
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_cast_same_type_noop(builder_class: type[Builder]) -> None:
     """
     title: Cast a value to its own type should be a no-op.

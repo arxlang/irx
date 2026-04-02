@@ -4,23 +4,23 @@ title: Tests for vector operations in the LLVM-IR builder.
 
 from typing import Any
 
-import astx
 import pytest
 
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx import astx
+from irx.builders.llvmliteir import Builder, Visitor
 from llvmlite import ir
 
 VEC4 = 4
 VEC2 = 2
 
 
-def setup_builder() -> LLVMLiteIRVisitor:
+def setup_builder() -> Visitor:
     """
     title: Return a visitor with a live IRBuilder positioned inside main().
     returns:
-      type: LLVMLiteIRVisitor
+      type: Visitor
     """
-    main_builder = LLVMLiteIR()
+    main_builder = Builder()
     visitor = main_builder.translator
     func_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
     fn = ir.Function(visitor._llvm.module, func_type, name="main")
@@ -33,7 +33,7 @@ def _make_binop_visitor(
     lhs_val: ir.Value,
     rhs_val: ir.Value,
     fma_rhs: ir.Value | None = None,
-) -> LLVMLiteIRVisitor:
+) -> Visitor:
     """
     title: >-
       Return a fresh visitor patched to inject pre-built IR values for the LHS,
@@ -46,12 +46,26 @@ def _make_binop_visitor(
       fma_rhs:
         type: ir.Value | None
     returns:
-      type: LLVMLiteIRVisitor
+      type: Visitor
     """
     builder = setup_builder()
     original_visit = builder.visit
 
     def mock_visit(node: Any, *args: Any, **kwargs: Any) -> Any:
+        """
+        title: Mock visit.
+        parameters:
+          node:
+            type: Any
+          args:
+            type: Any
+            variadic: positional
+          kwargs:
+            type: Any
+            variadic: keyword
+        returns:
+          type: Any
+        """
         if isinstance(node, astx.Identifier):
             mapping = {"LHS": lhs_val, "RHS": rhs_val, "FMA_RHS": fma_rhs}
             if node.name in mapping:
@@ -94,12 +108,12 @@ def _run_vector_binop(
         op_code, astx.Identifier("LHS"), astx.Identifier("RHS")
     )
     if unsigned is not None:
-        bin_op.unsigned = unsigned  # type: ignore[attr-defined]
+        bin_op.unsigned = unsigned
     if fast_math:
-        bin_op.fast_math = True  # type: ignore[attr-defined]
+        bin_op.fast_math = True
     if fma_rhs is not None:
-        bin_op.fma = True  # type: ignore[attr-defined]
-        bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
+        bin_op.fma = True
+        bin_op.fma_rhs = astx.Identifier("FMA_RHS")
     builder.visit(bin_op)
     return builder.result_stack.pop()
 
@@ -123,6 +137,14 @@ _ARITH_CASES = [
 
 
 def _arith_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Arith id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     elem, count, _, _, op, *_ = case
     return f"{elem.replace('_TYPE', '').lower()}x{count}_{op}"
 
@@ -222,6 +244,14 @@ _SPLAT_CASES = [
 
 
 def _splat_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Splat id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     elem, count, _, _, lhs_is_vec, *_ = case
     order = "vec+scalar" if lhs_is_vec else "scalar+vec"
     return f"{elem.replace('_TYPE', '').lower()}x{count}_{order}"
@@ -320,6 +350,14 @@ _CROSS_FP_CASES = [
 
 
 def _cross_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Cross id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     vec_e, sc_e, lhs_is_vec, *_ = case
     v = vec_e.replace("_TYPE", "").lower()
     s = sc_e.replace("_TYPE", "").lower()
@@ -425,7 +463,7 @@ def test_fma_missing_fma_rhs_raises() -> None:
     patched = _make_binop_visitor(v, v)
 
     bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fma = True  # type: ignore[attr-defined]
+    bin_op.fma = True
 
     with pytest.raises(Exception, match="FMA requires a third operand"):
         patched.visit(bin_op)
@@ -505,7 +543,7 @@ def test_fast_math_flag_restored_after_vector_binop(
     patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp(op, astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fast_math = True  # type: ignore[attr-defined]
+    bin_op.fast_math = True
 
     if raises:
         with pytest.raises(Exception):
@@ -538,9 +576,9 @@ def test_fast_math_flag_restored_after_vector_fma(
     patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fast_math = True  # type: ignore[attr-defined]
-    bin_op.fma = True  # type: ignore[attr-defined]
-    bin_op.fma_rhs = astx.Identifier("FMA_RHS")  # type: ignore[attr-defined]
+    bin_op.fast_math = True
+    bin_op.fma = True
+    bin_op.fma_rhs = astx.Identifier("FMA_RHS")
 
     patched.visit(bin_op)
     patched.result_stack.pop()

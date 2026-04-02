@@ -2,11 +2,11 @@
 title: Test For VariableAssignment.
 """
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.system import PrintExpr
 
 from .conftest import check_result
@@ -26,7 +26,7 @@ from .conftest import check_result
 @pytest.mark.parametrize(
     "builder_class",
     [
-        LLVMLiteIR,
+        LLVMBuilder,
     ],
 )
 def test_variable_assignment(
@@ -84,7 +84,7 @@ def test_variable_assignment(
         (astx.Float64, "0.000000"),
     ],
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_variable_declaration_no_initializer(
     builder_class: type[Builder],
     var_type: type,

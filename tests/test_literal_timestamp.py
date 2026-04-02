@@ -8,11 +8,12 @@ import re
 
 from typing import cast
 
-import astx
 import pytest
 
+from irx import astx
 from irx.builders.base import Builder
-from irx.builders.llvmliteir import LLVMLiteIR, LLVMLiteIRVisitor
+from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builders.llvmliteir import Visitor as LLVMVisitor
 from llvmlite import ir
 
 HAS_LITERAL_TIMESTAMP = hasattr(astx, "LiteralTimestamp")
@@ -34,7 +35,7 @@ def _timestamp_values(const: ir.Constant) -> list[int]:
 @pytest.mark.skipif(
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_timestamp_basic(builder_class: type[Builder]) -> None:
     """
     title: LiteralTimestamp with fractional seconds via 'T' separator.
@@ -43,7 +44,7 @@ def test_literal_timestamp_basic(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     visitor.visit(astx.LiteralTimestamp("2025-10-30T12:34:56.123"))
     const = visitor.result_stack.pop()
@@ -59,7 +60,7 @@ def test_literal_timestamp_basic(builder_class: type[Builder]) -> None:
 @pytest.mark.skipif(
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_timestamp_fraction_truncated(
     builder_class: type[Builder],
 ) -> None:
@@ -70,7 +71,7 @@ def test_literal_timestamp_fraction_truncated(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     visitor.visit(astx.LiteralTimestamp("2025-01-02 03:04:05.1234567897"))
     const = visitor.result_stack.pop()
@@ -82,7 +83,7 @@ def test_literal_timestamp_fraction_truncated(
 @pytest.mark.skipif(
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_timestamp_invalid_date(builder_class: type[Builder]) -> None:
     """
     title: Reject impossible calendar dates (e.g., February 30).
@@ -91,7 +92,7 @@ def test_literal_timestamp_invalid_date(builder_class: type[Builder]) -> None:
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     with pytest.raises(Exception, match="invalid date"):
         visitor.visit(astx.LiteralTimestamp("2025-02-30T00:00:00"))
@@ -100,7 +101,7 @@ def test_literal_timestamp_invalid_date(builder_class: type[Builder]) -> None:
 @pytest.mark.skipif(
     not HAS_LITERAL_TIMESTAMP, reason="astx.LiteralTimestamp not available"
 )
-@pytest.mark.parametrize("builder_class", [LLVMLiteIR])
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_literal_timestamp_timezone_rejected(
     builder_class: type[Builder],
 ) -> None:
@@ -111,7 +112,7 @@ def test_literal_timestamp_timezone_rejected(
         type: type[Builder]
     """
     builder = builder_class()
-    visitor = cast(LLVMLiteIRVisitor, builder.translator)
+    visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
     with pytest.raises(Exception, match="timezone"):
         visitor.visit(astx.LiteralTimestamp("2025-10-30T12:34:56Z"))
