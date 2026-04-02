@@ -182,6 +182,8 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         node: MulBinOp,
         llvm_lhs: ir.Value,
         llvm_rhs: ir.Value,
+        *,
+        unsigned: bool = False,
     ) -> ir.Value | None:
         """
         title: Emit vector mul.
@@ -192,6 +194,8 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: ir.Value
           llvm_rhs:
             type: ir.Value
+          unsigned:
+            type: bool
         returns:
           type: ir.Value | None
         """
@@ -208,11 +212,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             llvm_fma_rhs = safe_pop(self.result_stack)
             if llvm_fma_rhs is None:
                 raise Exception("FMA requires a valid third operand")
-            if llvm_fma_rhs.type != llvm_lhs.type:
-                raise Exception(
-                    f"FMA operand type mismatch: "
-                    f"{llvm_lhs.type} vs {llvm_fma_rhs.type}"
-                )
+            llvm_lhs, llvm_fma_rhs = self._unify_numeric_operands(
+                llvm_lhs, llvm_fma_rhs, unsigned=unsigned
+            )
+            llvm_rhs, llvm_fma_rhs = self._unify_numeric_operands(
+                llvm_rhs, llvm_fma_rhs, unsigned=unsigned
+            )
             prev_fast_math = self._fast_math_enabled
             if set_fast:
                 self.set_fast_math(True)
@@ -306,7 +311,10 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         returns:
           type: ir.Value
         """
-        if is_fp_type(llvm_lhs.type):
+        scalar_ty = (
+            llvm_lhs.type.element if is_vector(llvm_lhs) else llvm_lhs.type
+        )
+        if is_fp_type(scalar_ty):
             return self._llvm.ir_builder.fcmp_ordered(
                 op_code,
                 llvm_lhs,
@@ -432,9 +440,11 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
           node:
             type: MulBinOp
         """
-        llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
+        llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
-        vector_result = self._emit_vector_mul(node, llvm_lhs, llvm_rhs)
+        vector_result = self._emit_vector_mul(
+            node, llvm_lhs, llvm_rhs, unsigned=unsigned
+        )
         if vector_result is not None:
             self.result_stack.append(vector_result)
             return
@@ -529,8 +539,6 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: LtBinOp
         """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
-        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
         result = self._emit_ordered_compare(
             "<",
             llvm_lhs,
@@ -549,8 +557,6 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: GtBinOp
         """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
-        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
         result = self._emit_ordered_compare(
             ">",
             llvm_lhs,
@@ -569,8 +575,6 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: LeBinOp
         """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
-        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
         result = self._emit_ordered_compare(
             "<=",
             llvm_lhs,
@@ -589,8 +593,6 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: GeBinOp
         """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
-        if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
         result = self._emit_ordered_compare(
             ">=",
             llvm_lhs,
@@ -611,7 +613,11 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
+            result = self._emit_ordered_compare(
+                "==", llvm_lhs, llvm_rhs, unsigned=unsigned, name="vcmptmp"
+            )
+            self.result_stack.append(result)
+            return
 
         if (
             isinstance(llvm_lhs.type, ir.PointerType)
@@ -654,7 +660,11 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
-            raise Exception(f"Vector binop {node.op_code} not implemented.")
+            result = self._emit_ordered_compare(
+                "!=", llvm_lhs, llvm_rhs, unsigned=unsigned, name="vcmptmp"
+            )
+            self.result_stack.append(result)
+            return
 
         if (
             isinstance(llvm_lhs.type, ir.PointerType)

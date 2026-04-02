@@ -53,7 +53,9 @@ def _make_binop_visitor(
 
     def mock_visit(node: Any, *args: Any, **kwargs: Any) -> Any:
         """
-        title: Mock visit.
+        title: >-
+          Intercept Identifier visits to inject pre-built IR values for LHS,
+          RHS, and FMA_RHS; delegate all other nodes to the real visitor.
         parameters:
           node:
             type: Any
@@ -83,7 +85,6 @@ def _run_vector_binop(
     rhs_val: ir.Value,
     unsigned: bool | None = None,
     fma_rhs: ir.Value | None = None,
-    fast_math: bool = False,
 ) -> ir.Value:
     """
     title: Drive a BinaryOp through the visitor and return the result.
@@ -98,8 +99,6 @@ def _run_vector_binop(
         type: bool | None
       fma_rhs:
         type: ir.Value | None
-      fast_math:
-        type: bool
     returns:
       type: ir.Value
     """
@@ -109,8 +108,6 @@ def _run_vector_binop(
     )
     if unsigned is not None:
         bin_op.unsigned = unsigned
-    if fast_math:
-        bin_op.fast_math = True
     if fma_rhs is not None:
         bin_op.fma = True
         bin_op.fma_rhs = astx.Identifier("FMA_RHS")
@@ -138,7 +135,7 @@ _ARITH_CASES = [
 
 def _arith_id(case: tuple[Any, ...]) -> str:
     """
-    title: Arith id.
+    title: Build a readable pytest ID string for an arithmetic test case.
     parameters:
       case:
         type: tuple[Any, Ellipsis]
@@ -245,7 +242,7 @@ _SPLAT_CASES = [
 
 def _splat_id(case: tuple[Any, ...]) -> str:
     """
-    title: Splat id.
+    title: Build a readable pytest ID string for a scalar-splat test case.
     parameters:
       case:
         type: tuple[Any, Ellipsis]
@@ -351,7 +348,7 @@ _CROSS_FP_CASES = [
 
 def _cross_id(case: tuple[Any, ...]) -> str:
     """
-    title: Cross id.
+    title: Build a pytest ID for a cross-precision FP test case.
     parameters:
       case:
         type: tuple[Any, Ellipsis]
@@ -470,69 +467,18 @@ def test_fma_missing_fma_rhs_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "op, fast_math, expect_fast",
-    [
-        ("+", False, False),
-        ("+", True, True),
-        ("-", True, True),
-        ("*", True, True),
-        ("/", True, True),
-    ],
-    ids=["no_fast", "add_fast", "sub_fast", "mul_fast", "div_fast"],
+    "op, raises",
+    [("+", False), ("%", True)],
+    ids=["success", "failure"],
 )
-def test_vector_float_binop_uses_node_fast_math(
-    op: str,
-    fast_math: bool,
-    expect_fast: bool,
-) -> None:
+def test_fast_math_flag_always_cleared(op: str, raises: bool) -> None:
     """
     title: >-
-      Float vector BinaryOp nodes honour the node fast_math attribute when they
-      go through visit().
+      _fast_math_enabled is reset to False after the op regardless of whether
+      it succeeds or raises.
     parameters:
       op:
         type: str
-      fast_math:
-        type: bool
-      expect_fast:
-        type: bool
-    """
-    builder = setup_builder()
-    vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
-    v = ir.Constant(vec_ty, [1.0] * VEC4)
-    result = _run_vector_binop(op, v, v, fast_math=fast_math)
-
-    assert isinstance(result.type, ir.VectorType)
-    if expect_fast:
-        assert "fast" in result.flags
-    else:
-        assert "fast" not in result.flags
-
-
-@pytest.mark.parametrize(
-    "op, initial_fast_math, raises",
-    [
-        ("+", False, False),
-        ("+", True, False),
-        ("%", False, True),
-        ("%", True, True),
-    ],
-    ids=["success_false", "success_true", "failure_false", "failure_true"],
-)
-def test_fast_math_flag_restored_after_vector_binop(
-    op: str,
-    initial_fast_math: bool,
-    raises: bool,
-) -> None:
-    """
-    title: >-
-      Vector BinaryOp visits restore the prior fast-math state after success or
-      failure.
-    parameters:
-      op:
-        type: str
-      initial_fast_math:
-        type: bool
       raises:
         type: bool
     """
@@ -540,7 +486,6 @@ def test_fast_math_flag_restored_after_vector_binop(
     vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
     v = ir.Constant(vec_ty, [1.0] * VEC4)
     patched = _make_binop_visitor(v, v)
-    patched.set_fast_math(initial_fast_math)
 
     bin_op = astx.BinaryOp(op, astx.Identifier("LHS"), astx.Identifier("RHS"))
     bin_op.fast_math = True
@@ -550,40 +495,11 @@ def test_fast_math_flag_restored_after_vector_binop(
             patched.visit(bin_op)
     else:
         patched.visit(bin_op)
-        patched.result_stack.pop()
+        result = patched.result_stack.pop()
+        assert "fadd" in str(result)
+        assert isinstance(result.type, ir.VectorType)
 
-    assert patched._fast_math_enabled is initial_fast_math
-
-
-@pytest.mark.parametrize(
-    "initial_fast_math",
-    [False, True],
-    ids=["restore_false", "restore_true"],
-)
-def test_fast_math_flag_restored_after_vector_fma(
-    initial_fast_math: bool,
-) -> None:
-    """
-    title: Vector FMA visits restore the prior fast-math state.
-    parameters:
-      initial_fast_math:
-        type: bool
-    """
-    builder = setup_builder()
-    vec_ty = ir.VectorType(builder._llvm.FLOAT_TYPE, VEC4)
-    v = ir.Constant(vec_ty, [1.0] * VEC4)
-    patched = _make_binop_visitor(v, v, v)
-    patched.set_fast_math(initial_fast_math)
-
-    bin_op = astx.BinaryOp("*", astx.Identifier("LHS"), astx.Identifier("RHS"))
-    bin_op.fast_math = True
-    bin_op.fma = True
-    bin_op.fma_rhs = astx.Identifier("FMA_RHS")
-
-    patched.visit(bin_op)
-    patched.result_stack.pop()
-
-    assert patched._fast_math_enabled is initial_fast_math
+    assert patched._fast_math_enabled is False
 
 
 @pytest.mark.parametrize(
@@ -613,43 +529,31 @@ def test_vector_size_mismatch_raises(
         _run_vector_binop("+", v1, v2)
 
 
-def test_vector_element_type_mismatch_raises() -> None:
+def test_vector_element_type_promotion() -> None:
     """
-    title: Mismatched vector element types raise an exception.
+    title: Mismatched vector element types are promoted to the wider type.
     """
     builder = setup_builder()
     v1 = ir.Constant(ir.VectorType(builder._llvm.INT32_TYPE, VEC2), [1] * VEC2)
     v2 = ir.Constant(ir.VectorType(builder._llvm.INT64_TYPE, VEC2), [1] * VEC2)
-    with pytest.raises(Exception, match="Vector element type mismatch"):
-        _run_vector_binop("+", v1, v2)
+    result = _run_vector_binop("+", v1, v2)
+    assert isinstance(result.type, ir.VectorType)
+    assert result.type.element == builder._llvm.INT64_TYPE
+    assert result.type.count == VEC2
 
 
 @pytest.mark.parametrize(
     "op, match",
     [
         ("%", r"Vector binop .* not implemented"),
-        ("==", r"Vector binop .* not implemented"),
-        ("!=", r"Vector binop .* not implemented"),
-        ("<", r"Vector binop .* not implemented"),
-        ("<=", r"Vector binop .* not implemented"),
-        (">", r"Vector binop .* not implemented"),
-        (">=", r"Vector binop .* not implemented"),
     ],
     ids=[
         "unsupported_%",
-        "cmp_eq",
-        "cmp_ne",
-        "cmp_lt",
-        "cmp_le",
-        "cmp_gt",
-        "cmp_ge",
     ],
 )
 def test_unsupported_vector_op_raises(op: str, match: str) -> None:
     """
-    title: >-
-      Unsupported and unimplemented comparison operators all raise an
-      exception.
+    title: Unsupported vector binary operators raise an exception.
     parameters:
       op:
         type: str

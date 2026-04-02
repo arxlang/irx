@@ -577,9 +577,26 @@ class VisitorCore(BuilderVisitor):
                     f"{lhs.type.count} vs {rhs.type.count}"
                 )
             if lhs.type.element != rhs.type.element:
-                raise Exception(
-                    "Vector element type mismatch: "
-                    f"{lhs.type.element} vs {rhs.type.element}"
+                lhs_elem = lhs.type.element
+                rhs_elem = rhs.type.element
+                lhs_is_fp = is_fp_type(lhs_elem)
+                rhs_is_fp = is_fp_type(rhs_elem)
+
+                if lhs_is_fp or rhs_is_fp:
+                    fp_candidates = [
+                        t for t in (lhs_elem, rhs_elem) if is_fp_type(t)
+                    ]
+                    target_scalar_ty = self._select_float_type(fp_candidates)
+                else:
+                    lhs_w = getattr(lhs_elem, "width", 0)
+                    rhs_w = getattr(rhs_elem, "width", 0)
+                    target_scalar_ty = ir.IntType(max(lhs_w, rhs_w, 1))
+
+                lhs = self._cast_value_to_type(
+                    lhs, target_scalar_ty, unsigned=unsigned
+                )
+                rhs = self._cast_value_to_type(
+                    rhs, target_scalar_ty, unsigned=unsigned
                 )
             return lhs, rhs
 
