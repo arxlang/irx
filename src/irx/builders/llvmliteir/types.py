@@ -12,7 +12,7 @@ try:  # FP128 may not exist depending on llvmlite build.
 except ImportError:  # pragma: no cover - optional
     FP128Type = None
 
-from irx.tools.typing import typechecked
+from irx.typecheck import typechecked
 
 
 def is_fp_type(type_: ir.Type) -> bool:

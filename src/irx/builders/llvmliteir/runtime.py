@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from llvmlite import ir
 
-from irx.tools.typing import typechecked
+from irx.typecheck import typechecked
 
 
 @typechecked

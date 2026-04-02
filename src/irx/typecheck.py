@@ -1,5 +1,5 @@
 """
-title: Tools for typing support helper.
+title: Runtime type-checking helpers.
 """
 
 from typing import Any, Callable, TypeVar
@@ -16,8 +16,7 @@ from typeguard._config import global_config
 
 _T = TypeVar("_T")
 
-
-__all__ = ["typechecked"]
+__all__ = ["copy_type", "skip_unused", "typechecked"]
 
 
 @public
@@ -32,9 +31,9 @@ def skip_unused(*args: Any, **kwargs: Any) -> None:
         type: Any
         variadic: keyword
     """
-    for arg in args:
+    for _arg in args:
         pass
-    for key in kwargs:
+    for _key in kwargs:
         pass
 
 
@@ -57,6 +56,5 @@ typechecked = _typechecked(
     collection_check_strategy=CollectionCheckStrategy.ALL_ITEMS,
 )
 
-# Override the default configuration
 global_config.forward_ref_policy = ForwardRefPolicy.IGNORE
 global_config.collection_check_strategy = CollectionCheckStrategy.ALL_ITEMS

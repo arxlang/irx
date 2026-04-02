@@ -5,7 +5,7 @@ title: Symbol Table classes.
 from public import public
 
 from irx.astx.symbol_table import SymbolTable
-from irx.tools.typing import typechecked
+from irx.typecheck import typechecked
 
 __all__ = ["SymbolTable"]
 
