@@ -7,15 +7,14 @@ title: Unary-operator visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
-from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.core import _semantic_symbol_key, _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 
 
 class UnaryOpVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
+    @_VisitorCore.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.UnaryOp) -> None:
         """
         title: Visit UnaryOp nodes.

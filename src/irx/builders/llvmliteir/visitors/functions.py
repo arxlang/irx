@@ -7,15 +7,14 @@ title: Function visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
-from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.core import _semantic_symbol_key, _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
 
 
 class FunctionVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:
         """
         title: Visit FunctionCall nodes.
@@ -41,7 +40,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.call(callee_f, llvm_args, "calltmp")
         self.result_stack.append(result)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionDef) -> None:
         """
         title: Visit FunctionDef nodes.
@@ -80,7 +79,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         self.result_stack.append(fn)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionPrototype) -> None:
         """
         title: Visit FunctionPrototype nodes.
@@ -104,7 +103,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         self.result_stack.append(fn)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
         """
         title: Visit FunctionReturn nodes.

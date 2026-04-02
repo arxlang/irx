@@ -7,17 +7,17 @@ title: Variable visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.core import (
     _semantic_assignment_key,
     _semantic_symbol_key,
+    _VisitorCore,
 )
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 
 
 class VariableVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.VariableAssignment) -> None:
         """
         title: Visit VariableAssignment nodes.
@@ -47,7 +47,7 @@ class VariableVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.store(llvm_value, llvm_var)
         self.result_stack.append(llvm_value)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.Identifier) -> None:
         """
         title: Visit Identifier nodes.
@@ -63,7 +63,7 @@ class VariableVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.load(expr_var, node.name)
         self.result_stack.append(result)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Visit VariableDeclaration nodes.
@@ -128,7 +128,7 @@ class VariableVisitorMixin(VisitorMixinBase):
             self.const_vars.add(symbol_key)
         self.named_values[symbol_key] = alloca
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """
         title: Visit InlineVariableDeclaration nodes.

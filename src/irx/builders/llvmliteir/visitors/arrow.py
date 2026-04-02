@@ -5,14 +5,14 @@ title: Arrow visitor mixins for llvmliteir.
 """
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.core import _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
 
 
 class ArrowVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
+    @_VisitorCore.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
         """
         title: Visit ArrowInt32ArrayLength nodes.

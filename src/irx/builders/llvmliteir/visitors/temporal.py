@@ -10,12 +10,12 @@ from datetime import time as time_value
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.core import _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
 class TemporalVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralTime) -> None:
         """
         title: Visit LiteralTime nodes.
@@ -84,7 +84,7 @@ class TemporalVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(const_time)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralTimestamp) -> None:
         """
         title: Visit LiteralTimestamp nodes.
@@ -182,7 +182,7 @@ class TemporalVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(const_ts)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralDateTime) -> None:
         """
         title: Visit LiteralDateTime nodes.

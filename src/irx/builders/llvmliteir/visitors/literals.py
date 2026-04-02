@@ -11,12 +11,12 @@ from typing import Any
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.core import _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
 class LiteralVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralInt32) -> None:
         """
         title: Visit LiteralInt32 nodes.
@@ -28,7 +28,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.INT32_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralFloat32) -> None:
         """
         title: Visit LiteralFloat32 nodes.
@@ -40,7 +40,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralFloat64) -> None:
         """
         title: Visit LiteralFloat64 nodes.
@@ -52,7 +52,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.DOUBLE_TYPE, expr.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralFloat16) -> None:
         """
         title: Visit LiteralFloat16 nodes.
@@ -64,7 +64,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.FLOAT16_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralNone) -> None:
         """
         title: Visit LiteralNone nodes.
@@ -74,7 +74,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         """
         self.result_stack.append(None)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralBoolean) -> None:
         """
         title: Visit LiteralBoolean nodes.
@@ -86,7 +86,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralInt64) -> None:
         """
         title: Visit LiteralInt64 nodes.
@@ -98,7 +98,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.INT64_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralInt8) -> None:
         """
         title: Visit LiteralInt8 nodes.
@@ -108,7 +108,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         """
         self.result_stack.append(ir.Constant(self._llvm.INT8_TYPE, node.value))
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralUInt8) -> None:
         """
         title: Visit LiteralUInt8 nodes.
@@ -120,7 +120,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.UINT8_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralUInt16) -> None:
         """
         title: Visit LiteralUInt16 nodes.
@@ -132,7 +132,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.UINT16_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralUInt32) -> None:
         """
         title: Visit LiteralUInt32 nodes.
@@ -144,7 +144,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.UINT32_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralUInt64) -> None:
         """
         title: Visit LiteralUInt64 nodes.
@@ -156,7 +156,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.UINT64_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralUInt128) -> None:
         """
         title: Visit LiteralUInt128 nodes.
@@ -168,7 +168,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             ir.Constant(self._llvm.UINT128_TYPE, node.value)
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
         """
         title: Visit LiteralUTF8Char nodes.
@@ -201,7 +201,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(ptr)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralUTF8String) -> None:
         """
         title: Visit LiteralUTF8String nodes.
@@ -233,7 +233,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(data_ptr)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.LiteralString) -> None:
         """
         title: Visit LiteralString nodes.
@@ -243,7 +243,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         """
         self.visit_child(astx.LiteralUTF8String(value=expr.value))
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralList) -> None:
         """
         title: Visit LiteralList nodes.
@@ -290,7 +290,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(first_ptr)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralSet) -> None:
         """
         title: Visit LiteralSet nodes.
@@ -360,7 +360,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             "(homogeneous or mixed-width)"
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralTuple) -> None:
         """
         title: Visit LiteralTuple nodes.
@@ -397,7 +397,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             "are supported"
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralDict) -> None:
         """
         title: Visit LiteralDict nodes.
@@ -458,7 +458,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             "are supported in this version"
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.SubscriptExpr) -> None:
         """
         title: Visit SubscriptExpr nodes.
@@ -505,7 +505,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             unsigned=self._subscript_uses_unsigned_semantics(node),
         )
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralInt16) -> None:
         """
         title: Visit LiteralInt16 nodes.

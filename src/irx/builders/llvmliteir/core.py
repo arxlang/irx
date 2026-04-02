@@ -11,6 +11,7 @@ from typing import Any, cast
 from llvmlite import binding as llvm
 from llvmlite import ir
 from llvmlite.ir import DoubleType, FloatType, HalfType
+from plum import dispatch
 
 from irx import astx
 
@@ -188,7 +189,6 @@ class _VisitorCore(BuilderVisitor):
         self._fast_math_enabled = False
 
         self.initialize()
-
         self.target = llvm.Target.from_default_triple()
         try:
             self.target_machine = self.target.create_target_machine(
@@ -212,6 +212,16 @@ class _VisitorCore(BuilderVisitor):
             registry=get_default_runtime_feature_registry(),
             active_features=active_runtime_features,
         )
+
+    @dispatch
+    def visit(self, node: astx.AST) -> None:
+        """
+        title: Visit AST nodes.
+        parameters:
+          node:
+            type: astx.AST
+        """
+        super().visit(node)
 
     def translate(self, node: astx.AST) -> str:
         """

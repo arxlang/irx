@@ -7,8 +7,7 @@ title: Control-flow visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
-from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.core import _semantic_symbol_key, _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
@@ -16,7 +15,7 @@ from irx.builders.llvmliteir.vector import emit_add
 
 
 class ControlFlowVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, block: astx.Block) -> None:
         """
         title: Visit Block nodes.
@@ -41,7 +40,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         if result is not None:
             self.result_stack.append(result)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:
         """
         title: Visit IfStmt nodes.
@@ -133,7 +132,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         ):
             self.result_stack.append(else_v)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, expr: astx.WhileStmt) -> None:
         """
         title: Visit WhileStmt nodes.
@@ -184,7 +183,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.position_at_end(after_bb)
         self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """
         title: Visit ForCountLoopStmt nodes.
@@ -265,7 +264,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
         """
         title: Visit ForRangeLoopStmt nodes.
@@ -367,7 +366,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.BreakStmt) -> None:
         """
         title: Visit BreakStmt nodes.
@@ -380,7 +379,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         break_target = self.loop_stack[-1]["break_target"]
         self._llvm.ir_builder.branch(break_target)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.ContinueStmt) -> None:
         """
         title: Visit ContinueStmt nodes.

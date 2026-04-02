@@ -7,12 +7,12 @@ title: Module-level visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.core import _VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
 class ModuleVisitorMixin(VisitorMixinBase):
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.Module) -> None:
         """
         title: Visit Module nodes.
@@ -23,7 +23,7 @@ class ModuleVisitorMixin(VisitorMixinBase):
         for mod_node in node.nodes:
             self.visit_child(mod_node)
 
-    @BuilderVisitor.visit.dispatch
+    @_VisitorCore.visit.dispatch
     def visit(self, node: astx.StructDefStmt) -> None:
         """
         title: Visit StructDefStmt nodes.
