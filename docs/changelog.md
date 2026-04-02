@@ -1,6 +1,29 @@
 # Release Notes
 ---
 
+# [1.9.0](https://github.com/arxlang/irx/compare/1.8.1...1.9.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* **codegen:** use safe_pop for loop body lowering; use fadd/fsub for float unary inc and dec ([#264](https://github.com/arxlang/irx/issues/264)) ([326a0db](https://github.com/arxlang/irx/commit/326a0dbe4404e4d2251c43cc912183c9c628689f))
+* **compiler:** use fadd instead of add for float loop variables ([#219](https://github.com/arxlang/irx/issues/219)) ([2922af3](https://github.com/arxlang/irx/commit/2922af349b54d535171805cc202cb036c6cdfdbb)), closes [#217](https://github.com/arxlang/irx/issues/217)
+* default vector int division to signed to match scalar behavior ([#205](https://github.com/arxlang/irx/issues/205)) ([a9bbc72](https://github.com/arxlang/irx/commit/a9bbc72252c90a86b774eb7a5d300c646898e821))
+* FunctionDef does not emit a return for void functions ([#252](https://github.com/arxlang/irx/issues/252)) ([d890f24](https://github.com/arxlang/irx/commit/d890f246bcfc5b6086dec5beb0b4fb0f4a31ce8d))
+
+
+### Features
+
+* **#247:** implement set operations (union, intersection, difference, symmetric difference) ([#254](https://github.com/arxlang/irx/issues/254)) ([2cbe8f7](https://github.com/arxlang/irx/commit/2cbe8f760e95a3f0972f6146db4fd1047b9219a0)), closes [#247](https://github.com/arxlang/irx/issues/247)
+* **#249:** implement dict key lookup via SubscriptExpr visitor ([#253](https://github.com/arxlang/irx/issues/253)) ([e871553](https://github.com/arxlang/irx/commit/e871553dc90182506eab6511702b43de3e7b001b)), closes [#249](https://github.com/arxlang/irx/issues/249)
+* add BreakStmt and ContinueStmt support in IRx ([#259](https://github.com/arxlang/irx/issues/259)) ([da55ff2](https://github.com/arxlang/irx/commit/da55ff261d720f8fdc9c1ceb5797bf9f873cbe8c))
+* Add initial support for Arrow ([#232](https://github.com/arxlang/irx/issues/232)) ([ca1a302](https://github.com/arxlang/irx/commit/ca1a30203151c79a713b3e1928d65ea495df5bd3))
+* add LLVM IR codegen for StructDefStmt and tests ([#201](https://github.com/arxlang/irx/issues/201)) ([9d2498c](https://github.com/arxlang/irx/commit/9d2498cb116c261a5101a2f7f6009d305311c5c5))
+* add minimal LiteralTuple lowering support ([#225](https://github.com/arxlang/irx/issues/225)) ([9b1f2c6](https://github.com/arxlang/irx/commit/9b1f2c65be2d31d5057b6fd27ed3f68695ed62bb))
+* Add structured CommandResult and error handling for run_command ([#215](https://github.com/arxlang/irx/issues/215)) ([b40b478](https://github.com/arxlang/irx/commit/b40b47889cbe4de9ff498a2c6239c1d4cb5339d8))
+* extend LiteralSet lowering to support mixed-width integer constants ([#231](https://github.com/arxlang/irx/issues/231)) ([56454ff](https://github.com/arxlang/irx/commit/56454ff3b07dc03624cf95a0e9b6c808e2a3a833))
+* minimal LiteralDict lowering support ([#174](https://github.com/arxlang/irx/issues/174)) ([82675e4](https://github.com/arxlang/irx/commit/82675e4490bb4e7139755e14f1dfb28831d68744))
+
 ## [1.8.1](https://github.com/arxlang/irx/compare/1.8.0...1.8.1) (2026-03-06)
 
 
