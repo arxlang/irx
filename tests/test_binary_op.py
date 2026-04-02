@@ -5,9 +5,9 @@ title: Tests for the BinaryOp.
 import pytest
 
 from irx import astx
+from irx.astx import PrintExpr
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import Builder as LLVMBuilder
-from irx.astx import PrintExpr
 
 from .conftest import check_result
 
