@@ -49,7 +49,7 @@ from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     specialize_binary_op,
 )
-from irx.visitors.base import BaseVisitor
+from irx.base.visitors.base import BaseVisitor
 
 
 class SemanticAnalyzer(BaseVisitor):

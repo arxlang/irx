@@ -16,8 +16,8 @@ from typing import Any, Sequence
 from plum import dispatch
 
 from irx import astx
+from irx.base.visitors.base import BaseVisitor
 from irx.typecheck import typechecked
-from irx.visitors.base import BaseVisitor
 
 logger = logging.getLogger(__name__)
 

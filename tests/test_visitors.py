@@ -10,8 +10,8 @@ import pytest
 
 from irx import astx
 from irx.analysis.facade import SemanticAnalyzer
+from irx.base.visitors import BaseVisitor
 from irx.builders.llvmliteir import Visitor
-from irx.visitors import BaseVisitor
 from plum import dispatch
 
 
