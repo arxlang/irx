@@ -31,11 +31,11 @@ from irx.astx.binary_op import (
     specialize_binary_op,
 )
 from irx.builders.llvmliteir.core import (
-    _semantic_flag,
-    _semantic_fma_rhs,
-    _semantic_symbol_key,
-    _uses_unsigned_semantics,
-    _VisitorCore,
+    VisitorCore,
+    semantic_flag,
+    semantic_fma_rhs,
+    semantic_symbol_key,
+    uses_unsigned_semantics,
 )
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
@@ -85,7 +85,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         if llvm_lhs is None or llvm_rhs is None:
             raise Exception("codegen: Invalid lhs/rhs")
 
-        unsigned = _uses_unsigned_semantics(node)
+        unsigned = uses_unsigned_semantics(node)
         if (
             unify_numeric
             and self._is_numeric_value(llvm_lhs)
@@ -122,7 +122,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
         is_float_vec = is_fp_type(llvm_lhs.type.element)
         prev_fast_math = self._fast_math_enabled
-        if is_float_vec and _semantic_flag(node, "fast_math"):
+        if is_float_vec and semantic_flag(node, "fast_math"):
             self.set_fast_math(True)
         try:
             if is_float_vec:
@@ -161,7 +161,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
         is_float_vec = is_fp_type(llvm_lhs.type.element)
         prev_fast_math = self._fast_math_enabled
-        if is_float_vec and _semantic_flag(node, "fast_math"):
+        if is_float_vec and semantic_flag(node, "fast_math"):
             self.set_fast_math(True)
         try:
             if is_float_vec:
@@ -199,9 +199,9 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             return None
 
         is_float_vec = is_fp_type(llvm_lhs.type.element)
-        set_fast = is_float_vec and _semantic_flag(node, "fast_math")
-        if _semantic_flag(node, "fma") and is_float_vec:
-            fma_rhs_node = _semantic_fma_rhs(node)
+        set_fast = is_float_vec and semantic_flag(node, "fast_math")
+        if semantic_flag(node, "fma") and is_float_vec:
+            fma_rhs_node = semantic_fma_rhs(node)
             if fma_rhs_node is None:
                 raise Exception("FMA requires a third operand (fma_rhs)")
             self.visit_child(fma_rhs_node)
@@ -265,7 +265,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
         is_float_vec = is_fp_type(llvm_lhs.type.element)
         prev_fast_math = self._fast_math_enabled
-        if is_float_vec and _semantic_flag(node, "fast_math"):
+        if is_float_vec and semantic_flag(node, "fast_math"):
             self.set_fast_math(True)
         try:
             if is_float_vec:
@@ -327,7 +327,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             name,
         )
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.BinaryOp) -> None:
         """
         title: Visit BinaryOp nodes.
@@ -340,7 +340,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             raise Exception(f"Binary op {node.op_code} not implemented yet.")
         self.visit_child(specialized)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: AssignmentBinOp) -> None:
         """
         title: Visit AssignmentBinOp nodes.
@@ -353,7 +353,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             raise Exception("destination of '=' must be a variable")
 
         lhs_name = var_lhs.name
-        lhs_key = _semantic_symbol_key(var_lhs, lhs_name)
+        lhs_key = semantic_symbol_key(var_lhs, lhs_name)
         if lhs_key in self.const_vars:
             raise Exception(
                 f"Cannot assign to '{lhs_name}': declared as constant"
@@ -371,7 +371,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.store(llvm_rhs, llvm_lhs)
         self.result_stack.append(llvm_rhs)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: AddBinOp) -> None:
         """
         title: Visit AddBinOp nodes.
@@ -399,7 +399,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: SubBinOp) -> None:
         """
         title: Visit SubBinOp nodes.
@@ -424,7 +424,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             result = self._llvm.ir_builder.sub(llvm_lhs, llvm_rhs, "subtmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: MulBinOp) -> None:
         """
         title: Visit MulBinOp nodes.
@@ -446,7 +446,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             result = self._llvm.ir_builder.mul(llvm_lhs, llvm_rhs, "multmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: DivBinOp) -> None:
         """
         title: Visit DivBinOp nodes.
@@ -475,7 +475,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             result = self._llvm.ir_builder.sdiv(llvm_lhs, llvm_rhs, "divtmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: ModBinOp) -> None:
         """
         title: Visit ModBinOp nodes.
@@ -496,7 +496,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             result = self._llvm.ir_builder.srem(llvm_lhs, llvm_rhs, "sremtmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: LogicalAndBinOp) -> None:
         """
         title: Visit LogicalAndBinOp nodes.
@@ -508,7 +508,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: LogicalOrBinOp) -> None:
         """
         title: Visit LogicalOrBinOp nodes.
@@ -520,7 +520,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: LtBinOp) -> None:
         """
         title: Visit LtBinOp nodes.
@@ -540,7 +540,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: GtBinOp) -> None:
         """
         title: Visit GtBinOp nodes.
@@ -560,7 +560,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: LeBinOp) -> None:
         """
         title: Visit LeBinOp nodes.
@@ -580,7 +580,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: GeBinOp) -> None:
         """
         title: Visit GeBinOp nodes.
@@ -600,7 +600,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: EqBinOp) -> None:
         """
         title: Visit EqBinOp nodes.
@@ -643,7 +643,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: NeBinOp) -> None:
         """
         title: Visit NeBinOp nodes.
@@ -686,7 +686,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             )
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: BitOrBinOp) -> None:
         """
         title: Visit BitOrBinOp nodes.
@@ -702,7 +702,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             return
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: BitAndBinOp) -> None:
         """
         title: Visit BitAndBinOp nodes.
@@ -718,7 +718,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             return
         raise Exception(f"Binary op {node.op_code} not implemented yet.")
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: BitXorBinOp) -> None:
         """
         title: Visit BitXorBinOp nodes.

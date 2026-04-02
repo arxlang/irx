@@ -68,7 +68,7 @@ phase split still leaves room for that evolution.
 
 ## Shared Visitor Foundation
 
-IRx also has a shared visitor layer in `src/irx/visitors/`.
+IRx also has a shared visitor layer in `src/irx/base/visitors/`.
 
 It currently provides:
 
@@ -100,7 +100,7 @@ For example, `src/irx/builders/llvmliteir/` exposes:
 - `Builder`
 - `Visitor`
 - `VisitorProtocol`
-- optional `_VisitorCore`
+- optional `VisitorCore` as a module-private implementation class
 
 This naming convention matters for future backends. A contributor adding a new
 backend should not need to invent unique class prefixes when the package path
@@ -111,7 +111,7 @@ already provides the context.
 The LLVM backend is split into first-class modules instead of one monolithic
 builder:
 
-- `../src/irx/visitors/`: shared visitor protocol and runtime scaffold
+- `../src/irx/base/visitors/`: shared visitor protocol and runtime scaffold
 - `facade.py`: public backend entry points
 - `core.py`: shared mutable lowering state and backend lifecycle
 - `protocols.py`: typing contract used by mixins and runtime features
@@ -141,12 +141,18 @@ That choice keeps backend code readable and local:
 
 ## Core Class and Protocol
 
-`VisitorProtocol` and `_VisitorCore` serve different purposes:
+`VisitorProtocol` and `VisitorCore` serve different purposes:
 
 - `VisitorProtocol` defines the stable interface that mixins and runtime feature
   declarations depend on for typing, building on `BaseVisitorProtocol`.
-- `_VisitorCore` is the concrete implementation center that owns mutable state,
+- `VisitorCore` is the concrete implementation center that owns mutable state,
   module setup, helper methods, and backend lifecycle.
+
+`VisitorCore` is still internal to the backend package. IRx uses
+`from public import private` for module-level internal helpers and internal
+implementation classes when a clear non-underscored name reads better than an
+underscore-prefixed export. That keeps internal names readable without making
+them part of the intended public surface.
 
 The protocol is not a replacement for the core class. It exists so backend
 subsystems can depend on a narrow contract instead of the full concrete type.
@@ -177,8 +183,8 @@ When extending IRx, these rules help preserve the architecture:
 
 - Put semantic meaning and validation in `analysis/`, not in a backend.
 - Let codegen consume normalized semantic information instead of re-deriving it.
-- Keep shared visitor dispatch defaults in `src/irx/visitors/` so semantic and
-  backend visitors fail consistently for unsupported ASTx nodes.
+- Keep shared visitor dispatch defaults in `src/irx/base/visitors/` so semantic
+  and backend visitors fail consistently for unsupported ASTx nodes.
 - Add new backend-wide infrastructure at the package root, not under `helpers/`.
 - Keep mutable lowering state instance-local.
 - Prefer explicit code over clever abstractions.
@@ -192,7 +198,7 @@ If IRx gains another backend, it should follow the same broad shape:
 - a public `Builder`
 - a public `Visitor`
 - a `VisitorProtocol` if mixins or runtime hooks need typed access
-- an optional `_VisitorCore` for shared state and infrastructure
+- an optional module-private `VisitorCore` for shared state and infrastructure
 
 That keeps backend packages consistent for both contributors and users of the
 library.

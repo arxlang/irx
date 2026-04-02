@@ -14,7 +14,7 @@ from public import public
 
 from irx import astx
 from irx.builders.base import Builder as BaseBuilder
-from irx.builders.llvmliteir.core import _VisitorCore
+from irx.builders.llvmliteir.core import VisitorCore
 from irx.builders.llvmliteir.visitors import (
     ArrowVisitorMixin,
     BinaryOpVisitorMixin,
@@ -42,7 +42,7 @@ class Visitor(
     ArrowVisitorMixin,
     SystemVisitorMixin,
     ModuleVisitorMixin,
-    _VisitorCore,
+    VisitorCore,
 ):
     pass
 

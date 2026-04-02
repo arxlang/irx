@@ -8,16 +8,16 @@ from llvmlite import ir
 
 from irx import astx
 from irx.builders.llvmliteir.core import (
-    _semantic_assignment_key,
-    _semantic_symbol_key,
-    _VisitorCore,
+    VisitorCore,
+    semantic_assignment_key,
+    semantic_symbol_key,
 )
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 
 
 class VariableVisitorMixin(VisitorMixinBase):
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, expr: astx.VariableAssignment) -> None:
         """
         title: Visit VariableAssignment nodes.
@@ -26,7 +26,7 @@ class VariableVisitorMixin(VisitorMixinBase):
             type: astx.VariableAssignment
         """
         var_name = expr.name
-        var_key = _semantic_assignment_key(expr, var_name)
+        var_key = semantic_assignment_key(expr, var_name)
 
         if var_key in self.const_vars:
             raise Exception(
@@ -47,7 +47,7 @@ class VariableVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.store(llvm_value, llvm_var)
         self.result_stack.append(llvm_value)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.Identifier) -> None:
         """
         title: Visit Identifier nodes.
@@ -55,7 +55,7 @@ class VariableVisitorMixin(VisitorMixinBase):
           node:
             type: astx.Identifier
         """
-        symbol_key = _semantic_symbol_key(node, node.name)
+        symbol_key = semantic_symbol_key(node, node.name)
         expr_var = self.named_values.get(symbol_key)
         if not expr_var:
             raise Exception(f"Unknown variable name: {node.name}")
@@ -63,7 +63,7 @@ class VariableVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.load(expr_var, node.name)
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Visit VariableDeclaration nodes.
@@ -71,7 +71,7 @@ class VariableVisitorMixin(VisitorMixinBase):
           node:
             type: astx.VariableDeclaration
         """
-        symbol_key = _semantic_symbol_key(node, node.name)
+        symbol_key = semantic_symbol_key(node, node.name)
         if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")
 
@@ -128,7 +128,7 @@ class VariableVisitorMixin(VisitorMixinBase):
             self.const_vars.add(symbol_key)
         self.named_values[symbol_key] = alloca
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """
         title: Visit InlineVariableDeclaration nodes.
@@ -136,7 +136,7 @@ class VariableVisitorMixin(VisitorMixinBase):
           node:
             type: astx.InlineVariableDeclaration
         """
-        symbol_key = _semantic_symbol_key(node, node.name)
+        symbol_key = semantic_symbol_key(node, node.name)
         if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")
 

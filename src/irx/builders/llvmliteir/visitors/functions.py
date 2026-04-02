@@ -7,14 +7,14 @@ title: Function visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.llvmliteir.core import _semantic_symbol_key, _VisitorCore
+from irx.builders.llvmliteir.core import VisitorCore, semantic_symbol_key
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
 
 
 class FunctionVisitorMixin(VisitorMixinBase):
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:
         """
         title: Visit FunctionCall nodes.
@@ -40,7 +40,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
         result = self._llvm.ir_builder.call(callee_f, llvm_args, "calltmp")
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionDef) -> None:
         """
         title: Visit FunctionDef nodes.
@@ -61,7 +61,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
             arg_ast = proto.args.nodes[idx]
             type_str = arg_ast.type_.__class__.__name__.lower()
             arg_type = self._llvm.get_data_type(type_str)
-            symbol_key = _semantic_symbol_key(arg_ast, llvm_arg.name)
+            symbol_key = semantic_symbol_key(arg_ast, llvm_arg.name)
             alloca = self._llvm.ir_builder.alloca(arg_type, name=llvm_arg.name)
             self._llvm.ir_builder.store(llvm_arg, alloca)
             self.named_values[symbol_key] = alloca
@@ -79,7 +79,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         self.result_stack.append(fn)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionPrototype) -> None:
         """
         title: Visit FunctionPrototype nodes.
@@ -103,7 +103,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         self.result_stack.append(fn)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
         """
         title: Visit FunctionReturn nodes.

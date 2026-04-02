@@ -12,6 +12,7 @@ from llvmlite import binding as llvm
 from llvmlite import ir
 from llvmlite.ir import DoubleType, FloatType, HalfType
 from plum import dispatch
+from public import private
 
 from irx import astx
 
@@ -44,7 +45,8 @@ FLOAT64_BITS = 64
 FLOAT128_BITS = 128
 
 
-def _is_unsigned_node(node: astx.AST) -> bool:
+@private
+def is_unsigned_node(node: astx.AST) -> bool:
     """
     title: Is unsigned node.
     parameters:
@@ -57,7 +59,8 @@ def _is_unsigned_node(node: astx.AST) -> bool:
     return isinstance(type_, astx.UnsignedInteger)
 
 
-def _uses_unsigned_semantics(node: astx.AST) -> bool:
+@private
+def uses_unsigned_semantics(node: astx.AST) -> bool:
     """
     title: Uses unsigned semantics.
     parameters:
@@ -75,10 +78,11 @@ def _uses_unsigned_semantics(node: astx.AST) -> bool:
     explicit_unsigned = cast(bool | None, getattr(node, "unsigned", None))
     if explicit_unsigned is not None:
         return explicit_unsigned
-    return _is_unsigned_node(node)
+    return is_unsigned_node(node)
 
 
-def _semantic_symbol_key(node: astx.AST, fallback: str) -> str:
+@private
+def semantic_symbol_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic symbol key.
     parameters:
@@ -97,7 +101,8 @@ def _semantic_symbol_key(node: astx.AST, fallback: str) -> str:
     return fallback
 
 
-def _semantic_assignment_key(node: astx.AST, fallback: str) -> str:
+@private
+def semantic_assignment_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic assignment key.
     parameters:
@@ -117,7 +122,8 @@ def _semantic_assignment_key(node: astx.AST, fallback: str) -> str:
     return fallback
 
 
-def _semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
+@private
+def semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
     """
     title: Semantic flag.
     parameters:
@@ -137,7 +143,8 @@ def _semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
     return bool(getattr(node, name, default))
 
 
-def _semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
+@private
+def semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
     """
     title: Semantic fma rhs.
     parameters:
@@ -154,7 +161,8 @@ def _semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
     return getattr(node, "fma_rhs", None)
 
 
-class _VisitorCore(BuilderVisitor):
+@private
+class VisitorCore(BuilderVisitor):
     named_values: NamedValueMap
     _llvm: VariablesLLVM
     function_protos: dict[str, astx.FunctionPrototype]
@@ -173,7 +181,7 @@ class _VisitorCore(BuilderVisitor):
         active_runtime_features: set[str] | None = None,
     ) -> None:
         """
-        title: Initialize _VisitorCore.
+        title: Initialize VisitorCore.
         parameters:
           active_runtime_features:
             type: set[str] | None
@@ -917,12 +925,12 @@ class _VisitorCore(BuilderVisitor):
         returns:
           type: bool
         """
-        if _uses_unsigned_semantics(node.index):
+        if uses_unsigned_semantics(node.index):
             return True
 
         if isinstance(node.value, astx.LiteralDict) and node.value.elements:
             first_key_node = next(iter(node.value.elements))
-            return _uses_unsigned_semantics(first_key_node)
+            return uses_unsigned_semantics(first_key_node)
 
         return False
 
@@ -1640,13 +1648,3 @@ class _VisitorCore(BuilderVisitor):
         gv.global_constant = True
         gv.initializer = ir.Constant(arr_ty, data)
         return gv
-
-
-__all__ = [
-    "_VisitorCore",
-    "_semantic_assignment_key",
-    "_semantic_flag",
-    "_semantic_fma_rhs",
-    "_semantic_symbol_key",
-    "_uses_unsigned_semantics",
-]

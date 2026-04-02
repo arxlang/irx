@@ -7,14 +7,14 @@ title: System/runtime visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.llvmliteir.core import _VisitorCore
+from irx.builders.llvmliteir.core import VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type, is_int_type
 
 
 class SystemVisitorMixin(VisitorMixinBase):
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.Cast) -> None:
         """
         title: Visit Cast nodes.
@@ -109,7 +109,7 @@ class SystemVisitorMixin(VisitorMixinBase):
 
         self.result_stack.append(result)
 
-    @_VisitorCore.visit.dispatch
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.PrintExpr) -> None:
         """
         title: Visit PrintExpr nodes.

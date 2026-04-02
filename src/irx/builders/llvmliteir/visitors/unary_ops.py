@@ -7,14 +7,14 @@ title: Unary-operator visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.llvmliteir.core import _semantic_symbol_key, _VisitorCore
+from irx.builders.llvmliteir.core import VisitorCore, semantic_symbol_key
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 
 
 class UnaryOpVisitorMixin(VisitorMixinBase):
-    @_VisitorCore.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
+    @VisitorCore.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.UnaryOp) -> None:
         """
         title: Visit UnaryOp nodes.
@@ -28,7 +28,7 @@ class UnaryOpVisitorMixin(VisitorMixinBase):
             if operand_val is None:
                 raise Exception("codegen: Invalid unary operand.")
             operand_key = (
-                _semantic_symbol_key(node.operand, node.operand.name)
+                semantic_symbol_key(node.operand, node.operand.name)
                 if isinstance(node.operand, astx.Identifier)
                 else ""
             )
@@ -58,7 +58,7 @@ class UnaryOpVisitorMixin(VisitorMixinBase):
             if operand_val is None:
                 raise Exception("codegen: Invalid unary operand.")
             operand_key = (
-                _semantic_symbol_key(node.operand, node.operand.name)
+                semantic_symbol_key(node.operand, node.operand.name)
                 if isinstance(node.operand, astx.Identifier)
                 else ""
             )
@@ -100,7 +100,7 @@ class UnaryOpVisitorMixin(VisitorMixinBase):
                 )
 
             if isinstance(node.operand, astx.Identifier):
-                operand_key = _semantic_symbol_key(
+                operand_key = semantic_symbol_key(
                     node.operand, node.operand.name
                 )
                 if operand_key in self.const_vars:

@@ -142,14 +142,13 @@ API.
 ## Repository Layout
 
 - `src/irx/analysis/`: semantic analysis package
-- `src/irx/visitors/`: shared visitor protocol and concrete dispatch scaffold
+- `src/irx/astx/`: IRx-owned AST facade and custom AST node extensions
+- `src/irx/base/visitors/`: shared visitor protocol and concrete dispatch
+  scaffold
 - `src/irx/builders/base.py`: generic builder abstractions
 - `src/irx/builders/llvmliteir/`: LLVM backend package
-- `src/irx/builders/_llvmliteir_legacy.py`: internal transitional detail; avoid
-  adding new behavior here unless the task specifically requires it
 - `src/irx/runtime/`: runtime feature declarations and linking helpers
 - `src/irx/system.py`: IRx-specific ASTx expression helpers
-- `src/irx/arrow.py`: Arrow-related ASTx helpers
 - `src/irx/symbol_table.py`: older symbol-table utilities still present in the
   repo
 - `tests/`: unit and integration tests
@@ -163,21 +162,26 @@ API.
   codegen.
 - Let backends consume analyzed or normalized node information instead of
   re-deriving raw AST meaning.
-- Keep shared visitor behavior in `src/irx/visitors/` so semantic and backend
-  visitors fail consistently for unsupported ASTx nodes.
+- Keep shared visitor behavior in `src/irx/base/visitors/` so semantic and
+  backend visitors fail consistently for unsupported ASTx nodes.
 - Keep foundational backend infrastructure at the backend package root instead
   of creating a generic `helpers/` folder.
 - Keep mutable codegen state instance-local.
 - Preserve `visit(self, node: ...)` as the public codegen dispatch boundary.
 - Use package names, not class prefixes, to distinguish backends.
+- Prefer clear module-level internal names plus `from public import private`
+  when that reads better than underscore-prefixed exports. For methods and
+  attributes, continue using underscores when they are still the clearest
+  internal signal.
 
 ## Working In `llvmliteir`
 
 The LLVM backend package is structured around:
 
-- `../src/irx/visitors/`: shared `BaseVisitor` and `BaseVisitorProtocol`
+- `../src/irx/base/visitors/`: shared `BaseVisitor` and `BaseVisitorProtocol`
 - `facade.py`: public `Builder` and `Visitor`
-- `core.py`: shared concrete visitor state and lifecycle
+- `core.py`: shared concrete visitor state and lifecycle, including the
+  module-private `VisitorCore`
 - `protocols.py`: LLVM-specific typing contract layered on `BaseVisitorProtocol`
 - `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared
   lowering infrastructure
