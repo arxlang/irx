@@ -2,58 +2,250 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://irx.arxlang.org/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/architecture/</loc>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/changelog/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/contributing/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/installation/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/runtime-features/</loc>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/SUMMARY/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/symbol_table/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/system/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/typecheck/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/context/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/diagnostics/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/facade/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/normalization/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/resolved_nodes/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/scopes/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/symbols/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/types/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/typing/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/validation/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/arrow/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/binary_op/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/symbol_table/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/system/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/base/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/base/visitors/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/base/visitors/base/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/base/visitors/protocols/</loc>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/base/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builders/llvmliteir/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/tools/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/casting/</loc>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/tools/typing/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/core/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/facade/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/protocols/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/runtime/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/state/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/strings/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/types/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/vector/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/arrow/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/binary_ops/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/control_flow/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/functions/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/literals/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/modules/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/system/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/temporal/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/unary_ops/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builders/llvmliteir/visitors/variables/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/feature_libc/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/features/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/linking/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/registry/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/arrow/</loc>
+         <lastmod>2026-04-02</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/runtime/arrow/feature/</loc>
+         <lastmod>2026-04-02</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/tutorials/get-started/</loc>
-         <lastmod>2026-03-06</lastmod>
+         <lastmod>2026-04-02</lastmod>
     </url>
 </urlset>
