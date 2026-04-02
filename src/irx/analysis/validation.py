@@ -115,6 +115,14 @@ def validate_cast(
 
 
 def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is numeric cast type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return is_numeric_type(type_) or is_boolean_type(type_)
 
 

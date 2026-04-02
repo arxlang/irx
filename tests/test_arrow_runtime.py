@@ -33,6 +33,14 @@ from nanoarrow.c_schema import allocate_c_schema
 
 
 def _arrow_length_module(values: list[int]) -> astx.Module:
+    """
+    title: Arrow length module.
+    parameters:
+      values:
+        type: list[int]
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     main_proto = astx.FunctionPrototype(
         "main", args=astx.Arguments(), return_type=astx.Int32()
@@ -50,6 +58,11 @@ def _arrow_length_module(values: list[int]) -> astx.Module:
 
 
 def _plain_main_module() -> astx.Module:
+    """
+    title: Plain main module.
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     main_proto = astx.FunctionPrototype(
         "main", args=astx.Arguments(), return_type=astx.Int32()
@@ -61,6 +74,14 @@ def _plain_main_module() -> astx.Module:
 
 
 def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
+    """
+    title: Compile arrow harness.
+    parameters:
+      source:
+        type: str
+    returns:
+      type: subprocess.CompletedProcess[str]
+    """
     feature = build_arrow_runtime_feature()
     native_root = (
         Path(__file__).resolve().parents[1]
@@ -112,6 +133,11 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
 
 
 def _shared_library_suffix() -> str:
+    """
+    title: Shared library suffix.
+    returns:
+      type: str
+    """
     if sys.platform == "darwin":
         return ".dylib"
 
@@ -120,6 +146,11 @@ def _shared_library_suffix() -> str:
 
 @contextmanager
 def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
+    """
+    title: Load arrow runtime library.
+    returns:
+      type: Iterator[ctypes.CDLL]
+    """
     if sys.platform == "win32":
         pytest.skip("nanoarrow interop shared-library tests require Unix")
 
@@ -161,6 +192,12 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
 
 
 def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
+    """
+    title: Configure arrow runtime library.
+    parameters:
+      library:
+        type: ctypes.CDLL
+    """
     library.irx_arrow_array_builder_int32_new.argtypes = [
         ctypes.POINTER(ctypes.c_void_p)
     ]
@@ -202,12 +239,30 @@ def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
 
 
 def _assert_arrow_ok(library: ctypes.CDLL, code: int) -> None:
+    """
+    title: Assert arrow ok.
+    parameters:
+      library:
+        type: ctypes.CDLL
+      code:
+        type: int
+    """
     assert code == 0, library.irx_arrow_last_error().decode()
 
 
 def _build_runtime_array(
     library: ctypes.CDLL, values: list[int]
 ) -> ctypes.c_void_p:
+    """
+    title: Build runtime array.
+    parameters:
+      library:
+        type: ctypes.CDLL
+      values:
+        type: list[int]
+    returns:
+      type: ctypes.c_void_p
+    """
     builder = ctypes.c_void_p()
     array_handle = ctypes.c_void_p()
 

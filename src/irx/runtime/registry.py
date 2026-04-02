@@ -26,6 +26,9 @@ class RuntimeFeatureRegistry:
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize RuntimeFeatureRegistry.
+        """
         self._features: dict[str, RuntimeFeature] = {}
 
     def register(self, feature: RuntimeFeature) -> None:
@@ -89,6 +92,16 @@ class RuntimeFeatureState:
         registry: RuntimeFeatureRegistry,
         active_features: Iterable[str] | None = None,
     ) -> None:
+        """
+        title: Initialize RuntimeFeatureState.
+        parameters:
+          owner:
+            type: VisitorProtocol
+          registry:
+            type: RuntimeFeatureRegistry
+          active_features:
+            type: Iterable[str] | None
+        """
         self._owner = owner
         self._registry = registry
         self._active_features: set[str] = set()

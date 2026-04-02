@@ -30,10 +30,24 @@ class _NoFmaBuilder:
     """
 
     def __init__(self, real: ir.IRBuilder) -> None:
+        """
+        title: Initialize _NoFmaBuilder.
+        parameters:
+          real:
+            type: ir.IRBuilder
+        """
         self._real: ir.IRBuilder = real
         self.called: list[str] = []
 
     def __getattr__(self, name: str) -> Any:
+        """
+        title: Return one attribute.
+        parameters:
+          name:
+            type: str
+        returns:
+          type: Any
+        """
         if name == "fma":
             raise AttributeError
         return getattr(self._real, name)
@@ -44,11 +58,29 @@ class _NoFmaBuilder:
         args: list[ir.Value],
         name: str | None = None,
     ) -> ir.Instruction:
+        """
+        title: Call.
+        parameters:
+          fn:
+            type: ir.Function
+          args:
+            type: list[ir.Value]
+          name:
+            type: str | None
+        returns:
+          type: ir.Instruction
+        """
         self.called.append(fn.name)
         return self._real.call(fn, args, name=name)
 
 
 def _prime_builder(visitor: Visitor) -> None:
+    """
+    title: Prime builder.
+    parameters:
+      visitor:
+        type: Visitor
+    """
     float_ty = visitor._llvm.FLOAT_TYPE
     fn_ty = ir.FunctionType(float_ty, [])
     fn = ir.Function(visitor._llvm.module, fn_ty, name="fma_cover")

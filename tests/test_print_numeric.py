@@ -9,6 +9,14 @@ from llvmlite import binding as llvm
 
 
 def _translate_and_validate(module: astx.Module) -> str:
+    """
+    title: Translate and validate.
+    parameters:
+      module:
+        type: astx.Module
+    returns:
+      type: str
+    """
     builder = Builder()
     ir_text = builder.translate(module)
     llvm.parse_assembly(ir_text)
@@ -16,6 +24,12 @@ def _translate_and_validate(module: astx.Module) -> str:
 
 
 def _assert_puts_uses_char_ptr(ir_text: str) -> None:
+    """
+    title: Assert puts uses char ptr.
+    parameters:
+      ir_text:
+        type: str
+    """
     assert 'call i32 @"puts"(i8*' in ir_text
     assert 'call i32 @"puts"(i32' not in ir_text
     assert 'call i32 @"puts"(float' not in ir_text

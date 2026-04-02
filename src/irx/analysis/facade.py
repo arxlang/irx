@@ -63,6 +63,9 @@ class SemanticAnalyzer(BaseVisitor):
     context: SemanticContext
 
     def __init__(self) -> None:
+        """
+        title: Initialize SemanticAnalyzer.
+        """
         self.context = SemanticContext()
 
     def analyze(self, node: astx.AST) -> astx.AST:
@@ -83,6 +86,14 @@ class SemanticAnalyzer(BaseVisitor):
         return node
 
     def _semantic(self, node: astx.AST) -> SemanticInfo:
+        """
+        title: Semantic.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticInfo
+        """
         info = cast(SemanticInfo | None, getattr(node, "semantic", None))
         if info is None or not isinstance(info, SemanticInfo):
             info = SemanticInfo()
@@ -92,6 +103,16 @@ class SemanticAnalyzer(BaseVisitor):
     def _set_type(
         self, node: astx.AST, type_: astx.DataType | None
     ) -> astx.DataType | None:
+        """
+        title: Set type.
+        parameters:
+          node:
+            type: astx.AST
+          type_:
+            type: astx.DataType | None
+        returns:
+          type: astx.DataType | None
+        """
         info = self._semantic(node)
         info.resolved_type = type_
         if type_ is not None and hasattr(node, "type_"):
@@ -104,6 +125,16 @@ class SemanticAnalyzer(BaseVisitor):
     def _set_symbol(
         self, node: astx.AST, symbol: SemanticSymbol | None
     ) -> SemanticSymbol | None:
+        """
+        title: Set symbol.
+        parameters:
+          node:
+            type: astx.AST
+          symbol:
+            type: SemanticSymbol | None
+        returns:
+          type: SemanticSymbol | None
+        """
         info = self._semantic(node)
         info.resolved_symbol = symbol
         if symbol is not None:
@@ -113,6 +144,16 @@ class SemanticAnalyzer(BaseVisitor):
     def _set_function(
         self, node: astx.AST, function: SemanticFunction | None
     ) -> SemanticFunction | None:
+        """
+        title: Set function.
+        parameters:
+          node:
+            type: astx.AST
+          function:
+            type: SemanticFunction | None
+        returns:
+          type: SemanticFunction | None
+        """
         info = self._semantic(node)
         info.resolved_function = function
         if function is not None:
@@ -120,6 +161,14 @@ class SemanticAnalyzer(BaseVisitor):
         return function
 
     def _set_flags(self, node: astx.AST, flags: SemanticFlags) -> None:
+        """
+        title: Set flags.
+        parameters:
+          node:
+            type: astx.AST
+          flags:
+            type: SemanticFlags
+        """
         info = self._semantic(node)
         info.semantic_flags = flags
 
@@ -128,12 +177,28 @@ class SemanticAnalyzer(BaseVisitor):
         node: astx.AST,
         operator: ResolvedOperator | None,
     ) -> None:
+        """
+        title: Set operator.
+        parameters:
+          node:
+            type: astx.AST
+          operator:
+            type: ResolvedOperator | None
+        """
         info = self._semantic(node)
         info.resolved_operator = operator
 
     def _set_assignment(
         self, node: astx.AST, symbol: SemanticSymbol | None
     ) -> None:
+        """
+        title: Set assignment.
+        parameters:
+          node:
+            type: astx.AST
+          symbol:
+            type: SemanticSymbol | None
+        """
         info = self._semantic(node)
         if symbol is None:
             info.resolved_assignment = None
@@ -141,6 +206,14 @@ class SemanticAnalyzer(BaseVisitor):
         info.resolved_assignment = ResolvedAssignment(symbol)
 
     def _expr_type(self, node: astx.AST | None) -> astx.DataType | None:
+        """
+        title: Expr type.
+        parameters:
+          node:
+            type: astx.AST | None
+        returns:
+          type: astx.DataType | None
+        """
         if node is None:
             return None
         info = cast(SemanticInfo | None, getattr(node, "semantic", None))
@@ -157,6 +230,22 @@ class SemanticAnalyzer(BaseVisitor):
         declaration: astx.AST,
         kind: str = "variable",
     ) -> SemanticSymbol:
+        """
+        title: Declare symbol.
+        parameters:
+          name:
+            type: str
+          type_:
+            type: astx.DataType
+          is_mutable:
+            type: bool
+          declaration:
+            type: astx.AST
+          kind:
+            type: str
+        returns:
+          type: SemanticSymbol
+        """
         symbol = variable_symbol(
             self.context.next_symbol_id(kind),
             name,
@@ -178,6 +267,16 @@ class SemanticAnalyzer(BaseVisitor):
         *,
         definition: astx.FunctionDef | None = None,
     ) -> SemanticFunction:
+        """
+        title: Register function.
+        parameters:
+          prototype:
+            type: astx.FunctionPrototype
+          definition:
+            type: astx.FunctionDef | None
+        returns:
+          type: SemanticFunction
+        """
         existing = self.context.functions.get(prototype.name)
         if existing is not None:
             if definition is not None and existing.definition is not None:
@@ -212,6 +311,12 @@ class SemanticAnalyzer(BaseVisitor):
         return function
 
     def _predeclare_module_members(self, module: astx.Module) -> None:
+        """
+        title: Predeclare module members.
+        parameters:
+          module:
+            type: astx.Module
+        """
         for node in module.nodes:
             if isinstance(node, astx.FunctionPrototype):
                 self._set_function(node, self._register_function(node))
@@ -232,10 +337,22 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.AST) -> None:
+        """
+        title: Visit AST nodes.
+        parameters:
+          node:
+            type: astx.AST
+        """
         self._visit_plain_typed_node(node)
 
     @dispatch
     def visit(self, module: astx.Module) -> None:
+        """
+        title: Visit Module nodes.
+        parameters:
+          module:
+            type: astx.Module
+        """
         self._set_type(module, None)
         with self.context.scope("module"):
             self._predeclare_module_members(module)
@@ -244,15 +361,33 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, block: astx.Block) -> None:
+        """
+        title: Visit Block nodes.
+        parameters:
+          block:
+            type: astx.Block
+        """
         self._set_type(block, None)
         for node in block.nodes:
             self.visit(node)
 
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
+        """
+        title: Visit plain typed node.
+        parameters:
+          node:
+            type: astx.AST
+        """
         self._set_type(node, getattr(node, "type_", None))
 
     @dispatch
     def visit(self, node: astx.FunctionPrototype) -> None:
+        """
+        title: Visit FunctionPrototype nodes.
+        parameters:
+          node:
+            type: astx.FunctionPrototype
+        """
         function = self.context.functions.get(node.name)
         if function is None:
             function = self._register_function(node)
@@ -260,6 +395,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.FunctionDef) -> None:
+        """
+        title: Visit FunctionDef nodes.
+        parameters:
+          node:
+            type: astx.FunctionDef
+        """
         function = self.context.functions.get(node.name)
         if function is None:
             function = self._register_function(node.prototype, definition=node)
@@ -285,6 +426,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
+        """
+        title: Visit VariableDeclaration nodes.
+        parameters:
+          node:
+            type: astx.VariableDeclaration
+        """
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
@@ -306,6 +453,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
+        """
+        title: Visit InlineVariableDeclaration nodes.
+        parameters:
+          node:
+            type: astx.InlineVariableDeclaration
+        """
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
@@ -327,6 +480,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.Identifier) -> None:
+        """
+        title: Visit Identifier nodes.
+        parameters:
+          node:
+            type: astx.Identifier
+        """
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
             self.context.diagnostics.add(
@@ -341,6 +500,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.VariableAssignment) -> None:
+        """
+        title: Visit VariableAssignment nodes.
+        parameters:
+          node:
+            type: astx.VariableAssignment
+        """
         self.visit(node.value)
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
@@ -367,6 +532,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.UnaryOp) -> None:
+        """
+        title: Visit UnaryOp nodes.
+        parameters:
+          node:
+            type: astx.UnaryOp
+        """
         self.visit(node.operand)
         operand_type = self._expr_type(node.operand)
         result_type = unary_result_type(node.op_code, operand_type)
@@ -397,6 +568,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.BinaryOp) -> None:
+        """
+        title: Visit BinaryOp nodes.
+        parameters:
+          node:
+            type: astx.BinaryOp
+        """
         self.visit(node.lhs)
         self.visit(node.rhs)
         lhs_type = self._expr_type(node.lhs)
@@ -487,6 +664,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.FunctionCall) -> None:
+        """
+        title: Visit FunctionCall nodes.
+        parameters:
+          node:
+            type: astx.FunctionCall
+        """
         function = self.context.functions.get(node.fn)
         arg_types: list[astx.DataType | None] = []
         for arg in node.args:
@@ -508,6 +691,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
+        """
+        title: Visit FunctionReturn nodes.
+        parameters:
+          node:
+            type: astx.FunctionReturn
+        """
         if self.context.current_function is None:
             self.context.diagnostics.add(
                 "Return statement outside function.",
@@ -527,6 +716,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.IfStmt) -> None:
+        """
+        title: Visit IfStmt nodes.
+        parameters:
+          node:
+            type: astx.IfStmt
+        """
         self.visit(node.condition)
         self.visit(node.then)
         if node.else_ is not None:
@@ -535,6 +730,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.WhileStmt) -> None:
+        """
+        title: Visit WhileStmt nodes.
+        parameters:
+          node:
+            type: astx.WhileStmt
+        """
         self.visit(node.condition)
         with self.context.in_loop():
             self.visit(node.body)
@@ -542,6 +743,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.ForCountLoopStmt) -> None:
+        """
+        title: Visit ForCountLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForCountLoopStmt
+        """
         with self.context.scope("for-count"):
             if node.initializer.value is not None:
                 self.visit(node.initializer.value)
@@ -562,6 +769,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
+        """
+        title: Visit ForRangeLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForRangeLoopStmt
+        """
         with self.context.scope("for-range"):
             self.visit(node.start)
             self.visit(node.end)
@@ -582,6 +795,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.BreakStmt) -> None:
+        """
+        title: Visit BreakStmt nodes.
+        parameters:
+          node:
+            type: astx.BreakStmt
+        """
         if self.context.loop_depth <= 0:
             self.context.diagnostics.add(
                 "Break statement outside loop.",
@@ -591,6 +810,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.ContinueStmt) -> None:
+        """
+        title: Visit ContinueStmt nodes.
+        parameters:
+          node:
+            type: astx.ContinueStmt
+        """
         if self.context.loop_depth <= 0:
             self.context.diagnostics.add(
                 "Continue statement outside loop.",
@@ -600,6 +825,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.Cast) -> None:
+        """
+        title: Visit Cast nodes.
+        parameters:
+          node:
+            type: astx.Cast
+        """
         self.visit(node.value)
         source_type = self._expr_type(node.value)
         target_type = cast(astx.DataType | None, node.target_type)
@@ -613,6 +844,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.PrintExpr) -> None:
+        """
+        title: Visit PrintExpr nodes.
+        parameters:
+          node:
+            type: astx.PrintExpr
+        """
         self.visit(node.message)
         message_type = self._expr_type(node.message)
         if not (
@@ -629,6 +866,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
+        """
+        title: Visit ArrowInt32ArrayLength nodes.
+        parameters:
+          node:
+            type: astx.ArrowInt32ArrayLength
+        """
         for item in node.values:
             self.visit(item)
             if not is_integer_type(self._expr_type(item)):
@@ -640,6 +883,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.StructDefStmt) -> None:
+        """
+        title: Visit StructDefStmt nodes.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        """
         existing = self.context.structs.get(node.name)
         if existing not in {None, node}:
             self.context.diagnostics.add(
@@ -659,6 +908,12 @@ class SemanticAnalyzer(BaseVisitor):
         self._set_type(node, None)
 
     def _visit_temporal_literal(self, node: astx.AST) -> None:
+        """
+        title: Visit temporal literal.
+        parameters:
+          node:
+            type: astx.AST
+        """
         try:
             literal_value = cast(str, getattr(node, "value"))
             parsed_value: object
@@ -675,31 +930,73 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.LiteralTime) -> None:
+        """
+        title: Visit LiteralTime nodes.
+        parameters:
+          node:
+            type: astx.LiteralTime
+        """
         self._visit_temporal_literal(node)
 
     @dispatch
     def visit(self, node: astx.LiteralTimestamp) -> None:
+        """
+        title: Visit LiteralTimestamp nodes.
+        parameters:
+          node:
+            type: astx.LiteralTimestamp
+        """
         self._visit_temporal_literal(node)
 
     @dispatch
     def visit(self, node: astx.LiteralDateTime) -> None:
+        """
+        title: Visit LiteralDateTime nodes.
+        parameters:
+          node:
+            type: astx.LiteralDateTime
+        """
         self._visit_temporal_literal(node)
 
     def _visit_element_sequence_literal(self, node: astx.AST) -> None:
+        """
+        title: Visit element sequence literal.
+        parameters:
+          node:
+            type: astx.AST
+        """
         for element in cast(list[astx.AST], getattr(node, "elements")):
             self.visit(element)
         self._set_type(node, getattr(node, "type_", None))
 
     @dispatch
     def visit(self, node: astx.LiteralList) -> None:
+        """
+        title: Visit LiteralList nodes.
+        parameters:
+          node:
+            type: astx.LiteralList
+        """
         self._visit_element_sequence_literal(node)
 
     @dispatch
     def visit(self, node: astx.LiteralTuple) -> None:
+        """
+        title: Visit LiteralTuple nodes.
+        parameters:
+          node:
+            type: astx.LiteralTuple
+        """
         self._visit_element_sequence_literal(node)
 
     @dispatch
     def visit(self, node: astx.LiteralSet) -> None:
+        """
+        title: Visit LiteralSet nodes.
+        parameters:
+          node:
+            type: astx.LiteralSet
+        """
         for element in node.elements:
             self.visit(element)
         if node.elements and not all(
@@ -716,6 +1013,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.LiteralDict) -> None:
+        """
+        title: Visit LiteralDict nodes.
+        parameters:
+          node:
+            type: astx.LiteralDict
+        """
         for key, value in node.elements.items():
             self.visit(key)
             self.visit(value)
@@ -725,6 +1028,12 @@ class SemanticAnalyzer(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.SubscriptExpr) -> None:
+        """
+        title: Visit SubscriptExpr nodes.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        """
         self.visit(node.value)
         if not isinstance(node.index, astx.LiteralNone):
             self.visit(node.index)
@@ -765,6 +1074,14 @@ class SemanticAnalyzer(BaseVisitor):
         )
 
     def _guarantees_return(self, node: astx.AST) -> bool:
+        """
+        title: Guarantees return.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: bool
+        """
         if isinstance(node, astx.FunctionReturn):
             return True
         if isinstance(node, astx.Block):

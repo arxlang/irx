@@ -18,6 +18,12 @@ from irx.builders.llvmliteir.vector import emit_add
 class ControlFlowVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, block: astx.Block) -> None:
+        """
+        title: Visit Block nodes.
+        parameters:
+          block:
+            type: astx.Block
+        """
         result = None
         for node in block.nodes:
             if self._llvm.ir_builder.block.terminator is not None:
@@ -37,6 +43,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:
+        """
+        title: Visit IfStmt nodes.
+        parameters:
+          node:
+            type: astx.IfStmt
+        """
         self.visit_child(node.condition)
         cond_v = safe_pop(self.result_stack)
         if cond_v is None:
@@ -123,6 +135,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.WhileStmt) -> None:
+        """
+        title: Visit WhileStmt nodes.
+        parameters:
+          expr:
+            type: astx.WhileStmt
+        """
         cond_bb = self._llvm.ir_builder.function.append_basic_block(
             "whilecond"
         )
@@ -168,6 +186,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.ForCountLoopStmt) -> None:
+        """
+        title: Visit ForCountLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForCountLoopStmt
+        """
         saved_block = self._llvm.ir_builder.block
         var_addr = self.create_entry_block_alloca(
             "for_count_loop", node.initializer.type_.__class__.__name__.lower()
@@ -243,6 +267,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
+        """
+        title: Visit ForRangeLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForRangeLoopStmt
+        """
         saved_block = self._llvm.ir_builder.block
         var_addr = self.create_entry_block_alloca(
             "for_range_loop",
@@ -339,6 +369,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.BreakStmt) -> None:
+        """
+        title: Visit BreakStmt nodes.
+        parameters:
+          node:
+            type: astx.BreakStmt
+        """
         if not self.loop_stack:
             raise Exception("codegen: Break statement outside loop.")
         break_target = self.loop_stack[-1]["break_target"]
@@ -346,6 +382,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.ContinueStmt) -> None:
+        """
+        title: Visit ContinueStmt nodes.
+        parameters:
+          node:
+            type: astx.ContinueStmt
+        """
         if not self.loop_stack:
             raise Exception("codegen: Continue statement outside loop.")
         continue_target = self.loop_stack[-1]["continue_target"]

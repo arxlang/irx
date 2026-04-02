@@ -58,6 +58,9 @@ class DiagnosticBag:
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize DiagnosticBag.
+        """
         self.diagnostics: list[Diagnostic] = []
 
     def add(
@@ -126,5 +129,11 @@ class SemanticError(Exception):
     diagnostics: DiagnosticBag
 
     def __init__(self, diagnostics: DiagnosticBag) -> None:
+        """
+        title: Initialize SemanticError.
+        parameters:
+          diagnostics:
+            type: DiagnosticBag
+        """
         self.diagnostics = diagnostics
         super().__init__(diagnostics.format())

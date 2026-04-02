@@ -66,6 +66,14 @@ class Cast(astx.Expr):
     target_type: Any = astx.LiteralNone()
 
     def __init__(self, value: astx.AST, target_type: Any) -> None:
+        """
+        title: Initialize Cast.
+        parameters:
+          value:
+            type: astx.AST
+          target_type:
+            type: Any
+        """
         super().__init__()
         self.value = value
         self.target_type = target_type

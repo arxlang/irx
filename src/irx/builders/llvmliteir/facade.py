@@ -52,17 +52,41 @@ class Builder(BaseBuilder):
     translator: Visitor
 
     def __init__(self) -> None:
+        """
+        title: Initialize Builder.
+        """
         super().__init__()
         self.translator = self._new_translator()
 
     def _new_translator(self) -> Visitor:
+        """
+        title: New translator.
+        returns:
+          type: Visitor
+        """
         return Visitor(active_runtime_features=set(self.runtime_feature_names))
 
     def translate(self, expr: astx.AST) -> str:
+        """
+        title: Translate.
+        parameters:
+          expr:
+            type: astx.AST
+        returns:
+          type: str
+        """
         self.translator = self._new_translator()
         return self.translator.translate(expr)
 
     def build(self, node: astx.AST, output_file: str) -> None:
+        """
+        title: Build.
+        parameters:
+          node:
+            type: astx.AST
+          output_file:
+            type: str
+        """
         result = self.translate(node)
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)

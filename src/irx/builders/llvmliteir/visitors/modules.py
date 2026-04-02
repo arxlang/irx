@@ -14,11 +14,23 @@ from irx.builders.llvmliteir.protocols import VisitorMixinBase
 class ModuleVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.Module) -> None:
+        """
+        title: Visit Module nodes.
+        parameters:
+          node:
+            type: astx.Module
+        """
         for mod_node in node.nodes:
             self.visit_child(mod_node)
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.StructDefStmt) -> None:
+        """
+        title: Visit StructDefStmt nodes.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        """
         struct_type = self._llvm.module.context.get_identified_type(node.name)
         if not struct_type.is_opaque:
             raise ValueError(f"Struct '{node.name}' already defined.")

@@ -37,6 +37,9 @@ class ScopeStack:
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize ScopeStack.
+        """
         self._stack: list[Scope] = []
 
     @property

@@ -27,6 +27,14 @@ class _DummyVisitor(BuilderVisitor):
     """
 
     def translate(self, expr: astx.AST) -> str:
+        """
+        title: Translate.
+        parameters:
+          expr:
+            type: astx.AST
+        returns:
+          type: str
+        """
         return f"translated:{expr.__class__.__name__}"
 
 
@@ -39,10 +47,21 @@ class _DummyBuilder(Builder):
     """
 
     def __init__(self) -> None:
+        """
+        title: Initialize _DummyBuilder.
+        """
         super().__init__()
         self.translator: _DummyVisitor = _DummyVisitor()
 
     def build(self, expr: astx.AST, output_file: str) -> None:
+        """
+        title: Build.
+        parameters:
+          expr:
+            type: astx.AST
+          output_file:
+            type: str
+        """
         self.output_file = output_file
 
 
@@ -169,6 +188,20 @@ def test_builder_run_forwards_all_kwargs(
         raise_on_error: bool = True,
         debug: bool = False,
     ) -> CommandResult:
+        """
+        title: Fake run.
+        parameters:
+          command:
+            type: Sequence[str]
+          capture_stderr:
+            type: bool
+          raise_on_error:
+            type: bool
+          debug:
+            type: bool
+        returns:
+          type: CommandResult
+        """
         calls.append(
             {
                 "command": list(command),

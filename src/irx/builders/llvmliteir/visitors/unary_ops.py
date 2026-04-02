@@ -17,6 +17,12 @@ from irx.builders.llvmliteir.types import is_fp_type
 class UnaryOpVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.UnaryOp) -> None:
+        """
+        title: Visit UnaryOp nodes.
+        parameters:
+          node:
+            type: astx.UnaryOp
+        """
         if node.op_code == "++":
             self.visit_child(node.operand)
             operand_val = safe_pop(self.result_stack)

@@ -23,6 +23,12 @@ class ArrowInt32ArrayLength(astx.base.DataType):
     type_: astx.Int32
 
     def __init__(self, values: list[astx.AST]) -> None:
+        """
+        title: Initialize ArrowInt32ArrayLength.
+        parameters:
+          values:
+            type: list[astx.AST]
+        """
         super().__init__()
         self.values = values
         self.type_ = astx.Int32()

@@ -61,6 +61,12 @@ class CommandError(RuntimeError):
     """
 
     def __init__(self, result: CommandResult) -> None:
+        """
+        title: Initialize CommandError.
+        parameters:
+          result:
+            type: CommandResult
+        """
         self.result: CommandResult = result
         super().__init__(
             f"Command {list(result.command)!r} failed "
@@ -148,6 +154,12 @@ class BuilderVisitor(BaseVisitor):
 
     @dispatch
     def visit(self, node: astx.AST) -> None:
+        """
+        title: Visit AST nodes.
+        parameters:
+          node:
+            type: astx.AST
+        """
         super().visit(node)
 
     def visit_child(self, node: astx.AST) -> None:

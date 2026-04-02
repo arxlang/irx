@@ -45,6 +45,14 @@ from irx.builders.llvmliteir.vector import emit_add, emit_int_div, is_vector
 
 class BinaryOpVisitorMixin(VisitorMixinBase):
     def _resolved_binary_variant(self, node: astx.BinaryOp) -> astx.BinaryOp:
+        """
+        title: Resolved binary variant.
+        parameters:
+          node:
+            type: astx.BinaryOp
+        returns:
+          type: astx.BinaryOp
+        """
         semantic = getattr(node, "semantic", None)
         extras = getattr(semantic, "extras", None)
         if isinstance(extras, dict):
@@ -59,6 +67,16 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         *,
         unify_numeric: bool = True,
     ) -> tuple[ir.Value, ir.Value, bool]:
+        """
+        title: Load binary operands.
+        parameters:
+          node:
+            type: astx.BinaryOp
+          unify_numeric:
+            type: bool
+        returns:
+          type: tuple[ir.Value, ir.Value, bool]
+        """
         self.visit_child(node.lhs)
         llvm_lhs = safe_pop(self.result_stack)
         self.visit_child(node.rhs)
@@ -87,6 +105,18 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs: ir.Value,
         llvm_rhs: ir.Value,
     ) -> ir.Value | None:
+        """
+        title: Emit vector add.
+        parameters:
+          node:
+            type: AddBinOp
+          llvm_lhs:
+            type: ir.Value
+          llvm_rhs:
+            type: ir.Value
+        returns:
+          type: ir.Value | None
+        """
         if not (is_vector(llvm_lhs) and is_vector(llvm_rhs)):
             return None
 
@@ -114,6 +144,18 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs: ir.Value,
         llvm_rhs: ir.Value,
     ) -> ir.Value | None:
+        """
+        title: Emit vector sub.
+        parameters:
+          node:
+            type: SubBinOp
+          llvm_lhs:
+            type: ir.Value
+          llvm_rhs:
+            type: ir.Value
+        returns:
+          type: ir.Value | None
+        """
         if not (is_vector(llvm_lhs) and is_vector(llvm_rhs)):
             return None
 
@@ -141,6 +183,18 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs: ir.Value,
         llvm_rhs: ir.Value,
     ) -> ir.Value | None:
+        """
+        title: Emit vector mul.
+        parameters:
+          node:
+            type: MulBinOp
+          llvm_lhs:
+            type: ir.Value
+          llvm_rhs:
+            type: ir.Value
+        returns:
+          type: ir.Value | None
+        """
         if not (is_vector(llvm_lhs) and is_vector(llvm_rhs)):
             return None
 
@@ -192,6 +246,20 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         *,
         unsigned: bool,
     ) -> ir.Value | None:
+        """
+        title: Emit vector div.
+        parameters:
+          node:
+            type: DivBinOp
+          llvm_lhs:
+            type: ir.Value
+          llvm_rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value | None
+        """
         if not (is_vector(llvm_lhs) and is_vector(llvm_rhs)):
             return None
 
@@ -222,6 +290,22 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         unsigned: bool,
         name: str,
     ) -> ir.Value:
+        """
+        title: Emit ordered compare.
+        parameters:
+          op_code:
+            type: str
+          llvm_lhs:
+            type: ir.Value
+          llvm_rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+          name:
+            type: str
+        returns:
+          type: ir.Value
+        """
         if is_fp_type(llvm_lhs.type):
             return self._llvm.ir_builder.fcmp_ordered(
                 op_code,
@@ -245,6 +329,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.BinaryOp) -> None:
+        """
+        title: Visit BinaryOp nodes.
+        parameters:
+          node:
+            type: astx.BinaryOp
+        """
         specialized = self._resolved_binary_variant(node)
         if specialized is node:
             raise Exception(f"Binary op {node.op_code} not implemented yet.")
@@ -252,6 +342,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: AssignmentBinOp) -> None:
+        """
+        title: Visit AssignmentBinOp nodes.
+        parameters:
+          node:
+            type: AssignmentBinOp
+        """
         var_lhs = node.lhs
         if not isinstance(var_lhs, astx.Identifier):
             raise Exception("destination of '=' must be a variable")
@@ -277,6 +373,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: AddBinOp) -> None:
+        """
+        title: Visit AddBinOp nodes.
+        parameters:
+          node:
+            type: AddBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
 
         vector_result = self._emit_vector_add(node, llvm_lhs, llvm_rhs)
@@ -299,6 +401,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: SubBinOp) -> None:
+        """
+        title: Visit SubBinOp nodes.
+        parameters:
+          node:
+            type: SubBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
 
         if self._try_set_binary_op(llvm_lhs, llvm_rhs, node.op_code):
@@ -318,6 +426,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: MulBinOp) -> None:
+        """
+        title: Visit MulBinOp nodes.
+        parameters:
+          node:
+            type: MulBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
 
         vector_result = self._emit_vector_mul(node, llvm_lhs, llvm_rhs)
@@ -334,6 +448,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: DivBinOp) -> None:
+        """
+        title: Visit DivBinOp nodes.
+        parameters:
+          node:
+            type: DivBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         vector_result = self._emit_vector_div(
@@ -357,6 +477,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: ModBinOp) -> None:
+        """
+        title: Visit ModBinOp nodes.
+        parameters:
+          node:
+            type: ModBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
@@ -372,18 +498,36 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: LogicalAndBinOp) -> None:
+        """
+        title: Visit LogicalAndBinOp nodes.
+        parameters:
+          node:
+            type: LogicalAndBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
         result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
         self.result_stack.append(result)
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: LogicalOrBinOp) -> None:
+        """
+        title: Visit LogicalOrBinOp nodes.
+        parameters:
+          node:
+            type: LogicalOrBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
         result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
         self.result_stack.append(result)
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: LtBinOp) -> None:
+        """
+        title: Visit LtBinOp nodes.
+        parameters:
+          node:
+            type: LtBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
@@ -398,6 +542,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: GtBinOp) -> None:
+        """
+        title: Visit GtBinOp nodes.
+        parameters:
+          node:
+            type: GtBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
@@ -412,6 +562,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: LeBinOp) -> None:
+        """
+        title: Visit LeBinOp nodes.
+        parameters:
+          node:
+            type: LeBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
@@ -426,6 +582,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: GeBinOp) -> None:
+        """
+        title: Visit GeBinOp nodes.
+        parameters:
+          node:
+            type: GeBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
@@ -440,6 +602,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: EqBinOp) -> None:
+        """
+        title: Visit EqBinOp nodes.
+        parameters:
+          node:
+            type: EqBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
@@ -477,6 +645,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: NeBinOp) -> None:
+        """
+        title: Visit NeBinOp nodes.
+        parameters:
+          node:
+            type: NeBinOp
+        """
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
 
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
@@ -514,6 +688,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: BitOrBinOp) -> None:
+        """
+        title: Visit BitOrBinOp nodes.
+        parameters:
+          node:
+            type: BitOrBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(
             node,
             unify_numeric=False,
@@ -524,6 +704,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: BitAndBinOp) -> None:
+        """
+        title: Visit BitAndBinOp nodes.
+        parameters:
+          node:
+            type: BitAndBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(
             node,
             unify_numeric=False,
@@ -534,6 +720,12 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: BitXorBinOp) -> None:
+        """
+        title: Visit BitXorBinOp nodes.
+        parameters:
+          node:
+            type: BitXorBinOp
+        """
         llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(
             node,
             unify_numeric=False,

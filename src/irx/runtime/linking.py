@@ -111,6 +111,18 @@ def _compile_c_source(
     build_dir: Path,
     clang_binary: str,
 ) -> Path:
+    """
+    title: Compile c source.
+    parameters:
+      artifact:
+        type: NativeArtifact
+      build_dir:
+        type: Path
+      clang_binary:
+        type: str
+    returns:
+      type: Path
+    """
     digest = hashlib.sha256(str(artifact.path).encode("utf8")).hexdigest()[:12]
     object_path = build_dir / f"{artifact.path.stem}_{digest}.o"
 
@@ -132,6 +144,12 @@ def _compile_c_source(
 
 
 def _run_checked(command: Sequence[str]) -> None:
+    """
+    title: Run checked.
+    parameters:
+      command:
+        type: Sequence[str]
+    """
     try:
         subprocess.run(
             command,

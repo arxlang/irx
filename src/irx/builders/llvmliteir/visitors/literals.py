@@ -18,80 +18,164 @@ from irx.builders.llvmliteir.protocols import VisitorMixinBase
 class LiteralVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralInt32) -> None:
+        """
+        title: Visit LiteralInt32 nodes.
+        parameters:
+          node:
+            type: astx.LiteralInt32
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.INT32_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralFloat32) -> None:
+        """
+        title: Visit LiteralFloat32 nodes.
+        parameters:
+          expr:
+            type: astx.LiteralFloat32
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.FLOAT_TYPE, expr.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralFloat64) -> None:
+        """
+        title: Visit LiteralFloat64 nodes.
+        parameters:
+          expr:
+            type: astx.LiteralFloat64
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.DOUBLE_TYPE, expr.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralFloat16) -> None:
+        """
+        title: Visit LiteralFloat16 nodes.
+        parameters:
+          node:
+            type: astx.LiteralFloat16
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.FLOAT16_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralNone) -> None:
+        """
+        title: Visit LiteralNone nodes.
+        parameters:
+          expr:
+            type: astx.LiteralNone
+        """
         self.result_stack.append(None)
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralBoolean) -> None:
+        """
+        title: Visit LiteralBoolean nodes.
+        parameters:
+          node:
+            type: astx.LiteralBoolean
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.BOOLEAN_TYPE, int(node.value))
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralInt64) -> None:
+        """
+        title: Visit LiteralInt64 nodes.
+        parameters:
+          node:
+            type: astx.LiteralInt64
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.INT64_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralInt8) -> None:
+        """
+        title: Visit LiteralInt8 nodes.
+        parameters:
+          node:
+            type: astx.LiteralInt8
+        """
         self.result_stack.append(ir.Constant(self._llvm.INT8_TYPE, node.value))
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralUInt8) -> None:
+        """
+        title: Visit LiteralUInt8 nodes.
+        parameters:
+          node:
+            type: astx.LiteralUInt8
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.UINT8_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralUInt16) -> None:
+        """
+        title: Visit LiteralUInt16 nodes.
+        parameters:
+          node:
+            type: astx.LiteralUInt16
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.UINT16_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralUInt32) -> None:
+        """
+        title: Visit LiteralUInt32 nodes.
+        parameters:
+          node:
+            type: astx.LiteralUInt32
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.UINT32_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralUInt64) -> None:
+        """
+        title: Visit LiteralUInt64 nodes.
+        parameters:
+          node:
+            type: astx.LiteralUInt64
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.UINT64_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralUInt128) -> None:
+        """
+        title: Visit LiteralUInt128 nodes.
+        parameters:
+          node:
+            type: astx.LiteralUInt128
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.UINT128_TYPE, node.value)
         )
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralUTF8Char) -> None:
+        """
+        title: Visit LiteralUTF8Char nodes.
+        parameters:
+          expr:
+            type: astx.LiteralUTF8Char
+        """
         string_value = expr.value
         utf8_bytes = string_value.encode("utf-8")
         string_length = len(utf8_bytes)
@@ -119,6 +203,12 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralUTF8String) -> None:
+        """
+        title: Visit LiteralUTF8String nodes.
+        parameters:
+          expr:
+            type: astx.LiteralUTF8String
+        """
         string_value = expr.value
         utf8_bytes = string_value.encode("utf-8")
         string_length = len(utf8_bytes)
@@ -145,10 +235,22 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralString) -> None:
+        """
+        title: Visit LiteralString nodes.
+        parameters:
+          expr:
+            type: astx.LiteralString
+        """
         self.visit_child(astx.LiteralUTF8String(value=expr.value))
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralList) -> None:
+        """
+        title: Visit LiteralList nodes.
+        parameters:
+          node:
+            type: astx.LiteralList
+        """
         llvm_elems: list[ir.Value] = []
         for elem in node.elements:
             self.visit_child(elem)
@@ -190,7 +292,22 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralSet) -> None:
+        """
+        title: Visit LiteralSet nodes.
+        parameters:
+          node:
+            type: astx.LiteralSet
+        """
+
         def sort_key(lit: astx.Literal) -> tuple[str, Any]:
+            """
+            title: Sort key.
+            parameters:
+              lit:
+                type: astx.Literal
+            returns:
+              type: tuple[str, Any]
+            """
             type_name = type(lit).__name__
             value = getattr(lit, "value", None)
             comparable = (
@@ -245,6 +362,12 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralTuple) -> None:
+        """
+        title: Visit LiteralTuple nodes.
+        parameters:
+          node:
+            type: astx.LiteralTuple
+        """
         llvm_elems: list[ir.Value] = []
         for elem in node.elements:
             self.visit_child(elem)
@@ -276,6 +399,12 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralDict) -> None:
+        """
+        title: Visit LiteralDict nodes.
+        parameters:
+          node:
+            type: astx.LiteralDict
+        """
         llvm_pairs: list[tuple[ir.Value, ir.Value]] = []
         for key_node, value_node in node.elements.items():
             self.visit_child(key_node)
@@ -331,6 +460,12 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.SubscriptExpr) -> None:
+        """
+        title: Visit SubscriptExpr nodes.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        """
         dict_pair_fields = 2
         self.visit_child(node.value)
         dict_val = self.result_stack.pop()
@@ -372,6 +507,12 @@ class LiteralVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralInt16) -> None:
+        """
+        title: Visit LiteralInt16 nodes.
+        parameters:
+          node:
+            type: astx.LiteralInt16
+        """
         self.result_stack.append(
             ir.Constant(self._llvm.INT16_TYPE, node.value)
         )

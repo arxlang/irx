@@ -36,6 +36,14 @@ def build_libc_runtime_feature() -> RuntimeFeature:
 
 
 def _declare_exit(visitor: VisitorProtocol) -> ir.Function:
+    """
+    title: Declare exit.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
         [visitor._llvm.INT32_TYPE],
@@ -44,6 +52,14 @@ def _declare_exit(visitor: VisitorProtocol) -> ir.Function:
 
 
 def _declare_malloc(visitor: VisitorProtocol) -> ir.Function:
+    """
+    title: Declare malloc.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT8_TYPE.as_pointer(),
         [visitor._llvm.SIZE_T_TYPE],
@@ -52,6 +68,14 @@ def _declare_malloc(visitor: VisitorProtocol) -> ir.Function:
 
 
 def _declare_puts(visitor: VisitorProtocol) -> ir.Function:
+    """
+    title: Declare puts.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [visitor._llvm.INT8_TYPE.as_pointer()],
@@ -60,6 +84,14 @@ def _declare_puts(visitor: VisitorProtocol) -> ir.Function:
 
 
 def _declare_snprintf(visitor: VisitorProtocol) -> ir.Function:
+    """
+    title: Declare snprintf.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [

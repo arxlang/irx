@@ -44,11 +44,27 @@ FLOAT128_BITS = 128
 
 
 def _is_unsigned_node(node: astx.AST) -> bool:
+    """
+    title: Is unsigned node.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
     type_ = getattr(node, "type_", None)
     return isinstance(type_, astx.UnsignedInteger)
 
 
 def _uses_unsigned_semantics(node: astx.AST) -> bool:
+    """
+    title: Uses unsigned semantics.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: bool
+    """
     semantic = getattr(node, "semantic", None)
     semantic_flags = getattr(semantic, "semantic_flags", None)
     semantic_unsigned = getattr(semantic_flags, "unsigned", None)
@@ -62,6 +78,16 @@ def _uses_unsigned_semantics(node: astx.AST) -> bool:
 
 
 def _semantic_symbol_key(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic symbol key.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
     semantic = getattr(node, "semantic", None)
     symbol = getattr(semantic, "resolved_symbol", None)
     symbol_id = getattr(symbol, "symbol_id", None)
@@ -71,6 +97,16 @@ def _semantic_symbol_key(node: astx.AST, fallback: str) -> str:
 
 
 def _semantic_assignment_key(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic assignment key.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
     semantic = getattr(node, "semantic", None)
     assignment = getattr(semantic, "resolved_assignment", None)
     target = getattr(assignment, "target", None)
@@ -81,6 +117,18 @@ def _semantic_assignment_key(node: astx.AST, fallback: str) -> str:
 
 
 def _semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
+    """
+    title: Semantic flag.
+    parameters:
+      node:
+        type: astx.AST
+      name:
+        type: str
+      default:
+        type: bool
+    returns:
+      type: bool
+    """
     semantic = getattr(node, "semantic", None)
     semantic_flags = getattr(semantic, "semantic_flags", None)
     if semantic_flags is not None and hasattr(semantic_flags, name):
@@ -89,6 +137,14 @@ def _semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
 
 
 def _semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
+    """
+    title: Semantic fma rhs.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: astx.AST | None
+    """
     semantic = getattr(node, "semantic", None)
     semantic_flags = getattr(semantic, "semantic_flags", None)
     fma_rhs = getattr(semantic_flags, "fma_rhs", None)
@@ -115,6 +171,12 @@ class _VisitorCore(BuilderVisitor):
         self,
         active_runtime_features: set[str] | None = None,
     ) -> None:
+        """
+        title: Initialize _VisitorCore.
+        parameters:
+          active_runtime_features:
+            type: set[str] | None
+        """
         super().__init__()
         self.named_values = {}
         self.const_vars = set()
@@ -152,23 +214,55 @@ class _VisitorCore(BuilderVisitor):
         )
 
     def translate(self, node: astx.AST) -> str:
+        """
+        title: Translate.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: str
+        """
         analyzed = analyze(node)
         self.visit(analyzed)
         return str(self._llvm.module)
 
     def activate_runtime_feature(self, feature_name: str) -> None:
+        """
+        title: Activate runtime feature.
+        parameters:
+          feature_name:
+            type: str
+        """
         self.runtime_features.activate(feature_name)
 
     def require_runtime_symbol(
         self, feature_name: str, symbol_name: str
     ) -> ir.Function:
+        """
+        title: Require runtime symbol.
+        parameters:
+          feature_name:
+            type: str
+          symbol_name:
+            type: str
+        returns:
+          type: ir.Function
+        """
         return self.runtime_features.require_symbol(feature_name, symbol_name)
 
     def _init_native_size_types(self) -> None:
+        """
+        title: Init native size types.
+        """
         self._llvm.POINTER_BITS = ctypes.sizeof(ctypes.c_void_p) * 8
         self._llvm.SIZE_T_TYPE = None
 
     def _get_size_t_type_from_triple(self) -> ir.IntType:
+        """
+        title: Get size t type from triple.
+        returns:
+          type: ir.IntType
+        """
         triple = self.target_machine.triple.lower()
 
         if any(
@@ -191,6 +285,9 @@ class _VisitorCore(BuilderVisitor):
         return ir.IntType(ctypes.sizeof(ctypes.c_size_t) * 8)
 
     def initialize(self) -> None:
+        """
+        title: Initialize.
+        """
         self._llvm = VariablesLLVM()
         self._llvm.module = ir.module.Module("Arx")
         self._llvm.context = self._llvm.module.context
@@ -254,6 +351,9 @@ class _VisitorCore(BuilderVisitor):
         )
 
     def _add_builtins(self) -> None:
+        """
+        title: Add builtins.
+        """
         putchar_ty = ir.FunctionType(
             self._llvm.INT32_TYPE,
             [self._llvm.INT32_TYPE],
@@ -274,6 +374,14 @@ class _VisitorCore(BuilderVisitor):
         ir_builder.ret(ir.Constant(self._llvm.INT32_TYPE, 0))
 
     def get_function(self, name: str) -> ir.Function | None:
+        """
+        title: Get function.
+        parameters:
+          name:
+            type: str
+        returns:
+          type: ir.Function | None
+        """
         if name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(name))
 
@@ -288,6 +396,16 @@ class _VisitorCore(BuilderVisitor):
         var_name: str,
         type_name: str,
     ) -> Any:
+        """
+        title: Create entry block alloca.
+        parameters:
+          var_name:
+            type: str
+          type_name:
+            type: str
+        returns:
+          type: Any
+        """
         current_block = self._llvm.ir_builder.block
         self._llvm.ir_builder.position_at_start(
             self._llvm.ir_builder.function.entry_basic_block
@@ -300,6 +418,14 @@ class _VisitorCore(BuilderVisitor):
         return alloca
 
     def _get_fma_function(self, ty: ir.Type) -> ir.Function:
+        """
+        title: Get fma function.
+        parameters:
+          ty:
+            type: ir.Type
+        returns:
+          type: ir.Function
+        """
         if isinstance(ty, ir.VectorType):
             elem_ty = ty.element
             count = ty.count
@@ -334,6 +460,18 @@ class _VisitorCore(BuilderVisitor):
         rhs: ir.Value,
         addend: ir.Value,
     ) -> ir.Value:
+        """
+        title: Emit fma.
+        parameters:
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+          addend:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
         builder = self._llvm.ir_builder
         if not isinstance(lhs.type, ir.VectorType) and hasattr(builder, "fma"):
             inst = builder.fma(lhs, rhs, addend, name="vfma")
@@ -345,9 +483,21 @@ class _VisitorCore(BuilderVisitor):
         return inst
 
     def set_fast_math(self, enabled: bool) -> None:
+        """
+        title: Set fast math.
+        parameters:
+          enabled:
+            type: bool
+        """
         self._fast_math_enabled = enabled
 
     def _apply_fast_math(self, inst: ir.Instruction) -> None:
+        """
+        title: Apply fast math.
+        parameters:
+          inst:
+            type: ir.Instruction
+        """
         if not self._fast_math_enabled:
             return
 
@@ -368,6 +518,14 @@ class _VisitorCore(BuilderVisitor):
             return
 
     def _is_numeric_value(self, value: ir.Value) -> bool:
+        """
+        title: Is numeric value.
+        parameters:
+          value:
+            type: ir.Value
+        returns:
+          type: bool
+        """
         if is_vector(value):
             elem_ty = value.type.element
             return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
@@ -379,6 +537,18 @@ class _VisitorCore(BuilderVisitor):
         rhs: ir.Value,
         unsigned: bool = False,
     ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Unify numeric operands.
+        parameters:
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+        returns:
+          type: tuple[ir.Value, ir.Value]
+        """
         lhs_is_vec = is_vector(lhs)
         rhs_is_vec = is_vector(rhs)
 
@@ -434,6 +604,14 @@ class _VisitorCore(BuilderVisitor):
         return lhs, rhs
 
     def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
+        """
+        title: Select float type.
+        parameters:
+          candidates:
+            type: list[ir.Type]
+        returns:
+          type: ir.Type
+        """
         if not candidates:
             return self._llvm.FLOAT_TYPE
 
@@ -441,6 +619,14 @@ class _VisitorCore(BuilderVisitor):
         return self._float_type_from_width(width)
 
     def _float_type_from_width(self, width: int) -> ir.Type:
+        """
+        title: Float type from width.
+        parameters:
+          width:
+            type: int
+        returns:
+          type: ir.Type
+        """
         if width <= FLOAT16_BITS and hasattr(self._llvm, "FLOAT16_TYPE"):
             return self._llvm.FLOAT16_TYPE
         if width <= FLOAT32_BITS:
@@ -452,6 +638,14 @@ class _VisitorCore(BuilderVisitor):
         return self._llvm.FLOAT_TYPE
 
     def _float_bit_width(self, type_: ir.Type) -> int:
+        """
+        title: Float bit width.
+        parameters:
+          type_:
+            type: ir.Type
+        returns:
+          type: int
+        """
         if isinstance(type_, DoubleType):
             return FLOAT64_BITS
         if isinstance(type_, FloatType):
@@ -468,6 +662,18 @@ class _VisitorCore(BuilderVisitor):
         target_scalar_ty: ir.Type,
         unsigned: bool = False,
     ) -> ir.Value:
+        """
+        title: Cast value to type.
+        parameters:
+          value:
+            type: ir.Value
+          target_scalar_ty:
+            type: ir.Type
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value
+        """
         builder = self._llvm.ir_builder
         value_is_vec = is_vector(value)
         if value_is_vec:
@@ -522,6 +728,16 @@ class _VisitorCore(BuilderVisitor):
     def _common_list_element_type(
         self, lhs_ty: ir.Type, rhs_ty: ir.Type
     ) -> ir.Type:
+        """
+        title: Common list element type.
+        parameters:
+          lhs_ty:
+            type: ir.Type
+          rhs_ty:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
         if lhs_ty == rhs_ty:
             return lhs_ty
 
@@ -553,6 +769,16 @@ class _VisitorCore(BuilderVisitor):
         )
 
     def _coerce_to(self, value: ir.Value, target_ty: ir.Type) -> ir.Value:
+        """
+        title: Coerce to.
+        parameters:
+          value:
+            type: ir.Value
+          target_ty:
+            type: ir.Type
+        returns:
+          type: ir.Value
+        """
         if value.type == target_ty:
             return value
 
@@ -591,10 +817,26 @@ class _VisitorCore(BuilderVisitor):
         )
 
     def _mark_set_value(self, value: ir.Value) -> ir.Value:
+        """
+        title: Mark set value.
+        parameters:
+          value:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
         self._set_value_ids[id(value)] = value
         return value
 
     def _is_set_value(self, value: ir.Value | None) -> bool:
+        """
+        title: Is set value.
+        parameters:
+          value:
+            type: ir.Value | None
+        returns:
+          type: bool
+        """
         if value is None:
             return False
         return self._set_value_ids.get(id(value)) is value
@@ -605,6 +847,18 @@ class _VisitorCore(BuilderVisitor):
         rhs: ir.Value | None,
         op_code: str,
     ) -> bool:
+        """
+        title: Try set binary op.
+        parameters:
+          lhs:
+            type: ir.Value | None
+          rhs:
+            type: ir.Value | None
+          op_code:
+            type: str
+        returns:
+          type: bool
+        """
         if op_code not in ("|", "&", "-", "^"):
             return False
 
@@ -645,6 +899,14 @@ class _VisitorCore(BuilderVisitor):
     def _subscript_uses_unsigned_semantics(
         self, node: astx.SubscriptExpr
     ) -> bool:
+        """
+        title: Subscript uses unsigned semantics.
+        parameters:
+          node:
+            type: astx.SubscriptExpr
+        returns:
+          type: bool
+        """
         if _uses_unsigned_semantics(node.index):
             return True
 
@@ -657,6 +919,16 @@ class _VisitorCore(BuilderVisitor):
     def _subscript_compare_type(
         self, lhs_ty: ir.Type, rhs_ty: ir.Type
     ) -> ir.Type:
+        """
+        title: Subscript compare type.
+        parameters:
+          lhs_ty:
+            type: ir.Type
+          rhs_ty:
+            type: ir.Type
+        returns:
+          type: ir.Type
+        """
         if lhs_ty == rhs_ty:
             if is_int_type(lhs_ty) or is_fp_type(lhs_ty):
                 return lhs_ty
@@ -683,6 +955,18 @@ class _VisitorCore(BuilderVisitor):
         *,
         unsigned: bool,
     ) -> ir.Value:
+        """
+        title: Coerce subscript key for compare.
+        parameters:
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value
+        """
         if key_val.type == compare_ty:
             return key_val
 
@@ -709,6 +993,16 @@ class _VisitorCore(BuilderVisitor):
         entry_key: ir.Constant,
         key_val: ir.Constant,
     ) -> bool:
+        """
+        title: Constant subscript key matches.
+        parameters:
+          entry_key:
+            type: ir.Constant
+          key_val:
+            type: ir.Constant
+        returns:
+          type: bool
+        """
         compare_ty = self._subscript_compare_type(entry_key.type, key_val.type)
         lhs = cast(
             ir.Constant,
@@ -725,6 +1019,9 @@ class _VisitorCore(BuilderVisitor):
         return bool(lhs.constant == rhs.constant)
 
     def _emit_subscript_miss(self) -> None:
+        """
+        title: Emit subscript miss.
+        """
         builder = self._llvm.ir_builder
         exit_fn = self.require_runtime_symbol("libc", "exit")
         builder.call(exit_fn, [ir.Constant(self._llvm.INT32_TYPE, 1)])
@@ -737,6 +1034,16 @@ class _VisitorCore(BuilderVisitor):
         *,
         unsigned: bool,
     ) -> None:
+        """
+        title: Emit runtime subscript lookup.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          unsigned:
+            type: bool
+        """
         key_type = dict_val.type.element.elements[0]
         compare_ty = self._subscript_compare_type(key_type, key_val.type)
         key_val = self._coerce_subscript_key_for_compare(
@@ -762,6 +1069,16 @@ class _VisitorCore(BuilderVisitor):
         key_val: ir.Value,
         compare_ty: ir.Type,
     ) -> None:
+        """
+        title: Emit integer subscript switch.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+        """
         builder = self._llvm.ir_builder
         function = builder.function
         count = dict_val.type.count
@@ -805,6 +1122,16 @@ class _VisitorCore(BuilderVisitor):
         key_val: ir.Value,
         compare_ty: ir.Type,
     ) -> None:
+        """
+        title: Emit float subscript select.
+        parameters:
+          dict_val:
+            type: ir.Constant
+          key_val:
+            type: ir.Value
+          compare_ty:
+            type: ir.Type
+        """
         builder = self._llvm.ir_builder
         count = dict_val.type.count
 
@@ -865,6 +1192,11 @@ class _VisitorCore(BuilderVisitor):
         self.result_stack.append(result)
 
     def _create_string_concat_function(self) -> ir.Function:
+        """
+        title: Create string concat function.
+        returns:
+          type: ir.Function
+        """
         func_name = "string_concat"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -878,6 +1210,11 @@ class _VisitorCore(BuilderVisitor):
         return func
 
     def _create_string_length_function(self) -> ir.Function:
+        """
+        title: Create string length function.
+        returns:
+          type: ir.Function
+        """
         func_name = "string_length"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -895,6 +1232,11 @@ class _VisitorCore(BuilderVisitor):
         return func
 
     def _create_string_equals_function(self) -> ir.Function:
+        """
+        title: Create string equals function.
+        returns:
+          type: ir.Function
+        """
         func_name = "string_equals"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -912,6 +1254,11 @@ class _VisitorCore(BuilderVisitor):
         return func
 
     def _create_string_substring_function(self) -> ir.Function:
+        """
+        title: Create string substring function.
+        returns:
+          type: ir.Function
+        """
         func_name = "string_substring"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -931,12 +1278,27 @@ class _VisitorCore(BuilderVisitor):
     def _handle_string_concatenation(
         self, lhs: ir.Value, rhs: ir.Value
     ) -> ir.Value:
+        """
+        title: Handle string concatenation.
+        parameters:
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
         strcat_func = self._create_strcat_inline()
         return self._llvm.ir_builder.call(
             strcat_func, [lhs, rhs], "str_concat"
         )
 
     def _create_strcat_inline(self) -> ir.Function:
+        """
+        title: Create strcat inline.
+        returns:
+          type: ir.Function
+        """
         func_name = "strcat_inline"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -980,6 +1342,16 @@ class _VisitorCore(BuilderVisitor):
         dest: ir.Value,
         src: ir.Value,
     ) -> None:
+        """
+        title: Generate strcpy.
+        parameters:
+          builder:
+            type: ir.IRBuilder
+          dest:
+            type: ir.Value
+          src:
+            type: ir.Value
+        """
         loop_bb = builder.function.append_basic_block("strcpy_loop")
         end_bb = builder.function.append_basic_block("strcpy_end")
 
@@ -1003,6 +1375,11 @@ class _VisitorCore(BuilderVisitor):
         builder.position_at_start(end_bb)
 
     def _create_strcmp_inline(self) -> ir.Function:
+        """
+        title: Create strcmp inline.
+        returns:
+          type: ir.Function
+        """
         func_name = "strcmp_inline"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -1062,6 +1439,11 @@ class _VisitorCore(BuilderVisitor):
         return func
 
     def _create_strlen_inline(self) -> ir.Function:
+        """
+        title: Create strlen inline.
+        returns:
+          type: ir.Function
+        """
         func_name = "strlen_inline"
         if func_name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(func_name))
@@ -1106,6 +1488,18 @@ class _VisitorCore(BuilderVisitor):
         rhs: ir.Value,
         op: str,
     ) -> ir.Value:
+        """
+        title: Handle string comparison.
+        parameters:
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+          op:
+            type: str
+        returns:
+          type: ir.Value
+        """
         if op == "==":
             equals_func = self._create_string_equals_function()
             return self._llvm.ir_builder.call(
@@ -1126,6 +1520,14 @@ class _VisitorCore(BuilderVisitor):
     def _normalize_int_for_printf(
         self, value: ir.Value
     ) -> tuple[ir.Value, str]:
+        """
+        title: Normalize int for printf.
+        parameters:
+          value:
+            type: ir.Value
+        returns:
+          type: tuple[ir.Value, str]
+        """
         int64_width = 64
         if not is_int_type(value.type):
             raise Exception("Expected integer value")
@@ -1143,6 +1545,11 @@ class _VisitorCore(BuilderVisitor):
         )
 
     def _create_malloc_decl(self) -> ir.Function:
+        """
+        title: Create malloc decl.
+        returns:
+          type: ir.Function
+        """
         return self.require_runtime_symbol("libc", "malloc")
 
     def _snprintf_heap(
@@ -1150,6 +1557,16 @@ class _VisitorCore(BuilderVisitor):
         fmt_gv: ir.GlobalVariable,
         args: list[ir.Value],
     ) -> ir.Value:
+        """
+        title: Snprintf heap.
+        parameters:
+          fmt_gv:
+            type: ir.GlobalVariable
+          args:
+            type: list[ir.Value]
+        returns:
+          type: ir.Value
+        """
         snprintf = self._create_snprintf_decl()
         malloc = self._create_malloc_decl()
 
@@ -1186,9 +1603,22 @@ class _VisitorCore(BuilderVisitor):
         return mem
 
     def _create_snprintf_decl(self) -> ir.Function:
+        """
+        title: Create snprintf decl.
+        returns:
+          type: ir.Function
+        """
         return self.require_runtime_symbol("libc", "snprintf")
 
     def _get_or_create_format_global(self, fmt: str) -> ir.GlobalVariable:
+        """
+        title: Get or create format global.
+        parameters:
+          fmt:
+            type: str
+        returns:
+          type: ir.GlobalVariable
+        """
         name = f"fmt_{abs(hash(fmt))}"
         if name in self._llvm.module.globals:
             return cast(ir.GlobalVariable, self._llvm.module.get_global(name))

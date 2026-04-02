@@ -121,6 +121,14 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
 def _declare_builder_int32_new(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare builder int32 new.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE.as_pointer()],
@@ -135,6 +143,14 @@ def _declare_builder_int32_new(
 def _declare_builder_append_int32(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare builder append int32.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [
@@ -152,6 +168,14 @@ def _declare_builder_append_int32(
 def _declare_builder_finish(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare builder finish.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [
@@ -169,6 +193,14 @@ def _declare_builder_finish(
 def _declare_builder_release(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare builder release.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
         [visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE],
@@ -183,6 +215,14 @@ def _declare_builder_release(
 def _declare_array_length(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array length.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT64_TYPE,
         [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
@@ -197,6 +237,14 @@ def _declare_array_length(
 def _declare_array_null_count(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array null count.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT64_TYPE,
         [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
@@ -211,6 +259,14 @@ def _declare_array_null_count(
 def _declare_array_type_id(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array type id.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
         [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
@@ -225,6 +281,14 @@ def _declare_array_type_id(
 def _declare_array_export(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array export.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     opaque_ptr = visitor._llvm.OPAQUE_POINTER_TYPE
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -244,6 +308,14 @@ def _declare_array_export(
 def _declare_array_import(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array import.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     opaque_ptr = visitor._llvm.OPAQUE_POINTER_TYPE
     fn_type = ir.FunctionType(
         visitor._llvm.INT32_TYPE,
@@ -263,6 +335,14 @@ def _declare_array_import(
 def _declare_array_release(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare array release.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(
         visitor._llvm.VOID_TYPE,
         [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
@@ -277,6 +357,14 @@ def _declare_array_release(
 def _declare_last_error(
     visitor: VisitorProtocol,
 ) -> ir.Function:
+    """
+    title: Declare last error.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(visitor._llvm.INT8_TYPE.as_pointer(), [])
     return declare_external_function(
         visitor._llvm.module, "irx_arrow_last_error", fn_type

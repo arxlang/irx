@@ -17,6 +17,12 @@ from irx.builders.llvmliteir.protocols import VisitorMixinBase
 class TemporalVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralTime) -> None:
+        """
+        title: Visit LiteralTime nodes.
+        parameters:
+          node:
+            type: astx.LiteralTime
+        """
         hour_minute_count = 2
         hour_minute_second_count = 3
         max_hour = 23
@@ -80,6 +86,12 @@ class TemporalVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralTimestamp) -> None:
+        """
+        title: Visit LiteralTimestamp nodes.
+        parameters:
+          node:
+            type: astx.LiteralTimestamp
+        """
         nanosecond_digits = 9
         max_hour = 23
         max_minute_second = 59
@@ -172,6 +184,12 @@ class TemporalVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralDateTime) -> None:
+        """
+        title: Visit LiteralDateTime nodes.
+        parameters:
+          node:
+            type: astx.LiteralDateTime
+        """
         hour_minute_count = 2
         hour_minute_second_count = 3
         max_hour = 23

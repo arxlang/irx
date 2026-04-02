@@ -163,10 +163,27 @@ def test_literal_set_non_integer_unsupported(
 
 
 def _make_set(*vals: int) -> astx.LiteralSet:
+    """
+    title: Make set.
+    parameters:
+      vals:
+        type: int
+        variadic: positional
+    returns:
+      type: astx.LiteralSet
+    """
     return astx.LiteralSet(elements={astx.LiteralInt32(v) for v in vals})
 
 
 def _set_values(const: ir.Value) -> list[int]:
+    """
+    title: Set values.
+    parameters:
+      const:
+        type: ir.Value
+    returns:
+      type: list[int]
+    """
     return _array_i32_values(const)
 
 

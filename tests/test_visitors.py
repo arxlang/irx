@@ -26,10 +26,19 @@ class _SpecializedVisitor(BaseVisitor):
     calls: list[str]
 
     def __init__(self) -> None:
+        """
+        title: Initialize _SpecializedVisitor.
+        """
         self.calls = []
 
     @dispatch
     def visit(self, node: astx.LiteralInt32) -> None:
+        """
+        title: Visit LiteralInt32 nodes.
+        parameters:
+          node:
+            type: astx.LiteralInt32
+        """
         self.calls.append(type(node).__name__)
 
 

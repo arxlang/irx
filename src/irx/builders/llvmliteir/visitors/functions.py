@@ -17,6 +17,12 @@ from irx.builders.llvmliteir.types import is_int_type
 class FunctionVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:
+        """
+        title: Visit FunctionCall nodes.
+        parameters:
+          node:
+            type: astx.FunctionCall
+        """
         callee_f = self.get_function(node.fn)
         if not callee_f:
             raise Exception("Unknown function referenced")
@@ -37,6 +43,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionDef) -> None:
+        """
+        title: Visit FunctionDef nodes.
+        parameters:
+          node:
+            type: astx.FunctionDef
+        """
         proto = node.prototype
         self.function_protos[proto.name] = proto
         fn = self.get_function(proto.name)
@@ -70,6 +82,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionPrototype) -> None:
+        """
+        title: Visit FunctionPrototype nodes.
+        parameters:
+          node:
+            type: astx.FunctionPrototype
+        """
         args_type = []
         for arg in node.args.nodes:
             type_str = arg.type_.__class__.__name__.lower()
@@ -88,6 +106,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
+        """
+        title: Visit FunctionReturn nodes.
+        parameters:
+          node:
+            type: astx.FunctionReturn
+        """
         if node.value is not None:
             self.visit_child(node.value)
             retval = safe_pop(self.result_stack)

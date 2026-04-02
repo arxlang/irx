@@ -22,6 +22,11 @@ HAS_LITERAL_TIME = hasattr(astx, "LiteralTime")
 
 
 def _make_int_dict() -> astx.LiteralDict:
+    """
+    title: Make int dict.
+    returns:
+      type: astx.LiteralDict
+    """
     return astx.LiteralDict(
         elements={
             astx.LiteralInt32(1): astx.LiteralInt32(10),
@@ -31,6 +36,11 @@ def _make_int_dict() -> astx.LiteralDict:
 
 
 def _make_float_dict() -> astx.LiteralDict:
+    """
+    title: Make float dict.
+    returns:
+      type: astx.LiteralDict
+    """
     return astx.LiteralDict(
         elements={
             astx.LiteralFloat32(1.5): astx.LiteralInt32(10),
@@ -42,6 +52,17 @@ def _make_float_dict() -> astx.LiteralDict:
 def _make_lookup_module(
     lookup: astx.SubscriptExpr, *setup_nodes: astx.AST
 ) -> astx.Module:
+    """
+    title: Make lookup module.
+    parameters:
+      lookup:
+        type: astx.SubscriptExpr
+      setup_nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
 
     proto = astx.FunctionPrototype(

@@ -14,6 +14,12 @@ from irx.builders.llvmliteir.types import is_int_type
 class ArrowVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
+        """
+        title: Visit ArrowInt32ArrayLength nodes.
+        parameters:
+          node:
+            type: astx.ArrowInt32ArrayLength
+        """
         builder_new = self.require_runtime_symbol(
             "arrow", "irx_arrow_array_builder_int32_new"
         )

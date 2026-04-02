@@ -16,6 +16,14 @@ from irx.typecheck import typechecked
 
 
 def is_fp_type(type_: ir.Type) -> bool:
+    """
+    title: Is fp type.
+    parameters:
+      type_:
+        type: ir.Type
+    returns:
+      type: bool
+    """
     fp_types = [HalfType, FloatType, DoubleType]
     if FP128Type is not None:
         fp_types.append(FP128Type)
@@ -23,6 +31,14 @@ def is_fp_type(type_: ir.Type) -> bool:
 
 
 def is_int_type(type_: ir.Type) -> bool:
+    """
+    title: Is int type.
+    parameters:
+      type_:
+        type: ir.Type
+    returns:
+      type: bool
+    """
     return isinstance(type_, ir.IntType)
 
 
@@ -58,6 +74,14 @@ class VariablesLLVM:
     ir_builder: ir.builder.IRBuilder
 
     def get_data_type(self, type_name: str) -> ir.types.Type:
+        """
+        title: Get data type.
+        parameters:
+          type_name:
+            type: str
+        returns:
+          type: ir.types.Type
+        """
         if type_name == "float32":
             return self.FLOAT_TYPE
         if type_name == "float16":

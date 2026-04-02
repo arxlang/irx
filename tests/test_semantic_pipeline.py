@@ -22,6 +22,15 @@ from llvmlite import ir
 
 
 def _main_module(*nodes: astx.AST) -> astx.Module:
+    """
+    title: Main module.
+    parameters:
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     proto = astx.FunctionPrototype(
         "main",
@@ -36,6 +45,9 @@ def _main_module(*nodes: astx.AST) -> astx.Module:
 
 
 def test_builder_translate_runs_analysis_before_codegen() -> None:
+    """
+    title: Test builder translate runs analysis before codegen.
+    """
     builder = Builder()
     module = _main_module(
         astx.BreakStmt(),
@@ -47,6 +59,9 @@ def test_builder_translate_runs_analysis_before_codegen() -> None:
 
 
 def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
+    """
+    title: Test direct visitor translate runs analysis before codegen.
+    """
     visitor = Visitor()
     module = _main_module(astx.FunctionReturn(astx.Identifier("missing")))
 
@@ -55,6 +70,9 @@ def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
 
 
 def test_valid_modules_still_emit_ir_after_analysis() -> None:
+    """
+    title: Test valid modules still emit ir after analysis.
+    """
     builder = Builder()
     module = _main_module(astx.FunctionReturn(astx.LiteralInt32(0)))
 
@@ -65,6 +83,9 @@ def test_valid_modules_still_emit_ir_after_analysis() -> None:
 
 
 def test_public_imports_remain_stable() -> None:
+    """
+    title: Test public imports remain stable.
+    """
     assert Builder.__name__ == "Builder"
     assert Visitor.__name__ == "Visitor"
     assert VariablesLLVM.__name__ == "VariablesLLVM"
@@ -77,6 +98,9 @@ def test_public_imports_remain_stable() -> None:
 
 
 def test_helper_reexports_work_from_package() -> None:
+    """
+    title: Test helper reexports work from package.
+    """
     visitor = Visitor()
     fn_ty = ir.FunctionType(visitor._llvm.FLOAT_TYPE, [])
     fn = ir.Function(visitor._llvm.module, fn_ty, name="helper_cover")

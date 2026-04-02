@@ -1000,14 +1000,14 @@ files = [
 
 [[package]]
 name = "douki"
-version = "0.11.0"
+version = "0.12.1"
 description = "Documetatio from annotations"
 optional = false
 python-versions = "<4,>=3.10"
 groups = ["dev"]
 files = [
-    {file = "douki-0.11.0-py3-none-any.whl", hash = "sha256:1d2ca4ea589b4d7b082f0b74a40c5b3df0c2eb3c862b09e228a2ae5fd75f0b9c"},
-    {file = "douki-0.11.0.tar.gz", hash = "sha256:c91a1b92b6d4289f434a716ef639a9cd586523b865b6364895034df6b62a5769"},
+    {file = "douki-0.12.1-py3-none-any.whl", hash = "sha256:a3f319ef83d32e3781405afb485781b4d14716139b399c087ac16dbb57d465f5"},
+    {file = "douki-0.12.1.tar.gz", hash = "sha256:6d8d492f22e9cc3e2088a4e2104e8a36d9169044bc2f03a14a7666997fd1cae9"},
 ]
 
 [package.dependencies]
@@ -4754,4 +4754,4 @@ test = ["coverage (>=5.3.1)", "prompt-toolkit (>=3.0.29)", "pygments (>=2.2)", "
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "4b1b5bf8c7f9df40699050c817d49737d9b3b48f3fb36ed7186be0be8dc5c7be"
+content-hash = "d4d94de552825dc431b3ed7a8478e3c76cd630ae11009d0bcb11ebf3441c1189"

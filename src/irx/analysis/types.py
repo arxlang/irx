@@ -67,46 +67,118 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
 
 @public
 def is_integer_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is integer type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, INT_TYPES + UINT_TYPES)
 
 
 @public
 def is_signed_integer_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is signed integer type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, INT_TYPES)
 
 
 @public
 def is_unsigned_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is unsigned type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, UINT_TYPES)
 
 
 @public
 def is_float_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is float type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, FLOAT_TYPES)
 
 
 @public
 def is_numeric_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is numeric type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return is_integer_type(type_) or is_float_type(type_)
 
 
 @public
 def is_boolean_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is boolean type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, astx.Boolean)
 
 
 @public
 def is_string_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is string type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, STRING_TYPES)
 
 
 @public
 def is_temporal_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is temporal type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, TEMPORAL_TYPES)
 
 
 @public
 def is_none_type(type_: astx.DataType | None) -> bool:
+    """
+    title: Is none type.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
     return isinstance(type_, astx.NoneType)
 
 

@@ -11,6 +11,14 @@ from irx.builders.llvmliteir.types import is_fp_type
 
 
 def is_vector(value: ir.Value) -> bool:
+    """
+    title: Is vector.
+    parameters:
+      value:
+        type: ir.Value
+    returns:
+      type: bool
+    """
     return isinstance(getattr(value, "type", None), VectorType)
 
 
@@ -20,6 +28,20 @@ def emit_int_div(
     rhs: ir.Value,
     unsigned: bool,
 ) -> ir.Instruction:
+    """
+    title: Emit int div.
+    parameters:
+      ir_builder:
+        type: ir.IRBuilder
+      lhs:
+        type: ir.Value
+      rhs:
+        type: ir.Value
+      unsigned:
+        type: bool
+    returns:
+      type: ir.Instruction
+    """
     return (
         ir_builder.udiv(lhs, rhs, name="vdivtmp")
         if unsigned
@@ -33,6 +55,20 @@ def emit_add(
     rhs: ir.Value,
     name: str = "addtmp",
 ) -> ir.Instruction:
+    """
+    title: Emit add.
+    parameters:
+      ir_builder:
+        type: ir.IRBuilder
+      lhs:
+        type: ir.Value
+      rhs:
+        type: ir.Value
+      name:
+        type: str
+    returns:
+      type: ir.Instruction
+    """
     if is_fp_type(lhs.type):
         return ir_builder.fadd(lhs, rhs, name=name)
     return ir_builder.add(lhs, rhs, name=name)
@@ -43,6 +79,18 @@ def splat_scalar(
     scalar: ir.Value,
     vec_type: ir.VectorType,
 ) -> ir.Value:
+    """
+    title: Splat scalar.
+    parameters:
+      ir_builder:
+        type: ir.IRBuilder
+      scalar:
+        type: ir.Value
+      vec_type:
+        type: ir.VectorType
+    returns:
+      type: ir.Value
+    """
     zero_i32 = ir.Constant(ir.IntType(32), 0)
     undef_vec = ir.Constant(vec_type, ir.Undefined)
     vector_zero = ir_builder.insert_element(undef_vec, scalar, zero_i32)

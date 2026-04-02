@@ -52,6 +52,20 @@ def _make_binop_visitor(
     original_visit = builder.visit
 
     def mock_visit(node: Any, *args: Any, **kwargs: Any) -> Any:
+        """
+        title: Mock visit.
+        parameters:
+          node:
+            type: Any
+          args:
+            type: Any
+            variadic: positional
+          kwargs:
+            type: Any
+            variadic: keyword
+        returns:
+          type: Any
+        """
         if isinstance(node, astx.Identifier):
             mapping = {"LHS": lhs_val, "RHS": rhs_val, "FMA_RHS": fma_rhs}
             if node.name in mapping:
@@ -123,6 +137,14 @@ _ARITH_CASES = [
 
 
 def _arith_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Arith id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     elem, count, _, _, op, *_ = case
     return f"{elem.replace('_TYPE', '').lower()}x{count}_{op}"
 
@@ -222,6 +244,14 @@ _SPLAT_CASES = [
 
 
 def _splat_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Splat id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     elem, count, _, _, lhs_is_vec, *_ = case
     order = "vec+scalar" if lhs_is_vec else "scalar+vec"
     return f"{elem.replace('_TYPE', '').lower()}x{count}_{order}"
@@ -320,6 +350,14 @@ _CROSS_FP_CASES = [
 
 
 def _cross_id(case: tuple[Any, ...]) -> str:
+    """
+    title: Cross id.
+    parameters:
+      case:
+        type: tuple[Any, Ellipsis]
+    returns:
+      type: str
+    """
     vec_e, sc_e, lhs_is_vec, *_ = case
     v = vec_e.replace("_TYPE", "").lower()
     s = sc_e.replace("_TYPE", "").lower()

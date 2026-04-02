@@ -26,11 +26,24 @@ if TYPE_CHECKING:
 
 
 def _declare_dummy_symbol(visitor: "VisitorProtocol") -> ir.Function:
+    """
+    title: Declare dummy symbol.
+    parameters:
+      visitor:
+        type: VisitorProtocol
+    returns:
+      type: ir.Function
+    """
     fn_type = ir.FunctionType(visitor._llvm.INT32_TYPE, [])
     return declare_external_function(visitor._llvm.module, "dummy_rt", fn_type)
 
 
 def _main_return_zero_module() -> astx.Module:
+    """
+    title: Main return zero module.
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     main_proto = astx.FunctionPrototype(
         "main", args=astx.Arguments(), return_type=astx.Int32()

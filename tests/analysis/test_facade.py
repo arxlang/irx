@@ -18,6 +18,15 @@ from irx.astx.binary_op import (
 
 
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
+    """
+    title: Module with main.
+    parameters:
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
     module = astx.Module()
     proto = astx.FunctionPrototype(
         "main",
@@ -32,10 +41,21 @@ def _module_with_main(*nodes: astx.AST) -> astx.Module:
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
+    """
+    title: Semantic.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: SemanticInfo
+    """
     return cast(SemanticInfo, getattr(node, "semantic"))
 
 
 def test_analyze_attaches_symbol_sidecars() -> None:
+    """
+    title: Test analyze attaches symbol sidecars.
+    """
     decl = astx.VariableDeclaration(
         name="x",
         type_=astx.Int32(),
@@ -59,6 +79,9 @@ def test_analyze_attaches_symbol_sidecars() -> None:
 
 
 def test_analyze_rejects_unknown_identifier() -> None:
+    """
+    title: Test analyze rejects unknown identifier.
+    """
     module = _module_with_main(astx.FunctionReturn(astx.Identifier("missing")))
 
     with pytest.raises(SemanticError, match="Unknown variable name"):
@@ -66,6 +89,9 @@ def test_analyze_rejects_unknown_identifier() -> None:
 
 
 def test_analyze_rejects_const_write() -> None:
+    """
+    title: Test analyze rejects const write.
+    """
     decl = astx.VariableDeclaration(
         name="x",
         type_=astx.Int32(),
@@ -82,6 +108,9 @@ def test_analyze_rejects_const_write() -> None:
 
 
 def test_analyze_rejects_break_outside_loop() -> None:
+    """
+    title: Test analyze rejects break outside loop.
+    """
     module = _module_with_main(
         astx.BreakStmt(), astx.FunctionReturn(astx.LiteralInt32(0))
     )
@@ -91,6 +120,9 @@ def test_analyze_rejects_break_outside_loop() -> None:
 
 
 def test_analyze_rejects_call_arity_mismatch() -> None:
+    """
+    title: Test analyze rejects call arity mismatch.
+    """
     add_proto = astx.FunctionPrototype(
         "add",
         args=astx.Arguments(
@@ -118,6 +150,9 @@ def test_analyze_rejects_call_arity_mismatch() -> None:
 
 
 def test_analyze_rejects_missing_return() -> None:
+    """
+    title: Test analyze rejects missing return.
+    """
     proto = astx.FunctionPrototype(
         "value",
         args=astx.Arguments(),
@@ -131,6 +166,9 @@ def test_analyze_rejects_missing_return() -> None:
 
 
 def test_analyze_normalizes_binary_flags() -> None:
+    """
+    title: Test analyze normalizes binary flags.
+    """
     expr = astx.BinaryOp(
         "*",
         astx.LiteralFloat32(1.0),
@@ -151,6 +189,9 @@ def test_analyze_normalizes_binary_flags() -> None:
 
 
 def test_analyze_attaches_specialized_binary_op() -> None:
+    """
+    title: Test analyze attaches specialized binary op.
+    """
     expr = astx.BinaryOp(
         "+",
         astx.LiteralInt32(1),
@@ -168,6 +209,9 @@ def test_analyze_attaches_specialized_binary_op() -> None:
 
 
 def test_analyze_allows_numeric_casts() -> None:
+    """
+    title: Test analyze allows numeric casts.
+    """
     expr = astx.Cast(
         value=astx.LiteralFloat32(7.9),
         target_type=astx.Int32(),
@@ -179,6 +223,9 @@ def test_analyze_allows_numeric_casts() -> None:
 
 
 def test_analyze_keeps_if_branch_bindings_visible_after_if() -> None:
+    """
+    title: Test analyze keeps if branch bindings visible after if.
+    """
     branchy_proto = astx.FunctionPrototype(
         "branchy",
         args=astx.Arguments(astx.Argument("x", astx.Int32())),
@@ -219,6 +266,9 @@ def test_analyze_keeps_if_branch_bindings_visible_after_if() -> None:
 
 
 def test_diagnostic_bag_formats_messages() -> None:
+    """
+    title: Test diagnostic bag formats messages.
+    """
     bag = DiagnosticBag()
     bag.add("unknown identifier")
 

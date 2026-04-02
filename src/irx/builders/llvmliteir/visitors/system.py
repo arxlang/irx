@@ -16,6 +16,12 @@ from irx.builders.llvmliteir.types import is_fp_type, is_int_type
 class SystemVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.Cast) -> None:
+        """
+        title: Visit Cast nodes.
+        parameters:
+          node:
+            type: astx.Cast
+        """
         self.visit_child(node.value)
         value = safe_pop(self.result_stack)
         if value is None:
@@ -105,6 +111,12 @@ class SystemVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.PrintExpr) -> None:
+        """
+        title: Visit PrintExpr nodes.
+        parameters:
+          node:
+            type: astx.PrintExpr
+        """
         self.visit_child(node.message)
         message_value = safe_pop(self.result_stack)
         if message_value is None:

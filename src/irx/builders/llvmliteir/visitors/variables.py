@@ -19,6 +19,12 @@ from irx.builders.llvmliteir.runtime import safe_pop
 class VariableVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.VariableAssignment) -> None:
+        """
+        title: Visit VariableAssignment nodes.
+        parameters:
+          expr:
+            type: astx.VariableAssignment
+        """
         var_name = expr.name
         var_key = _semantic_assignment_key(expr, var_name)
 
@@ -43,6 +49,12 @@ class VariableVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.Identifier) -> None:
+        """
+        title: Visit Identifier nodes.
+        parameters:
+          node:
+            type: astx.Identifier
+        """
         symbol_key = _semantic_symbol_key(node, node.name)
         expr_var = self.named_values.get(symbol_key)
         if not expr_var:
@@ -53,6 +65,12 @@ class VariableVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
+        """
+        title: Visit VariableDeclaration nodes.
+        parameters:
+          node:
+            type: astx.VariableDeclaration
+        """
         symbol_key = _semantic_symbol_key(node, node.name)
         if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")
@@ -112,6 +130,12 @@ class VariableVisitorMixin(VisitorMixinBase):
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
+        """
+        title: Visit InlineVariableDeclaration nodes.
+        parameters:
+          node:
+            type: astx.InlineVariableDeclaration
+        """
         symbol_key = _semantic_symbol_key(node, node.name)
         if self.named_values.get(symbol_key):
             raise Exception(f"Identifier already declared: {node.name}")

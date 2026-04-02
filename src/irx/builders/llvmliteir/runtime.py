@@ -13,6 +13,14 @@ from irx.typecheck import typechecked
 def safe_pop(
     values: list[ir.Value | ir.Function | None],
 ) -> ir.Value | ir.Function | None:
+    """
+    title: Safe pop.
+    parameters:
+      values:
+        type: list[ir.Value | ir.Function | None]
+    returns:
+      type: ir.Value | ir.Function | None
+    """
     try:
         return values.pop()
     except IndexError:
