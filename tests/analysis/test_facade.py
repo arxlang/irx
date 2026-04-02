@@ -10,7 +10,11 @@ import astx
 import pytest
 
 from irx.analysis import DiagnosticBag, SemanticError, analyze
-from irx.analysis.resolved_nodes import SemanticInfo
+from irx.analysis.resolved_nodes import (
+    SPECIALIZED_BINARY_OP_EXTRA,
+    AddBinOp,
+    SemanticInfo,
+)
 from irx.system import Cast
 
 
@@ -145,6 +149,23 @@ def test_analyze_normalizes_binary_flags() -> None:
     assert semantic.semantic_flags.fast_math is True
     assert semantic.semantic_flags.fma is True
     assert semantic.semantic_flags.fma_rhs is fma_rhs
+
+
+def test_analyze_attaches_specialized_binary_op() -> None:
+    expr = astx.BinaryOp(
+        "+",
+        astx.LiteralInt32(1),
+        astx.LiteralInt32(2),
+    )
+
+    analyze(expr)
+
+    specialized = _semantic(expr).extras[SPECIALIZED_BINARY_OP_EXTRA]
+
+    assert isinstance(specialized, AddBinOp)
+    assert specialized.op_code == "+"
+    assert specialized.lhs is expr.lhs
+    assert specialized.rhs is expr.rhs
 
 
 def test_analyze_allows_numeric_casts() -> None:

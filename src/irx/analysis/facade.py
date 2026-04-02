@@ -18,12 +18,14 @@ from irx import system
 from irx.analysis.context import SemanticContext
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
+    SPECIALIZED_BINARY_OP_EXTRA,
     ResolvedAssignment,
     ResolvedOperator,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
     SemanticSymbol,
+    specialize_binary_op,
 )
 from irx.analysis.symbols import (
     function_symbol,
@@ -404,6 +406,10 @@ class SemanticAnalyzer(BaseVisitor):
         rhs_type = self._expr_type(node.rhs)
         flags = normalize_flags(node, lhs_type=lhs_type, rhs_type=rhs_type)
         self._set_flags(node, flags)
+        specialized = specialize_binary_op(node)
+        if specialized is not node:
+            setattr(specialized, "semantic", self._semantic(node))
+        self._semantic(node).extras[SPECIALIZED_BINARY_OP_EXTRA] = specialized
 
         if node.op_code == "=":
             if not isinstance(node.lhs, astx.Identifier):
