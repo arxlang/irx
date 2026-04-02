@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Arrow visitor mixins for llvmliteir.
@@ -6,12 +6,13 @@ title: Arrow visitor mixins for llvmliteir.
 
 from irx import arrow as irx_arrow
 from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
 
 
-class ArrowVisitorMixin:
-    @BuilderVisitor.visit.dispatch
+class ArrowVisitorMixin(VisitorMixinBase):
+    @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: irx_arrow.ArrowInt32ArrayLength) -> None:
         builder_new = self.require_runtime_symbol(
             "arrow", "irx_arrow_array_builder_int32_new"
@@ -39,7 +40,7 @@ class ArrowVisitorMixin:
         )
 
         for item in node.values:
-            self.visit(item)
+            self.visit_child(item)
             value = safe_pop(self.result_stack)
             if value is None:
                 raise Exception("Arrow helper expected an integer value")

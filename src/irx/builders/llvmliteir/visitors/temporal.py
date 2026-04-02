@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Temporal literal visitor mixins for llvmliteir.
@@ -12,9 +12,10 @@ import astx
 from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
-class TemporalVisitorMixin:
+class TemporalVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralTime) -> None:
         hour_minute_count = 2

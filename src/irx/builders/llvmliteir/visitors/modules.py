@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Module-level visitor mixins for llvmliteir.
@@ -9,13 +9,14 @@ import astx
 from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
-class ModuleVisitorMixin:
+class ModuleVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.Module) -> None:
         for mod_node in node.nodes:
-            self.visit(mod_node)
+            self.visit_child(mod_node)
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.StructDefStmt) -> None:

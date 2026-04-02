@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Unary-operator visitor mixins for llvmliteir.
@@ -10,15 +10,16 @@ from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 
 
-class UnaryOpVisitorMixin:
-    @BuilderVisitor.visit.dispatch
+class UnaryOpVisitorMixin(VisitorMixinBase):
+    @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.UnaryOp) -> None:
         if node.op_code == "++":
-            self.visit(node.operand)
+            self.visit_child(node.operand)
             operand_val = safe_pop(self.result_stack)
             if operand_val is None:
                 raise Exception("codegen: Invalid unary operand.")
@@ -48,7 +49,7 @@ class UnaryOpVisitorMixin:
             return
 
         if node.op_code == "--":
-            self.visit(node.operand)
+            self.visit_child(node.operand)
             operand_val = safe_pop(self.result_stack)
             if operand_val is None:
                 raise Exception("codegen: Invalid unary operand.")
@@ -77,7 +78,7 @@ class UnaryOpVisitorMixin:
             return
 
         if node.op_code == "!":
-            self.visit(node.operand)
+            self.visit_child(node.operand)
             val = safe_pop(self.result_stack)
             if val is None:
                 raise Exception("codegen: Invalid unary operand.")

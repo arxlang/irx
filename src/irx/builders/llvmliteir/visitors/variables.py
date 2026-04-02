@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Variable visitor mixins for llvmliteir.
@@ -13,10 +13,11 @@ from irx.builders.llvmliteir.core import (
     _semantic_assignment_key,
     _semantic_symbol_key,
 )
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 
 
-class VariableVisitorMixin:
+class VariableVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.VariableAssignment) -> None:
         var_name = expr.name
@@ -27,7 +28,7 @@ class VariableVisitorMixin:
                 f"Cannot assign to '{var_name}': declared as constant"
             )
 
-        self.visit(expr.value)
+        self.visit_child(expr.value)
         llvm_value = safe_pop(self.result_stack)
         if llvm_value is None:
             raise Exception("codegen: Invalid value in VariableAssignment.")
@@ -61,7 +62,7 @@ class VariableVisitorMixin:
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
-            self.visit(node.value)
+            self.visit_child(node.value)
             init_val = safe_pop(self.result_stack)
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
@@ -118,7 +119,7 @@ class VariableVisitorMixin:
 
         type_str = node.type_.__class__.__name__.lower()
         if node.value is not None:
-            self.visit(node.value)
+            self.visit_child(node.value)
             init_val = safe_pop(self.result_stack)
             if init_val is None:
                 raise Exception("Initializer code generation failed.")

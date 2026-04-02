@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Function visitor mixins for llvmliteir.
@@ -10,11 +10,12 @@ from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
 
 
-class FunctionVisitorMixin:
+class FunctionVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:
         callee_f = self.get_function(node.fn)
@@ -26,7 +27,7 @@ class FunctionVisitorMixin:
 
         llvm_args = []
         for arg in node.args:
-            self.visit(arg)
+            self.visit_child(arg)
             llvm_arg = safe_pop(self.result_stack)
             if llvm_arg is None:
                 raise Exception("codegen: Invalid callee argument.")
@@ -55,7 +56,7 @@ class FunctionVisitorMixin:
             self._llvm.ir_builder.store(llvm_arg, alloca)
             self.named_values[symbol_key] = alloca
 
-        self.visit(node.body)
+        self.visit_child(node.body)
         if not self._llvm.ir_builder.block.is_terminated:
             return_type = fn.function_type.return_type
             if isinstance(return_type, ir.VoidType):
@@ -89,7 +90,7 @@ class FunctionVisitorMixin:
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
         if node.value is not None:
-            self.visit(node.value)
+            self.visit_child(node.value)
             retval = safe_pop(self.result_stack)
         else:
             retval = None

@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: System/runtime visitor mixins for llvmliteir.
@@ -8,14 +8,15 @@ from llvmlite import ir
 
 from irx import system
 from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type, is_int_type
 
 
-class SystemVisitorMixin:
+class SystemVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: system.Cast) -> None:
-        self.visit(node.value)
+        self.visit_child(node.value)
         value = safe_pop(self.result_stack)
         if value is None:
             raise Exception("Invalid value in Cast")
@@ -104,7 +105,7 @@ class SystemVisitorMixin:
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: system.PrintExpr) -> None:
-        self.visit(node.message)
+        self.visit_child(node.message)
         message_value = safe_pop(self.result_stack)
         if message_value is None:
             raise Exception("Invalid message in PrintExpr")

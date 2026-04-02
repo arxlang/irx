@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Literal visitor mixins for llvmliteir.
@@ -13,9 +13,10 @@ import astx
 from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
-class LiteralVisitorMixin:
+class LiteralVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralInt32) -> None:
         self.result_stack.append(
@@ -145,13 +146,13 @@ class LiteralVisitorMixin:
 
     @BuilderVisitor.visit.dispatch
     def visit(self, expr: astx.LiteralString) -> None:
-        self.visit(astx.LiteralUTF8String(value=expr.value))
+        self.visit_child(astx.LiteralUTF8String(value=expr.value))
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.LiteralList) -> None:
         llvm_elems: list[ir.Value] = []
         for elem in node.elements:
-            self.visit(elem)
+            self.visit_child(elem)
             value = self.result_stack.pop()
             if value is None:
                 raise Exception("LiteralList: invalid element lowering.")
@@ -201,7 +202,7 @@ class LiteralVisitorMixin:
         elems_sorted = sorted(node.elements, key=sort_key)
         llvm_elems: list[ir.Value] = []
         for elem in elems_sorted:
-            self.visit(elem)
+            self.visit_child(elem)
             value = self.result_stack.pop()
             if value is None:
                 raise Exception("LiteralSet: invalid element lowering.")
@@ -247,7 +248,7 @@ class LiteralVisitorMixin:
     def visit(self, node: astx.LiteralTuple) -> None:
         llvm_elems: list[ir.Value] = []
         for elem in node.elements:
-            self.visit(elem)
+            self.visit_child(elem)
             value = self.result_stack.pop()
             if value is None:
                 raise Exception("LiteralTuple: invalid element lowering.")
@@ -278,12 +279,12 @@ class LiteralVisitorMixin:
     def visit(self, node: astx.LiteralDict) -> None:
         llvm_pairs: list[tuple[ir.Value, ir.Value]] = []
         for key_node, value_node in node.elements.items():
-            self.visit(key_node)
+            self.visit_child(key_node)
             key_val = self.result_stack.pop()
             if key_val is None:
                 raise Exception("LiteralDict: failed to lower key.")
 
-            self.visit(value_node)
+            self.visit_child(value_node)
             val_val = self.result_stack.pop()
             if val_val is None:
                 raise Exception("LiteralDict: failed to lower value.")
@@ -332,7 +333,7 @@ class LiteralVisitorMixin:
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.SubscriptExpr) -> None:
         dict_pair_fields = 2
-        self.visit(node.value)
+        self.visit_child(node.value)
         dict_val = self.result_stack.pop()
 
         if not (
@@ -346,7 +347,7 @@ class LiteralVisitorMixin:
                 "is supported in this version"
             )
 
-        self.visit(node.index)
+        self.visit_child(node.index)
         key_val = self.result_stack.pop()
         if key_val is None:
             raise Exception("SubscriptExpr: invalid index lowering.")

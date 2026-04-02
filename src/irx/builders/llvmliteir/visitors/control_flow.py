@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Control-flow visitor mixins for llvmliteir.
@@ -10,12 +10,13 @@ from llvmlite import ir
 
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.core import _semantic_symbol_key
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 from irx.builders.llvmliteir.vector import emit_add
 
 
-class ControlFlowVisitorMixin:
+class ControlFlowVisitorMixin(VisitorMixinBase):
     @BuilderVisitor.visit.dispatch
     def visit(self, block: astx.Block) -> None:
         result = None
@@ -24,7 +25,7 @@ class ControlFlowVisitorMixin:
                 break
 
             stack_size_before = len(self.result_stack)
-            self.visit(node)
+            self.visit_child(node)
             if len(self.result_stack) > stack_size_before:
                 result = self.result_stack.pop()
 
@@ -37,7 +38,7 @@ class ControlFlowVisitorMixin:
 
     @BuilderVisitor.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:
-        self.visit(node.condition)
+        self.visit_child(node.condition)
         cond_v = safe_pop(self.result_stack)
         if cond_v is None:
             raise Exception("codegen: Invalid condition expression.")
@@ -64,7 +65,7 @@ class ControlFlowVisitorMixin:
 
         self._llvm.ir_builder.position_at_start(then_bb)
         then_stack_size = len(self.result_stack)
-        self.visit(node.then)
+        self.visit_child(node.then)
         then_terminated = self._llvm.ir_builder.block.terminator is not None
         then_v = None
         if len(self.result_stack) > then_stack_size:
@@ -76,7 +77,7 @@ class ControlFlowVisitorMixin:
         self._llvm.ir_builder.position_at_start(else_bb)
         else_stack_size = len(self.result_stack)
         if node.else_ is not None:
-            self.visit(node.else_)
+            self.visit_child(node.else_)
         else_terminated = self._llvm.ir_builder.block.terminator is not None
         else_v = None
         if len(self.result_stack) > else_stack_size:
@@ -135,7 +136,7 @@ class ControlFlowVisitorMixin:
         self._llvm.ir_builder.branch(cond_bb)
 
         self._llvm.ir_builder.position_at_end(cond_bb)
-        self.visit(expr.condition)
+        self.visit_child(expr.condition)
         cond_val = safe_pop(self.result_stack)
         if cond_val is None:
             raise Exception("codegen: Invalid condition expression.")
@@ -157,7 +158,7 @@ class ControlFlowVisitorMixin:
         )
 
         self._llvm.ir_builder.position_at_end(body_bb)
-        self.visit(expr.body)
+        self.visit_child(expr.body)
         safe_pop(self.result_stack)
         if not self._llvm.ir_builder.block.is_terminated:
             self._llvm.ir_builder.branch(cond_bb)
@@ -174,7 +175,7 @@ class ControlFlowVisitorMixin:
         )
         self._llvm.ir_builder.position_at_end(saved_block)
 
-        self.visit(node.initializer)
+        self.visit_child(node.initializer)
         initializer_val = safe_pop(self.result_stack)
         if initializer_val is None:
             raise Exception("codegen: Invalid initializer expression.")
@@ -192,7 +193,7 @@ class ControlFlowVisitorMixin:
         old_val = self.named_values.get(initializer_key)
         self.named_values[initializer_key] = var_addr
 
-        self.visit(node.condition)
+        self.visit_child(node.condition)
         cond_val = safe_pop(self.result_stack)
 
         loop_body_bb = self._llvm.ir_builder.function.append_basic_block(
@@ -213,14 +214,14 @@ class ControlFlowVisitorMixin:
         )
 
         self._llvm.ir_builder.position_at_start(loop_body_bb)
-        self.visit(node.body)
+        self.visit_child(node.body)
         safe_pop(self.result_stack)
         if not self._llvm.ir_builder.block.is_terminated:
             self._llvm.ir_builder.branch(loop_update_bb)
 
         self.loop_stack.pop()
         self._llvm.ir_builder.position_at_start(loop_update_bb)
-        self.visit(node.update)
+        self.visit_child(node.update)
         update_val = safe_pop(self.result_stack)
         if update_val is None:
             raise Exception("codegen: Invalid update expression.")
@@ -250,7 +251,7 @@ class ControlFlowVisitorMixin:
         )
         self._llvm.ir_builder.position_at_end(saved_block)
 
-        self.visit(node.start)
+        self.visit_child(node.start)
         start_val = safe_pop(self.result_stack)
         if start_val is None:
             raise Exception("codegen: Invalid start argument.")
@@ -265,13 +266,13 @@ class ControlFlowVisitorMixin:
 
         self._llvm.ir_builder.position_at_start(header_bb)
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
-        self.visit(node.end)
+        self.visit_child(node.end)
         end_val = safe_pop(self.result_stack)
         if end_val is None:
             raise Exception("codegen: Invalid end argument.")
 
         if node.step:
-            self.visit(node.step)
+            self.visit_child(node.step)
             step_val = safe_pop(self.result_stack)
             if step_val is None:
                 raise Exception("codegen: Invalid step argument.")
@@ -309,7 +310,7 @@ class ControlFlowVisitorMixin:
         old_val = self.named_values.get(variable_key)
         self.named_values[variable_key] = var_addr
 
-        self.visit(node.body)
+        self.visit_child(node.body)
         safe_pop(self.result_stack)
         if not self._llvm.ir_builder.block.is_terminated:
             self._llvm.ir_builder.branch(step_bb)

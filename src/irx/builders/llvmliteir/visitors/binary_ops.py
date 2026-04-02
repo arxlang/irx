@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Binary-operator visitor mixins for llvmliteir.
@@ -15,13 +15,14 @@ from irx.builders.llvmliteir.core import (
     _semantic_symbol_key,
     _uses_unsigned_semantics,
 )
+from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 from irx.builders.llvmliteir.vector import emit_add, emit_int_div, is_vector
 
 
-class BinaryOpVisitorMixin:
-    @BuilderVisitor.visit.dispatch
+class BinaryOpVisitorMixin(VisitorMixinBase):
+    @BuilderVisitor.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.BinaryOp) -> None:
         if node.op_code == "=":
             var_lhs = node.lhs
@@ -35,7 +36,7 @@ class BinaryOpVisitorMixin:
                     f"Cannot assign to '{lhs_name}': declared as constant"
                 )
 
-            self.visit(node.rhs)
+            self.visit_child(node.rhs)
             llvm_rhs = safe_pop(self.result_stack)
             if llvm_rhs is None:
                 raise Exception("codegen: Invalid rhs expression.")
@@ -48,9 +49,9 @@ class BinaryOpVisitorMixin:
             self.result_stack.append(llvm_rhs)
             return
 
-        self.visit(node.lhs)
+        self.visit_child(node.lhs)
         llvm_lhs = safe_pop(self.result_stack)
-        self.visit(node.rhs)
+        self.visit_child(node.rhs)
         llvm_rhs = safe_pop(self.result_stack)
 
         if self._try_set_binary_op(llvm_lhs, llvm_rhs, node.op_code):
@@ -75,7 +76,7 @@ class BinaryOpVisitorMixin:
                 fma_rhs_node = _semantic_fma_rhs(node)
                 if fma_rhs_node is None:
                     raise Exception("FMA requires a third operand (fma_rhs)")
-                self.visit(fma_rhs_node)
+                self.visit_child(fma_rhs_node)
                 llvm_fma_rhs = safe_pop(self.result_stack)
                 if llvm_fma_rhs is None:
                     raise Exception("FMA requires a valid third operand")

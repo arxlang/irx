@@ -1,4 +1,4 @@
-# mypy: ignore-errors
+# mypy: disable-error-code=no-redef
 
 """
 title: Shared Plum-dispatch visitor base for IRx.
@@ -9,36 +9,6 @@ from __future__ import annotations
 import astx
 
 from plum import dispatch
-
-
-def _resolve_astx_node_type(name: str):
-    """
-    title: Resolve an ASTx node class by walking the subclass hierarchy.
-    parameters:
-      name:
-        type: str
-    returns:
-      type: type[astx.AST]
-    raises:
-      LookupError: When no ASTx subclass matches the requested name.
-    """
-    pending = [astx.AST]
-    seen: set[type[astx.AST]] = set()
-    while pending:
-        current = pending.pop()
-        for child in current.__subclasses__():
-            if child in seen:
-                continue
-            if child.__name__ == name:
-                return child
-            seen.add(child)
-            pending.append(child)
-    raise LookupError(f"Unknown ASTx node type: {name}")
-
-
-AnyType = _resolve_astx_node_type("AnyType")
-Int128 = _resolve_astx_node_type("Int128")
-Temporal = _resolve_astx_node_type("Temporal")
 
 
 class BaseVisitor:
@@ -74,10 +44,6 @@ class BaseVisitor:
 
     @dispatch
     def visit(self, node: astx.AndOp) -> None:
-        self._not_implemented(node)
-
-    @dispatch
-    def visit(self, node: AnyType) -> None:
         self._not_implemented(node)
 
     @dispatch
@@ -329,10 +295,6 @@ class BaseVisitor:
         self._not_implemented(node)
 
     @dispatch
-    def visit(self, node: Int128) -> None:
-        self._not_implemented(node)
-
-    @dispatch
     def visit(self, node: astx.Int16) -> None:
         self._not_implemented(node)
 
@@ -570,10 +532,6 @@ class BaseVisitor:
 
     @dispatch
     def visit(self, node: astx.Target) -> None:
-        self._not_implemented(node)
-
-    @dispatch
-    def visit(self, node: Temporal) -> None:
         self._not_implemented(node)
 
     @dispatch
