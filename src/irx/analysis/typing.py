@@ -23,7 +23,6 @@ def binary_result_type(
 ) -> astx.DataType | None:
     """
     title: Compute the semantic result type of a binary operator.
-    summary: Compute the semantic result type of a binary operator.
     parameters:
       op_code:
         type: str
@@ -69,7 +68,6 @@ def unary_result_type(
 ) -> astx.DataType | None:
     """
     title: Compute the semantic result type of a unary operator.
-    summary: Compute the semantic result type of a unary operator.
     parameters:
       op_code:
         type: str

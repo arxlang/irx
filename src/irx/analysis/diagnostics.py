@@ -81,7 +81,6 @@ class DiagnosticBag:
     def __init__(self) -> None:
         """
         title: Initialize DiagnosticBag.
-        summary: Initialize DiagnosticBag.
         """
         self.diagnostics: list[Diagnostic] = []
         self.default_module_key: ModuleKey | None = None
@@ -177,7 +176,6 @@ class SemanticError(Exception):
     def __init__(self, diagnostics: DiagnosticBag) -> None:
         """
         title: Initialize SemanticError.
-        summary: Initialize SemanticError.
         parameters:
           diagnostics:
             type: DiagnosticBag

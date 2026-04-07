@@ -20,7 +20,6 @@ def normalize_flags(
 ) -> SemanticFlags:
     """
     title: Normalize semantic flags from the raw AST node.
-    summary: Normalize semantic flags from the raw AST node.
     parameters:
       node:
         type: astx.AST
@@ -55,7 +54,6 @@ def normalize_operator(
 ) -> ResolvedOperator:
     """
     title: Create a normalized operator record.
-    summary: Create a normalized operator record.
     parameters:
       op_code:
         type: str
