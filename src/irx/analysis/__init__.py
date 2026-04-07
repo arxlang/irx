@@ -1,5 +1,8 @@
 """
 title: Semantic analysis package.
+summary: >-
+  Re-export the semantic-analysis APIs and sidecar types used by hosts, tests,
+  and backend codegen.
 """
 
 from irx.analysis.diagnostics import Diagnostic, DiagnosticBag, SemanticError

@@ -2,6 +2,9 @@
 
 """
 title: Public semantic-analysis entry points.
+summary: >-
+  Implement the main semantic-analysis visitor plus the public single- and
+  multi-module analysis entry points.
 """
 
 from __future__ import annotations
@@ -66,6 +69,9 @@ from irx.base.visitors.base import BaseVisitor
 class SemanticAnalyzer(BaseVisitor):
     """
     title: Walk the AST and attach node.semantic information.
+    summary: >-
+      Perform semantic analysis over AST nodes, attaching resolved sidecars and
+      recording diagnostics as it goes.
     attributes:
       context:
         type: SemanticContext
@@ -87,6 +93,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Initialize SemanticAnalyzer.
+        summary: >-
+          Build an analyzer around either a fresh semantic context or a shared
+          compilation session.
         parameters:
           context:
             type: SemanticContext | None
@@ -104,6 +113,9 @@ class SemanticAnalyzer(BaseVisitor):
     def analyze(self, node: astx.AST) -> astx.AST:
         """
         title: Analyze one AST root.
+        summary: >-
+          Run semantic analysis for a single AST root and raise if any
+          diagnostics were recorded.
         parameters:
           node:
             type: astx.AST
@@ -127,6 +139,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> astx.Module:
         """
         title: Analyze one parsed module with a known module key.
+        summary: >-
+          Analyze one host-provided parsed module while preserving its
+          externally-assigned module identity.
         parameters:
           parsed_module:
             type: ParsedModule
@@ -142,6 +157,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _semantic(self, node: astx.AST) -> SemanticInfo:
         """
         title: Semantic.
+        summary: >-
+          Return the semantic sidecar for a node, creating it on demand when
+          analysis touches the node for the first time.
         parameters:
           node:
             type: astx.AST
@@ -159,6 +177,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> astx.DataType | None:
         """
         title: Set type.
+        summary: >-
+          Attach a resolved semantic type to a node and mirror it back to
+          `node.type_` when that attribute exists.
         parameters:
           node:
             type: astx.AST
@@ -181,6 +202,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticSymbol | None:
         """
         title: Set symbol.
+        summary: >-
+          Attach a resolved variable-like symbol to a node and propagate its
+          type into the node sidecar.
         parameters:
           node:
             type: astx.AST
@@ -200,6 +224,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticFunction | None:
         """
         title: Set function.
+        summary: >-
+          Attach a resolved function to a node and propagate the function's
+          return type into the node sidecar.
         parameters:
           node:
             type: astx.AST
@@ -221,6 +248,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticStruct | None:
         """
         title: Set struct.
+        summary: Attach a resolved struct declaration to a node sidecar.
         parameters:
           node:
             type: astx.AST
@@ -240,6 +268,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticModule | None:
         """
         title: Set module.
+        summary: Attach an imported module identity to a node sidecar.
         parameters:
           node:
             type: astx.AST
@@ -259,6 +288,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Set resolved imports.
+        summary: >-
+          Store the resolved import-binding list produced for one import
+          statement.
         parameters:
           node:
             type: astx.AST
@@ -270,6 +302,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _set_flags(self, node: astx.AST, flags: SemanticFlags) -> None:
         """
         title: Set flags.
+        summary: >-
+          Attach normalized semantic flags such as unsigned and fast-math
+          behavior to a node.
         parameters:
           node:
             type: astx.AST
@@ -286,6 +321,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Set operator.
+        summary: >-
+          Attach normalized operator meaning to a node after semantic
+          normalization.
         parameters:
           node:
             type: astx.AST
@@ -300,6 +338,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Set assignment.
+        summary: Record which resolved symbol an assignment-like node mutates.
         parameters:
           node:
             type: astx.AST
@@ -315,6 +354,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _current_module_key(self) -> ModuleKey:
         """
         title: Return the current analysis module key.
+        summary: >-
+          Return the active module identity, falling back to a synthetic root
+          key outside module-scoped analysis.
         returns:
           type: ModuleKey
         """
@@ -323,6 +365,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _current_visible_bindings(self) -> dict[str, SemanticBinding]:
         """
         title: Return the current module visible binding table.
+        summary: >-
+          Return the per-module binding table used to resolve imported and
+          local top-level names.
         returns:
           type: dict[str, SemanticBinding]
         """
@@ -332,6 +377,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _function_binding(self, function: SemanticFunction) -> SemanticBinding:
         """
         title: Return a visible binding for a function.
+        summary: >-
+          Wrap a semantic function in the normalized module-visible binding
+          shape.
         parameters:
           function:
             type: SemanticFunction
@@ -348,6 +396,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _struct_binding(self, struct: SemanticStruct) -> SemanticBinding:
         """
         title: Return a visible binding for a struct.
+        summary: >-
+          Wrap a semantic struct in the normalized module-visible binding
+          shape.
         parameters:
           struct:
             type: SemanticStruct
@@ -364,6 +415,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _module_binding(self, module: SemanticModule) -> SemanticBinding:
         """
         title: Return a visible binding for a module.
+        summary: >-
+          Wrap an imported module identity in the normalized module-visible
+          binding shape.
         parameters:
           module:
             type: SemanticModule
@@ -384,6 +438,9 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> bool:
         """
         title: Return True when two visible bindings disagree.
+        summary: >-
+          Decide whether a newly introduced visible binding conflicts with an
+          existing local top-level name.
         parameters:
           existing:
             type: SemanticBinding
@@ -406,6 +463,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Bind one name in the current module namespace.
+        summary: Bind one name in the current module namespace.
         parameters:
           local_name:
             type: str
@@ -432,6 +490,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticBinding | None:
         """
         title: Resolve one visible module binding.
+        summary: Resolve one visible module binding.
         parameters:
           name:
             type: str
@@ -446,6 +505,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _imports_supported_here(self, node: astx.AST) -> bool:
         """
         title: Return True when import handling is available for this node.
+        summary: Return True when import handling is available for this node.
         parameters:
           node:
             type: astx.AST
@@ -472,6 +532,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _expr_type(self, node: astx.AST | None) -> astx.DataType | None:
         """
         title: Expr type.
+        summary: Expr type.
         parameters:
           node:
             type: astx.AST | None
@@ -496,6 +557,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticSymbol:
         """
         title: Declare symbol.
+        summary: Declare symbol.
         parameters:
           name:
             type: str
@@ -535,6 +597,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticFunction:
         """
         title: Register function.
+        summary: Register function.
         parameters:
           prototype:
             type: astx.FunctionPrototype
@@ -595,6 +658,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> SemanticStruct:
         """
         title: Register struct.
+        summary: Register struct.
         parameters:
           node:
             type: astx.StructDefStmt
@@ -627,6 +691,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _predeclare_module_members(self, module: astx.Module) -> None:
         """
         title: Predeclare module members.
+        summary: Predeclare module members.
         parameters:
           module:
             type: astx.Module
@@ -651,6 +716,7 @@ class SemanticAnalyzer(BaseVisitor):
     ) -> None:
         """
         title: Visit one module with optional predeclaration.
+        summary: Visit one module with optional predeclaration.
         parameters:
           module:
             type: astx.Module
@@ -668,6 +734,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.AST) -> None:
         """
         title: Visit AST nodes.
+        summary: Visit AST nodes.
         parameters:
           node:
             type: astx.AST
@@ -678,6 +745,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, module: astx.Module) -> None:
         """
         title: Visit Module nodes.
+        summary: Visit Module nodes.
         parameters:
           module:
             type: astx.Module
@@ -689,6 +757,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, block: astx.Block) -> None:
         """
         title: Visit Block nodes.
+        summary: Visit Block nodes.
         parameters:
           block:
             type: astx.Block
@@ -700,6 +769,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
         """
         title: Visit plain typed node.
+        summary: Visit plain typed node.
         parameters:
           node:
             type: astx.AST
@@ -710,6 +780,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.FunctionPrototype) -> None:
         """
         title: Visit FunctionPrototype nodes.
+        summary: Visit FunctionPrototype nodes.
         parameters:
           node:
             type: astx.FunctionPrototype
@@ -726,6 +797,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.FunctionDef) -> None:
         """
         title: Visit FunctionDef nodes.
+        summary: Visit FunctionDef nodes.
         parameters:
           node:
             type: astx.FunctionDef
@@ -760,6 +832,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Visit VariableDeclaration nodes.
+        summary: Visit VariableDeclaration nodes.
         parameters:
           node:
             type: astx.VariableDeclaration
@@ -787,6 +860,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.InlineVariableDeclaration) -> None:
         """
         title: Visit InlineVariableDeclaration nodes.
+        summary: Visit InlineVariableDeclaration nodes.
         parameters:
           node:
             type: astx.InlineVariableDeclaration
@@ -814,6 +888,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.Identifier) -> None:
         """
         title: Visit Identifier nodes.
+        summary: Visit Identifier nodes.
         parameters:
           node:
             type: astx.Identifier
@@ -834,6 +909,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.VariableAssignment) -> None:
         """
         title: Visit VariableAssignment nodes.
+        summary: Visit VariableAssignment nodes.
         parameters:
           node:
             type: astx.VariableAssignment
@@ -866,6 +942,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.UnaryOp) -> None:
         """
         title: Visit UnaryOp nodes.
+        summary: Visit UnaryOp nodes.
         parameters:
           node:
             type: astx.UnaryOp
@@ -902,6 +979,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.BinaryOp) -> None:
         """
         title: Visit BinaryOp nodes.
+        summary: Visit BinaryOp nodes.
         parameters:
           node:
             type: astx.BinaryOp
@@ -998,6 +1076,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.FunctionCall) -> None:
         """
         title: Visit FunctionCall nodes.
+        summary: Visit FunctionCall nodes.
         parameters:
           node:
             type: astx.FunctionCall
@@ -1032,6 +1111,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.FunctionReturn) -> None:
         """
         title: Visit FunctionReturn nodes.
+        summary: Visit FunctionReturn nodes.
         parameters:
           node:
             type: astx.FunctionReturn
@@ -1057,6 +1137,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.IfStmt) -> None:
         """
         title: Visit IfStmt nodes.
+        summary: Visit IfStmt nodes.
         parameters:
           node:
             type: astx.IfStmt
@@ -1071,6 +1152,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.WhileStmt) -> None:
         """
         title: Visit WhileStmt nodes.
+        summary: Visit WhileStmt nodes.
         parameters:
           node:
             type: astx.WhileStmt
@@ -1084,6 +1166,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ForCountLoopStmt) -> None:
         """
         title: Visit ForCountLoopStmt nodes.
+        summary: Visit ForCountLoopStmt nodes.
         parameters:
           node:
             type: astx.ForCountLoopStmt
@@ -1110,6 +1193,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ForRangeLoopStmt) -> None:
         """
         title: Visit ForRangeLoopStmt nodes.
+        summary: Visit ForRangeLoopStmt nodes.
         parameters:
           node:
             type: astx.ForRangeLoopStmt
@@ -1136,6 +1220,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.BreakStmt) -> None:
         """
         title: Visit BreakStmt nodes.
+        summary: Visit BreakStmt nodes.
         parameters:
           node:
             type: astx.BreakStmt
@@ -1151,6 +1236,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ContinueStmt) -> None:
         """
         title: Visit ContinueStmt nodes.
+        summary: Visit ContinueStmt nodes.
         parameters:
           node:
             type: astx.ContinueStmt
@@ -1166,6 +1252,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.Cast) -> None:
         """
         title: Visit Cast nodes.
+        summary: Visit Cast nodes.
         parameters:
           node:
             type: astx.Cast
@@ -1185,6 +1272,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.PrintExpr) -> None:
         """
         title: Visit PrintExpr nodes.
+        summary: Visit PrintExpr nodes.
         parameters:
           node:
             type: astx.PrintExpr
@@ -1207,6 +1295,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
         """
         title: Visit ArrowInt32ArrayLength nodes.
+        summary: Visit ArrowInt32ArrayLength nodes.
         parameters:
           node:
             type: astx.ArrowInt32ArrayLength
@@ -1224,6 +1313,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.StructDefStmt) -> None:
         """
         title: Visit StructDefStmt nodes.
+        summary: Visit StructDefStmt nodes.
         parameters:
           node:
             type: astx.StructDefStmt
@@ -1243,6 +1333,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.AliasExpr) -> None:
         """
         title: Visit AliasExpr nodes.
+        summary: Visit AliasExpr nodes.
         parameters:
           node:
             type: astx.AliasExpr
@@ -1253,6 +1344,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ImportStmt) -> None:
         """
         title: Visit ImportStmt nodes.
+        summary: Visit ImportStmt nodes.
         parameters:
           node:
             type: astx.ImportStmt
@@ -1292,6 +1384,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ImportFromStmt) -> None:
         """
         title: Visit ImportFromStmt nodes.
+        summary: Visit ImportFromStmt nodes.
         parameters:
           node:
             type: astx.ImportFromStmt
@@ -1357,6 +1450,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ImportExpr) -> None:
         """
         title: Visit ImportExpr nodes.
+        summary: Visit ImportExpr nodes.
         parameters:
           node:
             type: astx.ImportExpr
@@ -1371,6 +1465,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.ImportFromExpr) -> None:
         """
         title: Visit ImportFromExpr nodes.
+        summary: Visit ImportFromExpr nodes.
         parameters:
           node:
             type: astx.ImportFromExpr
@@ -1384,6 +1479,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _visit_temporal_literal(self, node: astx.AST) -> None:
         """
         title: Visit temporal literal.
+        summary: Visit temporal literal.
         parameters:
           node:
             type: astx.AST
@@ -1406,6 +1502,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralTime) -> None:
         """
         title: Visit LiteralTime nodes.
+        summary: Visit LiteralTime nodes.
         parameters:
           node:
             type: astx.LiteralTime
@@ -1416,6 +1513,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralTimestamp) -> None:
         """
         title: Visit LiteralTimestamp nodes.
+        summary: Visit LiteralTimestamp nodes.
         parameters:
           node:
             type: astx.LiteralTimestamp
@@ -1426,6 +1524,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralDateTime) -> None:
         """
         title: Visit LiteralDateTime nodes.
+        summary: Visit LiteralDateTime nodes.
         parameters:
           node:
             type: astx.LiteralDateTime
@@ -1435,6 +1534,7 @@ class SemanticAnalyzer(BaseVisitor):
     def _visit_element_sequence_literal(self, node: astx.AST) -> None:
         """
         title: Visit element sequence literal.
+        summary: Visit element sequence literal.
         parameters:
           node:
             type: astx.AST
@@ -1447,6 +1547,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralList) -> None:
         """
         title: Visit LiteralList nodes.
+        summary: Visit LiteralList nodes.
         parameters:
           node:
             type: astx.LiteralList
@@ -1457,6 +1558,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralTuple) -> None:
         """
         title: Visit LiteralTuple nodes.
+        summary: Visit LiteralTuple nodes.
         parameters:
           node:
             type: astx.LiteralTuple
@@ -1467,6 +1569,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralSet) -> None:
         """
         title: Visit LiteralSet nodes.
+        summary: Visit LiteralSet nodes.
         parameters:
           node:
             type: astx.LiteralSet
@@ -1489,6 +1592,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.LiteralDict) -> None:
         """
         title: Visit LiteralDict nodes.
+        summary: Visit LiteralDict nodes.
         parameters:
           node:
             type: astx.LiteralDict
@@ -1504,6 +1608,7 @@ class SemanticAnalyzer(BaseVisitor):
     def visit(self, node: astx.SubscriptExpr) -> None:
         """
         title: Visit SubscriptExpr nodes.
+        summary: Visit SubscriptExpr nodes.
         parameters:
           node:
             type: astx.SubscriptExpr
@@ -1550,6 +1655,9 @@ class SemanticAnalyzer(BaseVisitor):
     def _guarantees_return(self, node: astx.AST) -> bool:
         """
         title: Guarantees return.
+        summary: >-
+          Return whether a statement subtree guarantees that control flow exits
+          through a return on every path.
         parameters:
           node:
             type: astx.AST
@@ -1576,6 +1684,9 @@ class SemanticAnalyzer(BaseVisitor):
 def analyze(node: astx.AST) -> astx.AST:
     """
     title: Analyze one AST root and attach node.semantic sidecars.
+    summary: >-
+      Run the single-root semantic-analysis path and return the same AST with
+      semantic sidecars attached.
     parameters:
       node:
         type: astx.AST
@@ -1589,6 +1700,9 @@ def analyze(node: astx.AST) -> astx.AST:
 def analyze_module(module: astx.Module) -> astx.Module:
     """
     title: Analyze an AST module.
+    summary: >-
+      Convenience wrapper for analyzing one module through the standard single-
+      module entry point.
     parameters:
       module:
         type: astx.Module
@@ -1605,6 +1719,9 @@ def analyze_modules(
 ) -> CompilationSession:
     """
     title: Analyze a reachable graph of host-provided parsed modules.
+    summary: >-
+      Build a compilation session, expand the reachable import graph, and run
+      cross-module semantic analysis over all reachable modules.
     parameters:
       root:
         type: ParsedModule

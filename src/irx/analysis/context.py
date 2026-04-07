@@ -1,5 +1,8 @@
 """
 title: Shared semantic-analysis context.
+summary: >-
+  Hold the mutable semantic-analysis state that is shared across node visits
+  and, in multi-module mode, across modules in one session.
 """
 
 from __future__ import annotations
@@ -21,6 +24,9 @@ from irx.analysis.scopes import ScopeStack
 class SemanticContext:
     """
     title: Shared semantic-analysis state.
+    summary: >-
+      Store scopes, diagnostics, module-aware top-level registries, and
+      transient current-node context for the analyzer.
     attributes:
       scopes:
         type: ScopeStack
@@ -56,6 +62,9 @@ class SemanticContext:
     def next_symbol_id(self, prefix: str) -> str:
         """
         title: Return a fresh semantic symbol id.
+        summary: >-
+          Generate a unique semantic id for locals and declarations that need
+          stable identity inside one analysis run.
         parameters:
           prefix:
             type: str
@@ -68,6 +77,9 @@ class SemanticContext:
     def register_function(self, function: SemanticFunction) -> None:
         """
         title: Register a top-level function by module and name.
+        summary: >-
+          Store the canonical semantic function object for one module-qualified
+          top-level name.
         parameters:
           function:
             type: SemanticFunction
@@ -81,6 +93,9 @@ class SemanticContext:
     ) -> SemanticFunction | None:
         """
         title: Return a top-level function by module and name.
+        summary: >-
+          Retrieve the canonical semantic function for one module-qualified
+          top-level name.
         parameters:
           module_key:
             type: ModuleKey
@@ -94,6 +109,9 @@ class SemanticContext:
     def register_struct(self, struct: SemanticStruct) -> None:
         """
         title: Register a top-level struct by module and name.
+        summary: >-
+          Store the canonical semantic struct object for one module-qualified
+          top-level name.
         parameters:
           struct:
             type: SemanticStruct
@@ -107,6 +125,9 @@ class SemanticContext:
     ) -> SemanticStruct | None:
         """
         title: Return a top-level struct by module and name.
+        summary: >-
+          Retrieve the canonical semantic struct for one module-qualified top-
+          level name.
         parameters:
           module_key:
             type: ModuleKey
@@ -121,6 +142,9 @@ class SemanticContext:
     def scope(self, kind: str) -> Iterator[None]:
         """
         title: Push/pop a scope around a block of work.
+        summary: >-
+          Temporarily add a lexical scope frame while analyzing a block of
+          statements.
         parameters:
           kind:
             type: str
@@ -137,6 +161,9 @@ class SemanticContext:
     def in_function(self, function: SemanticFunction) -> Iterator[None]:
         """
         title: Temporarily set current_function.
+        summary: >-
+          Remember which function body is being analyzed so return and control-
+          flow rules can consult it.
         parameters:
           function:
             type: SemanticFunction
@@ -154,6 +181,9 @@ class SemanticContext:
     def in_module(self, module_key: ModuleKey) -> Iterator[None]:
         """
         title: Temporarily set the current module key.
+        summary: >-
+          Switch the active module identity so registrations and diagnostics
+          are attributed to the right module.
         parameters:
           module_key:
             type: ModuleKey
@@ -174,6 +204,9 @@ class SemanticContext:
     def in_loop(self) -> Iterator[None]:
         """
         title: Increase loop depth for loop analysis.
+        summary: >-
+          Mark a temporary loop region so break and continue validation can see
+          that loop nesting exists.
         returns:
           type: Iterator[None]
         """

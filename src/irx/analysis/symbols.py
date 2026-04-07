@@ -1,5 +1,8 @@
 """
 title: Symbol records for semantic analysis.
+summary: >-
+  Build the semantic symbol dataclasses that the analyzer stores in sidecars
+  and registries.
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ def variable_symbol(
 ) -> SemanticSymbol:
     """
     title: Create a variable-like symbol.
+    summary: Create a variable-like symbol.
     parameters:
       symbol_id:
         type: str
@@ -76,6 +80,7 @@ def function_symbol(
 ) -> SemanticFunction:
     """
     title: Create a function symbol.
+    summary: Create a function symbol.
     parameters:
       symbol_id:
         type: str
@@ -110,6 +115,7 @@ def struct_symbol(
 ) -> SemanticStruct:
     """
     title: Create a struct symbol.
+    summary: Create a struct symbol.
     parameters:
       symbol_id:
         type: str
@@ -135,6 +141,7 @@ def with_definition(
 ) -> SemanticFunction:
     """
     title: Return a function symbol updated with its definition.
+    summary: Return a function symbol updated with its definition.
     parameters:
       symbol:
         type: SemanticFunction

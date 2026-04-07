@@ -1,5 +1,8 @@
 """
 title: Multi-module compilation session management.
+summary: >-
+  Track the reachable parsed-module graph, import edges, diagnostics, and
+  visible bindings for one multi-module analysis run.
 """
 
 from __future__ import annotations
@@ -21,6 +24,9 @@ from irx.analysis.resolved_nodes import SemanticBinding
 def _module_import_specifier(node: astx.ImportFromStmt) -> str:
     """
     title: Return the resolver-facing module specifier for import-from nodes.
+    summary: >-
+      Reconstruct the raw module specifier string that should be handed back to
+      the host resolver for a from-import statement.
     parameters:
       node:
         type: astx.ImportFromStmt
@@ -35,6 +41,9 @@ def _module_import_specifier(node: astx.ImportFromStmt) -> str:
 class CompilationSession:
     """
     title: Shared state for multi-module analysis and lowering.
+    summary: >-
+      Own the loaded module graph and cross-module binding state that analysis
+      and lowering share for one compilation.
     attributes:
       root:
         type: ParsedModule
@@ -70,12 +79,18 @@ class CompilationSession:
     def __post_init__(self) -> None:
         """
         title: Initialize session caches with the root module.
+        summary: >-
+          Seed the session with the root parsed module so graph expansion has
+          an initial node.
         """
         self.register_module(self.root)
 
     def register_module(self, parsed_module: ParsedModule) -> ParsedModule:
         """
         title: Register one parsed module in the session cache.
+        summary: >-
+          Cache a parsed module once and initialize its graph and visible
+          binding slots.
         parameters:
           parsed_module:
             type: ParsedModule
@@ -93,6 +108,9 @@ class CompilationSession:
     def module(self, module_key: ModuleKey) -> ParsedModule:
         """
         title: Return a parsed module by key.
+        summary: >-
+          Look up a previously-registered parsed module by its canonical host
+          key.
         parameters:
           module_key:
             type: ModuleKey
@@ -104,6 +122,9 @@ class CompilationSession:
     def ordered_modules(self) -> list[ParsedModule]:
         """
         title: Return parsed modules in stable dependency order.
+        summary: >-
+          Materialize the dependency-ordered module list used by later semantic
+          and lowering passes.
         returns:
           type: list[ParsedModule]
         """
@@ -117,6 +138,9 @@ class CompilationSession:
     ) -> ParsedModule | None:
         """
         title: Resolve one import request through the host resolver.
+        summary: >-
+          Call the host resolver once per import request, memoizing both
+          successes and failures.
         parameters:
           requesting_module_key:
             type: ModuleKey
@@ -153,6 +177,9 @@ class CompilationSession:
     def expand_graph(self) -> None:
         """
         title: Expand the reachable import graph from the root module.
+        summary: >-
+          Walk top-level imports from the root module, load every reachable
+          dependency, and reject cycles.
         """
         self.load_order.clear()
         temporary: list[ModuleKey] = []
@@ -162,6 +189,9 @@ class CompilationSession:
         def dfs(module_key: ModuleKey) -> None:
             """
             title: Visit one reachable module during graph expansion.
+            summary: >-
+              Depth-first walk one module, record its outgoing edges, and
+              append it to the stable load order after its dependencies.
             parameters:
               module_key:
                 type: ModuleKey

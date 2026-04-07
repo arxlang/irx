@@ -1,5 +1,8 @@
 """
 title: Type helpers for semantic analysis.
+summary: >-
+  Provide the small AST-type predicates and promotion helpers that the semantic
+  analyzer reuses across many node visitors.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ _BIT_WIDTHS: dict[type[astx.DataType], int] = {
 def clone_type(type_: astx.DataType) -> astx.DataType:
     """
     title: Clone an AST type by class.
+    summary: Clone an AST type by class.
     parameters:
       type_:
         type: astx.DataType
@@ -52,6 +56,7 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
 def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     title: Return whether two AST types share the same class.
+    summary: Return whether two AST types share the same class.
     parameters:
       lhs:
         type: astx.DataType | None
@@ -69,6 +74,7 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
 def is_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is integer type.
+    summary: Is integer type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -82,6 +88,7 @@ def is_integer_type(type_: astx.DataType | None) -> bool:
 def is_signed_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is signed integer type.
+    summary: Is signed integer type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -95,6 +102,7 @@ def is_signed_integer_type(type_: astx.DataType | None) -> bool:
 def is_unsigned_type(type_: astx.DataType | None) -> bool:
     """
     title: Is unsigned type.
+    summary: Is unsigned type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -108,6 +116,7 @@ def is_unsigned_type(type_: astx.DataType | None) -> bool:
 def is_float_type(type_: astx.DataType | None) -> bool:
     """
     title: Is float type.
+    summary: Is float type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -121,6 +130,7 @@ def is_float_type(type_: astx.DataType | None) -> bool:
 def is_numeric_type(type_: astx.DataType | None) -> bool:
     """
     title: Is numeric type.
+    summary: Is numeric type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -134,6 +144,7 @@ def is_numeric_type(type_: astx.DataType | None) -> bool:
 def is_boolean_type(type_: astx.DataType | None) -> bool:
     """
     title: Is boolean type.
+    summary: Is boolean type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -147,6 +158,7 @@ def is_boolean_type(type_: astx.DataType | None) -> bool:
 def is_string_type(type_: astx.DataType | None) -> bool:
     """
     title: Is string type.
+    summary: Is string type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -160,6 +172,7 @@ def is_string_type(type_: astx.DataType | None) -> bool:
 def is_temporal_type(type_: astx.DataType | None) -> bool:
     """
     title: Is temporal type.
+    summary: Is temporal type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -173,6 +186,7 @@ def is_temporal_type(type_: astx.DataType | None) -> bool:
 def is_none_type(type_: astx.DataType | None) -> bool:
     """
     title: Is none type.
+    summary: Is none type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -186,6 +200,7 @@ def is_none_type(type_: astx.DataType | None) -> bool:
 def bit_width(type_: astx.DataType | None) -> int:
     """
     title: Return the nominal bit width for numeric types.
+    summary: Return the nominal bit width for numeric types.
     parameters:
       type_:
         type: astx.DataType | None
@@ -204,6 +219,7 @@ def common_numeric_type(
 ) -> astx.DataType | None:
     """
     title: Return a widened numeric type shared by both operands.
+    summary: Return a widened numeric type shared by both operands.
     parameters:
       lhs:
         type: astx.DataType | None
@@ -254,6 +270,7 @@ def is_assignable(
 ) -> bool:
     """
     title: Return whether a value type can be assigned to a target type.
+    summary: Return whether a value type can be assigned to a target type.
     parameters:
       target:
         type: astx.DataType | None

@@ -1,5 +1,8 @@
 """
 title: Validation helpers for semantic analysis.
+summary: >-
+  Collect the focused validation routines that emit diagnostics for
+  assignments, calls, casts, and temporal literals.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ def validate_assignment(
 ) -> None:
     """
     title: Validate an assignment.
+    summary: Validate an assignment.
     parameters:
       diagnostics:
         type: DiagnosticBag
@@ -57,6 +61,7 @@ def validate_call(
 ) -> None:
     """
     title: Validate a function call.
+    summary: Validate a function call.
     parameters:
       diagnostics:
         type: DiagnosticBag
@@ -88,6 +93,7 @@ def validate_cast(
 ) -> None:
     """
     title: Validate a cast expression.
+    summary: Validate a cast expression.
     parameters:
       diagnostics:
         type: DiagnosticBag
@@ -117,6 +123,7 @@ def validate_cast(
 def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
     """
     title: Is numeric cast type.
+    summary: Is numeric cast type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -129,6 +136,7 @@ def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
 def validate_literal_time(value: str) -> time:
     """
     title: Validate an astx time literal.
+    summary: Validate an astx time literal.
     parameters:
       value:
         type: str
@@ -164,6 +172,7 @@ def validate_literal_time(value: str) -> time:
 def validate_literal_timestamp(value: str) -> datetime:
     """
     title: Validate an astx timestamp literal.
+    summary: Validate an astx timestamp literal.
     parameters:
       value:
         type: str
@@ -183,6 +192,7 @@ def validate_literal_timestamp(value: str) -> datetime:
 def validate_literal_datetime(value: str) -> datetime:
     """
     title: Validate an astx datetime literal.
+    summary: Validate an astx datetime literal.
     parameters:
       value:
         type: str
@@ -247,6 +257,7 @@ def validate_literal_datetime(value: str) -> datetime:
 def validate_calendar_date(value: str) -> date:
     """
     title: Validate a date component.
+    summary: Validate a date component.
     parameters:
       value:
         type: str

@@ -1,5 +1,8 @@
 """
 title: Sidecar semantic dataclasses attached to AST nodes.
+summary: >-
+  Define the semantic sidecar objects that analysis attaches to AST nodes and
+  reuses during lowering.
 """
 
 from __future__ import annotations
@@ -18,6 +21,9 @@ from irx.analysis.module_interfaces import ModuleKey
 class SemanticSymbol:
     """
     title: Resolved symbol information.
+    summary: >-
+      Describe one resolved variable-like symbol, including its stable semantic
+      id and declared type.
     attributes:
       symbol_id:
         type: str
@@ -52,6 +58,8 @@ class SemanticSymbol:
 class SemanticStruct:
     """
     title: Resolved struct information.
+    summary: >-
+      Describe one top-level struct declaration with module-aware identity.
     attributes:
       symbol_id:
         type: str
@@ -77,6 +85,9 @@ class SemanticStruct:
 class SemanticFunction:
     """
     title: Resolved function information.
+    summary: >-
+      Describe one top-level function declaration or definition together with
+      its semantic identity and argument symbols.
     attributes:
       symbol_id:
         type: str
@@ -111,6 +122,9 @@ class SemanticFunction:
 class SemanticModule:
     """
     title: Semantic identity for an imported module.
+    summary: >-
+      Represent a module binding that plain imports introduce into a module
+      namespace.
     attributes:
       module_key:
         type: ModuleKey
@@ -127,6 +141,9 @@ class SemanticModule:
 class SemanticBinding:
     """
     title: One visible top-level binding in a module namespace.
+    summary: >-
+      Normalize imported and local top-level names into one binding shape for
+      module-visible lookup.
     attributes:
       kind:
         type: str
@@ -155,6 +172,9 @@ class SemanticBinding:
 class ResolvedImportBinding:
     """
     title: One resolved imported local binding.
+    summary: >-
+      Record how one imported local name maps back to its source-module
+      declaration.
     attributes:
       local_name:
         type: str
@@ -177,6 +197,9 @@ class ResolvedImportBinding:
 class SemanticFlags:
     """
     title: Normalized semantic flags.
+    summary: >-
+      Store normalized semantic modifiers such as unsigned and fast-math
+      intent.
     attributes:
       unsigned:
         type: bool
@@ -199,6 +222,9 @@ class SemanticFlags:
 class ResolvedOperator:
     """
     title: Normalized operator meaning.
+    summary: >-
+      Capture the normalized operator opcode, operand types, result type, and
+      semantic flags for one expression.
     attributes:
       op_code:
         type: str
@@ -224,6 +250,9 @@ class ResolvedOperator:
 class ResolvedAssignment:
     """
     title: Resolved assignment target.
+    summary: >-
+      Point from an assignment-like node back to the resolved target symbol it
+      mutates.
     attributes:
       target:
         type: SemanticSymbol
@@ -237,6 +266,9 @@ class ResolvedAssignment:
 class SemanticInfo:
     """
     title: Sidecar semantic information stored on AST nodes.
+    summary: >-
+      Aggregate all semantic sidecar fields that analysis may attach to a
+      single AST node.
     attributes:
       resolved_type:
         type: astx.DataType | None

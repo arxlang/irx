@@ -1,5 +1,8 @@
 """
 title: Diagnostic objects for semantic analysis.
+summary: >-
+  Provide the error containers and aggregation helpers used throughout semantic
+  analysis.
 """
 
 from __future__ import annotations
@@ -18,6 +21,9 @@ from irx.analysis.module_interfaces import ModuleKey
 class Diagnostic:
     """
     title: One semantic diagnostic.
+    summary: >-
+      Represent one analysis error or warning together with its source node and
+      module attribution.
     attributes:
       message:
         type: str
@@ -40,6 +46,9 @@ class Diagnostic:
     def format(self) -> str:
         """
         title: Format the diagnostic for human display.
+        summary: >-
+          Render one diagnostic with module and source-location prefixes when
+          they are available.
         returns:
           type: str
         """
@@ -59,6 +68,9 @@ class Diagnostic:
 class DiagnosticBag:
     """
     title: Collect semantic diagnostics.
+    summary: >-
+      Accumulate semantic diagnostics across analysis passes and raise a
+      combined exception when needed.
     attributes:
       diagnostics:
         type: list[Diagnostic]
@@ -69,6 +81,7 @@ class DiagnosticBag:
     def __init__(self) -> None:
         """
         title: Initialize DiagnosticBag.
+        summary: Initialize DiagnosticBag.
         """
         self.diagnostics: list[Diagnostic] = []
         self.default_module_key: ModuleKey | None = None
@@ -83,6 +96,9 @@ class DiagnosticBag:
     ) -> None:
         """
         title: Add one error diagnostic.
+        summary: >-
+          Append one diagnostic, defaulting its module attribution to the
+          currently-active module.
         parameters:
           message:
             type: str
@@ -105,6 +121,9 @@ class DiagnosticBag:
     def extend(self, diagnostics: Iterable[Diagnostic]) -> None:
         """
         title: Extend the bag with diagnostics.
+        summary: >-
+          Append diagnostics from another iterable without changing their
+          existing metadata.
         parameters:
           diagnostics:
             type: Iterable[Diagnostic]
@@ -114,6 +133,8 @@ class DiagnosticBag:
     def has_errors(self) -> bool:
         """
         title: Return True when any diagnostics exist.
+        summary: >-
+          Report whether analysis has accumulated any diagnostics at all.
         returns:
           type: bool
         """
@@ -122,6 +143,7 @@ class DiagnosticBag:
     def format(self) -> str:
         """
         title: Format the whole bag.
+        summary: Join all diagnostics into a multi-line human-readable message.
         returns:
           type: str
         """
@@ -130,6 +152,9 @@ class DiagnosticBag:
     def raise_if_errors(self) -> None:
         """
         title: Raise SemanticError when errors exist.
+        summary: >-
+          Stop analysis immediately once at least one diagnostic has been
+          recorded.
         """
         if self.has_errors():
             raise SemanticError(self)
@@ -139,6 +164,9 @@ class DiagnosticBag:
 class SemanticError(Exception):
     """
     title: Raised when semantic analysis fails.
+    summary: >-
+      Wrap a diagnostic bag so callers can surface all semantic failures from
+      one analysis attempt.
     attributes:
       diagnostics:
         type: DiagnosticBag
@@ -149,6 +177,7 @@ class SemanticError(Exception):
     def __init__(self, diagnostics: DiagnosticBag) -> None:
         """
         title: Initialize SemanticError.
+        summary: Initialize SemanticError.
         parameters:
           diagnostics:
             type: DiagnosticBag
