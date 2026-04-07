@@ -242,7 +242,7 @@ def make_parsed_module(
     """
     module = make_module(module_name or key, *nodes)
     return ParsedModule(
-        key=ModuleKey(key),
+        key=key,
         ast=module,
         display_name=display_name or key,
     )

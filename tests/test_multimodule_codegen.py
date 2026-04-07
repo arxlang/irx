@@ -5,7 +5,6 @@ title: Tests for multi-module LLVM lowering.
 from __future__ import annotations
 
 from irx import astx
-from irx.analysis import ModuleKey
 from irx.analysis.module_symbols import (
     mangle_function_name,
     mangle_struct_name,
@@ -99,14 +98,8 @@ def test_translate_modules_mangles_same_named_functions() -> None:
         StaticImportResolver({"a": module_a, "b": module_b}),
     )
 
-    assert (
-        f'define i32 @"{mangle_function_name(ModuleKey("a"), "foo")}"()'
-        in ir_text
-    )
-    assert (
-        f'define i32 @"{mangle_function_name(ModuleKey("b"), "foo")}"()'
-        in ir_text
-    )
+    assert f'define i32 @"{mangle_function_name("a", "foo")}"()' in ir_text
+    assert f'define i32 @"{mangle_function_name("b", "foo")}"()' in ir_text
 
 
 def test_translate_modules_calls_imported_function_by_defining_symbol() -> (
@@ -132,10 +125,7 @@ def test_translate_modules_calls_imported_function_by_defining_symbol() -> (
         StaticImportResolver({"lib": lib}),
     )
 
-    assert (
-        f'call i32 @"{mangle_function_name(ModuleKey("lib"), "foo")}"()'
-        in ir_text
-    )
+    assert f'call i32 @"{mangle_function_name("lib", "foo")}"()' in ir_text
 
 
 def test_translate_modules_emits_imported_definition_once() -> None:
@@ -167,7 +157,7 @@ def test_translate_modules_emits_imported_definition_once() -> None:
         root,
         StaticImportResolver({"lib": lib}),
     )
-    mangled_name = mangle_function_name(ModuleKey("lib"), "foo")
+    mangled_name = mangle_function_name("lib", "foo")
 
     assert ir_text.count(f'define i32 @"{mangled_name}"()') == 1
 
@@ -197,12 +187,8 @@ def test_translate_modules_mangles_same_named_structs() -> None:
         StaticImportResolver({"a": module_a, "b": module_b}),
     )
 
-    assert (
-        f'%"{mangle_struct_name(ModuleKey("a"), "Point")}" = type' in ir_text
-    )
-    assert (
-        f'%"{mangle_struct_name(ModuleKey("b"), "Point")}" = type' in ir_text
-    )
+    assert f'%"{mangle_struct_name("a", "Point")}" = type' in ir_text
+    assert f'%"{mangle_struct_name("b", "Point")}" = type' in ir_text
 
 
 def test_translate_modules_emits_parseable_llvm_ir() -> None:

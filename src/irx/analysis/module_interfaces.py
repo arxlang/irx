@@ -5,32 +5,13 @@ title: Host-facing module interfaces for multi-module analysis.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeAlias, runtime_checkable
 
 from public import public
 
 from irx import astx
 
-
-@public
-@dataclass(frozen=True)
-class ModuleKey:
-    """
-    title: Stable host-provided module identity.
-    attributes:
-      value:
-        type: str
-    """
-
-    value: str
-
-    def __str__(self) -> str:
-        """
-        title: Return the printable module key.
-        returns:
-          type: str
-        """
-        return self.value
+ModuleKey: TypeAlias = str
 
 
 @public

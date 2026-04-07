@@ -43,9 +43,7 @@ class SemanticSymbol:
     is_mutable: bool
     kind: str
     declaration: astx.AST | None = None
-    module_key: ModuleKey = field(
-        default_factory=lambda: ModuleKey("<unknown>")
-    )
+    module_key: ModuleKey = field(default_factory=lambda: "<unknown>")
     qualified_name: str = ""
 
 
@@ -104,9 +102,7 @@ class SemanticFunction:
     args: tuple[SemanticSymbol, ...]
     prototype: astx.FunctionPrototype
     definition: astx.FunctionDef | None = None
-    module_key: ModuleKey = field(
-        default_factory=lambda: ModuleKey("<unknown>")
-    )
+    module_key: ModuleKey = field(default_factory=lambda: "<unknown>")
     qualified_name: str = ""
 
 

@@ -10,7 +10,6 @@ import pytest
 
 from irx import astx
 from irx.analysis import (
-    ModuleKey,
     ParsedModule,
     SemanticError,
     analyze_modules,
@@ -103,9 +102,9 @@ def test_analyze_modules_resolves_imported_function_identity() -> None:
     resolved_function = _semantic(call).resolved_function
 
     assert resolved_function is not None
-    assert resolved_function.module_key == ModuleKey("lib")
+    assert resolved_function.module_key == "lib"
     assert resolved_function.qualified_name == qualified_function_name(
-        ModuleKey("lib"),
+        "lib",
         "foo",
     )
 
@@ -159,7 +158,7 @@ def test_analyze_modules_registers_plain_module_import_binding() -> None:
     alias_semantic = _semantic(import_stmt.names[0])
 
     assert alias_semantic.resolved_module is not None
-    assert alias_semantic.resolved_module.module_key == ModuleKey("lib")
+    assert alias_semantic.resolved_module.module_key == "lib"
     assert session.visible_bindings[root.key]["lib"].kind == "module"
 
 
@@ -183,7 +182,7 @@ def test_analyze_modules_resolves_imported_struct_binding() -> None:
     resolved_import = _semantic(import_stmt).resolved_imports[0]
 
     assert resolved_import.binding.struct is not None
-    assert resolved_import.binding.struct.module_key == ModuleKey("models")
+    assert resolved_import.binding.struct.module_key == "models"
     assert resolved_import.local_name == "UserPoint"
 
 
@@ -354,8 +353,8 @@ def test_analyze_modules_keeps_same_bare_struct_names_distinct() -> None:
 
     assert struct_a is not None
     assert struct_b is not None
-    assert struct_a.module_key == ModuleKey("a")
-    assert struct_b.module_key == ModuleKey("b")
+    assert struct_a.module_key == "a"
+    assert struct_b.module_key == "b"
     assert struct_a.qualified_name != struct_b.qualified_name
 
 

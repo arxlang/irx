@@ -111,7 +111,7 @@ class SemanticAnalyzer(BaseVisitor):
           type: astx.AST
         """
         if isinstance(node, astx.Module):
-            parsed_module = ParsedModule(ModuleKey(node.name), node)
+            parsed_module = ParsedModule(node.name, node)
             self.analyze_parsed_module(parsed_module, predeclared=False)
         else:
             with self.context.scope("module"):
@@ -318,7 +318,7 @@ class SemanticAnalyzer(BaseVisitor):
         returns:
           type: ModuleKey
         """
-        return self.context.current_module_key or ModuleKey("<root>")
+        return self.context.current_module_key or "<root>"
 
     def _current_visible_bindings(self) -> dict[str, SemanticBinding]:
         """
@@ -682,7 +682,7 @@ class SemanticAnalyzer(BaseVisitor):
           module:
             type: astx.Module
         """
-        with self.context.in_module(ModuleKey(module.name)):
+        with self.context.in_module(module.name):
             self._visit_module(module, predeclared=False)
 
     @dispatch
