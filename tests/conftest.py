@@ -12,6 +12,7 @@ from typing import Any, cast
 import pytest
 
 from irx import astx
+from irx.analysis import ModuleKey, ParsedModule
 from irx.builders.base import Builder, CommandResult
 from irx.builders.llvmliteir import Builder as LLVMBuilder
 from irx.builders.llvmliteir import Visitor as LLVMVisitor
@@ -198,6 +199,117 @@ def make_main_module(
         body.append(node)
     module.block.append(astx.FunctionDef(prototype=prototype, body=body))
     return module
+
+
+def make_module(name: str, *nodes: astx.AST) -> astx.Module:
+    """
+    title: Build a named module with the provided top-level nodes.
+    parameters:
+      name:
+        type: str
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
+    module = astx.Module(name=name)
+    for node in nodes:
+        module.block.append(node)
+    return module
+
+
+def make_parsed_module(
+    key: str,
+    *nodes: astx.AST,
+    module_name: str | None = None,
+    display_name: str | None = None,
+) -> ParsedModule:
+    """
+    title: Build a ParsedModule test fixture.
+    parameters:
+      key:
+        type: str
+      module_name:
+        type: str | None
+      display_name:
+        type: str | None
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: ParsedModule
+    """
+    module = make_module(module_name or key, *nodes)
+    return ParsedModule(
+        key=ModuleKey(key),
+        ast=module,
+        display_name=display_name or key,
+    )
+
+
+class StaticImportResolver:
+    """
+    title: Small test resolver backed by an in-memory module mapping.
+    attributes:
+      modules:
+        type: dict[str, ParsedModule]
+    """
+
+    modules: dict[str, ParsedModule]
+
+    def __init__(self, modules: dict[str, ParsedModule]) -> None:
+        """
+        title: Initialize StaticImportResolver.
+        parameters:
+          modules:
+            type: dict[str, ParsedModule]
+        """
+        self.modules = modules
+
+    def __call__(
+        self,
+        requesting_module_key: ModuleKey,
+        import_node: astx.ImportStmt | astx.ImportFromStmt,
+        requested_specifier: str,
+    ) -> ParsedModule:
+        """
+        title: Resolve one requested specifier.
+        parameters:
+          requesting_module_key:
+            type: ModuleKey
+          import_node:
+            type: astx.ImportStmt | astx.ImportFromStmt
+          requested_specifier:
+            type: str
+        returns:
+          type: ParsedModule
+        """
+        _ = requesting_module_key
+        _ = import_node
+        if requested_specifier not in self.modules:
+            raise LookupError(requested_specifier)
+        return self.modules[requested_specifier]
+
+
+def translate_modules_ir(
+    builder: LLVMBuilder,
+    root: ParsedModule,
+    resolver: StaticImportResolver,
+) -> str:
+    """
+    title: Translate a parsed module graph to LLVM IR text.
+    parameters:
+      builder:
+        type: LLVMBuilder
+      root:
+        type: ParsedModule
+      resolver:
+        type: StaticImportResolver
+    returns:
+      type: str
+    """
+    return builder.translate_modules(root, resolver)
 
 
 @pytest.fixture

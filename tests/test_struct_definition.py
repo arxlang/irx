@@ -6,7 +6,8 @@ summary: Verify StructDefStmt generates an LLVM identified struct type.
 import pytest
 
 from irx import astx
-from irx.analysis import SemanticError
+from irx.analysis import ModuleKey, SemanticError
+from irx.analysis.module_symbols import mangle_struct_name
 from irx.builders.base import Builder
 from irx.builders.llvmliteir import Builder as LLVMBuilder
 
@@ -52,7 +53,8 @@ def test_struct_definition(builder_class: type[Builder]) -> None:
     module.block.append(main_fn)
 
     ir_text = builder.translate(module)
-    assert '%"Point" = type {i32, i32}' in ir_text
+    point_name = mangle_struct_name(ModuleKey("main"), "Point")
+    assert f'%"{point_name}" = type {{i32, i32}}' in ir_text
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])
@@ -93,7 +95,10 @@ def test_struct_definition_single_field(builder_class: type[Builder]) -> None:
     module.block.append(main_fn)
 
     ir_text = builder.translate(module)
-    assert '%"Value" = type {i32}' in ir_text
+    assert (
+        f'%"{mangle_struct_name(ModuleKey("main"), "Value")}" = type {{i32}}'
+        in ir_text
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])

@@ -10,6 +10,7 @@ from typing import Iterable
 from public import public
 
 from irx import astx
+from irx.analysis.module_interfaces import ModuleKey
 
 
 @public
@@ -26,12 +27,15 @@ class Diagnostic:
         type: str | None
       severity:
         type: str
+      module_key:
+        type: ModuleKey | None
     """
 
     message: str
     node: astx.AST | None = None
     code: str | None = None
     severity: str = "error"
+    module_key: ModuleKey | None = None
 
     def format(self) -> str:
         """
@@ -40,12 +44,15 @@ class Diagnostic:
           type: str
         """
         location = ""
+        module_prefix = ""
         if self.node is not None:
             loc = getattr(self.node, "loc", None)
             if loc is not None and getattr(loc, "line", -1) >= 0:
                 location = f"{loc.line}:{loc.col}: "
+        if self.module_key is not None:
+            module_prefix = f"{self.module_key}: "
         code = f"[{self.code}] " if self.code else ""
-        return f"{location}{code}{self.message}"
+        return f"{module_prefix}{location}{code}{self.message}"
 
 
 @public
@@ -55,6 +62,8 @@ class DiagnosticBag:
     attributes:
       diagnostics:
         type: list[Diagnostic]
+      default_module_key:
+        type: ModuleKey | None
     """
 
     def __init__(self) -> None:
@@ -62,6 +71,7 @@ class DiagnosticBag:
         title: Initialize DiagnosticBag.
         """
         self.diagnostics: list[Diagnostic] = []
+        self.default_module_key: ModuleKey | None = None
 
     def add(
         self,
@@ -69,6 +79,7 @@ class DiagnosticBag:
         *,
         node: astx.AST | None = None,
         code: str | None = None,
+        module_key: ModuleKey | None = None,
     ) -> None:
         """
         title: Add one error diagnostic.
@@ -79,9 +90,16 @@ class DiagnosticBag:
             type: astx.AST | None
           code:
             type: str | None
+          module_key:
+            type: ModuleKey | None
         """
         self.diagnostics.append(
-            Diagnostic(message=message, node=node, code=code)
+            Diagnostic(
+                message=message,
+                node=node,
+                code=code,
+                module_key=module_key or self.default_module_key,
+            )
         )
 
     def extend(self, diagnostics: Iterable[Diagnostic]) -> None:

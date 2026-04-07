@@ -9,12 +9,23 @@ from dataclasses import replace
 from public import public
 
 from irx import astx
-from irx.analysis.resolved_nodes import SemanticFunction, SemanticSymbol
+from irx.analysis.module_interfaces import ModuleKey
+from irx.analysis.module_symbols import (
+    qualified_function_name,
+    qualified_local_name,
+    qualified_struct_name,
+)
+from irx.analysis.resolved_nodes import (
+    SemanticFunction,
+    SemanticStruct,
+    SemanticSymbol,
+)
 
 
 @public
 def variable_symbol(
     symbol_id: str,
+    module_key: ModuleKey,
     name: str,
     type_: astx.DataType,
     *,
@@ -27,6 +38,8 @@ def variable_symbol(
     parameters:
       symbol_id:
         type: str
+      module_key:
+        type: ModuleKey
       name:
         type: str
       type_:
@@ -47,12 +60,15 @@ def variable_symbol(
         is_mutable=is_mutable,
         kind=kind,
         declaration=declaration,
+        module_key=module_key,
+        qualified_name=qualified_local_name(module_key, kind, name, symbol_id),
     )
 
 
 @public
 def function_symbol(
     symbol_id: str,
+    module_key: ModuleKey,
     prototype: astx.FunctionPrototype,
     args: tuple[SemanticSymbol, ...],
     *,
@@ -63,6 +79,8 @@ def function_symbol(
     parameters:
       symbol_id:
         type: str
+      module_key:
+        type: ModuleKey
       prototype:
         type: astx.FunctionPrototype
       args:
@@ -79,6 +97,35 @@ def function_symbol(
         args=args,
         prototype=prototype,
         definition=definition,
+        module_key=module_key,
+        qualified_name=qualified_function_name(module_key, prototype.name),
+    )
+
+
+@public
+def struct_symbol(
+    symbol_id: str,
+    module_key: ModuleKey,
+    declaration: astx.StructDefStmt,
+) -> SemanticStruct:
+    """
+    title: Create a struct symbol.
+    parameters:
+      symbol_id:
+        type: str
+      module_key:
+        type: ModuleKey
+      declaration:
+        type: astx.StructDefStmt
+    returns:
+      type: SemanticStruct
+    """
+    return SemanticStruct(
+        symbol_id=symbol_id,
+        name=declaration.name,
+        module_key=module_key,
+        qualified_name=qualified_struct_name(module_key, declaration.name),
+        declaration=declaration,
     )
 
 

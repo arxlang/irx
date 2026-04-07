@@ -21,7 +21,12 @@ try:  # FP128 may not exist depending on llvmlite build.
 except ImportError:  # pragma: no cover - optional
     FP128Type = None
 
-from irx.analysis import analyze
+from irx.analysis import analyze, analyze_modules
+from irx.analysis.module_interfaces import ImportResolver, ParsedModule
+from irx.analysis.module_symbols import (
+    mangle_function_name,
+    mangle_struct_name,
+)
 from irx.builders.base import BuilderVisitor
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.state import NamedValueMap, ResultStackValue
@@ -123,6 +128,88 @@ def semantic_assignment_key(node: astx.AST, fallback: str) -> str:
 
 
 @private
+def semantic_function_key(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic function key.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    function = getattr(semantic, "resolved_function", None)
+    symbol_id = getattr(function, "symbol_id", None)
+    if symbol_id is not None:
+        return cast(str, symbol_id)
+    return fallback
+
+
+@private
+def semantic_function_name(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic LLVM function name.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    function = getattr(semantic, "resolved_function", None)
+    module_key = getattr(function, "module_key", None)
+    name = getattr(function, "name", None)
+    if module_key is not None and name is not None:
+        return mangle_function_name(module_key, name)
+    return fallback
+
+
+@private
+def semantic_struct_key(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic struct key.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    struct = getattr(semantic, "resolved_struct", None)
+    qualified_name = getattr(struct, "qualified_name", None)
+    if qualified_name is not None:
+        return cast(str, qualified_name)
+    return fallback
+
+
+@private
+def semantic_struct_name(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic LLVM struct name.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    struct = getattr(semantic, "resolved_struct", None)
+    module_key = getattr(struct, "module_key", None)
+    name = getattr(struct, "name", None)
+    if module_key is not None and name is not None:
+        return mangle_struct_name(module_key, name)
+    return fallback
+
+
+@private
 def semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
     """
     title: Semantic flag.
@@ -166,12 +253,16 @@ class VisitorCore(BuilderVisitor):
     named_values: NamedValueMap
     _llvm: VariablesLLVM
     function_protos: dict[str, astx.FunctionPrototype]
+    llvm_functions_by_symbol_id: dict[str, ir.Function]
     result_stack: list[ResultStackValue]
     runtime_features: RuntimeFeatureState
     const_vars: set[str]
     loop_stack: list[dict[str, ir.Block]]
     _set_value_ids: dict[int, ir.Value]
     struct_types: dict[str, ir.Type]
+    llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
+    _emitted_function_bodies: set[str]
+    entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
@@ -190,10 +281,14 @@ class VisitorCore(BuilderVisitor):
         self.named_values = {}
         self.const_vars = set()
         self.function_protos = {}
+        self.llvm_functions_by_symbol_id = {}
         self.result_stack = []
         self.loop_stack = []
         self._set_value_ids = {}
         self.struct_types = {}
+        self.llvm_structs_by_qualified_name = {}
+        self._emitted_function_bodies = set()
+        self.entry_function_symbol_id = None
         self._fast_math_enabled = False
 
         self.initialize()
@@ -241,8 +336,107 @@ class VisitorCore(BuilderVisitor):
           type: str
         """
         analyzed = analyze(node)
-        self.visit(analyzed)
+        if isinstance(analyzed, astx.Module):
+            self._set_entry_function_from_module(analyzed)
+            self._translate_modules([analyzed])
+        else:
+            self.visit(analyzed)
         return str(self._llvm.module)
+
+    def translate_modules(
+        self,
+        root: ParsedModule,
+        resolver: ImportResolver,
+    ) -> str:
+        """
+        title: Translate a reachable graph of parsed modules to LLVM IR.
+        parameters:
+          root:
+            type: ParsedModule
+          resolver:
+            type: ImportResolver
+        returns:
+          type: str
+        """
+        session = analyze_modules(root, resolver)
+        self._set_entry_function_from_module(root.ast)
+        self._translate_modules(
+            [parsed_module.ast for parsed_module in session.ordered_modules()]
+        )
+        return str(self._llvm.module)
+
+    def _set_entry_function_from_module(self, module: astx.Module) -> None:
+        """
+        title: >-
+          Record the root entrypoint semantic id when a main function exists.
+        parameters:
+          module:
+            type: astx.Module
+        """
+        self.entry_function_symbol_id = None
+        for node in module.nodes:
+            candidate = None
+            if (
+                isinstance(node, astx.FunctionPrototype)
+                and node.name == "main"
+            ):
+                candidate = node
+            elif isinstance(node, astx.FunctionDef) and node.name == "main":
+                candidate = node.prototype
+            if candidate is None:
+                continue
+            self.entry_function_symbol_id = semantic_function_key(
+                candidate,
+                "main",
+            )
+            return
+
+    def llvm_function_name_for_node(
+        self,
+        node: astx.AST,
+        fallback: str,
+    ) -> str:
+        """
+        title: Return the LLVM symbol name for a function node.
+        parameters:
+          node:
+            type: astx.AST
+          fallback:
+            type: str
+        returns:
+          type: str
+        """
+        function_key = semantic_function_key(node, fallback)
+        if (
+            self.entry_function_symbol_id is not None
+            and function_key == self.entry_function_symbol_id
+        ):
+            return "main"
+        return semantic_function_name(node, fallback)
+
+    def _translate_modules(self, modules: list[astx.Module]) -> None:
+        """
+        title: Translate a list of already-analyzed modules.
+        parameters:
+          modules:
+            type: list[astx.Module]
+        """
+        for module in modules:
+            for node in module.nodes:
+                if isinstance(node, astx.StructDefStmt):
+                    self.visit(node)
+
+        for module in modules:
+            for node in module.nodes:
+                if isinstance(node, astx.FunctionPrototype):
+                    self.visit(node)
+                elif isinstance(node, astx.FunctionDef):
+                    self.visit(node.prototype)
+
+        for module in modules:
+            for node in module.nodes:
+                if isinstance(node, astx.FunctionDef):
+                    self.visit(node)
 
     def activate_runtime_feature(self, feature_name: str) -> None:
         """
@@ -400,6 +594,9 @@ class VisitorCore(BuilderVisitor):
         returns:
           type: ir.Function | None
         """
+        if name in self.llvm_functions_by_symbol_id:
+            return self.llvm_functions_by_symbol_id[name]
+
         if name in self._llvm.module.globals:
             return cast(ir.Function, self._llvm.module.get_global(name))
 

@@ -13,17 +13,29 @@ from public import public
 
 from irx import astx
 from irx.analysis.context import SemanticContext
+from irx.analysis.module_interfaces import (
+    ImportResolver,
+    ModuleKey,
+    ParsedModule,
+)
+from irx.analysis.module_symbols import function_key, struct_key
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
     ResolvedAssignment,
+    ResolvedImportBinding,
     ResolvedOperator,
+    SemanticBinding,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
+    SemanticModule,
+    SemanticStruct,
     SemanticSymbol,
 )
+from irx.analysis.session import CompilationSession
 from irx.analysis.symbols import (
     function_symbol,
+    struct_symbol,
     variable_symbol,
     with_definition,
 )
@@ -58,15 +70,37 @@ class SemanticAnalyzer(BaseVisitor):
     attributes:
       context:
         type: SemanticContext
+      session:
+        type: CompilationSession | None
+      _visible_bindings:
+        type: dict[ModuleKey, dict[str, SemanticBinding]]
     """
 
     context: SemanticContext
+    session: CompilationSession | None
+    _visible_bindings: dict[ModuleKey, dict[str, SemanticBinding]]
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        context: SemanticContext | None = None,
+        session: CompilationSession | None = None,
+    ) -> None:
         """
         title: Initialize SemanticAnalyzer.
+        parameters:
+          context:
+            type: SemanticContext | None
+          session:
+            type: CompilationSession | None
         """
-        self.context = SemanticContext()
+        self.session = session
+        self.context = context or SemanticContext()
+        if session is not None:
+            self.context.diagnostics = session.diagnostics
+        self._visible_bindings = (
+            session.visible_bindings if session is not None else {}
+        )
 
     def analyze(self, node: astx.AST) -> astx.AST:
         """
@@ -78,12 +112,33 @@ class SemanticAnalyzer(BaseVisitor):
           type: astx.AST
         """
         if isinstance(node, astx.Module):
-            self.visit(node)
+            parsed_module = ParsedModule(ModuleKey(node.name), node)
+            self.analyze_parsed_module(parsed_module, predeclared=False)
         else:
             with self.context.scope("module"):
                 self.visit(node)
         self.context.diagnostics.raise_if_errors()
         return node
+
+    def analyze_parsed_module(
+        self,
+        parsed_module: ParsedModule,
+        *,
+        predeclared: bool,
+    ) -> astx.Module:
+        """
+        title: Analyze one parsed module with a known module key.
+        parameters:
+          parsed_module:
+            type: ParsedModule
+          predeclared:
+            type: bool
+        returns:
+          type: astx.Module
+        """
+        with self.context.in_module(parsed_module.key):
+            self._visit_module(parsed_module.ast, predeclared=predeclared)
+        return parsed_module.ast
 
     def _semantic(self, node: astx.AST) -> SemanticInfo:
         """
@@ -160,6 +215,59 @@ class SemanticAnalyzer(BaseVisitor):
             self._set_type(node, function.return_type)
         return function
 
+    def _set_struct(
+        self,
+        node: astx.AST,
+        struct: SemanticStruct | None,
+    ) -> SemanticStruct | None:
+        """
+        title: Set struct.
+        parameters:
+          node:
+            type: astx.AST
+          struct:
+            type: SemanticStruct | None
+        returns:
+          type: SemanticStruct | None
+        """
+        info = self._semantic(node)
+        info.resolved_struct = struct
+        return struct
+
+    def _set_module(
+        self,
+        node: astx.AST,
+        module: SemanticModule | None,
+    ) -> SemanticModule | None:
+        """
+        title: Set module.
+        parameters:
+          node:
+            type: astx.AST
+          module:
+            type: SemanticModule | None
+        returns:
+          type: SemanticModule | None
+        """
+        info = self._semantic(node)
+        info.resolved_module = module
+        return module
+
+    def _set_imports(
+        self,
+        node: astx.AST,
+        imports: tuple[ResolvedImportBinding, ...],
+    ) -> None:
+        """
+        title: Set resolved imports.
+        parameters:
+          node:
+            type: astx.AST
+          imports:
+            type: tuple[ResolvedImportBinding, Ellipsis]
+        """
+        self._semantic(node).resolved_imports = imports
+
     def _set_flags(self, node: astx.AST, flags: SemanticFlags) -> None:
         """
         title: Set flags.
@@ -205,6 +313,163 @@ class SemanticAnalyzer(BaseVisitor):
             return
         info.resolved_assignment = ResolvedAssignment(symbol)
 
+    def _current_module_key(self) -> ModuleKey:
+        """
+        title: Return the current analysis module key.
+        returns:
+          type: ModuleKey
+        """
+        return self.context.current_module_key or ModuleKey("<root>")
+
+    def _current_visible_bindings(self) -> dict[str, SemanticBinding]:
+        """
+        title: Return the current module visible binding table.
+        returns:
+          type: dict[str, SemanticBinding]
+        """
+        module_key = self._current_module_key()
+        return self._visible_bindings.setdefault(module_key, {})
+
+    def _function_binding(self, function: SemanticFunction) -> SemanticBinding:
+        """
+        title: Return a visible binding for a function.
+        parameters:
+          function:
+            type: SemanticFunction
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="function",
+            module_key=function.module_key,
+            qualified_name=function.qualified_name,
+            function=function,
+        )
+
+    def _struct_binding(self, struct: SemanticStruct) -> SemanticBinding:
+        """
+        title: Return a visible binding for a struct.
+        parameters:
+          struct:
+            type: SemanticStruct
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="struct",
+            module_key=struct.module_key,
+            qualified_name=struct.qualified_name,
+            struct=struct,
+        )
+
+    def _module_binding(self, module: SemanticModule) -> SemanticBinding:
+        """
+        title: Return a visible binding for a module.
+        parameters:
+          module:
+            type: SemanticModule
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="module",
+            module_key=module.module_key,
+            qualified_name=str(module.module_key),
+            module=module,
+        )
+
+    def _binding_conflicts(
+        self,
+        existing: SemanticBinding,
+        new_binding: SemanticBinding,
+    ) -> bool:
+        """
+        title: Return True when two visible bindings disagree.
+        parameters:
+          existing:
+            type: SemanticBinding
+          new_binding:
+            type: SemanticBinding
+        returns:
+          type: bool
+        """
+        return (
+            existing.kind != new_binding.kind
+            or existing.qualified_name != new_binding.qualified_name
+        )
+
+    def _bind_visible_name(
+        self,
+        local_name: str,
+        binding: SemanticBinding,
+        *,
+        node: astx.AST,
+    ) -> None:
+        """
+        title: Bind one name in the current module namespace.
+        parameters:
+          local_name:
+            type: str
+          binding:
+            type: SemanticBinding
+          node:
+            type: astx.AST
+        """
+        bindings = self._current_visible_bindings()
+        existing = bindings.get(local_name)
+        if existing is not None and self._binding_conflicts(existing, binding):
+            self.context.diagnostics.add(
+                f"Conflicting binding for '{local_name}'",
+                node=node,
+            )
+            return
+        bindings[local_name] = binding
+
+    def _resolve_visible_name(
+        self,
+        name: str,
+        *,
+        module_key: ModuleKey | None = None,
+    ) -> SemanticBinding | None:
+        """
+        title: Resolve one visible module binding.
+        parameters:
+          name:
+            type: str
+          module_key:
+            type: ModuleKey | None
+        returns:
+          type: SemanticBinding | None
+        """
+        current_module_key = module_key or self._current_module_key()
+        return self._visible_bindings.get(current_module_key, {}).get(name)
+
+    def _imports_supported_here(self, node: astx.AST) -> bool:
+        """
+        title: Return True when import handling is available for this node.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: bool
+        """
+        if self.session is None:
+            self.context.diagnostics.add(
+                "Import statements require analyze_modules(...) with a "
+                "host-provided resolver.",
+                node=node,
+            )
+            return False
+        current_scope = self.context.scopes.current
+        if current_scope is None or current_scope.kind != "module":
+            self.context.diagnostics.add(
+                "Import statements are supported only at module top level "
+                "in this MVP.",
+                node=node,
+            )
+            return False
+        return True
+
     def _expr_type(self, node: astx.AST | None) -> astx.DataType | None:
         """
         title: Expr type.
@@ -246,8 +511,10 @@ class SemanticAnalyzer(BaseVisitor):
         returns:
           type: SemanticSymbol
         """
+        module_key = self._current_module_key()
         symbol = variable_symbol(
             self.context.next_symbol_id(kind),
+            module_key,
             name,
             clone_type(type_),
             is_mutable=is_mutable,
@@ -277,7 +544,9 @@ class SemanticAnalyzer(BaseVisitor):
         returns:
           type: SemanticFunction
         """
-        existing = self.context.functions.get(prototype.name)
+        module_key = self._current_module_key()
+        key = function_key(module_key, prototype.name)
+        existing = self.context.functions_by_module_and_name.get(key)
         if existing is not None:
             if definition is not None and existing.definition is not None:
                 self.context.diagnostics.add(
@@ -286,13 +555,20 @@ class SemanticAnalyzer(BaseVisitor):
                 )
             if definition is not None:
                 updated = with_definition(existing, definition)
-                self.context.functions[prototype.name] = updated
+                self.context.functions[updated.symbol_id] = updated
+                self.context.functions_by_module_and_name[key] = updated
+                self._bind_visible_name(
+                    prototype.name,
+                    self._function_binding(updated),
+                    node=definition,
+                )
                 return updated
             return existing
 
         args = tuple(
             variable_symbol(
                 self.context.next_symbol_id("arg"),
+                module_key,
                 arg.name,
                 clone_type(arg.type_),
                 is_mutable=True,
@@ -303,12 +579,56 @@ class SemanticAnalyzer(BaseVisitor):
         )
         function = function_symbol(
             self.context.next_symbol_id("fn"),
+            module_key,
             prototype,
             args,
             definition=definition,
         )
-        self.context.functions[prototype.name] = function
+        self.context.functions[function.symbol_id] = function
+        self.context.functions_by_module_and_name[key] = function
+        self._bind_visible_name(
+            prototype.name,
+            self._function_binding(function),
+            node=definition or prototype,
+        )
         return function
+
+    def _register_struct(
+        self,
+        node: astx.StructDefStmt,
+    ) -> SemanticStruct:
+        """
+        title: Register struct.
+        parameters:
+          node:
+            type: astx.StructDefStmt
+        returns:
+          type: SemanticStruct
+        """
+        module_key = self._current_module_key()
+        key = struct_key(module_key, node.name)
+        existing = self.context.structs_by_module_and_name.get(key)
+        if existing is not None:
+            if existing.declaration is not node:
+                self.context.diagnostics.add(
+                    f"Struct '{node.name}' already defined.",
+                    node=node,
+                )
+            return existing
+
+        struct = struct_symbol(
+            self.context.next_symbol_id("struct"),
+            module_key,
+            node,
+        )
+        self.context.structs[struct.symbol_id] = struct
+        self.context.structs_by_module_and_name[key] = struct
+        self._bind_visible_name(
+            node.name,
+            self._struct_binding(struct),
+            node=node,
+        )
+        return struct
 
     def _predeclare_module_members(self, module: astx.Module) -> None:
         """
@@ -327,13 +647,28 @@ class SemanticAnalyzer(BaseVisitor):
                 self._set_function(node.prototype, function)
                 self._set_function(node, function)
             elif isinstance(node, astx.StructDefStmt):
-                if node.name in self.context.structs:
-                    self.context.diagnostics.add(
-                        f"Struct '{node.name}' already defined.",
-                        node=node,
-                    )
-                else:
-                    self.context.structs[node.name] = node
+                self._set_struct(node, self._register_struct(node))
+
+    def _visit_module(
+        self,
+        module: astx.Module,
+        *,
+        predeclared: bool,
+    ) -> None:
+        """
+        title: Visit one module with optional predeclaration.
+        parameters:
+          module:
+            type: astx.Module
+          predeclared:
+            type: bool
+        """
+        self._set_type(module, None)
+        with self.context.scope("module"):
+            if not predeclared:
+                self._predeclare_module_members(module)
+            for node in module.nodes:
+                self.visit(node)
 
     @dispatch
     def visit(self, node: astx.AST) -> None:
@@ -353,11 +688,8 @@ class SemanticAnalyzer(BaseVisitor):
           module:
             type: astx.Module
         """
-        self._set_type(module, None)
-        with self.context.scope("module"):
-            self._predeclare_module_members(module)
-            for node in module.nodes:
-                self.visit(node)
+        with self.context.in_module(ModuleKey(module.name)):
+            self._visit_module(module, predeclared=False)
 
     @dispatch
     def visit(self, block: astx.Block) -> None:
@@ -388,7 +720,9 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.FunctionPrototype
         """
-        function = self.context.functions.get(node.name)
+        function = self.context.functions_by_module_and_name.get(
+            function_key(self._current_module_key(), node.name)
+        )
         if function is None:
             function = self._register_function(node)
         self._set_function(node, function)
@@ -401,7 +735,9 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.FunctionDef
         """
-        function = self.context.functions.get(node.name)
+        function = self.context.functions_by_module_and_name.get(
+            function_key(self._current_module_key(), node.name)
+        )
         if function is None:
             function = self._register_function(node.prototype, definition=node)
         self._set_function(node.prototype, function)
@@ -670,17 +1006,24 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.FunctionCall
         """
-        function = self.context.functions.get(node.fn)
         arg_types: list[astx.DataType | None] = []
         for arg in node.args:
             self.visit(arg)
             arg_types.append(self._expr_type(arg))
-        if function is None:
+        binding = self._resolve_visible_name(node.fn)
+        if binding is None:
             self.context.diagnostics.add(
                 "Unknown function referenced",
                 node=node,
             )
             return
+        if binding.kind != "function" or binding.function is None:
+            self.context.diagnostics.add(
+                f"Name '{node.fn}' does not resolve to a function",
+                node=node,
+            )
+            return
+        function = binding.function
         self._set_function(node, function)
         validate_call(
             self.context.diagnostics,
@@ -889,14 +1232,7 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.StructDefStmt
         """
-        existing = self.context.structs.get(node.name)
-        if existing not in {None, node}:
-            self.context.diagnostics.add(
-                f"Struct '{node.name}' already defined.",
-                node=node,
-            )
-        else:
-            self.context.structs[node.name] = node
+        self._set_struct(node, self._register_struct(node))
         seen: set[str] = set()
         for attr in node.attributes:
             if attr.name in seen:
@@ -905,6 +1241,148 @@ class SemanticAnalyzer(BaseVisitor):
                     node=attr,
                 )
             seen.add(attr.name)
+        self._set_type(node, None)
+
+    @dispatch
+    def visit(self, node: astx.AliasExpr) -> None:
+        """
+        title: Visit AliasExpr nodes.
+        parameters:
+          node:
+            type: astx.AliasExpr
+        """
+        self._set_type(node, None)
+
+    @dispatch
+    def visit(self, node: astx.ImportStmt) -> None:
+        """
+        title: Visit ImportStmt nodes.
+        parameters:
+          node:
+            type: astx.ImportStmt
+        """
+        self._set_type(node, None)
+        if not self._imports_supported_here(node):
+            return
+
+        resolved_imports: list[ResolvedImportBinding] = []
+        for alias in node.names:
+            resolved = self.session.resolve_import_specifier(
+                self._current_module_key(),
+                node,
+                alias.name,
+            )
+            if resolved is None:
+                continue
+            semantic_module = SemanticModule(
+                module_key=resolved.key,
+                display_name=resolved.display_name,
+            )
+            binding = self._module_binding(semantic_module)
+            local_name = alias.asname or alias.name
+            self._bind_visible_name(local_name, binding, node=alias)
+            resolved_binding = ResolvedImportBinding(
+                local_name=local_name,
+                requested_name=alias.name,
+                source_module_key=resolved.key,
+                binding=binding,
+            )
+            resolved_imports.append(resolved_binding)
+            self._set_module(alias, semantic_module)
+            self._set_imports(alias, (resolved_binding,))
+        self._set_imports(node, tuple(resolved_imports))
+
+    @dispatch
+    def visit(self, node: astx.ImportFromStmt) -> None:
+        """
+        title: Visit ImportFromStmt nodes.
+        parameters:
+          node:
+            type: astx.ImportFromStmt
+        """
+        self._set_type(node, None)
+        if not self._imports_supported_here(node):
+            return
+
+        requested_specifier = f"{'.' * node.level}{node.module or ''}"
+        resolved_module = self.session.resolve_import_specifier(
+            self._current_module_key(),
+            node,
+            requested_specifier,
+        )
+        if resolved_module is None:
+            return
+
+        target_module = SemanticModule(
+            module_key=resolved_module.key,
+            display_name=resolved_module.display_name,
+        )
+        self._set_module(node, target_module)
+        target_bindings = self._visible_bindings.get(resolved_module.key, {})
+        resolved_imports: list[ResolvedImportBinding] = []
+
+        for alias in node.names:
+            if alias.name == "*":
+                self.context.diagnostics.add(
+                    "Wildcard imports are not supported in this MVP.",
+                    node=alias,
+                )
+                continue
+            target_binding = target_bindings.get(alias.name)
+            if target_binding is None or target_binding.kind not in {
+                "function",
+                "struct",
+            }:
+                self.context.diagnostics.add(
+                    f"Imported symbol '{alias.name}' was not found in "
+                    f"module '{requested_specifier}'",
+                    node=alias,
+                )
+                continue
+            local_name = alias.asname or alias.name
+            self._bind_visible_name(local_name, target_binding, node=alias)
+            resolved_binding = ResolvedImportBinding(
+                local_name=local_name,
+                requested_name=alias.name,
+                source_module_key=resolved_module.key,
+                binding=target_binding,
+            )
+            resolved_imports.append(resolved_binding)
+            self._set_module(alias, target_module)
+            self._set_imports(alias, (resolved_binding,))
+            if target_binding.function is not None:
+                self._set_function(alias, target_binding.function)
+            if target_binding.struct is not None:
+                self._set_struct(alias, target_binding.struct)
+
+        self._set_imports(node, tuple(resolved_imports))
+
+    @dispatch
+    def visit(self, node: astx.ImportExpr) -> None:
+        """
+        title: Visit ImportExpr nodes.
+        parameters:
+          node:
+            type: astx.ImportExpr
+        """
+        self.context.diagnostics.add(
+            "Import expressions are not supported in this MVP.",
+            node=node,
+        )
+        self._set_type(node, None)
+
+    @dispatch
+    def visit(self, node: astx.ImportFromExpr) -> None:
+        """
+        title: Visit ImportFromExpr nodes.
+        parameters:
+          node:
+            type: astx.ImportFromExpr
+        """
+        self.context.diagnostics.add(
+            "Import expressions are not supported in this MVP.",
+            node=node,
+        )
         self._set_type(node, None)
 
     def _visit_temporal_literal(self, node: astx.AST) -> None:
@@ -1122,3 +1600,44 @@ def analyze_module(module: astx.Module) -> astx.Module:
       type: astx.Module
     """
     return cast(astx.Module, analyze(module))
+
+
+@public
+def analyze_modules(
+    root: ParsedModule,
+    resolver: ImportResolver,
+) -> CompilationSession:
+    """
+    title: Analyze a reachable graph of host-provided parsed modules.
+    parameters:
+      root:
+        type: ParsedModule
+      resolver:
+        type: ImportResolver
+    returns:
+      type: CompilationSession
+    """
+    session = CompilationSession(root=root, resolver=resolver)
+    session.expand_graph()
+
+    analyzer = SemanticAnalyzer(session=session)
+
+    for parsed_module in session.ordered_modules():
+        with analyzer.context.in_module(parsed_module.key):
+            analyzer._predeclare_module_members(parsed_module.ast)
+
+    for parsed_module in session.ordered_modules():
+        with analyzer.context.in_module(parsed_module.key):
+            with analyzer.context.scope("module"):
+                for node in parsed_module.ast.nodes:
+                    if isinstance(
+                        node,
+                        (astx.ImportStmt, astx.ImportFromStmt),
+                    ):
+                        analyzer.visit(node)
+
+    for parsed_module in session.ordered_modules():
+        analyzer.analyze_parsed_module(parsed_module, predeclared=True)
+
+    session.diagnostics.raise_if_errors()
+    return session

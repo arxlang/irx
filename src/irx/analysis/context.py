@@ -10,9 +10,9 @@ from typing import Iterator
 
 from public import public
 
-from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
-from irx.analysis.resolved_nodes import SemanticFunction
+from irx.analysis.module_interfaces import ModuleKey
+from irx.analysis.resolved_nodes import SemanticFunction, SemanticStruct
 from irx.analysis.scopes import ScopeStack
 
 
@@ -28,10 +28,16 @@ class SemanticContext:
         type: DiagnosticBag
       functions:
         type: dict[str, SemanticFunction]
+      functions_by_module_and_name:
+        type: dict[tuple[ModuleKey, str], SemanticFunction]
       structs:
-        type: dict[str, astx.StructDefStmt]
+        type: dict[str, SemanticStruct]
+      structs_by_module_and_name:
+        type: dict[tuple[ModuleKey, str], SemanticStruct]
       current_function:
         type: SemanticFunction | None
+      current_module_key:
+        type: ModuleKey | None
       loop_depth:
         type: int
       _symbol_counter:
@@ -41,8 +47,15 @@ class SemanticContext:
     scopes: ScopeStack = field(default_factory=ScopeStack)
     diagnostics: DiagnosticBag = field(default_factory=DiagnosticBag)
     functions: dict[str, SemanticFunction] = field(default_factory=dict)
-    structs: dict[str, astx.StructDefStmt] = field(default_factory=dict)
+    functions_by_module_and_name: dict[
+        tuple[ModuleKey, str], SemanticFunction
+    ] = field(default_factory=dict)
+    structs: dict[str, SemanticStruct] = field(default_factory=dict)
+    structs_by_module_and_name: dict[tuple[ModuleKey, str], SemanticStruct] = (
+        field(default_factory=dict)
+    )
     current_function: SemanticFunction | None = None
+    current_module_key: ModuleKey | None = None
     loop_depth: int = 0
     _symbol_counter: int = 0
 
@@ -90,6 +103,26 @@ class SemanticContext:
             yield
         finally:
             self.current_function = previous
+
+    @contextmanager
+    def in_module(self, module_key: ModuleKey) -> Iterator[None]:
+        """
+        title: Temporarily set the current module key.
+        parameters:
+          module_key:
+            type: ModuleKey
+        returns:
+          type: Iterator[None]
+        """
+        previous = self.current_module_key
+        previous_diagnostic_key = self.diagnostics.default_module_key
+        self.current_module_key = module_key
+        self.diagnostics.default_module_key = module_key
+        try:
+            yield
+        finally:
+            self.current_module_key = previous
+            self.diagnostics.default_module_key = previous_diagnostic_key
 
     @contextmanager
     def in_loop(self) -> Iterator[None]:

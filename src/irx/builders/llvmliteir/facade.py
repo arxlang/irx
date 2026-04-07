@@ -13,6 +13,7 @@ from llvmlite import binding as llvm
 from public import public
 
 from irx import astx
+from irx.analysis.module_interfaces import ImportResolver, ParsedModule
 from irx.builders.base import Builder as BaseBuilder
 from irx.builders.llvmliteir.core import VisitorCore
 from irx.builders.llvmliteir.visitors import (
@@ -78,6 +79,24 @@ class Builder(BaseBuilder):
         self.translator = self._new_translator()
         return self.translator.translate(expr)
 
+    def translate_modules(
+        self,
+        root: ParsedModule,
+        resolver: ImportResolver,
+    ) -> str:
+        """
+        title: Translate a reachable graph of parsed modules.
+        parameters:
+          root:
+            type: ParsedModule
+          resolver:
+            type: ImportResolver
+        returns:
+          type: str
+        """
+        self.translator = self._new_translator()
+        return self.translator.translate_modules(root, resolver)
+
     def build(self, node: astx.AST, output_file: str) -> None:
         """
         title: Build.
@@ -88,6 +107,36 @@ class Builder(BaseBuilder):
             type: str
         """
         result = self.translate(node)
+        self._build_from_ir(result, output_file)
+
+    def build_modules(
+        self,
+        root: ParsedModule,
+        resolver: ImportResolver,
+        output_file: str,
+    ) -> None:
+        """
+        title: Build a reachable graph of parsed modules.
+        parameters:
+          root:
+            type: ParsedModule
+          resolver:
+            type: ImportResolver
+          output_file:
+            type: str
+        """
+        result = self.translate_modules(root, resolver)
+        self._build_from_ir(result, output_file)
+
+    def _build_from_ir(self, result: str, output_file: str) -> None:
+        """
+        title: Build an executable from LLVM IR text.
+        parameters:
+          result:
+            type: str
+          output_file:
+            type: str
+        """
         result_mod = llvm.parse_assembly(result)
         result_object = self.translator.target_machine.emit_object(result_mod)
 

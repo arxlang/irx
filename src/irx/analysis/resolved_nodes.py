@@ -10,6 +10,7 @@ from typing import Any
 from public import public
 
 from irx import astx
+from irx.analysis.module_interfaces import ModuleKey
 
 
 @public
@@ -30,6 +31,10 @@ class SemanticSymbol:
         type: str
       declaration:
         type: astx.AST | None
+      module_key:
+        type: ModuleKey
+      qualified_name:
+        type: str
     """
 
     symbol_id: str
@@ -38,6 +43,35 @@ class SemanticSymbol:
     is_mutable: bool
     kind: str
     declaration: astx.AST | None = None
+    module_key: ModuleKey = field(
+        default_factory=lambda: ModuleKey("<unknown>")
+    )
+    qualified_name: str = ""
+
+
+@public
+@dataclass(frozen=True)
+class SemanticStruct:
+    """
+    title: Resolved struct information.
+    attributes:
+      symbol_id:
+        type: str
+      name:
+        type: str
+      module_key:
+        type: ModuleKey
+      qualified_name:
+        type: str
+      declaration:
+        type: astx.StructDefStmt
+    """
+
+    symbol_id: str
+    name: str
+    module_key: ModuleKey
+    qualified_name: str
+    declaration: astx.StructDefStmt
 
 
 @public
@@ -58,6 +92,10 @@ class SemanticFunction:
         type: astx.FunctionPrototype
       definition:
         type: astx.FunctionDef | None
+      module_key:
+        type: ModuleKey
+      qualified_name:
+        type: str
     """
 
     symbol_id: str
@@ -66,6 +104,76 @@ class SemanticFunction:
     args: tuple[SemanticSymbol, ...]
     prototype: astx.FunctionPrototype
     definition: astx.FunctionDef | None = None
+    module_key: ModuleKey = field(
+        default_factory=lambda: ModuleKey("<unknown>")
+    )
+    qualified_name: str = ""
+
+
+@public
+@dataclass(frozen=True)
+class SemanticModule:
+    """
+    title: Semantic identity for an imported module.
+    attributes:
+      module_key:
+        type: ModuleKey
+      display_name:
+        type: str | None
+    """
+
+    module_key: ModuleKey
+    display_name: str | None = None
+
+
+@public
+@dataclass(frozen=True)
+class SemanticBinding:
+    """
+    title: One visible top-level binding in a module namespace.
+    attributes:
+      kind:
+        type: str
+      module_key:
+        type: ModuleKey
+      qualified_name:
+        type: str
+      function:
+        type: SemanticFunction | None
+      struct:
+        type: SemanticStruct | None
+      module:
+        type: SemanticModule | None
+    """
+
+    kind: str
+    module_key: ModuleKey
+    qualified_name: str
+    function: SemanticFunction | None = None
+    struct: SemanticStruct | None = None
+    module: SemanticModule | None = None
+
+
+@public
+@dataclass(frozen=True)
+class ResolvedImportBinding:
+    """
+    title: One resolved imported local binding.
+    attributes:
+      local_name:
+        type: str
+      requested_name:
+        type: str
+      source_module_key:
+        type: ModuleKey
+      binding:
+        type: SemanticBinding
+    """
+
+    local_name: str
+    requested_name: str
+    source_module_key: ModuleKey
+    binding: SemanticBinding
 
 
 @public
@@ -140,6 +248,12 @@ class SemanticInfo:
         type: SemanticSymbol | None
       resolved_function:
         type: SemanticFunction | None
+      resolved_struct:
+        type: SemanticStruct | None
+      resolved_module:
+        type: SemanticModule | None
+      resolved_imports:
+        type: tuple[ResolvedImportBinding, Ellipsis]
       resolved_operator:
         type: ResolvedOperator | None
       resolved_assignment:
@@ -153,6 +267,9 @@ class SemanticInfo:
     resolved_type: astx.DataType | None = None
     resolved_symbol: SemanticSymbol | None = None
     resolved_function: SemanticFunction | None = None
+    resolved_struct: SemanticStruct | None = None
+    resolved_module: SemanticModule | None = None
+    resolved_imports: tuple[ResolvedImportBinding, ...] = ()
     resolved_operator: ResolvedOperator | None = None
     resolved_assignment: ResolvedAssignment | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)

@@ -27,12 +27,18 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: set[str]
       function_protos:
         type: dict[str, astx.FunctionPrototype]
+      llvm_functions_by_symbol_id:
+        type: dict[str, ir.Function]
       result_stack:
         type: list[ResultStackValue]
       loop_stack:
         type: list[dict[str, Any]]
       struct_types:
         type: dict[str, ir.Type]
+      llvm_structs_by_qualified_name:
+        type: dict[str, ir.IdentifiedStructType]
+      entry_function_symbol_id:
+        type: str | None
       _fast_math_enabled:
         type: bool
       target:
@@ -45,9 +51,12 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     named_values: NamedValueMap
     const_vars: set[str]
     function_protos: dict[str, astx.FunctionPrototype]
+    llvm_functions_by_symbol_id: dict[str, ir.Function]
     result_stack: list[ResultStackValue]
     loop_stack: list[dict[str, Any]]
     struct_types: dict[str, ir.Type]
+    llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
+    entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
@@ -60,6 +69,23 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
             type: str
         returns:
           type: ir.Function | None
+        """
+        ...
+
+    def llvm_function_name_for_node(
+        self,
+        _node: astx.AST,
+        _fallback: str,
+    ) -> str:
+        """
+        title: Return the LLVM symbol name for a function node.
+        parameters:
+          _node:
+            type: astx.AST
+          _fallback:
+            type: str
+        returns:
+          type: str
         """
         ...
 
@@ -353,12 +379,18 @@ if TYPE_CHECKING:
             type: set[str]
           function_protos:
             type: dict[str, astx.FunctionPrototype]
+          llvm_functions_by_symbol_id:
+            type: dict[str, ir.Function]
           result_stack:
             type: list[ResultStackValue]
           loop_stack:
             type: list[dict[str, Any]]
           struct_types:
             type: dict[str, ir.Type]
+          llvm_structs_by_qualified_name:
+            type: dict[str, ir.IdentifiedStructType]
+          entry_function_symbol_id:
+            type: str | None
           _fast_math_enabled:
             type: bool
           target:
@@ -371,9 +403,12 @@ if TYPE_CHECKING:
         named_values: NamedValueMap
         const_vars: set[str]
         function_protos: dict[str, astx.FunctionPrototype]
+        llvm_functions_by_symbol_id: dict[str, ir.Function]
         result_stack: list[ResultStackValue]
         loop_stack: list[dict[str, Any]]
         struct_types: dict[str, ir.Type]
+        llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
+        entry_function_symbol_id: str | None
         _fast_math_enabled: bool
         target: llvm.TargetRef
         target_machine: llvm.TargetMachine
@@ -406,6 +441,23 @@ if TYPE_CHECKING:
               type: ir.Function | None
             """
             return cast(ir.Function | None, None)
+
+        def llvm_function_name_for_node(
+            self,
+            _node: astx.AST,
+            _fallback: str,
+        ) -> str:
+            """
+            title: Return the LLVM symbol name for a function node.
+            parameters:
+              _node:
+                type: astx.AST
+              _fallback:
+                type: str
+            returns:
+              type: str
+            """
+            return _fallback
 
         def create_entry_block_alloca(
             self, _var_name: str, _type_name: str

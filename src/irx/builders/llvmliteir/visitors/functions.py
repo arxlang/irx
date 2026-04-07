@@ -7,7 +7,11 @@ title: Function visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.llvmliteir.core import VisitorCore, semantic_symbol_key
+from irx.builders.llvmliteir.core import (
+    VisitorCore,
+    semantic_function_key,
+    semantic_symbol_key,
+)
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
@@ -22,7 +26,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
           node:
             type: astx.FunctionCall
         """
-        callee_f = self.get_function(node.fn)
+        callee_f = self.get_function(semantic_function_key(node, node.fn))
         if not callee_f:
             raise Exception("Unknown function referenced")
 
@@ -49,10 +53,14 @@ class FunctionVisitorMixin(VisitorMixinBase):
             type: astx.FunctionDef
         """
         proto = node.prototype
-        self.function_protos[proto.name] = proto
-        fn = self.get_function(proto.name)
+        function_key = semantic_function_key(proto, proto.name)
+        self.function_protos[function_key] = proto
+        fn = self.get_function(function_key)
         if not fn:
             raise Exception("Invalid function.")
+        if function_key in self._emitted_function_bodies:
+            self.result_stack.append(fn)
+            return
 
         basic_block = fn.append_basic_block("entry")
         self._llvm.ir_builder = ir.IRBuilder(basic_block)
@@ -77,6 +85,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
                     f"'{return_type}' is missing a return statement"
                 )
 
+        self._emitted_function_bodies.add(function_key)
         self.result_stack.append(fn)
 
     @VisitorCore.visit.dispatch
@@ -96,7 +105,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
             node.return_type.__class__.__name__.lower()
         )
         fn_type = ir.FunctionType(return_type, args_type, False)
-        fn = ir.Function(self._llvm.module, fn_type, node.name)
+        function_key = semantic_function_key(node, node.name)
+        existing = self.llvm_functions_by_symbol_id.get(function_key)
+        if existing is not None:
+            self.result_stack.append(existing)
+            return
+
+        llvm_name = self.llvm_function_name_for_node(node, node.name)
+        fn = ir.Function(self._llvm.module, fn_type, llvm_name)
+        self.function_protos[function_key] = node
+        self.llvm_functions_by_symbol_id[function_key] = fn
 
         for idx, llvm_arg in enumerate(fn.args):
             llvm_arg.name = node.args.nodes[idx].name

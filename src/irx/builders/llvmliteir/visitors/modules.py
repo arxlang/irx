@@ -7,7 +7,11 @@ title: Module-level visitor mixins for llvmliteir.
 from llvmlite import ir
 
 from irx import astx
-from irx.builders.llvmliteir.core import VisitorCore
+from irx.builders.llvmliteir.core import (
+    VisitorCore,
+    semantic_struct_key,
+    semantic_struct_name,
+)
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 
 
@@ -20,8 +24,7 @@ class ModuleVisitorMixin(VisitorMixinBase):
           node:
             type: astx.Module
         """
-        for mod_node in node.nodes:
-            self.visit_child(mod_node)
+        self._translate_modules([node])
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.StructDefStmt) -> None:
@@ -31,7 +34,14 @@ class ModuleVisitorMixin(VisitorMixinBase):
           node:
             type: astx.StructDefStmt
         """
-        struct_type = self._llvm.module.context.get_identified_type(node.name)
+        struct_key = semantic_struct_key(node, node.name)
+        existing = self.llvm_structs_by_qualified_name.get(struct_key)
+        if existing is not None:
+            self.struct_types[struct_key] = existing
+            return
+
+        llvm_name = semantic_struct_name(node, node.name)
+        struct_type = self._llvm.module.context.get_identified_type(llvm_name)
         if not struct_type.is_opaque:
             raise ValueError(f"Struct '{node.name}' already defined.")
 
@@ -41,4 +51,5 @@ class ModuleVisitorMixin(VisitorMixinBase):
             field_types.append(self._llvm.get_data_type(type_str))
 
         struct_type.set_body(*field_types)
-        self.struct_types[node.name] = struct_type
+        self.struct_types[struct_key] = struct_type
+        self.llvm_structs_by_qualified_name[struct_key] = struct_type
