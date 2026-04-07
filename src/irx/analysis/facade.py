@@ -555,7 +555,9 @@ class SemanticAnalyzer(BaseVisitor):
                 )
             if definition is not None:
                 updated = with_definition(existing, definition)
-                self.context.functions[updated.symbol_id] = updated
+                self.context.functions_by_symbol_id[updated.symbol_id] = (
+                    updated
+                )
                 self.context.functions_by_module_and_name[key] = updated
                 self._bind_visible_name(
                     prototype.name,
@@ -584,7 +586,7 @@ class SemanticAnalyzer(BaseVisitor):
             args,
             definition=definition,
         )
-        self.context.functions[function.symbol_id] = function
+        self.context.functions_by_symbol_id[function.symbol_id] = function
         self.context.functions_by_module_and_name[key] = function
         self._bind_visible_name(
             prototype.name,
@@ -621,7 +623,7 @@ class SemanticAnalyzer(BaseVisitor):
             module_key,
             node,
         )
-        self.context.structs[struct.symbol_id] = struct
+        self.context.structs_by_symbol_id[struct.symbol_id] = struct
         self.context.structs_by_module_and_name[key] = struct
         self._bind_visible_name(
             node.name,

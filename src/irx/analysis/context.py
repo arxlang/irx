@@ -26,11 +26,11 @@ class SemanticContext:
         type: ScopeStack
       diagnostics:
         type: DiagnosticBag
-      functions:
+      functions_by_symbol_id:
         type: dict[str, SemanticFunction]
       functions_by_module_and_name:
         type: dict[tuple[ModuleKey, str], SemanticFunction]
-      structs:
+      structs_by_symbol_id:
         type: dict[str, SemanticStruct]
       structs_by_module_and_name:
         type: dict[tuple[ModuleKey, str], SemanticStruct]
@@ -46,11 +46,15 @@ class SemanticContext:
 
     scopes: ScopeStack = field(default_factory=ScopeStack)
     diagnostics: DiagnosticBag = field(default_factory=DiagnosticBag)
-    functions: dict[str, SemanticFunction] = field(default_factory=dict)
+    functions_by_symbol_id: dict[str, SemanticFunction] = field(
+        default_factory=dict
+    )
     functions_by_module_and_name: dict[
         tuple[ModuleKey, str], SemanticFunction
     ] = field(default_factory=dict)
-    structs: dict[str, SemanticStruct] = field(default_factory=dict)
+    structs_by_symbol_id: dict[str, SemanticStruct] = field(
+        default_factory=dict
+    )
     structs_by_module_and_name: dict[tuple[ModuleKey, str], SemanticStruct] = (
         field(default_factory=dict)
     )

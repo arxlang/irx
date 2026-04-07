@@ -323,6 +323,42 @@ def test_analyze_modules_keeps_same_bare_function_names_distinct() -> None:
     assert function_a.qualified_name != function_b.qualified_name
 
 
+def test_analyze_modules_keeps_same_bare_struct_names_distinct() -> None:
+    """
+    title: Same bare struct names remain distinct across modules.
+    """
+    import_a = astx.ImportFromStmt(
+        module="a",
+        names=[astx.AliasExpr("Point", asname="APoint")],
+    )
+    import_b = astx.ImportFromStmt(
+        module="b",
+        names=[astx.AliasExpr("Point", asname="BPoint")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_a,
+        import_b,
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    module_a = make_parsed_module("a", _point_struct("Point"))
+    module_b = make_parsed_module("b", _point_struct("Point"))
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"a": module_a, "b": module_b}),
+    )
+
+    struct_a = _semantic(import_a).resolved_imports[0].binding.struct
+    struct_b = _semantic(import_b).resolved_imports[0].binding.struct
+
+    assert struct_a is not None
+    assert struct_b is not None
+    assert struct_a.module_key == ModuleKey("a")
+    assert struct_b.module_key == ModuleKey("b")
+    assert struct_a.qualified_name != struct_b.qualified_name
+
+
 @pytest.mark.parametrize(
     ("root", "pattern"),
     [
