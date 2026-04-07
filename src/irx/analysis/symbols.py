@@ -1,20 +1,23 @@
 """
-title: Symbol records for semantic analysis.
+title: Variable-symbol helpers for semantic analysis.
+summary: >-
+  Build variable-like semantic symbols that need local-style qualified names.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from public import public
 
 from irx import astx
-from irx.analysis.resolved_nodes import SemanticFunction, SemanticSymbol
+from irx.analysis.module_interfaces import ModuleKey
+from irx.analysis.module_symbols import qualified_local_name
+from irx.analysis.resolved_nodes import SemanticSymbol
 
 
 @public
 def variable_symbol(
     symbol_id: str,
+    module_key: ModuleKey,
     name: str,
     type_: astx.DataType,
     *,
@@ -27,6 +30,8 @@ def variable_symbol(
     parameters:
       symbol_id:
         type: str
+      module_key:
+        type: ModuleKey
       name:
         type: str
       type_:
@@ -47,53 +52,6 @@ def variable_symbol(
         is_mutable=is_mutable,
         kind=kind,
         declaration=declaration,
+        module_key=module_key,
+        qualified_name=qualified_local_name(module_key, kind, name, symbol_id),
     )
-
-
-@public
-def function_symbol(
-    symbol_id: str,
-    prototype: astx.FunctionPrototype,
-    args: tuple[SemanticSymbol, ...],
-    *,
-    definition: astx.FunctionDef | None = None,
-) -> SemanticFunction:
-    """
-    title: Create a function symbol.
-    parameters:
-      symbol_id:
-        type: str
-      prototype:
-        type: astx.FunctionPrototype
-      args:
-        type: tuple[SemanticSymbol, Ellipsis]
-      definition:
-        type: astx.FunctionDef | None
-    returns:
-      type: SemanticFunction
-    """
-    return SemanticFunction(
-        symbol_id=symbol_id,
-        name=prototype.name,
-        return_type=prototype.return_type,
-        args=args,
-        prototype=prototype,
-        definition=definition,
-    )
-
-
-@public
-def with_definition(
-    symbol: SemanticFunction, definition: astx.FunctionDef
-) -> SemanticFunction:
-    """
-    title: Return a function symbol updated with its definition.
-    parameters:
-      symbol:
-        type: SemanticFunction
-      definition:
-        type: astx.FunctionDef
-    returns:
-      type: SemanticFunction
-    """
-    return replace(symbol, definition=definition)

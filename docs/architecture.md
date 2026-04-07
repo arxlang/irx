@@ -66,6 +66,38 @@ is needed.
 If the language grows to the point where a true HIR becomes useful, the current
 phase split still leaves room for that evolution.
 
+### Multi-Module Boundary
+
+IRx now also supports a parser-agnostic multi-module path for imports.
+
+The boundary is explicit:
+
+- the host compiler parses source text into `astx.Module` objects
+- the host compiler decides how an import specifier maps to a module
+- IRx receives `ParsedModule` objects plus an `ImportResolver`
+- IRx expands the reachable dependency graph, performs cross-module semantic
+  analysis, and lowers the reachable graph into one LLVM module for the MVP
+
+IRx does not parse source text, search the filesystem, or implement package
+discovery. Those responsibilities stay outside the library.
+
+### Compilation Session
+
+The multi-module path is centered on `CompilationSession` in
+`src/irx/analysis/session.py`.
+
+That session owns:
+
+- the root parsed module and resolver callback
+- the cache of reachable parsed modules
+- the import dependency graph and stable load order
+- cycle diagnostics
+- per-module visible top-level bindings used for import alias resolution
+
+Semantic identity for top-level functions and structs is module-aware. Backend
+lowering consumes that semantic identity rather than raw source names, which is
+what keeps same-named declarations in different modules from colliding in LLVM.
+
 ## Shared Visitor Foundation
 
 IRx also has a shared visitor layer in `src/irx/base/visitors/`.

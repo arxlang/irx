@@ -3,6 +3,7 @@ title: Tests for numeric and expression-based PrintExpr lowering.
 """
 
 from irx import astx
+from irx.analysis.module_symbols import mangle_function_name
 from irx.builders.llvmliteir import Builder
 from irx.system import PrintExpr
 from llvmlite import binding as llvm
@@ -136,8 +137,9 @@ def test_print_recursive_function_call_result_codegen() -> None:
     module.block.append(astx.FunctionDef(prototype=main_proto, body=main_body))
 
     ir_text = _translate_and_validate(module)
-    assert 'define i32 @"fib"' in ir_text
-    assert 'call i32 @"fib"(i32 10)' in ir_text
+    fib_name = mangle_function_name("main", "fib")
+    assert f'define i32 @"{fib_name}"' in ir_text
+    assert f'call i32 @"{fib_name}"(i32 10)' in ir_text
     assert "%lld" in ir_text
     _assert_puts_uses_char_ptr(ir_text)
 
@@ -186,7 +188,8 @@ def test_print_float_function_call_result_codegen() -> None:
     module.block.append(astx.FunctionDef(prototype=main_proto, body=main_body))
 
     ir_text = _translate_and_validate(module)
-    assert 'define float @"average"' in ir_text
-    assert 'call float @"average"' in ir_text
+    average_name = mangle_function_name("main", "average")
+    assert f'define float @"{average_name}"' in ir_text
+    assert f'call float @"{average_name}"' in ir_text
     assert "%.6f" in ir_text
     _assert_puts_uses_char_ptr(ir_text)

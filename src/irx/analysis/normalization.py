@@ -1,5 +1,8 @@
 """
 title: Semantic normalization helpers.
+summary: >-
+  Normalize raw AST operator and flag information into the structured semantic
+  records used by later analysis and codegen.
 """
 
 from __future__ import annotations

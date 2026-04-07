@@ -1,5 +1,8 @@
 """
 title: Validation helpers for semantic analysis.
+summary: >-
+  Collect the focused validation routines that emit diagnostics for
+  assignments, calls, casts, and temporal literals.
 """
 
 from __future__ import annotations

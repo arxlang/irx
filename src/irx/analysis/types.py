@@ -1,5 +1,8 @@
 """
 title: Type helpers for semantic analysis.
+summary: >-
+  Provide the small AST-type predicates and promotion helpers that the semantic
+  analyzer reuses across many node visitors.
 """
 
 from __future__ import annotations

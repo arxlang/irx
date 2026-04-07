@@ -1,5 +1,8 @@
 """
 title: Type-computation helpers for semantic analysis.
+summary: >-
+  Compute expression result types for operators without embedding that logic
+  directly into the main semantic visitor.
 """
 
 from __future__ import annotations
