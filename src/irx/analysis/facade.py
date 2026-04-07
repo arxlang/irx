@@ -9,6 +9,7 @@ summary: >-
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import cast
 
 from plum import dispatch
@@ -20,6 +21,10 @@ from irx.analysis.module_interfaces import (
     ImportResolver,
     ModuleKey,
     ParsedModule,
+)
+from irx.analysis.module_symbols import (
+    qualified_function_name,
+    qualified_struct_name,
 )
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
@@ -35,12 +40,7 @@ from irx.analysis.resolved_nodes import (
     SemanticSymbol,
 )
 from irx.analysis.session import CompilationSession
-from irx.analysis.symbols import (
-    function_symbol,
-    struct_symbol,
-    variable_symbol,
-    with_definition,
-)
+from irx.analysis.symbols import variable_symbol
 from irx.analysis.types import (
     clone_type,
     is_assignable,
@@ -609,7 +609,7 @@ class SemanticAnalyzer(BaseVisitor):
                     node=definition,
                 )
             if definition is not None:
-                updated = with_definition(existing, definition)
+                updated = replace(existing, definition=definition)
                 self.context.register_function(updated)
                 self._bind_visible_name(
                     prototype.name,
@@ -631,12 +631,15 @@ class SemanticAnalyzer(BaseVisitor):
             )
             for arg in prototype.args.nodes
         )
-        function = function_symbol(
-            self.context.next_symbol_id("fn"),
-            module_key,
-            prototype,
-            args,
+        function = SemanticFunction(
+            symbol_id=self.context.next_symbol_id("fn"),
+            name=prototype.name,
+            return_type=prototype.return_type,
+            args=args,
+            prototype=prototype,
             definition=definition,
+            module_key=module_key,
+            qualified_name=qualified_function_name(module_key, prototype.name),
         )
         self.context.register_function(function)
         self._bind_visible_name(
@@ -668,10 +671,12 @@ class SemanticAnalyzer(BaseVisitor):
                 )
             return existing
 
-        struct = struct_symbol(
-            self.context.next_symbol_id("struct"),
-            module_key,
-            node,
+        struct = SemanticStruct(
+            symbol_id=self.context.next_symbol_id("struct"),
+            name=node.name,
+            module_key=module_key,
+            qualified_name=qualified_struct_name(module_key, node.name),
+            declaration=node,
         )
         self.context.register_struct(struct)
         self._bind_visible_name(
