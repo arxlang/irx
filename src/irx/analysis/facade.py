@@ -18,7 +18,6 @@ from irx.analysis.module_interfaces import (
     ModuleKey,
     ParsedModule,
 )
-from irx.analysis.module_symbols import function_key, struct_key
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
     ResolvedAssignment,
@@ -545,8 +544,7 @@ class SemanticAnalyzer(BaseVisitor):
           type: SemanticFunction
         """
         module_key = self._current_module_key()
-        key = function_key(module_key, prototype.name)
-        existing = self.context.functions_by_module_and_name.get(key)
+        existing = self.context.get_function(module_key, prototype.name)
         if existing is not None:
             if definition is not None and existing.definition is not None:
                 self.context.diagnostics.add(
@@ -555,10 +553,7 @@ class SemanticAnalyzer(BaseVisitor):
                 )
             if definition is not None:
                 updated = with_definition(existing, definition)
-                self.context.functions_by_symbol_id[updated.symbol_id] = (
-                    updated
-                )
-                self.context.functions_by_module_and_name[key] = updated
+                self.context.register_function(updated)
                 self._bind_visible_name(
                     prototype.name,
                     self._function_binding(updated),
@@ -586,8 +581,7 @@ class SemanticAnalyzer(BaseVisitor):
             args,
             definition=definition,
         )
-        self.context.functions_by_symbol_id[function.symbol_id] = function
-        self.context.functions_by_module_and_name[key] = function
+        self.context.register_function(function)
         self._bind_visible_name(
             prototype.name,
             self._function_binding(function),
@@ -608,8 +602,7 @@ class SemanticAnalyzer(BaseVisitor):
           type: SemanticStruct
         """
         module_key = self._current_module_key()
-        key = struct_key(module_key, node.name)
-        existing = self.context.structs_by_module_and_name.get(key)
+        existing = self.context.get_struct(module_key, node.name)
         if existing is not None:
             if existing.declaration is not node:
                 self.context.diagnostics.add(
@@ -623,8 +616,7 @@ class SemanticAnalyzer(BaseVisitor):
             module_key,
             node,
         )
-        self.context.structs_by_symbol_id[struct.symbol_id] = struct
-        self.context.structs_by_module_and_name[key] = struct
+        self.context.register_struct(struct)
         self._bind_visible_name(
             node.name,
             self._struct_binding(struct),
@@ -722,8 +714,9 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.FunctionPrototype
         """
-        function = self.context.functions_by_module_and_name.get(
-            function_key(self._current_module_key(), node.name)
+        function = self.context.get_function(
+            self._current_module_key(),
+            node.name,
         )
         if function is None:
             function = self._register_function(node)
@@ -737,8 +730,9 @@ class SemanticAnalyzer(BaseVisitor):
           node:
             type: astx.FunctionDef
         """
-        function = self.context.functions_by_module_and_name.get(
-            function_key(self._current_module_key(), node.name)
+        function = self.context.get_function(
+            self._current_module_key(),
+            node.name,
         )
         if function is None:
             function = self._register_function(node.prototype, definition=node)

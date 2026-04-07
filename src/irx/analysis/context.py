@@ -26,13 +26,9 @@ class SemanticContext:
         type: ScopeStack
       diagnostics:
         type: DiagnosticBag
-      functions_by_symbol_id:
-        type: dict[str, SemanticFunction]
-      functions_by_module_and_name:
+      functions:
         type: dict[tuple[ModuleKey, str], SemanticFunction]
-      structs_by_symbol_id:
-        type: dict[str, SemanticStruct]
-      structs_by_module_and_name:
+      structs:
         type: dict[tuple[ModuleKey, str], SemanticStruct]
       current_function:
         type: SemanticFunction | None
@@ -46,17 +42,11 @@ class SemanticContext:
 
     scopes: ScopeStack = field(default_factory=ScopeStack)
     diagnostics: DiagnosticBag = field(default_factory=DiagnosticBag)
-    functions_by_symbol_id: dict[str, SemanticFunction] = field(
+    functions: dict[tuple[ModuleKey, str], SemanticFunction] = field(
         default_factory=dict
     )
-    functions_by_module_and_name: dict[
-        tuple[ModuleKey, str], SemanticFunction
-    ] = field(default_factory=dict)
-    structs_by_symbol_id: dict[str, SemanticStruct] = field(
+    structs: dict[tuple[ModuleKey, str], SemanticStruct] = field(
         default_factory=dict
-    )
-    structs_by_module_and_name: dict[tuple[ModuleKey, str], SemanticStruct] = (
-        field(default_factory=dict)
     )
     current_function: SemanticFunction | None = None
     current_module_key: ModuleKey | None = None
@@ -74,6 +64,58 @@ class SemanticContext:
         """
         self._symbol_counter += 1
         return f"{prefix}:{self._symbol_counter}"
+
+    def register_function(self, function: SemanticFunction) -> None:
+        """
+        title: Register a top-level function by module and name.
+        parameters:
+          function:
+            type: SemanticFunction
+        """
+        self.functions[(function.module_key, function.name)] = function
+
+    def get_function(
+        self,
+        module_key: ModuleKey,
+        name: str,
+    ) -> SemanticFunction | None:
+        """
+        title: Return a top-level function by module and name.
+        parameters:
+          module_key:
+            type: ModuleKey
+          name:
+            type: str
+        returns:
+          type: SemanticFunction | None
+        """
+        return self.functions.get((module_key, name))
+
+    def register_struct(self, struct: SemanticStruct) -> None:
+        """
+        title: Register a top-level struct by module and name.
+        parameters:
+          struct:
+            type: SemanticStruct
+        """
+        self.structs[(struct.module_key, struct.name)] = struct
+
+    def get_struct(
+        self,
+        module_key: ModuleKey,
+        name: str,
+    ) -> SemanticStruct | None:
+        """
+        title: Return a top-level struct by module and name.
+        parameters:
+          module_key:
+            type: ModuleKey
+          name:
+            type: str
+        returns:
+          type: SemanticStruct | None
+        """
+        return self.structs.get((module_key, name))
 
     @contextmanager
     def scope(self, kind: str) -> Iterator[None]:
