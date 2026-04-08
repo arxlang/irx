@@ -22,6 +22,7 @@ from irx.analysis.resolved_nodes import SemanticBinding
 from irx.typecheck import typechecked
 
 
+@typechecked
 def _module_import_specifier(node: astx.ImportFromStmt) -> str:
     """
     title: Return the resolver-facing module specifier for import-from nodes.

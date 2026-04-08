@@ -233,6 +233,7 @@ _SEMANTIC_CONTRACT = SemanticContract(
 
 
 @public
+@typechecked
 def get_semantic_contract() -> SemanticContract:
     """
     title: Return the stable public semantic contract.

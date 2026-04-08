@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - optional
 from irx.typecheck import typechecked
 
 
+@typechecked
 def is_fp_type(type_: ir.Type) -> bool:
     """
     title: Is fp type.
@@ -30,6 +31,7 @@ def is_fp_type(type_: ir.Type) -> bool:
     return isinstance(type_, tuple(fp_types))
 
 
+@typechecked
 def is_int_type(type_: ir.Type) -> bool:
     """
     title: Is int type.

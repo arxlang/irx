@@ -9,6 +9,7 @@ from __future__ import annotations
 from llvmlite import ir
 
 from irx import astx
+from irx.analysis.types import common_numeric_type
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     AddBinOp,
@@ -88,16 +89,28 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             raise Exception("codegen: Invalid lhs/rhs")
 
         unsigned = uses_unsigned_semantics(node)
+        lhs_type = self._resolved_ast_type(node.lhs)
+        rhs_type = self._resolved_ast_type(node.rhs)
+        semantic_numeric_type = common_numeric_type(lhs_type, rhs_type)
         if (
             unify_numeric
             and self._is_numeric_value(llvm_lhs)
             and self._is_numeric_value(llvm_rhs)
         ):
-            llvm_lhs, llvm_rhs = self._unify_numeric_operands(
-                llvm_lhs,
-                llvm_rhs,
-                unsigned=unsigned,
-            )
+            if semantic_numeric_type is not None:
+                llvm_lhs, llvm_rhs = self._coerce_numeric_operands_for_types(
+                    llvm_lhs,
+                    llvm_rhs,
+                    lhs_type=lhs_type,
+                    rhs_type=rhs_type,
+                )
+            else:
+                # This is a low-level fallback for raw LLVM helper use only.
+                llvm_lhs, llvm_rhs = self._unify_numeric_operands(
+                    llvm_lhs,
+                    llvm_rhs,
+                    unsigned=unsigned,
+                )
 
         return llvm_lhs, llvm_rhs, unsigned
 
@@ -365,6 +378,11 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_rhs = safe_pop(self.result_stack)
         if llvm_rhs is None:
             raise Exception("codegen: Invalid rhs expression.")
+        llvm_rhs = self._cast_ast_value(
+            llvm_rhs,
+            source_type=self._resolved_ast_type(node.rhs),
+            target_type=self._resolved_ast_type(node),
+        )
 
         llvm_lhs = self.named_values.get(lhs_key)
         if not llvm_lhs:

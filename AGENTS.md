@@ -176,14 +176,21 @@ API.
 
 ## Runtime Type Checking
 
-- Use `irx.typecheck.typechecked` on every concrete class defined under
-  `src/irx/`.
-- Keep `@public` or `@private` outermost, then `@typechecked`, then
+- Use `irx.typecheck.typechecked` on every module-level function and every
+  concrete class defined under `src/irx/`.
+- Class-level `@typechecked` is the default way to cover methods. Do not add
+  per-method decorators just to mirror the policy unless a class cannot be
+  decorated, and if that ever happens document the reason.
+- For functions, keep `@public` or `@private` outermost and place `@typechecked`
+  on the implementation boundary. Usually that means directly under `@public` or
+  `@private`; for wrappers like `@lru_cache(...)`, keep `@typechecked` closest
+  to the original function so Typeguard can instrument it.
+- For classes, keep `@public` or `@private` outermost, then `@typechecked`, then
   `@dataclass(...)` so generated dataclass methods are instrumented.
 - Exempt only `Protocol` definitions and type-checking-only helper stubs that
   are intentionally kept out of the runtime MRO.
-- If a concrete class truly needs an exemption, document the reason and update
-  `tests/test_typechecked_policy.py` in the same change.
+- If a function or concrete class truly needs an exemption, document the reason
+  and update `tests/test_typechecked_policy.py` in the same change.
 
 ## Working In `irx.builder`
 

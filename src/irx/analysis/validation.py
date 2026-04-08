@@ -12,7 +12,11 @@ from datetime import date, datetime, time
 from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import SemanticFunction
-from irx.analysis.types import is_assignable, is_boolean_type, is_numeric_type
+from irx.analysis.types import (
+    is_assignable,
+    is_explicitly_castable,
+)
+from irx.typecheck import typechecked
 
 TIME_PARTS_HOUR_MINUTE = 2
 TIME_PARTS_HOUR_MINUTE_SECOND = 3
@@ -22,6 +26,7 @@ INT32_MIN = -(2**31)
 INT32_MAX = 2**31 - 1
 
 
+@typechecked
 def validate_assignment(
     diagnostics: DiagnosticBag,
     *,
@@ -51,6 +56,7 @@ def validate_assignment(
         )
 
 
+@typechecked
 def validate_call(
     diagnostics: DiagnosticBag,
     *,
@@ -82,6 +88,7 @@ def validate_call(
             )
 
 
+@typechecked
 def validate_cast(
     diagnostics: DiagnosticBag,
     *,
@@ -103,13 +110,7 @@ def validate_cast(
     """
     if source_type is None or target_type is None:
         return
-    if is_assignable(target_type, source_type):
-        return
-    if _is_numeric_cast_type(source_type) and _is_numeric_cast_type(
-        target_type
-    ):
-        return
-    if isinstance(target_type, (astx.String, astx.UTF8String)):
+    if is_explicitly_castable(source_type, target_type):
         return
     diagnostics.add(
         f"Unsupported cast from {source_type} to {target_type}",
@@ -117,18 +118,7 @@ def validate_cast(
     )
 
 
-def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
-    """
-    title: Is numeric cast type.
-    parameters:
-      type_:
-        type: astx.DataType | None
-    returns:
-      type: bool
-    """
-    return is_numeric_type(type_) or is_boolean_type(type_)
-
-
+@typechecked
 def validate_literal_time(value: str) -> time:
     """
     title: Validate an astx time literal.
@@ -164,6 +154,7 @@ def validate_literal_time(value: str) -> time:
     return time(hour, minute, second)
 
 
+@typechecked
 def validate_literal_timestamp(value: str) -> datetime:
     """
     title: Validate an astx timestamp literal.
@@ -183,6 +174,7 @@ def validate_literal_timestamp(value: str) -> datetime:
         raise ValueError(str(exc)) from exc
 
 
+@typechecked
 def validate_literal_datetime(value: str) -> datetime:
     """
     title: Validate an astx datetime literal.
@@ -247,6 +239,7 @@ def validate_literal_datetime(value: str) -> datetime:
         raise ValueError("invalid calendar date/time") from exc
 
 
+@typechecked
 def validate_calendar_date(value: str) -> date:
     """
     title: Validate a date component.

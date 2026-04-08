@@ -25,8 +25,8 @@ via `clang`.
   - **Literals:** `LiteralInt16`, `LiteralInt32`, `LiteralString`
   - **Variables:** `Variable`, `VariableDeclaration`,
     `InlineVariableDeclaration`
-  - **Ops:** `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with simple type
-    promotion
+  - **Ops:** `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with documented
+    scalar numeric promotion and cast rules
   - **Flow:** `IfStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`
   - **Functions:** `FunctionPrototype`, `Function`, `FunctionReturn`,
     `FunctionCall`
@@ -161,6 +161,19 @@ Arrow uses this path as its first substantial consumer:
 The current MVP is intentionally narrow: primitive `int32` arrays, lifecycle
 operations, inspection, and C Data roundtrip support. No full Arrow container
 semantics are encoded directly in LLVM IR.
+
+## Scalar Numeric Semantics
+
+IRx now treats scalar numerics as a stable substrate instead of an ad hoc
+"simple promotion" layer:
+
+- one canonical promotion table for signed integers, unsigned integers, and
+  floats
+- one canonical implicit-promotion vs explicit-cast policy
+- comparisons always resolve to `Boolean` / LLVM `i1`
+
+The full contract lives in
+[docs/semantic-contract.md](https://github.com/arxlang/irx/blob/main/docs/semantic-contract.md).
 
 ## Testing
 

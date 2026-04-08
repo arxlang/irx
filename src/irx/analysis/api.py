@@ -19,6 +19,7 @@ from irx.analysis.module_interfaces import (
     ParsedModule,
 )
 from irx.analysis.session import CompilationSession
+from irx.typecheck import typechecked
 
 __all__ = [
     "SemanticAnalyzer",
@@ -29,6 +30,7 @@ __all__ = [
 
 
 @public
+@typechecked
 def analyze(node: astx.AST) -> astx.AST:
     """
     title: Analyze one AST root and attach semantic sidecars.
@@ -46,6 +48,7 @@ def analyze(node: astx.AST) -> astx.AST:
 
 
 @public
+@typechecked
 def analyze_module(module: astx.Module) -> astx.Module:
     """
     title: Analyze an AST module.
@@ -62,6 +65,7 @@ def analyze_module(module: astx.Module) -> astx.Module:
 
 
 @public
+@typechecked
 def analyze_modules(
     root: ParsedModule,
     resolver: ImportResolver,

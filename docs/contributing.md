@@ -95,6 +95,22 @@ Ready to contribute? Here’s how to set up `irx` for local development.
     $ makim tests.unittest
     ```
 
+## Runtime Type Checking
+
+IRx keeps runtime type checking on by default for its own code under `src/irx`.
+
+- Use `irx.typecheck.typechecked` on every module-level function and every
+  concrete class.
+- Methods are expected to be covered through the class decorator; avoid adding
+  per-method decorators unless the class itself cannot be decorated.
+- Keep `@public` or `@private` outermost and place `@typechecked` on the
+  implementation boundary; for wrappers like `@lru_cache(...)`, that means
+  keeping `@typechecked` closest to the original function.
+- Keep class decorators ordered as `@public` or `@private`, then `@typechecked`,
+  then `@dataclass(...)`.
+- If you need an exemption for a `Protocol` or a typing-only stub, document it
+  clearly and update `tests/test_typechecked_policy.py` in the same change.
+
 6.  Commit your changes and push your branch to GitHub:
 
     ```bash

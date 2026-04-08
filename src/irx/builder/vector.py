@@ -8,8 +8,10 @@ from llvmlite import ir
 from llvmlite.ir import VectorType
 
 from irx.builder.types import is_fp_type
+from irx.typecheck import typechecked
 
 
+@typechecked
 def is_vector(value: ir.Value) -> bool:
     """
     title: Is vector.
@@ -22,6 +24,7 @@ def is_vector(value: ir.Value) -> bool:
     return isinstance(getattr(value, "type", None), VectorType)
 
 
+@typechecked
 def emit_int_div(
     ir_builder: ir.IRBuilder,
     lhs: ir.Value,
@@ -49,6 +52,7 @@ def emit_int_div(
     )
 
 
+@typechecked
 def emit_add(
     ir_builder: ir.IRBuilder,
     lhs: ir.Value,
@@ -74,6 +78,7 @@ def emit_add(
     return ir_builder.add(lhs, rhs, name=name)
 
 
+@typechecked
 def splat_scalar(
     ir_builder: ir.IRBuilder,
     scalar: ir.Value,

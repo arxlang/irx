@@ -153,6 +153,7 @@ _BINARY_OP_TYPES: dict[str, type[astx.BinaryOp]] = {
 }
 
 
+@typechecked
 def binary_op_type_for_opcode(op_code: str) -> type[astx.BinaryOp]:
     """
     title: Return the specialized BinaryOp subclass for an opcode.
@@ -165,6 +166,7 @@ def binary_op_type_for_opcode(op_code: str) -> type[astx.BinaryOp]:
     return _BINARY_OP_TYPES.get(op_code, astx.BinaryOp)
 
 
+@typechecked
 def specialize_binary_op(node: astx.BinaryOp) -> astx.BinaryOp:
     """
     title: Return a specialized BinaryOp instance for the given opcode.

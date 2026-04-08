@@ -12,10 +12,12 @@ import re
 from public import public
 
 from irx.analysis.module_interfaces import ModuleKey
+from irx.typecheck import typechecked
 
 _SEGMENT_RE = re.compile(r"[A-Za-z0-9_]+")
 
 
+@typechecked
 def _split_segments(value: str) -> list[str]:
     """
     title: Split a string into LLVM-friendly segments.
@@ -33,6 +35,7 @@ def _split_segments(value: str) -> list[str]:
     return [f"x{ord(char):02x}" for char in value]
 
 
+@typechecked
 def _mangle_parts(*parts: str) -> str:
     """
     title: Mangle string parts into a deterministic LLVM name.
@@ -50,6 +53,7 @@ def _mangle_parts(*parts: str) -> str:
 
 
 @public
+@typechecked
 def function_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
     """
     title: Return a module-aware function registry key.
@@ -65,6 +69,7 @@ def function_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
 
 
 @public
+@typechecked
 def struct_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
     """
     title: Return a module-aware struct registry key.
@@ -80,6 +85,7 @@ def struct_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
 
 
 @public
+@typechecked
 def qualified_function_name(module_key: ModuleKey, name: str) -> str:
     """
     title: Return a qualified semantic function name.
@@ -95,6 +101,7 @@ def qualified_function_name(module_key: ModuleKey, name: str) -> str:
 
 
 @public
+@typechecked
 def qualified_struct_name(module_key: ModuleKey, name: str) -> str:
     """
     title: Return a qualified semantic struct name.
@@ -110,6 +117,7 @@ def qualified_struct_name(module_key: ModuleKey, name: str) -> str:
 
 
 @public
+@typechecked
 def qualified_local_name(
     module_key: ModuleKey,
     kind: str,
@@ -134,6 +142,7 @@ def qualified_local_name(
 
 
 @public
+@typechecked
 def mangle_function_name(module_key: ModuleKey, function_name: str) -> str:
     """
     title: Return a deterministic LLVM function name.
@@ -149,6 +158,7 @@ def mangle_function_name(module_key: ModuleKey, function_name: str) -> str:
 
 
 @public
+@typechecked
 def mangle_struct_name(module_key: ModuleKey, struct_name: str) -> str:
     """
     title: Return a deterministic LLVM struct name.

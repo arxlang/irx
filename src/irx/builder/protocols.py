@@ -41,6 +41,8 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: str | None
       _fast_math_enabled:
         type: bool
+      _current_function_return_type:
+        type: astx.DataType | None
       target:
         type: llvm.TargetRef
       target_machine:
@@ -58,6 +60,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
+    _current_function_return_type: astx.DataType | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -326,17 +329,23 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         raise NotImplementedError
 
     def _normalize_int_for_printf(
-        self, _value: ir.Value
+        self,
+        _value: ir.Value,
+        *,
+        unsigned: bool = False,
     ) -> tuple[ir.Value, str]:
         """
         title: Normalize int for printf.
         parameters:
           _value:
             type: ir.Value
+          unsigned:
+            type: bool
         returns:
           type: tuple[ir.Value, str]
         """
-        ...
+        _ = unsigned
+        return cast(tuple[ir.Value, str], (None, ""))
 
     def _snprintf_heap(
         self, _fmt_gv: ir.GlobalVariable, _args: list[ir.Value]
@@ -393,6 +402,8 @@ if TYPE_CHECKING:
             type: str | None
           _fast_math_enabled:
             type: bool
+          _current_function_return_type:
+            type: astx.DataType | None
           target:
             type: llvm.TargetRef
           target_machine:
@@ -410,6 +421,7 @@ if TYPE_CHECKING:
         llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
         entry_function_symbol_id: str | None
         _fast_math_enabled: bool
+        _current_function_return_type: astx.DataType | None
         target: llvm.TargetRef
         target_machine: llvm.TargetMachine
 
@@ -534,6 +546,68 @@ if TYPE_CHECKING:
               type: bool
             """
             return False
+
+        def _resolved_ast_type(
+            self, _node: astx.AST | None
+        ) -> astx.DataType | None:
+            """
+            title: Resolved ast type.
+            parameters:
+              _node:
+                type: astx.AST | None
+            returns:
+              type: astx.DataType | None
+            """
+            return cast(astx.DataType | None, None)
+
+        def _cast_ast_value(
+            self,
+            _value: ir.Value,
+            *,
+            source_type: astx.DataType | None,
+            target_type: astx.DataType | None,
+        ) -> ir.Value:
+            """
+            title: Cast ast value.
+            parameters:
+              _value:
+                type: ir.Value
+              source_type:
+                type: astx.DataType | None
+              target_type:
+                type: astx.DataType | None
+            returns:
+              type: ir.Value
+            """
+            _ = source_type
+            _ = target_type
+            return cast(ir.Value, None)
+
+        def _coerce_numeric_operands_for_types(
+            self,
+            _lhs: ir.Value,
+            _rhs: ir.Value,
+            *,
+            lhs_type: astx.DataType | None,
+            rhs_type: astx.DataType | None,
+        ) -> tuple[ir.Value, ir.Value]:
+            """
+            title: Coerce numeric operands for types.
+            parameters:
+              _lhs:
+                type: ir.Value
+              _rhs:
+                type: ir.Value
+              lhs_type:
+                type: astx.DataType | None
+              rhs_type:
+                type: astx.DataType | None
+            returns:
+              type: tuple[ir.Value, ir.Value]
+            """
+            _ = lhs_type
+            _ = rhs_type
+            return cast(tuple[ir.Value, ir.Value], (None, None))
 
         def _unify_numeric_operands(
             self,
@@ -697,16 +771,22 @@ if TYPE_CHECKING:
             _ = unsigned
 
         def _normalize_int_for_printf(
-            self, _value: ir.Value
+            self,
+            _value: ir.Value,
+            *,
+            unsigned: bool = False,
         ) -> tuple[ir.Value, str]:
             """
             title: Normalize int for printf.
             parameters:
               _value:
                 type: ir.Value
+              unsigned:
+                type: bool
             returns:
               type: tuple[ir.Value, str]
             """
+            _ = unsigned
             return cast(tuple[ir.Value, str], (None, ""))
 
         def _snprintf_heap(

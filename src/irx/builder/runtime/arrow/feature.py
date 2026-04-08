@@ -16,6 +16,7 @@ from irx.builder.runtime.features import (
     RuntimeFeature,
     declare_external_function,
 )
+from irx.typecheck import typechecked
 
 if TYPE_CHECKING:
     from irx.builder.protocols import VisitorProtocol
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 IRX_ARROW_TYPE_INT32 = 1
 
 
+@typechecked
 def build_arrow_runtime_feature() -> RuntimeFeature:
     """
     title: Build the Arrow runtime feature specification.
@@ -118,6 +120,7 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
     )
 
 
+@typechecked
 def _declare_builder_int32_new(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -140,6 +143,7 @@ def _declare_builder_int32_new(
     )
 
 
+@typechecked
 def _declare_builder_append_int32(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -165,6 +169,7 @@ def _declare_builder_append_int32(
     )
 
 
+@typechecked
 def _declare_builder_finish(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -190,6 +195,7 @@ def _declare_builder_finish(
     )
 
 
+@typechecked
 def _declare_builder_release(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -212,6 +218,7 @@ def _declare_builder_release(
     )
 
 
+@typechecked
 def _declare_array_length(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -234,6 +241,7 @@ def _declare_array_length(
     )
 
 
+@typechecked
 def _declare_array_null_count(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -256,6 +264,7 @@ def _declare_array_null_count(
     )
 
 
+@typechecked
 def _declare_array_type_id(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -278,6 +287,7 @@ def _declare_array_type_id(
     )
 
 
+@typechecked
 def _declare_array_export(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -305,6 +315,7 @@ def _declare_array_export(
     )
 
 
+@typechecked
 def _declare_array_import(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -332,6 +343,7 @@ def _declare_array_import(
     )
 
 
+@typechecked
 def _declare_array_release(
     visitor: VisitorProtocol,
 ) -> ir.Function:
@@ -354,6 +366,7 @@ def _declare_array_release(
     )
 
 
+@typechecked
 def _declare_last_error(
     visitor: VisitorProtocol,
 ) -> ir.Function:

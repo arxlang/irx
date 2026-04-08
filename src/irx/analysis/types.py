@@ -10,6 +10,7 @@ from __future__ import annotations
 from public import public
 
 from irx import astx
+from irx.typecheck import typechecked
 
 INT_TYPES = (astx.Int8, astx.Int16, astx.Int32, astx.Int64)
 UINT_TYPES = (astx.UInt8, astx.UInt16, astx.UInt32, astx.UInt64, astx.UInt128)
@@ -36,9 +37,28 @@ _BIT_WIDTHS: dict[type[astx.DataType], int] = {
     astx.Float32: BIT_WIDTH_32,
     astx.Float64: BIT_WIDTH_64,
 }
+_SIGNED_INTEGERS_BY_WIDTH: dict[int, type[astx.DataType]] = {
+    BIT_WIDTH_8: astx.Int8,
+    BIT_WIDTH_16: astx.Int16,
+    BIT_WIDTH_32: astx.Int32,
+    BIT_WIDTH_64: astx.Int64,
+}
+_UNSIGNED_INTEGERS_BY_WIDTH: dict[int, type[astx.DataType]] = {
+    BIT_WIDTH_8: astx.UInt8,
+    BIT_WIDTH_16: astx.UInt16,
+    BIT_WIDTH_32: astx.UInt32,
+    BIT_WIDTH_64: astx.UInt64,
+    BIT_WIDTH_128: astx.UInt128,
+}
+_FLOATS_BY_WIDTH: dict[int, type[astx.DataType]] = {
+    BIT_WIDTH_16: astx.Float16,
+    BIT_WIDTH_32: astx.Float32,
+    BIT_WIDTH_64: astx.Float64,
+}
 
 
 @public
+@typechecked
 def clone_type(type_: astx.DataType) -> astx.DataType:
     """
     title: Clone an AST type by class.
@@ -52,6 +72,7 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
 
 
 @public
+@typechecked
 def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     title: Return whether two AST types share the same class.
@@ -69,6 +90,7 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is integer type.
@@ -82,6 +104,7 @@ def is_integer_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_signed_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is signed integer type.
@@ -95,6 +118,7 @@ def is_signed_integer_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_unsigned_type(type_: astx.DataType | None) -> bool:
     """
     title: Is unsigned type.
@@ -108,6 +132,7 @@ def is_unsigned_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_float_type(type_: astx.DataType | None) -> bool:
     """
     title: Is float type.
@@ -121,6 +146,7 @@ def is_float_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_numeric_type(type_: astx.DataType | None) -> bool:
     """
     title: Is numeric type.
@@ -134,6 +160,7 @@ def is_numeric_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_boolean_type(type_: astx.DataType | None) -> bool:
     """
     title: Is boolean type.
@@ -147,6 +174,7 @@ def is_boolean_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_string_type(type_: astx.DataType | None) -> bool:
     """
     title: Is string type.
@@ -160,6 +188,7 @@ def is_string_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_temporal_type(type_: astx.DataType | None) -> bool:
     """
     title: Is temporal type.
@@ -173,6 +202,7 @@ def is_temporal_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_none_type(type_: astx.DataType | None) -> bool:
     """
     title: Is none type.
@@ -186,6 +216,7 @@ def is_none_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def bit_width(type_: astx.DataType | None) -> int:
     """
     title: Return the nominal bit width for numeric types.
@@ -200,7 +231,118 @@ def bit_width(type_: astx.DataType | None) -> int:
     return _BIT_WIDTHS.get(type(type_), 0)
 
 
+@typechecked
+def _type_for_width(
+    width: int,
+    table: dict[int, type[astx.DataType]],
+) -> astx.DataType | None:
+    """
+    title: Instantiate a type family member for one width.
+    parameters:
+      width:
+        type: int
+      table:
+        type: dict[int, type[astx.DataType]]
+    returns:
+      type: astx.DataType | None
+    """
+    type_cls = table.get(width)
+    if type_cls is None:
+        return None
+    return type_cls()
+
+
 @public
+@typechecked
+def float_promotion_width_for_integer_width(width: int) -> int:
+    """
+    title: Return the float width floor used when integers promote with floats.
+    parameters:
+      width:
+        type: int
+    returns:
+      type: int
+    """
+    if width <= BIT_WIDTH_16:
+        return BIT_WIDTH_16
+    if width <= BIT_WIDTH_32:
+        return BIT_WIDTH_32
+    return BIT_WIDTH_64
+
+
+@typechecked
+def _common_integer_type(
+    lhs: astx.DataType,
+    rhs: astx.DataType,
+) -> astx.DataType | None:
+    """
+    title: Return the canonical promoted type for two integers.
+    parameters:
+      lhs:
+        type: astx.DataType
+      rhs:
+        type: astx.DataType
+    returns:
+      type: astx.DataType | None
+    """
+    lhs_width = bit_width(lhs)
+    rhs_width = bit_width(rhs)
+
+    if is_signed_integer_type(lhs) and is_signed_integer_type(rhs):
+        return _type_for_width(
+            max(lhs_width, rhs_width),
+            _SIGNED_INTEGERS_BY_WIDTH,
+        )
+
+    if is_unsigned_type(lhs) and is_unsigned_type(rhs):
+        return _type_for_width(
+            max(lhs_width, rhs_width),
+            _UNSIGNED_INTEGERS_BY_WIDTH,
+        )
+
+    signed_width = lhs_width if is_signed_integer_type(lhs) else rhs_width
+    unsigned_width = lhs_width if is_unsigned_type(lhs) else rhs_width
+
+    if signed_width > unsigned_width:
+        return _type_for_width(signed_width, _SIGNED_INTEGERS_BY_WIDTH)
+    return _type_for_width(
+        max(lhs_width, rhs_width),
+        _UNSIGNED_INTEGERS_BY_WIDTH,
+    )
+
+
+@typechecked
+def _common_float_type(
+    lhs: astx.DataType,
+    rhs: astx.DataType,
+) -> astx.DataType | None:
+    """
+    title: Return the canonical promoted type for operands with floats.
+    parameters:
+      lhs:
+        type: astx.DataType
+      rhs:
+        type: astx.DataType
+    returns:
+      type: astx.DataType | None
+    """
+    float_width = max(
+        bit_width(type_) for type_ in (lhs, rhs) if is_float_type(type_)
+    )
+    integer_width = max(
+        (bit_width(type_) for type_ in (lhs, rhs) if is_integer_type(type_)),
+        default=0,
+    )
+    target_width = max(
+        float_width,
+        float_promotion_width_for_integer_width(integer_width),
+    )
+    target_width = min(target_width, BIT_WIDTH_64)
+    return _type_for_width(target_width, _FLOATS_BY_WIDTH)
+
+
+@public
+@typechecked
 def common_numeric_type(
     lhs: astx.DataType | None,
     rhs: astx.DataType | None,
@@ -221,36 +363,97 @@ def common_numeric_type(
         return None
 
     if is_float_type(lhs) or is_float_type(rhs):
-        widest = max(bit_width(lhs), bit_width(rhs))
-        if widest <= BIT_WIDTH_16:
-            return astx.Float16()
-        if widest <= BIT_WIDTH_32:
-            return astx.Float32()
-        return astx.Float64()
+        return _common_float_type(lhs, rhs)
+    return _common_integer_type(lhs, rhs)
 
-    width = max(bit_width(lhs), bit_width(rhs))
-    use_unsigned = is_unsigned_type(lhs) or is_unsigned_type(rhs)
-    if use_unsigned:
-        if width <= BIT_WIDTH_8:
-            return astx.UInt8()
-        if width <= BIT_WIDTH_16:
-            return astx.UInt16()
-        if width <= BIT_WIDTH_32:
-            return astx.UInt32()
-        if width <= BIT_WIDTH_64:
-            return astx.UInt64()
-        return astx.UInt128()
 
-    if width <= BIT_WIDTH_8:
-        return astx.Int8()
-    if width <= BIT_WIDTH_16:
-        return astx.Int16()
-    if width <= BIT_WIDTH_32:
-        return astx.Int32()
-    return astx.Int64()
+@typechecked
+def _is_safe_integer_assignment(
+    target: astx.DataType,
+    value: astx.DataType,
+) -> bool:
+    """
+    title: Return whether one integer can implicitly promote into another.
+    parameters:
+      target:
+        type: astx.DataType
+      value:
+        type: astx.DataType
+    returns:
+      type: bool
+    """
+    target_width = bit_width(target)
+    value_width = bit_width(value)
+
+    if is_signed_integer_type(target) and is_signed_integer_type(value):
+        return target_width >= value_width
+    if is_unsigned_type(target) and is_unsigned_type(value):
+        return target_width >= value_width
+    if is_signed_integer_type(target) and is_unsigned_type(value):
+        return target_width > value_width
+    return False
+
+
+@typechecked
+def _is_safe_float_assignment(
+    target: astx.DataType,
+    value: astx.DataType,
+) -> bool:
+    """
+    title: Return whether a value can implicitly promote to a float target.
+    parameters:
+      target:
+        type: astx.DataType
+      value:
+        type: astx.DataType
+    returns:
+      type: bool
+    """
+    target_width = bit_width(target)
+    if is_float_type(value):
+        return target_width >= bit_width(value)
+    if is_integer_type(value):
+        return target_width >= float_promotion_width_for_integer_width(
+            bit_width(value)
+        )
+    return False
 
 
 @public
+@typechecked
+def is_explicitly_castable(
+    source: astx.DataType | None,
+    target: astx.DataType | None,
+) -> bool:
+    """
+    title: Return whether an explicit Cast expression is allowed.
+    parameters:
+      source:
+        type: astx.DataType | None
+      target:
+        type: astx.DataType | None
+    returns:
+      type: bool
+    """
+    if source is None or target is None:
+        return True
+    if is_assignable(target, source):
+        return True
+    if (is_numeric_type(source) or is_boolean_type(source)) and (
+        is_numeric_type(target) or is_boolean_type(target)
+    ):
+        return True
+    if isinstance(target, (astx.String, astx.UTF8String)):
+        return (
+            is_string_type(source)
+            or is_numeric_type(source)
+            or (is_boolean_type(source))
+        )
+    return False
+
+
+@public
+@typechecked
 def is_assignable(
     target: astx.DataType | None,
     value: astx.DataType | None,
@@ -269,9 +472,10 @@ def is_assignable(
         return True
     if same_type(target, value):
         return True
-    if is_numeric_type(target) and is_numeric_type(value):
-        common = common_numeric_type(target, value)
-        return common is not None and same_type(target, common)
+    if is_integer_type(target) and is_integer_type(value):
+        return _is_safe_integer_assignment(target, value)
+    if is_float_type(target) and is_numeric_type(value):
+        return _is_safe_float_assignment(target, value)
     if is_string_type(target) and is_string_type(value):
         return True
     if is_none_type(target) and is_none_type(value):
