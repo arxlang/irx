@@ -145,9 +145,9 @@ builder:
 - `backend.py`: public backend entry points
 - `core.py`: shared mutable lowering state and backend lifecycle
 - `protocols.py`: typing contract used by mixins and runtime features
-- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared IR
+- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime/`: shared IR
   infrastructure
-- `visitors/`: concern-grouped `visit(...)` overloads
+- `lowering/`: concern-grouped `visit(...)` overloads
 
 Foundational modules stay at the package root because they are architectural
 components, not incidental helpers.

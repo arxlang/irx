@@ -194,9 +194,9 @@ The LLVM backend package is structured around:
 - `core.py`: shared concrete visitor state and lifecycle, including the
   module-private `VisitorCore`
 - `protocols.py`: LLVM-specific typing contract layered on `BaseVisitorProtocol`
-- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared
+- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime/`: shared
   lowering infrastructure
-- `visitors/`: concern-grouped `visit(...)` overloads
+- `lowering/`: concern-grouped `visit(...)` overloads
 
 When changing LLVM lowering:
 

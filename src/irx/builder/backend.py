@@ -16,8 +16,7 @@ from irx import astx
 from irx.analysis.module_interfaces import ImportResolver, ParsedModule
 from irx.builder.base import Builder as BaseBuilder
 from irx.builder.core import VisitorCore
-from irx.builder.runtime.linking import link_executable
-from irx.builder.visitors import (
+from irx.builder.lowering import (
     ArrowVisitorMixin,
     BinaryOpVisitorMixin,
     ControlFlowVisitorMixin,
@@ -29,6 +28,7 @@ from irx.builder.visitors import (
     UnaryOpVisitorMixin,
     VariableVisitorMixin,
 )
+from irx.builder.runtime.linking import link_executable
 from irx.typecheck import typechecked
 
 
