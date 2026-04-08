@@ -118,6 +118,30 @@ def test_analyze_rejects_unknown_identifier() -> None:
         analyze(module)
 
 
+def test_analyze_rejects_imports_without_multimodule_resolver() -> None:
+    """
+    title: Test analyze rejects imports without a resolver-backed session.
+    """
+    module = make_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("lib")]),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(0))),
+        ),
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="Import statements require analyze_modules",
+    ):
+        analyze(module)
+
+
 def test_analyze_rejects_const_write() -> None:
     """
     title: Test analyze rejects const write.

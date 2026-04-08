@@ -4,7 +4,10 @@ title: Integration tests for the semantic-analysis pipeline.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import irx.builder as builder_api
+import irx.builder.backend as builder_backend
 import pytest
 
 from irx import astx
@@ -69,6 +72,32 @@ def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
         visitor.translate(module)
 
 
+def test_semantic_failures_stop_before_lowering_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    title: Semantic failures do not enter lowering dispatch.
+    parameters:
+      monkeypatch:
+        type: pytest.MonkeyPatch
+    """
+    visitor = Visitor()
+
+    def _unexpected_lowering(node: astx.AST) -> None:
+        """
+        title: Fail if lowering dispatch is reached.
+        parameters:
+          node:
+            type: astx.AST
+        """
+        raise AssertionError(f"Lowering should not run for {node!r}")
+
+    monkeypatch.setattr(visitor, "visit", _unexpected_lowering)
+
+    with pytest.raises(SemanticError, match="Unknown variable name"):
+        visitor.translate(astx.Identifier("missing"))
+
+
 def test_valid_modules_still_emit_ir_after_analysis() -> None:
     """
     title: Test valid modules still emit ir after analysis.
@@ -80,6 +109,42 @@ def test_valid_modules_still_emit_ir_after_analysis() -> None:
 
     assert 'define i32 @"main"()' in ir_text
     assert "ret i32 0" in ir_text
+
+
+def test_build_surfaces_linking_failures_after_semantic_analysis(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    title: Linking failures remain outside semantic analysis.
+    parameters:
+      monkeypatch:
+        type: pytest.MonkeyPatch
+      tmp_path:
+        type: Path
+    """
+    builder = Builder()
+    module = _main_module(astx.FunctionReturn(astx.LiteralInt32(0)))
+
+    def _fail_link(*args: object, **kwargs: object) -> None:
+        """
+        title: Fail the linking step with a runtime-style error.
+        parameters:
+          args:
+            type: object
+            variadic: positional
+          kwargs:
+            type: object
+            variadic: keyword
+        """
+        _ = args
+        _ = kwargs
+        raise RuntimeError("link failed")
+
+    monkeypatch.setattr(builder_backend, "link_executable", _fail_link)
+
+    with pytest.raises(RuntimeError, match="link failed"):
+        builder.build(module, output_file=str(tmp_path / "main"))
 
 
 def test_public_imports_remain_stable() -> None:

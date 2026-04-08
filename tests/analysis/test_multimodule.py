@@ -162,6 +162,45 @@ def test_analyze_modules_registers_plain_module_import_binding() -> None:
     assert session.visible_bindings[root.key]["lib"].kind == "module"
 
 
+def test_analyze_modules_returns_dep_order_and_predeclared_imports() -> None:
+    """
+    title: Dependency order and imported bindings follow the public contract.
+    """
+    import_stmt = astx.ImportFromStmt(
+        module="lib",
+        names=[astx.AliasExpr("foo")],
+    )
+    call = astx.FunctionCall("foo", [])
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function("main", astx.FunctionReturn(call)),
+    )
+    lib = make_parsed_module(
+        "lib",
+        _int_function("foo", astx.FunctionReturn(astx.LiteralInt32(3))),
+    )
+
+    session = analyze_modules(root, StaticImportResolver({"lib": lib}))
+
+    imported_function = (
+        _semantic(import_stmt).resolved_imports[0].binding.function
+    )
+    lib_function = session.visible_bindings["lib"]["foo"].function
+    resolved_call = _semantic(call).resolved_function
+
+    assert session.load_order == ["lib", "app.main"]
+    assert session.graph == {
+        "app.main": {"lib"},
+        "lib": set(),
+    }
+    assert imported_function is not None
+    assert lib_function is not None
+    assert resolved_call is not None
+    assert imported_function is lib_function
+    assert resolved_call is imported_function
+
+
 def test_analyze_modules_resolves_imported_struct_binding() -> None:
     """
     title: Imported structs keep the original defining module.
