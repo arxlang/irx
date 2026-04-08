@@ -22,6 +22,7 @@ from irx.typecheck import typechecked
 logger = logging.getLogger(__name__)
 
 
+@typechecked
 @dataclass
 class CommandResult:
     """
@@ -52,6 +53,7 @@ class CommandResult:
         return self.returncode == 0
 
 
+@typechecked
 class CommandError(RuntimeError):
     """
     title: Raised when a shell command exits with a non-zero status.

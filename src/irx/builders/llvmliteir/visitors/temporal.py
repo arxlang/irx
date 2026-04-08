@@ -12,8 +12,10 @@ from llvmlite import ir
 from irx import astx
 from irx.builders.llvmliteir.core import VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
+from irx.typecheck import typechecked
 
 
+@typechecked
 class TemporalVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.LiteralTime) -> None:

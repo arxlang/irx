@@ -174,6 +174,17 @@ API.
   attributes, continue using underscores when they are still the clearest
   internal signal.
 
+## Runtime Type Checking
+
+- Use `irx.typecheck.typechecked` on every concrete class defined under
+  `src/irx/`.
+- Keep `@public` or `@private` outermost, then `@typechecked`, then
+  `@dataclass(...)` so generated dataclass methods are instrumented.
+- Exempt only `Protocol` definitions and type-checking-only helper stubs that
+  are intentionally kept out of the runtime MRO.
+- If a concrete class truly needs an exemption, document the reason and update
+  `tests/test_typechecked_policy.py` in the same change.
+
 ## Working In `llvmliteir`
 
 The LLVM backend package is structured around:

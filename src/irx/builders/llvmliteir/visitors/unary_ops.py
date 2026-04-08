@@ -11,8 +11,10 @@ from irx.builders.llvmliteir.core import VisitorCore, semantic_symbol_key
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
+from irx.typecheck import typechecked
 
 
+@typechecked
 class UnaryOpVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch  # type: ignore[attr-defined,untyped-decorator]
     def visit(self, node: astx.UnaryOp) -> None:

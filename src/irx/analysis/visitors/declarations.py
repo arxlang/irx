@@ -15,8 +15,10 @@ from irx.analysis.visitors.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.typecheck import typechecked
 
 
+@typechecked
 class DeclarationVisitorMixin(SemanticVisitorMixinBase):
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, module: astx.Module) -> None:

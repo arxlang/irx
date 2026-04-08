@@ -12,9 +12,11 @@ from dataclasses import dataclass, field
 from public import public
 
 from irx.analysis.resolved_nodes import SemanticSymbol
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 @dataclass
 class Scope:
     """
@@ -34,6 +36,7 @@ class Scope:
 
 
 @public
+@typechecked
 class ScopeStack:
     """
     title: Stack of lexical scopes.

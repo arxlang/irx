@@ -13,8 +13,10 @@ from irx.builders.llvmliteir.core import (
     semantic_struct_name,
 )
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
+from irx.typecheck import typechecked
 
 
+@typechecked
 class ModuleVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.Module) -> None:

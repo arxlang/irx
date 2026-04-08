@@ -29,9 +29,11 @@ from irx.builders.llvmliteir.visitors import (
     VariableVisitorMixin,
 )
 from irx.runtime.linking import link_executable
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 class Visitor(
     LiteralVisitorMixin,
     VariableVisitorMixin,
@@ -49,6 +51,7 @@ class Visitor(
 
 
 @public
+@typechecked
 class Builder(BaseBuilder):
     translator: Visitor
 

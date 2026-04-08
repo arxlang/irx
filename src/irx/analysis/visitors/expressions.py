@@ -38,8 +38,10 @@ from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     specialize_binary_op,
 )
+from irx.typecheck import typechecked
 
 
+@typechecked
 class ExpressionVisitorMixin(SemanticVisitorMixinBase):
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.Identifier) -> None:

@@ -8,7 +8,10 @@ from typing import Any
 
 import astx
 
+from irx.typecheck import typechecked
 
+
+@typechecked
 class PrintExpr(astx.Expr):
     """
     title: PrintExpr AST class.
@@ -51,6 +54,7 @@ class PrintExpr(astx.Expr):
         return self._prepare_struct(key, value, simplified)
 
 
+@typechecked
 class Cast(astx.Expr):
     """
     title: Cast AST node for type conversions.

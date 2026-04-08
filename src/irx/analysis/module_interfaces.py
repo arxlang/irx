@@ -13,11 +13,13 @@ from typing import Protocol, TypeAlias, runtime_checkable
 from public import public
 
 from irx import astx
+from irx.typecheck import typechecked
 
 ModuleKey: TypeAlias = str
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class ParsedModule:
     """

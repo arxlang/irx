@@ -26,9 +26,11 @@ from irx.analysis.resolved_nodes import (
 )
 from irx.analysis.symbols import variable_symbol
 from irx.analysis.types import clone_type
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 class SemanticEntityFactory:
     """
     title: Central semantic entity construction.

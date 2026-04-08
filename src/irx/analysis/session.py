@@ -19,6 +19,7 @@ from irx.analysis.module_interfaces import (
     ParsedModule,
 )
 from irx.analysis.resolved_nodes import SemanticBinding
+from irx.typecheck import typechecked
 
 
 def _module_import_specifier(node: astx.ImportFromStmt) -> str:
@@ -37,6 +38,7 @@ def _module_import_specifier(node: astx.ImportFromStmt) -> str:
 
 
 @public
+@typechecked
 @dataclass
 class CompilationSession:
     """

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Callable, Literal, Mapping, TypeAlias, cast
 
 from llvmlite import ir
 
+from irx.typecheck import typechecked
+
 if TYPE_CHECKING:
     from irx.builders.llvmliteir.protocols import VisitorProtocol
 
@@ -20,6 +22,7 @@ else:
     RuntimeSymbolFactory: TypeAlias = Callable[[object], ir.Function]
 
 
+@typechecked
 @dataclass(frozen=True)
 class NativeArtifact:
     """
@@ -44,6 +47,7 @@ class NativeArtifact:
     link_flags: tuple[str, ...] = ()
 
 
+@typechecked
 @dataclass(frozen=True)
 class ExternalSymbolSpec:
     """
@@ -59,6 +63,7 @@ class ExternalSymbolSpec:
     declare: RuntimeSymbolFactory
 
 
+@typechecked
 @dataclass(frozen=True)
 class RuntimeFeature:
     """

@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Sequence
 
 from irx.runtime.features import NativeArtifact
+from irx.typecheck import typechecked
 
 
+@typechecked
 @dataclass(frozen=True)
 class NativeLinkInputs:
     """

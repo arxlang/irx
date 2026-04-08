@@ -31,7 +31,10 @@ from irx.analysis.resolved_nodes import (
 from irx.analysis.session import CompilationSession
 from irx.analysis.types import clone_type
 from irx.base.visitors.base import BaseVisitor
+from irx.typecheck import typechecked
 
+# Keep the typed helper contract out of the runtime MRO. A concrete runtime
+# base with stub methods would shadow SemanticAnalyzerCore's implementations.
 if TYPE_CHECKING:
 
     class SemanticVisitorMixinBase:
@@ -282,6 +285,7 @@ else:
         """
 
 
+@typechecked
 class SemanticAnalyzerCore(BaseVisitor):
     """
     title: Shared semantic analyzer core.

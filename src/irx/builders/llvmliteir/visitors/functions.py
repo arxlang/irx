@@ -15,8 +15,10 @@ from irx.builders.llvmliteir.core import (
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_int_type
+from irx.typecheck import typechecked
 
 
+@typechecked
 class FunctionVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:

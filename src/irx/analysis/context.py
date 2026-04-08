@@ -17,9 +17,11 @@ from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.module_interfaces import ModuleKey
 from irx.analysis.resolved_nodes import SemanticFunction, SemanticStruct
 from irx.analysis.scopes import ScopeStack
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 @dataclass
 class SemanticContext:
     """

@@ -19,9 +19,11 @@ from irx.analysis.resolved_nodes import (
     SemanticModule,
     SemanticStruct,
 )
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 class VisibleBindings:
     """
     title: Module-visible binding manager.

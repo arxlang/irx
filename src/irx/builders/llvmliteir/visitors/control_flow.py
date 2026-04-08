@@ -12,8 +12,10 @@ from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 from irx.builders.llvmliteir.vector import emit_add
+from irx.typecheck import typechecked
 
 
+@typechecked
 class ControlFlowVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, block: astx.Block) -> None:

@@ -20,9 +20,11 @@ from irx.analysis.resolved_nodes import (
     SemanticStruct,
     SemanticSymbol,
 )
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 class SemanticRegistry:
     """
     title: Semantic entity registration policy.

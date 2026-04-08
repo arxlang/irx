@@ -12,11 +12,13 @@ from llvmlite import ir
 from irx.runtime.arrow.feature import build_arrow_runtime_feature
 from irx.runtime.feature_libc import build_libc_runtime_feature
 from irx.runtime.features import NativeArtifact, RuntimeFeature
+from irx.typecheck import typechecked
 
 if TYPE_CHECKING:
     from irx.builders.llvmliteir.protocols import VisitorProtocol
 
 
+@typechecked
 class RuntimeFeatureRegistry:
     """
     title: Registry of named runtime features.
@@ -67,6 +69,7 @@ class RuntimeFeatureRegistry:
         return tuple(sorted(self._features))
 
 
+@typechecked
 class RuntimeFeatureState:
     """
     title: Track feature activation and symbol declarations for one module.

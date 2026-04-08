@@ -14,9 +14,11 @@ from public import public
 
 from irx import astx
 from irx.analysis.module_interfaces import ModuleKey
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class Diagnostic:
     """
@@ -65,6 +67,7 @@ class Diagnostic:
 
 
 @public
+@typechecked
 class DiagnosticBag:
     """
     title: Collect semantic diagnostics.
@@ -160,6 +163,7 @@ class DiagnosticBag:
 
 
 @public
+@typechecked
 class SemanticError(Exception):
     """
     title: Raised when semantic analysis fails.
