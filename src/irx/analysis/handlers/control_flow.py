@@ -10,11 +10,11 @@ summary: >-
 from __future__ import annotations
 
 from irx import astx
-from irx.analysis.types import is_assignable
-from irx.analysis.visitors.base import (
+from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.analysis.types import is_assignable
 from irx.typecheck import typechecked
 
 

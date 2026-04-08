@@ -12,6 +12,10 @@ from __future__ import annotations
 from typing import cast
 
 from irx import astx
+from irx.analysis.handlers.base import (
+    SemanticAnalyzerCore,
+    SemanticVisitorMixinBase,
+)
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import SemanticInfo
 from irx.analysis.types import (
@@ -29,10 +33,6 @@ from irx.analysis.validation import (
     validate_literal_datetime,
     validate_literal_time,
     validate_literal_timestamp,
-)
-from irx.analysis.visitors.base import (
-    SemanticAnalyzerCore,
-    SemanticVisitorMixinBase,
 )
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
