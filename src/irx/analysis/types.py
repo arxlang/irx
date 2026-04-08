@@ -238,9 +238,10 @@ def _type_for_width(
     return type_cls()
 
 
-def _min_float_width_for_integer_width(width: int) -> int:
+@public
+def float_promotion_width_for_integer_width(width: int) -> int:
     """
-    title: Return the float width used when integers promote with floats.
+    title: Return the float width floor used when integers promote with floats.
     parameters:
       width:
         type: int
@@ -317,7 +318,7 @@ def _common_float_type(
     )
     target_width = max(
         float_width,
-        _min_float_width_for_integer_width(integer_width),
+        float_promotion_width_for_integer_width(integer_width),
     )
     target_width = min(target_width, BIT_WIDTH_64)
     return _type_for_width(target_width, _FLOATS_BY_WIDTH)
@@ -392,7 +393,7 @@ def _is_safe_float_assignment(
     if is_float_type(value):
         return target_width >= bit_width(value)
     if is_integer_type(value):
-        return target_width >= _min_float_width_for_integer_width(
+        return target_width >= float_promotion_width_for_integer_width(
             bit_width(value)
         )
     return False

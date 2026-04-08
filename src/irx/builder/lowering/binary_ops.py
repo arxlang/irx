@@ -95,13 +95,15 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             and self._is_numeric_value(llvm_lhs)
             and self._is_numeric_value(llvm_rhs)
         ):
-            llvm_lhs, llvm_rhs = self._coerce_numeric_operands_for_types(
-                llvm_lhs,
-                llvm_rhs,
-                lhs_type=lhs_type,
-                rhs_type=rhs_type,
-            )
-            if llvm_lhs.type != llvm_rhs.type:
+            if lhs_type is not None and rhs_type is not None:
+                llvm_lhs, llvm_rhs = self._coerce_numeric_operands_for_types(
+                    llvm_lhs,
+                    llvm_rhs,
+                    lhs_type=lhs_type,
+                    rhs_type=rhs_type,
+                )
+            else:
+                # This is a low-level fallback for raw LLVM helper use only.
                 llvm_lhs, llvm_rhs = self._unify_numeric_operands(
                     llvm_lhs,
                     llvm_rhs,

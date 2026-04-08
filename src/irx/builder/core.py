@@ -30,6 +30,7 @@ from irx.analysis.module_symbols import (
 from irx.analysis.types import (
     bit_width,
     common_numeric_type,
+    float_promotion_width_for_integer_width,
     is_boolean_type,
     is_float_type,
     is_integer_type,
@@ -942,7 +943,11 @@ class VisitorCore(BuilderVisitor):
         unsigned: bool = False,
     ) -> tuple[ir.Value, ir.Value]:
         """
-        title: Unify numeric operands.
+        title: Unify numeric operands for raw LLVM values.
+        summary: >-
+          This is a fallback helper for low-level builder/test usage when
+          semantic operand types are unavailable. Normal AST lowering should
+          prefer semantic-aware coercion instead.
         parameters:
           lhs:
             type: ir.Value
@@ -1002,7 +1007,7 @@ class VisitorCore(BuilderVisitor):
                 )
                 target_width = max(
                     float_width,
-                    self._min_float_width_for_integer_bits(integer_width),
+                    float_promotion_width_for_integer_width(integer_width),
                 )
                 target_scalar_ty = self._float_type_from_width(target_width)
             else:
@@ -1025,21 +1030,6 @@ class VisitorCore(BuilderVisitor):
                 rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
 
         return lhs, rhs
-
-    def _min_float_width_for_integer_bits(self, width: int) -> int:
-        """
-        title: Minimum float width for integer bits.
-        parameters:
-          width:
-            type: int
-        returns:
-          type: int
-        """
-        if width <= FLOAT16_BITS:
-            return FLOAT16_BITS
-        if width <= FLOAT32_BITS:
-            return FLOAT32_BITS
-        return FLOAT64_BITS
 
     def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
         """

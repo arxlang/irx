@@ -66,6 +66,30 @@ def test_translate_mixed_int64_and_float32_promotes_to_double() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_translate_implicit_integer_widening_for_reassignment() -> None:
+    """
+    title: Reassignments should widen values before storing them.
+    """
+    module = make_main_module(
+        astx.VariableDeclaration(
+            name="value",
+            type_=astx.Int32(),
+            value=astx.LiteralInt32(0),
+            mutability=astx.MutabilityKind.mutable,
+        ),
+        astx.VariableAssignment(
+            name="value",
+            value=astx.LiteralInt16(7),
+        ),
+        astx.FunctionReturn(astx.LiteralInt32(0)),
+    )
+
+    ir_text = Builder().translate(module)
+
+    assert "sext i16 7 to i32" in ir_text
+    assert_ir_parses(ir_text)
+
+
 def test_translate_function_call_implicitly_promotes_arguments() -> None:
     """
     title: >-
@@ -101,6 +125,29 @@ def test_translate_function_call_implicitly_promotes_arguments() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_translate_implicit_return_coercion_uses_declared_function_type() -> (
+    None
+):
+    """
+    title: Returns should coerce to the declared function return type.
+    """
+    module = astx.Module()
+    proto = astx.FunctionPrototype(
+        "main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    body = astx.Block()
+    body.append(astx.FunctionReturn(astx.LiteralInt16(7)))
+    module.block.append(astx.FunctionDef(prototype=proto, body=body))
+
+    ir_text = Builder().translate(module)
+
+    assert "sext i16 7 to i32" in ir_text
+    assert "ret i32" in ir_text
+    assert_ir_parses(ir_text)
+
+
 def test_mixed_signed_and_unsigned_comparison_uses_canonical_promotion() -> (
     None
 ):
@@ -122,6 +169,28 @@ def test_mixed_signed_and_unsigned_comparison_uses_canonical_promotion() -> (
 
     assert "sext i16 -1 to i32" in ir_text
     assert "icmp ugt i32" in ir_text
+    assert_ir_parses(ir_text)
+
+
+def test_wider_signed_integer_keeps_signed_comparison_semantics() -> None:
+    """
+    title: Wider signed integers should force signed comparison lowering.
+    """
+    module = make_main_module(
+        astx.FunctionReturn(
+            astx.BinaryOp(
+                ">",
+                astx.LiteralInt64(-1),
+                astx.LiteralUInt32(1),
+            )
+        ),
+        return_type=astx.Boolean(),
+    )
+
+    ir_text = Builder().translate(module)
+
+    assert "zext i32 1 to i64" in ir_text
+    assert "icmp sgt i64" in ir_text
     assert_ir_parses(ir_text)
 
 

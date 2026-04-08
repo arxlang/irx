@@ -74,6 +74,23 @@ def test_unsigned_result_when_unsigned_operand_is_not_narrower() -> None:
     assert semantic.semantic_flags.unsigned is True
 
 
+def test_analyze_marks_unsigned_result_at_equal_width_boundary() -> None:
+    """
+    title: Equal-width signed and unsigned integers should promote to unsigned.
+    """
+    expr = astx.BinaryOp(
+        "+",
+        astx.LiteralInt32(-1),
+        astx.LiteralUInt32(1),
+    )
+
+    analyze(expr)
+
+    semantic = getattr(expr, "semantic")
+    assert semantic.resolved_type.__class__ is astx.UInt32
+    assert semantic.semantic_flags.unsigned is True
+
+
 def test_analyze_rejects_implicit_signed_to_unsigned_assignment() -> None:
     """
     title: >-
@@ -98,3 +115,41 @@ def test_analyze_rejects_implicit_signed_to_unsigned_assignment() -> None:
 
     with pytest.raises(SemanticError, match="Cannot assign value of type"):
         analyze(module)
+
+
+def test_rejects_implicit_unsigned_to_same_width_signed_assignment() -> None:
+    """
+    title: Unsigned integers need a strictly wider signed target implicitly.
+    """
+    module = astx.Module()
+    proto = astx.FunctionPrototype(
+        "main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
+    )
+    body = astx.Block()
+    body.append(
+        astx.VariableDeclaration(
+            name="value",
+            type_=astx.Int32(),
+            value=astx.LiteralUInt32(1),
+        )
+    )
+    body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module.block.append(astx.FunctionDef(prototype=proto, body=body))
+
+    with pytest.raises(SemanticError, match="Cannot assign value of type"):
+        analyze(module)
+
+
+def test_analyze_rejects_explicit_string_to_int_cast() -> None:
+    """
+    title: Non-numeric explicit casts should still be rejected semantically.
+    """
+    expr = astx.Cast(
+        value=astx.LiteralString("7"),
+        target_type=astx.Int32(),
+    )
+
+    with pytest.raises(SemanticError, match="Unsupported cast"):
+        analyze(expr)
