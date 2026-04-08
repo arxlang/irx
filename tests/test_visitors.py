@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 
 from irx import astx
-from irx.analysis.facade import SemanticAnalyzer
+from irx.analysis.api import SemanticAnalyzer
 from irx.base.visitors import BaseVisitor
-from irx.builders.llvmliteir import Visitor
+from irx.builder import Visitor
 from plum import dispatch
 
 
@@ -90,14 +90,12 @@ def test_llvmlite_visitor_inherits_shared_visit_contract() -> None:
 
 def test_llvmlite_backend_has_no_legacy_bridge_imports() -> None:
     """
-    title: llvmliteir should not depend on the removed legacy backend file.
+    title: Builder package should not depend on removed llvmlite legacy code.
     """
-    package_root = (
-        Path(__file__).resolve().parents[1] / "src/irx/builders/llvmliteir"
-    )
+    package_root = Path(__file__).resolve().parents[1] / "src/irx/builder"
     legacy_file = (
         Path(__file__).resolve().parents[1]
-        / "src/irx/builders/_llvmliteir_legacy.py"
+        / "src/irx/builder/_llvmliteir_legacy.py"
     )
 
     assert not legacy_file.exists()
@@ -111,11 +109,9 @@ def test_llvmlite_backend_avoids_node_specific_private_visit_trampolines() -> (
     None
 ):
     """
-    title: llvmliteir should keep node lowering in visit overloads.
+    title: Builder package should keep node lowering in visit overloads.
     """
-    package_root = (
-        Path(__file__).resolve().parents[1] / "src/irx/builders/llvmliteir"
-    )
+    package_root = Path(__file__).resolve().parents[1] / "src/irx/builder"
 
     for path in package_root.rglob("*.py"):
         text = path.read_text()

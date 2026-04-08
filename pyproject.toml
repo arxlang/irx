@@ -34,10 +34,10 @@ packages = [
 ]
 include = [
   "src/irx/py.typed",
-  "src/irx/runtime/**/*.c",
-  "src/irx/runtime/**/*.h",
-  "src/irx/runtime/**/*.md",
-  "src/irx/runtime/**/LICENSE.txt",
+  "src/irx/builder/runtime/**/*.c",
+  "src/irx/builder/runtime/**/*.h",
+  "src/irx/builder/runtime/**/*.md",
+  "src/irx/builder/runtime/**/LICENSE.txt",
 ]
 
 [tool.poetry.group.dev.dependencies]

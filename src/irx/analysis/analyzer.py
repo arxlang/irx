@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from public import public
 
-from irx.analysis.visitors.base import SemanticAnalyzerCore
-from irx.analysis.visitors.control_flow import ControlFlowVisitorMixin
-from irx.analysis.visitors.declarations import DeclarationVisitorMixin
-from irx.analysis.visitors.expressions import ExpressionVisitorMixin
-from irx.analysis.visitors.imports import ImportVisitorMixin
+from irx.analysis.handlers.base import SemanticAnalyzerCore
+from irx.analysis.handlers.control_flow import ControlFlowVisitorMixin
+from irx.analysis.handlers.declarations import DeclarationVisitorMixin
+from irx.analysis.handlers.expressions import ExpressionVisitorMixin
+from irx.analysis.handlers.imports import ImportVisitorMixin
 from irx.typecheck import typechecked
 
 

@@ -4,12 +4,12 @@ title: Integration tests for the semantic-analysis pipeline.
 
 from __future__ import annotations
 
-import irx.builders.llvmliteir as llvmliteir_backend
+import irx.builder as builder_api
 import pytest
 
 from irx import astx
 from irx.analysis import SemanticError
-from irx.builders.llvmliteir import (
+from irx.builder import (
     Builder,
     VariablesLLVM,
     Visitor,
@@ -93,8 +93,8 @@ def test_public_imports_remain_stable() -> None:
     assert callable(is_fp_type)
     assert callable(safe_pop)
     assert callable(splat_scalar)
-    assert not hasattr(llvmliteir_backend, "LLVMLiteIR")
-    assert not hasattr(llvmliteir_backend, "LLVMLiteIRVisitor")
+    assert not hasattr(builder_api, "LLVMLiteIR")
+    assert not hasattr(builder_api, "LLVMLiteIRVisitor")
 
 
 def test_helper_reexports_work_from_package() -> None:

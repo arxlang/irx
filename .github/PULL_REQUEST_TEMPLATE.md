@@ -1,3 +1,4 @@
+<!--
 ### Notes
 
 - This repository uses an AI bot for reviews. Keep your PR in **Draft** while
@@ -23,6 +24,7 @@
   needed for tests, prefer small fixtures or programmatic downloads declared in
   makim.yaml (e.g., a task that fetches data at test time). If a large binary is
   unavoidable, discuss first and consider Git LFS.
+-->
 
 ## Pull Request description
 

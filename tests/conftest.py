@@ -13,9 +13,9 @@ import pytest
 
 from irx import astx
 from irx.analysis import ModuleKey, ParsedModule
-from irx.builders.base import Builder, CommandResult
-from irx.builders.llvmliteir import Builder as LLVMBuilder
-from irx.builders.llvmliteir import Visitor as LLVMVisitor
+from irx.builder import Builder as LLVMBuilder
+from irx.builder import Visitor as LLVMVisitor
+from irx.builder.base import Builder, CommandResult
 from llvmlite import binding as llvm
 from llvmlite import ir
 

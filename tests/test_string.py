@@ -5,8 +5,8 @@ title: Tests for string operations.
 import pytest
 
 from irx import astx
-from irx.builders.base import Builder
-from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builder import Builder as LLVMBuilder
+from irx.builder.base import Builder
 from irx.system import PrintExpr
 
 from .conftest import check_result

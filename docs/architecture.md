@@ -118,38 +118,36 @@ In practice:
 
 - `SemanticAnalyzer` inherits `BaseVisitor`
 - `BuilderVisitor` inherits `BaseVisitor`
-- backend-specific protocols such as `llvmliteir.VisitorProtocol` extend
+- builder-specific protocols such as `builder.VisitorProtocol` extend
   `BaseVisitorProtocol`
 
-## Backend Architecture
+## Builder Architecture
 
-Each backend should live in its own package under `src/irx/builders/`. The
-package path identifies the backend, while the classes inside the package use
+IRx now exposes a single builder package at `src/irx/builder/`. The package path
+identifies the concrete LLVM builder, while the public classes inside it use
 short generic names.
 
-For example, `src/irx/builders/llvmliteir/` exposes:
+For example, `src/irx/builder` exposes:
 
 - `Builder`
 - `Visitor`
 - `VisitorProtocol`
 - optional `VisitorCore` as a module-private implementation class
 
-This naming convention matters for future backends. A contributor adding a new
-backend should not need to invent unique class prefixes when the package path
-already provides the context.
+This keeps the public API concise without reintroducing legacy class prefixes.
 
-## `llvmliteir` Package Layout
+## Builder Package Layout
 
 The LLVM backend is split into first-class modules instead of one monolithic
 builder:
 
 - `../src/irx/base/visitors/`: shared visitor protocol and runtime scaffold
-- `facade.py`: public backend entry points
+- `backend.py`: public backend entry points
 - `core.py`: shared mutable lowering state and backend lifecycle
 - `protocols.py`: typing contract used by mixins and runtime features
-- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime.py`: shared IR
+- `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime/`: shared IR
   infrastructure
-- `visitors/`: concern-grouped `visit(...)` overloads
+- `lowering/`: concern-grouped `visit(...)` overloads
 
 Foundational modules stay at the package root because they are architectural
 components, not incidental helpers.
@@ -222,15 +220,9 @@ When extending IRx, these rules help preserve the architecture:
 - Prefer explicit code over clever abstractions.
 - Use the package name, not class prefixes, to identify the backend.
 
-## When To Add A New Backend
+## If Another Backend Ever Returns
 
-If IRx gains another backend, it should follow the same broad shape:
-
-- a package under `src/irx/builders/`
-- a public `Builder`
-- a public `Visitor`
-- a `VisitorProtocol` if mixins or runtime hooks need typed access
-- an optional module-private `VisitorCore` for shared state and infrastructure
-
-That keeps backend packages consistent for both contributors and users of the
-library.
+IRx currently standardizes on a single builder package. If another backend is
+ever introduced again, keep the public class names generic and make the package
+split an explicit architecture decision instead of quietly rebuilding a plural
+builders namespace.

@@ -9,7 +9,7 @@ from irx.analysis.module_symbols import (
     mangle_function_name,
     mangle_struct_name,
 )
-from irx.builders.llvmliteir import Builder
+from irx.builder import Builder
 
 from tests.conftest import (
     StaticImportResolver,

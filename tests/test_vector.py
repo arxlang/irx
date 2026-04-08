@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from irx import astx
-from irx.builders.llvmliteir import Builder, Visitor
+from irx.builder import Builder, Visitor
 from llvmlite import ir
 
 VEC4 = 4

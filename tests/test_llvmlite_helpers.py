@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from irx.builders.llvmliteir import (
+from irx.builder import (
     Visitor,
     emit_int_div,
     is_fp_type,

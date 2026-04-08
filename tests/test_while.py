@@ -5,8 +5,8 @@ title: Test While Loop statements.
 import pytest
 
 from irx import astx
-from irx.builders.base import Builder
-from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builder import Builder as LLVMBuilder
+from irx.builder.base import Builder
 from llvmlite import binding as llvm
 
 from .conftest import check_result
