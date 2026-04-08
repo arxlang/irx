@@ -1,0 +1,285 @@
+"""
+title: Semantic entity factories.
+summary: >-
+  Build semantic sidecar entities and visible binding wrappers in one place so
+  analyzer visitors can focus on traversal and rule orchestration.
+"""
+
+from __future__ import annotations
+
+from public import public
+
+from irx import astx
+from irx.analysis.context import SemanticContext
+from irx.analysis.module_interfaces import ModuleKey
+from irx.analysis.module_symbols import (
+    qualified_function_name,
+    qualified_struct_name,
+)
+from irx.analysis.resolved_nodes import (
+    ResolvedImportBinding,
+    SemanticBinding,
+    SemanticFunction,
+    SemanticModule,
+    SemanticStruct,
+    SemanticSymbol,
+)
+from irx.analysis.symbols import variable_symbol
+from irx.analysis.types import clone_type
+from irx.typecheck import typechecked
+
+
+@public
+@typechecked
+class SemanticEntityFactory:
+    """
+    title: Central semantic entity construction.
+    summary: >-
+      Create semantic symbols, functions, structs, modules, and visible
+      bindings with consistent ids and qualified names.
+    attributes:
+      context:
+        type: SemanticContext
+    """
+
+    context: SemanticContext
+
+    def __init__(self, context: SemanticContext) -> None:
+        """
+        title: Initialize SemanticEntityFactory.
+        parameters:
+          context:
+            type: SemanticContext
+        """
+        self.context = context
+
+    def make_variable_symbol(
+        self,
+        module_key: ModuleKey,
+        name: str,
+        type_: astx.DataType,
+        *,
+        is_mutable: bool,
+        declaration: astx.AST | None,
+        kind: str = "variable",
+    ) -> SemanticSymbol:
+        """
+        title: Create a variable-like semantic symbol.
+        parameters:
+          module_key:
+            type: ModuleKey
+          name:
+            type: str
+          type_:
+            type: astx.DataType
+          is_mutable:
+            type: bool
+          declaration:
+            type: astx.AST | None
+          kind:
+            type: str
+        returns:
+          type: SemanticSymbol
+        """
+        return variable_symbol(
+            self.context.next_symbol_id(kind),
+            module_key,
+            name,
+            clone_type(type_),
+            is_mutable=is_mutable,
+            declaration=declaration,
+            kind=kind,
+        )
+
+    def make_parameter_symbol(
+        self,
+        module_key: ModuleKey,
+        argument: astx.Argument,
+    ) -> SemanticSymbol:
+        """
+        title: Create one function-parameter semantic symbol.
+        parameters:
+          module_key:
+            type: ModuleKey
+          argument:
+            type: astx.Argument
+        returns:
+          type: SemanticSymbol
+        """
+        return self.make_variable_symbol(
+            module_key,
+            argument.name,
+            argument.type_,
+            is_mutable=True,
+            declaration=argument,
+            kind="argument",
+        )
+
+    def make_function(
+        self,
+        module_key: ModuleKey,
+        prototype: astx.FunctionPrototype,
+        *,
+        definition: astx.FunctionDef | None = None,
+        args: tuple[SemanticSymbol, ...] | None = None,
+    ) -> SemanticFunction:
+        """
+        title: Create one semantic function entity.
+        parameters:
+          module_key:
+            type: ModuleKey
+          prototype:
+            type: astx.FunctionPrototype
+          definition:
+            type: astx.FunctionDef | None
+          args:
+            type: tuple[SemanticSymbol, Ellipsis] | None
+        returns:
+          type: SemanticFunction
+        """
+        semantic_args = args
+        if semantic_args is None:
+            semantic_args = tuple(
+                self.make_parameter_symbol(module_key, argument)
+                for argument in prototype.args.nodes
+            )
+        return SemanticFunction(
+            symbol_id=self.context.next_symbol_id("fn"),
+            name=prototype.name,
+            return_type=prototype.return_type,
+            args=semantic_args,
+            prototype=prototype,
+            definition=definition,
+            module_key=module_key,
+            qualified_name=qualified_function_name(module_key, prototype.name),
+        )
+
+    def make_struct(
+        self,
+        module_key: ModuleKey,
+        node: astx.StructDefStmt,
+    ) -> SemanticStruct:
+        """
+        title: Create one semantic struct entity.
+        parameters:
+          module_key:
+            type: ModuleKey
+          node:
+            type: astx.StructDefStmt
+        returns:
+          type: SemanticStruct
+        """
+        return SemanticStruct(
+            symbol_id=self.context.next_symbol_id("struct"),
+            name=node.name,
+            module_key=module_key,
+            qualified_name=qualified_struct_name(module_key, node.name),
+            declaration=node,
+        )
+
+    def make_module(
+        self,
+        module_key: ModuleKey,
+        *,
+        display_name: str | None = None,
+    ) -> SemanticModule:
+        """
+        title: Create one semantic module entity.
+        parameters:
+          module_key:
+            type: ModuleKey
+          display_name:
+            type: str | None
+        returns:
+          type: SemanticModule
+        """
+        return SemanticModule(
+            module_key=module_key,
+            display_name=display_name,
+        )
+
+    def make_function_binding(
+        self,
+        function: SemanticFunction,
+    ) -> SemanticBinding:
+        """
+        title: Create a visible binding for a function.
+        parameters:
+          function:
+            type: SemanticFunction
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="function",
+            module_key=function.module_key,
+            qualified_name=function.qualified_name,
+            function=function,
+        )
+
+    def make_struct_binding(
+        self,
+        struct: SemanticStruct,
+    ) -> SemanticBinding:
+        """
+        title: Create a visible binding for a struct.
+        parameters:
+          struct:
+            type: SemanticStruct
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="struct",
+            module_key=struct.module_key,
+            qualified_name=struct.qualified_name,
+            struct=struct,
+        )
+
+    def make_module_binding(
+        self,
+        module: SemanticModule,
+    ) -> SemanticBinding:
+        """
+        title: Create a visible binding for a module.
+        parameters:
+          module:
+            type: SemanticModule
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="module",
+            module_key=module.module_key,
+            qualified_name=str(module.module_key),
+            module=module,
+        )
+
+    def make_import_binding(
+        self,
+        *,
+        local_name: str,
+        requested_name: str,
+        source_module_key: ModuleKey,
+        binding: SemanticBinding,
+    ) -> ResolvedImportBinding:
+        """
+        title: Create one resolved import binding record.
+        parameters:
+          local_name:
+            type: str
+          requested_name:
+            type: str
+          source_module_key:
+            type: ModuleKey
+          binding:
+            type: SemanticBinding
+        returns:
+          type: ResolvedImportBinding
+        """
+        return ResolvedImportBinding(
+            local_name=local_name,
+            requested_name=requested_name,
+            source_module_key=source_module_key,
+            binding=binding,
+        )

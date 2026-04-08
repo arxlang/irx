@@ -9,8 +9,10 @@ from __future__ import annotations
 from plum import dispatch
 
 from irx import astx
+from irx.typecheck import typechecked
 
 
+@typechecked
 class BaseVisitor:
     """
     title: Concrete ASTx visitor scaffold with explicit not-implemented paths.

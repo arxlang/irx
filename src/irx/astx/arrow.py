@@ -6,7 +6,10 @@ from typing import cast
 
 import astx
 
+from irx.typecheck import typechecked
 
+
+@typechecked
 class ArrowInt32ArrayLength(astx.base.DataType):
     """
     title: Internal Arrow helper AST node.

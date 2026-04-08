@@ -14,9 +14,11 @@ from public import public
 
 from irx import astx
 from irx.analysis.module_interfaces import ModuleKey
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticSymbol:
     """
@@ -54,6 +56,7 @@ class SemanticSymbol:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticStruct:
     """
@@ -81,6 +84,7 @@ class SemanticStruct:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticFunction:
     """
@@ -118,6 +122,7 @@ class SemanticFunction:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticModule:
     """
@@ -137,6 +142,7 @@ class SemanticModule:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticBinding:
     """
@@ -168,6 +174,7 @@ class SemanticBinding:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class ResolvedImportBinding:
     """
@@ -193,6 +200,7 @@ class ResolvedImportBinding:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class SemanticFlags:
     """
@@ -218,6 +226,7 @@ class SemanticFlags:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class ResolvedOperator:
     """
@@ -246,6 +255,7 @@ class ResolvedOperator:
 
 
 @public
+@typechecked
 @dataclass(frozen=True)
 class ResolvedAssignment:
     """
@@ -262,6 +272,7 @@ class ResolvedAssignment:
 
 
 @public
+@typechecked
 @dataclass
 class SemanticInfo:
     """

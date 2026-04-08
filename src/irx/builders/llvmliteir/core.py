@@ -43,6 +43,7 @@ from irx.runtime.registry import (
     RuntimeFeatureState,
     get_default_runtime_feature_registry,
 )
+from irx.typecheck import typechecked
 
 FLOAT16_BITS = 16
 FLOAT32_BITS = 32
@@ -249,6 +250,7 @@ def semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
 
 
 @private
+@typechecked
 class VisitorCore(BuilderVisitor):
     named_values: NamedValueMap
     _llvm: VariablesLLVM

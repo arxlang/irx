@@ -10,11 +10,17 @@ import pytest
 
 from irx import astx
 from irx.analysis import DiagnosticBag, SemanticError, analyze
+from irx.analysis.module_symbols import (
+    qualified_function_name,
+    qualified_struct_name,
+)
 from irx.analysis.resolved_nodes import SemanticInfo
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     AddBinOp,
 )
+
+from tests.conftest import make_module
 
 
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
@@ -50,6 +56,22 @@ def _semantic(node: astx.AST) -> SemanticInfo:
       type: SemanticInfo
     """
     return cast(SemanticInfo, getattr(node, "semantic"))
+
+
+def _block(*nodes: astx.AST) -> astx.Block:
+    """
+    title: Block.
+    parameters:
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Block
+    """
+    block = astx.Block()
+    for node in nodes:
+        block.append(node)
+    return block
 
 
 def test_analyze_attaches_symbol_sidecars() -> None:
@@ -104,6 +126,30 @@ def test_analyze_rejects_const_write() -> None:
     )
 
     with pytest.raises(SemanticError, match="declared as constant"):
+        analyze(module)
+
+
+def test_analyze_rejects_duplicate_local_variable_declaration() -> None:
+    """
+    title: Test analyze rejects duplicate local variable declarations.
+    """
+    module = _module_with_main(
+        astx.VariableDeclaration(
+            name="x",
+            type_=astx.Int32(),
+            mutability=astx.MutabilityKind.mutable,
+            value=astx.LiteralInt32(1),
+        ),
+        astx.VariableDeclaration(
+            name="x",
+            type_=astx.Int32(),
+            mutability=astx.MutabilityKind.mutable,
+            value=astx.LiteralInt32(2),
+        ),
+        astx.FunctionReturn(astx.LiteralInt32(0)),
+    )
+
+    with pytest.raises(SemanticError, match="Identifier already declared: x"):
         analyze(module)
 
 
@@ -165,6 +211,61 @@ def test_analyze_rejects_missing_return() -> None:
         analyze(module)
 
 
+def test_analyze_rejects_duplicate_function_definitions() -> None:
+    """
+    title: Test analyze rejects duplicate function definitions.
+    """
+    module = make_module(
+        "app.main",
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "helper",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(1))),
+        ),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "helper",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(2))),
+        ),
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="Function 'helper' already defined",
+    ):
+        analyze(module)
+
+
+def test_analyze_rejects_duplicate_struct_definitions() -> None:
+    """
+    title: Test analyze rejects duplicate struct definitions.
+    """
+    module = make_module(
+        "app.main",
+        astx.StructDefStmt(
+            name="Point",
+            attributes=[
+                astx.VariableDeclaration(name="x", type_=astx.Int32()),
+            ],
+        ),
+        astx.StructDefStmt(
+            name="Point",
+            attributes=[
+                astx.VariableDeclaration(name="y", type_=astx.Int32()),
+            ],
+        ),
+    )
+
+    with pytest.raises(SemanticError, match="Struct 'Point' already defined"):
+        analyze(module)
+
+
 def test_analyze_normalizes_binary_flags() -> None:
     """
     title: Test analyze normalizes binary flags.
@@ -220,6 +321,164 @@ def test_analyze_allows_numeric_casts() -> None:
     analyze(expr)
 
     assert _semantic(expr).resolved_type.__class__ is astx.Int32
+
+
+def test_analyze_attaches_argument_symbols_to_parameters() -> None:
+    """
+    title: Test analyze attaches argument symbols to function parameters.
+    """
+    arg = astx.Argument("value", astx.Int32())
+    return_ident = astx.Identifier("value")
+    module = make_module(
+        "app.main",
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "echo",
+                args=astx.Arguments(arg),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(return_ident)),
+        ),
+    )
+
+    analyze(module)
+
+    arg_symbol = _semantic(arg).resolved_symbol
+    ident_symbol = _semantic(return_ident).resolved_symbol
+
+    assert arg_symbol is not None
+    assert ident_symbol is not None
+    assert arg_symbol.kind == "argument"
+    assert arg_symbol.symbol_id == ident_symbol.symbol_id
+
+
+def test_analyze_uses_distinct_lexical_and_visible_name_resolution() -> None:
+    """
+    title: Test local scope lookup stays distinct from module-visible lookup.
+    """
+    call = astx.FunctionCall("helper", [])
+    return_ident = astx.Identifier("helper")
+    module = make_module(
+        "app.main",
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "helper",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(7))),
+        ),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(
+                astx.VariableDeclaration(
+                    name="helper",
+                    type_=astx.Int32(),
+                    mutability=astx.MutabilityKind.mutable,
+                    value=astx.LiteralInt32(5),
+                ),
+                call,
+                astx.FunctionReturn(return_ident),
+            ),
+        ),
+    )
+
+    analyze(module)
+
+    resolved_function = _semantic(call).resolved_function
+    resolved_symbol = _semantic(return_ident).resolved_symbol
+
+    assert resolved_function is not None
+    assert resolved_symbol is not None
+    assert resolved_function.name == "helper"
+    assert resolved_symbol.name == "helper"
+    assert resolved_symbol.kind == "variable"
+
+
+def test_analyze_prefers_inner_for_scope_symbols() -> None:
+    """
+    title: Test inner loop scopes can shadow an outer local.
+    """
+    outer_decl = astx.VariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+        value=astx.LiteralInt32(99),
+    )
+    loop_var = astx.InlineVariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    inner_ident = astx.Identifier("x")
+    outer_ident = astx.Identifier("x")
+    module = _module_with_main(
+        outer_decl,
+        astx.ForRangeLoopStmt(
+            variable=loop_var,
+            start=astx.LiteralInt32(0),
+            end=astx.LiteralInt32(3),
+            step=astx.LiteralInt32(1),
+            body=_block(inner_ident),
+        ),
+        astx.FunctionReturn(outer_ident),
+    )
+
+    analyze(module)
+
+    outer_symbol = _semantic(outer_decl).resolved_symbol
+    loop_symbol = _semantic(loop_var).resolved_symbol
+    inner_symbol = _semantic(inner_ident).resolved_symbol
+    resolved_outer_ident = _semantic(outer_ident).resolved_symbol
+
+    assert outer_symbol is not None
+    assert loop_symbol is not None
+    assert inner_symbol is not None
+    assert resolved_outer_ident is not None
+    assert inner_symbol.symbol_id == loop_symbol.symbol_id
+    assert inner_symbol.symbol_id != outer_symbol.symbol_id
+    assert resolved_outer_ident.symbol_id == outer_symbol.symbol_id
+
+
+def test_analyze_preserves_module_qualified_function_and_struct_names() -> (
+    None
+):
+    """
+    title: Test analyze keeps module-qualified function and struct names.
+    """
+    struct = astx.StructDefStmt(
+        name="Point",
+        attributes=[astx.VariableDeclaration(name="x", type_=astx.Int32())],
+    )
+    function = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "helper",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_block(astx.FunctionReturn(astx.LiteralInt32(1))),
+    )
+    module = make_module("pkg.tools", struct, function)
+
+    analyze(module)
+
+    resolved_struct = _semantic(struct).resolved_struct
+    resolved_function = _semantic(function).resolved_function
+
+    assert resolved_struct is not None
+    assert resolved_function is not None
+    assert resolved_struct.qualified_name == qualified_struct_name(
+        "pkg.tools",
+        "Point",
+    )
+    assert resolved_function.qualified_name == qualified_function_name(
+        "pkg.tools",
+        "helper",
+    )
 
 
 def test_analyze_keeps_if_branch_bindings_visible_after_if() -> None:

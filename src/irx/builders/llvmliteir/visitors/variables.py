@@ -14,8 +14,10 @@ from irx.builders.llvmliteir.core import (
 )
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
+from irx.typecheck import typechecked
 
 
+@typechecked
 class VariableVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, expr: astx.VariableAssignment) -> None:

@@ -11,8 +11,10 @@ from irx.builders.llvmliteir.core import VisitorCore
 from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type, is_int_type
+from irx.typecheck import typechecked
 
 
+@typechecked
 class SystemVisitorMixin(VisitorMixinBase):
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.Cast) -> None:

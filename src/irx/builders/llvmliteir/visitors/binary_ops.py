@@ -41,8 +41,10 @@ from irx.builders.llvmliteir.protocols import VisitorMixinBase
 from irx.builders.llvmliteir.runtime import safe_pop
 from irx.builders.llvmliteir.types import is_fp_type
 from irx.builders.llvmliteir.vector import emit_add, emit_int_div, is_vector
+from irx.typecheck import typechecked
 
 
+@typechecked
 class BinaryOpVisitorMixin(VisitorMixinBase):
     def _resolved_binary_variant(self, node: astx.BinaryOp) -> astx.BinaryOp:
         """

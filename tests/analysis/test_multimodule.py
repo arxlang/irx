@@ -254,6 +254,27 @@ def test_analyze_modules_reports_conflicting_alias_bindings() -> None:
         )
 
 
+def test_analyze_modules_rejects_import_collisions_with_local_functions() -> (
+    None
+):
+    """
+    title: Imported names cannot collide with local module-visible functions.
+    """
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(module="lib", names=[astx.AliasExpr("foo")]),
+        _int_function("foo", astx.FunctionReturn(astx.LiteralInt32(0))),
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    lib = make_parsed_module(
+        "lib",
+        _int_function("foo", astx.FunctionReturn(astx.LiteralInt32(1))),
+    )
+
+    with pytest.raises(SemanticError, match="Conflicting binding for 'foo'"):
+        analyze_modules(root, StaticImportResolver({"lib": lib}))
+
+
 def test_analyze_modules_rejects_import_cycles() -> None:
     """
     title: Import cycles are rejected with a concrete cycle path.
