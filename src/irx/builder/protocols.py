@@ -93,7 +93,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         ...
 
     def create_entry_block_alloca(
-        self, _var_name: str, _type_name: str
+        self, _var_name: str, _type_name: str | ir.Type
     ) -> Any:
         """
         title: Create entry block alloca.
@@ -101,9 +101,20 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
           _var_name:
             type: str
           _type_name:
-            type: str
+            type: str | ir.Type
         returns:
           type: Any
+        """
+        ...
+
+    def _field_address(self, _node: astx.FieldAccess) -> ir.Value:
+        """
+        title: Lower one field access to an address.
+        parameters:
+          _node:
+            type: astx.FieldAccess
+        returns:
+          type: ir.Value
         """
         ...
 
@@ -472,7 +483,7 @@ if TYPE_CHECKING:
             return _fallback
 
         def create_entry_block_alloca(
-            self, _var_name: str, _type_name: str
+            self, _var_name: str, _type_name: str | ir.Type
         ) -> Any:
             """
             title: Create entry block alloca.
@@ -480,11 +491,22 @@ if TYPE_CHECKING:
               _var_name:
                 type: str
               _type_name:
-                type: str
+                type: str | ir.Type
             returns:
               type: Any
             """
             return cast(Any, None)
+
+        def _field_address(self, _node: astx.FieldAccess) -> ir.Value:
+            """
+            title: Lower one field access to an address.
+            parameters:
+              _node:
+                type: astx.FieldAccess
+            returns:
+              type: ir.Value
+            """
+            return cast(ir.Value, None)
 
         def require_runtime_symbol(
             self, _feature_name: str, _symbol_name: str

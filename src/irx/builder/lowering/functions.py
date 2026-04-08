@@ -87,11 +87,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
         try:
             for idx, llvm_arg in enumerate(fn.args):
                 arg_ast = proto.args.nodes[idx]
-                type_str = arg_ast.type_.__class__.__name__.lower()
-                arg_type = self._llvm.get_data_type(type_str)
                 symbol_key = semantic_symbol_key(arg_ast, llvm_arg.name)
+                arg_type = self._llvm_type_for_ast_type(arg_ast.type_)
+                if arg_type is None:
+                    raise Exception(
+                        "codegen: Unknown LLVM type for function argument "
+                        f"'{llvm_arg.name}'."
+                    )
                 alloca = self._llvm.ir_builder.alloca(
-                    arg_type, name=llvm_arg.name
+                    arg_type,
+                    name=llvm_arg.name,
                 )
                 self._llvm.ir_builder.store(llvm_arg, alloca)
                 self.named_values[symbol_key] = alloca
@@ -122,12 +127,20 @@ class FunctionVisitorMixin(VisitorMixinBase):
         """
         args_type = []
         for arg in node.args.nodes:
-            type_str = arg.type_.__class__.__name__.lower()
-            args_type.append(self._llvm.get_data_type(type_str))
+            llvm_type = self._llvm_type_for_ast_type(arg.type_)
+            if llvm_type is None:
+                raise Exception(
+                    "codegen: Unknown LLVM type for function argument "
+                    f"'{arg.name}'."
+                )
+            args_type.append(llvm_type)
 
-        return_type = self._llvm.get_data_type(
-            node.return_type.__class__.__name__.lower()
-        )
+        return_type = self._llvm_type_for_ast_type(node.return_type)
+        if return_type is None:
+            raise Exception(
+                "codegen: Unknown LLVM return type for function "
+                f"'{node.name}'."
+            )
         fn_type = ir.FunctionType(return_type, args_type, False)
         function_key = semantic_function_key(node, node.name)
         existing = self.llvm_functions_by_symbol_id.get(function_key)

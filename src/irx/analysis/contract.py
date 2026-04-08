@@ -162,6 +162,7 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "resolved_imports",
         "resolved_operator",
         "resolved_assignment",
+        "resolved_field_access",
         "semantic_flags",
         "extras",
     ),

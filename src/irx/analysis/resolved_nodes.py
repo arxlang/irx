@@ -74,6 +74,10 @@ class SemanticStruct:
         type: str
       declaration:
         type: astx.StructDefStmt
+      fields:
+        type: tuple[SemanticStructField, Ellipsis]
+      field_indices:
+        type: dict[str, int]
     """
 
     symbol_id: str
@@ -81,6 +85,34 @@ class SemanticStruct:
     module_key: ModuleKey
     qualified_name: str
     declaration: astx.StructDefStmt
+    fields: tuple["SemanticStructField", ...] = ()
+    field_indices: dict[str, int] = field(default_factory=dict)
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticStructField:
+    """
+    title: Resolved struct field information.
+    summary: >-
+      Describe one ordered field within a semantic struct, including its stable
+      index and resolved field type.
+    attributes:
+      name:
+        type: str
+      index:
+        type: int
+      type_:
+        type: astx.DataType
+      declaration:
+        type: astx.VariableDeclaration
+    """
+
+    name: str
+    index: int
+    type_: astx.DataType
+    declaration: astx.VariableDeclaration
 
 
 @public
@@ -273,6 +305,26 @@ class ResolvedAssignment:
 
 @public
 @typechecked
+@dataclass(frozen=True)
+class ResolvedFieldAccess:
+    """
+    title: Resolved field access metadata.
+    summary: >-
+      Point from a field-access node to its owning struct and stable field
+      metadata.
+    attributes:
+      struct:
+        type: SemanticStruct
+      field:
+        type: SemanticStructField
+    """
+
+    struct: SemanticStruct
+    field: SemanticStructField
+
+
+@public
+@typechecked
 @dataclass
 class SemanticInfo:
     """
@@ -297,6 +349,8 @@ class SemanticInfo:
         type: ResolvedOperator | None
       resolved_assignment:
         type: ResolvedAssignment | None
+      resolved_field_access:
+        type: ResolvedFieldAccess | None
       semantic_flags:
         type: SemanticFlags
       extras:
@@ -311,5 +365,6 @@ class SemanticInfo:
     resolved_imports: tuple[ResolvedImportBinding, ...] = ()
     resolved_operator: ResolvedOperator | None = None
     resolved_assignment: ResolvedAssignment | None = None
+    resolved_field_access: ResolvedFieldAccess | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)

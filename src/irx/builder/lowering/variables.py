@@ -71,6 +71,39 @@ class VariableVisitorMixin(VisitorMixinBase):
         self.result_stack.append(result)
 
     @VisitorCore.visit.dispatch
+    def visit(self, node: astx.FieldAccess) -> None:
+        """
+        title: Visit FieldAccess nodes.
+        parameters:
+          node:
+            type: astx.FieldAccess
+        """
+        if isinstance(node.value, astx.FieldAccess):
+            parent_ptr = self._field_address(node.value)
+            parent_value = self._llvm.ir_builder.load(
+                parent_ptr,
+                f"{node.field_name}_parent",
+            )
+            resolved = getattr(
+                getattr(node, "semantic", None),
+                "resolved_field_access",
+                None,
+            )
+            if resolved is None:
+                raise Exception("codegen: unresolved field access.")
+            result = self._llvm.ir_builder.extract_value(
+                parent_value,
+                resolved.field.index,
+                node.field_name,
+            )
+            self.result_stack.append(result)
+            return
+
+        field_ptr = self._field_address(node)
+        result = self._llvm.ir_builder.load(field_ptr, node.field_name)
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Visit VariableDeclaration nodes.
@@ -83,6 +116,11 @@ class VariableVisitorMixin(VisitorMixinBase):
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
+        llvm_type = self._llvm_type_for_ast_type(node.type_)
+        if llvm_type is None:
+            raise Exception(
+                f"codegen: Unknown LLVM type for variable '{node.name}'."
+            )
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
@@ -101,7 +139,7 @@ class VariableVisitorMixin(VisitorMixinBase):
                     node.name, "stringascii"
                 )
             else:
-                alloca = self.create_entry_block_alloca(node.name, type_str)
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
             self._llvm.ir_builder.store(init_val, alloca)
         else:
             if type_str == "string":
@@ -127,12 +165,15 @@ class VariableVisitorMixin(VisitorMixinBase):
                 alloca = self.create_entry_block_alloca(
                     node.name, "stringascii"
                 )
+            elif isinstance(node.type_, astx.StructType):
+                init_val = ir.Constant(llvm_type, None)
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
             elif "float" in type_str:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
-                alloca = self.create_entry_block_alloca(node.name, type_str)
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
             else:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
-                alloca = self.create_entry_block_alloca(node.name, type_str)
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
 
             self._llvm.ir_builder.store(init_val, alloca)
 
@@ -153,6 +194,12 @@ class VariableVisitorMixin(VisitorMixinBase):
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
+        llvm_type = self._llvm_type_for_ast_type(node.type_)
+        if llvm_type is None:
+            raise Exception(
+                "codegen: Unknown LLVM type for inline variable "
+                f"'{node.name}'."
+            )
         if node.value is not None:
             self.visit_child(node.value)
             init_val = safe_pop(self.result_stack)
@@ -163,6 +210,8 @@ class VariableVisitorMixin(VisitorMixinBase):
                 source_type=self._resolved_ast_type(node.value),
                 target_type=node.type_,
             )
+        elif isinstance(node.type_, astx.StructType):
+            init_val = ir.Constant(llvm_type, None)
         elif "float" in type_str:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
         else:
@@ -171,7 +220,7 @@ class VariableVisitorMixin(VisitorMixinBase):
         if type_str == "string":
             alloca = self.create_entry_block_alloca(node.name, "stringascii")
         else:
-            alloca = self.create_entry_block_alloca(node.name, type_str)
+            alloca = self.create_entry_block_alloca(node.name, llvm_type)
 
         self._llvm.ir_builder.store(init_val, alloca)
         if node.mutability == astx.MutabilityKind.constant:

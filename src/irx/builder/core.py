@@ -26,6 +26,7 @@ from irx.analysis.module_interfaces import ImportResolver, ParsedModule
 from irx.analysis.module_symbols import (
     mangle_function_name,
     mangle_struct_name,
+    qualified_struct_name,
 )
 from irx.analysis.types import (
     bit_width,
@@ -632,7 +633,7 @@ class VisitorCore(BuilderVisitor):
     def create_entry_block_alloca(
         self,
         var_name: str,
-        type_name: str,
+        type_name: str | ir.Type,
     ) -> Any:
         """
         title: Create entry block alloca.
@@ -640,17 +641,20 @@ class VisitorCore(BuilderVisitor):
           var_name:
             type: str
           type_name:
-            type: str
+            type: str | ir.Type
         returns:
           type: Any
         """
+        llvm_type = (
+            self._llvm.get_data_type(type_name)
+            if isinstance(type_name, str)
+            else type_name
+        )
         current_block = self._llvm.ir_builder.block
         self._llvm.ir_builder.position_at_start(
             self._llvm.ir_builder.function.entry_basic_block
         )
-        alloca = self._llvm.ir_builder.alloca(
-            self._llvm.get_data_type(type_name), None, var_name
-        )
+        alloca = self._llvm.ir_builder.alloca(llvm_type, None, var_name)
         if current_block is not None:
             self._llvm.ir_builder.position_at_end(current_block)
         return alloca
@@ -802,8 +806,91 @@ class VisitorCore(BuilderVisitor):
         """
         if type_ is None:
             return None
+        if isinstance(type_, astx.StructType):
+            struct_key = type_.qualified_name
+            if struct_key is None and type_.module_key is not None:
+                struct_key = qualified_struct_name(
+                    type_.module_key,
+                    type_.resolved_name or type_.name,
+                )
+            if struct_key is None:
+                return None
+            return self.struct_types.get(struct_key)
         type_name = type_.__class__.__name__.lower()
         return self._llvm.get_data_type(type_name)
+
+    def _field_address(self, node: astx.FieldAccess) -> ir.Value:
+        """
+        title: Lower one field-access expression to an address.
+        parameters:
+          node:
+            type: astx.FieldAccess
+        returns:
+          type: ir.Value
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_field_access = getattr(
+            semantic,
+            "resolved_field_access",
+            None,
+        )
+        if resolved_field_access is None:
+            raise Exception("codegen: unresolved field access.")
+
+        if isinstance(node.value, astx.Identifier):
+            base_key = semantic_symbol_key(node.value, node.value.name)
+            base_ptr = self.named_values.get(base_key)
+            if base_ptr is None:
+                raise Exception(f"Unknown variable name: {node.value.name}")
+        elif isinstance(node.value, astx.FieldAccess):
+            base_ptr = self._field_address(node.value)
+        else:
+            self.visit(node.value)
+            base_value = safe_pop(self.result_stack)
+            if base_value is None:
+                raise Exception("codegen: invalid field access base.")
+            base_type = self._resolved_ast_type(node.value)
+            llvm_base_type = self._llvm_type_for_ast_type(base_type)
+            if llvm_base_type is None:
+                llvm_base_type = base_value.type
+            temp_name = f"fieldtmp_{id(node.value)}"
+            base_ptr = self.create_entry_block_alloca(
+                temp_name,
+                llvm_base_type,
+            )
+            self._llvm.ir_builder.store(base_value, base_ptr)
+
+        indices = [
+            ir.Constant(self._llvm.INT32_TYPE, 0),
+            ir.Constant(
+                self._llvm.INT32_TYPE,
+                resolved_field_access.field.index,
+            ),
+        ]
+        source_etype = self._llvm_type_for_ast_type(
+            self._resolved_ast_type(node.value)
+        )
+        if not isinstance(node.value, astx.FieldAccess):
+            return self._llvm.ir_builder.gep(
+                base_ptr,
+                indices,
+                inbounds=True,
+                name=f"{resolved_field_access.field.name}_addr",
+            )
+        if source_etype is not None:
+            typed_ptr = source_etype.as_pointer()
+            if base_ptr.type != typed_ptr:
+                base_ptr = self._llvm.ir_builder.bitcast(
+                    base_ptr,
+                    typed_ptr,
+                    name=f"{resolved_field_access.field.name}_baseptr",
+                )
+        return self._llvm.ir_builder.gep(
+            base_ptr,
+            indices,
+            inbounds=True,
+            name=f"{resolved_field_access.field.name}_addr",
+        )
 
     def _bool_value_from_numeric(
         self,

@@ -42,15 +42,29 @@ class ModuleVisitorMixin(VisitorMixinBase):
             self.struct_types[struct_key] = existing
             return
 
+        field_types: list[ir.Type] = []
+        semantic = getattr(node, "semantic", None)
+        resolved_struct = getattr(semantic, "resolved_struct", None)
+        fields = (
+            resolved_struct.fields
+            if resolved_struct is not None and resolved_struct.fields
+            else ()
+        )
+        for field in fields:
+            llvm_type = self._llvm_type_for_ast_type(field.type_)
+            if llvm_type is None:
+                raise Exception(
+                    f"codegen: Unknown LLVM type for struct field "
+                    f"'{field.name}'."
+                )
+            field_types.append(llvm_type)
+
         llvm_name = semantic_struct_name(node, node.name)
         struct_type = self._llvm.module.context.get_identified_type(llvm_name)
         if not struct_type.is_opaque:
-            raise ValueError(f"Struct '{node.name}' already defined.")
-
-        field_types: list[ir.Type] = []
-        for attr in node.attributes:
-            type_str = attr.type_.__class__.__name__.lower()
-            field_types.append(self._llvm.get_data_type(type_str))
+            self.struct_types[struct_key] = struct_type
+            self.llvm_structs_by_qualified_name[struct_key] = struct_type
+            return
 
         struct_type.set_body(*field_types)
         self.struct_types[struct_key] = struct_type

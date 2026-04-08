@@ -69,6 +69,8 @@ from irx.astx.binary_op import (
 from irx.astx.binary_op import (
     specialize_binary_op as specialize_binary_op,
 )
+from irx.astx.structs import FieldAccess as FieldAccess
+from irx.astx.structs import StructType as StructType
 from irx.astx.system import Cast as Cast
 from irx.astx.system import PrintExpr as PrintExpr
 from irx.typecheck import typechecked
@@ -84,6 +86,7 @@ __all__ = (
     "Cast",
     "DivBinOp",
     "EqBinOp",
+    "FieldAccess",
     "GeBinOp",
     "GtBinOp",
     "LeBinOp",
@@ -94,6 +97,7 @@ __all__ = (
     "MulBinOp",
     "NeBinOp",
     "PrintExpr",
+    "StructType",
     "SubBinOp",
     "binary_op_type_for_opcode",
     "specialize_binary_op",

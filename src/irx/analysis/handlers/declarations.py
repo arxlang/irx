@@ -9,17 +9,187 @@ summary: >-
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from irx import astx
 from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.analysis.resolved_nodes import (
+    SemanticFunction,
+    SemanticStruct,
+    SemanticStructField,
+)
+from irx.analysis.types import clone_type
 from irx.analysis.validation import validate_assignment
 from irx.typecheck import typechecked
+
+DIRECT_STRUCT_CYCLE_LENGTH = 2
 
 
 @typechecked
 class DeclarationVisitorMixin(SemanticVisitorMixinBase):
+    def _synchronize_function_signature(
+        self,
+        function: SemanticFunction,
+        prototype: astx.FunctionPrototype,
+        *,
+        definition: astx.FunctionDef | None = None,
+    ) -> SemanticFunction:
+        """
+        title: Synchronize one semantic function with resolved AST types.
+        parameters:
+          function:
+            type: SemanticFunction
+          prototype:
+            type: astx.FunctionPrototype
+          definition:
+            type: astx.FunctionDef | None
+        returns:
+          type: SemanticFunction
+        """
+        updated = replace(
+            function,
+            return_type=clone_type(prototype.return_type),
+            args=tuple(
+                replace(arg_symbol, type_=clone_type(arg_node.type_))
+                for arg_node, arg_symbol in zip(
+                    prototype.args.nodes,
+                    function.args,
+                )
+            ),
+            prototype=prototype,
+            definition=(
+                definition if definition is not None else function.definition
+            ),
+        )
+        self.context.register_function(updated)
+        return updated
+
+    def _resolve_struct_fields(
+        self,
+        struct: SemanticStruct,
+    ) -> SemanticStruct:
+        """
+        title: Resolve one struct's ordered field metadata.
+        parameters:
+          struct:
+            type: SemanticStruct
+        returns:
+          type: SemanticStruct
+        """
+        seen: set[str] = set()
+        fields: list[SemanticStructField] = []
+
+        if len(list(struct.declaration.attributes)) == 0:
+            self.context.diagnostics.add(
+                f"Struct '{struct.name}' must declare at least one field",
+                node=struct.declaration,
+            )
+
+        for index, attr in enumerate(struct.declaration.attributes):
+            if attr.name in seen:
+                self.context.diagnostics.add(
+                    f"Struct field '{attr.name}' already defined.",
+                    node=attr,
+                )
+            seen.add(attr.name)
+            self._resolve_declared_type(
+                attr.type_,
+                node=attr,
+                unknown_message="Unknown field type '{name}'",
+            )
+            fields.append(
+                SemanticStructField(
+                    name=attr.name,
+                    index=index,
+                    type_=clone_type(attr.type_),
+                    declaration=attr,
+                )
+            )
+
+        updated = replace(
+            struct,
+            fields=tuple(fields),
+            field_indices={field.name: field.index for field in fields},
+        )
+        self.context.register_struct(updated)
+        self.bindings.bind_struct(
+            updated.name,
+            updated,
+            node=updated.declaration,
+        )
+        self._set_struct(updated.declaration, updated)
+        return updated
+
+    def _find_struct_cycle(
+        self,
+        root: SemanticStruct,
+        current: SemanticStruct,
+        path: tuple[SemanticStruct, ...],
+    ) -> tuple[SemanticStruct, ...] | None:
+        """
+        title: Find one by-value recursive struct cycle.
+        parameters:
+          root:
+            type: SemanticStruct
+          current:
+            type: SemanticStruct
+          path:
+            type: tuple[SemanticStruct, Ellipsis]
+        returns:
+          type: tuple[SemanticStruct, Ellipsis] | None
+        """
+        seen = {struct.qualified_name for struct in path}
+        for attr in current.declaration.attributes:
+            field_struct = self._resolve_struct_from_type(
+                attr.type_,
+                node=attr,
+                unknown_message="Unknown field type '{name}'",
+            )
+            if field_struct is None:
+                continue
+            if field_struct.qualified_name == root.qualified_name:
+                return (*path, field_struct)
+            if field_struct.qualified_name in seen:
+                continue
+            cycle = self._find_struct_cycle(
+                root,
+                field_struct,
+                (*path, field_struct),
+            )
+            if cycle is not None:
+                return cycle
+        return None
+
+    def _validate_struct_cycles(self, struct: SemanticStruct) -> None:
+        """
+        title: Reject by-value recursive struct layouts.
+        parameters:
+          struct:
+            type: SemanticStruct
+        """
+        cycle = self._find_struct_cycle(struct, struct, (struct,))
+        if cycle is None:
+            return
+
+        if len(cycle) == DIRECT_STRUCT_CYCLE_LENGTH:
+            self.context.diagnostics.add(
+                (
+                    "direct by-value recursive struct "
+                    f"'{struct.name}' is forbidden"
+                ),
+                node=struct.declaration,
+            )
+            return
+
+        cycle_names = " -> ".join(item.name for item in cycle)
+        self.context.diagnostics.add(
+            f"mutual by-value recursive structs are forbidden: {cycle_names}",
+            node=struct.declaration,
+        )
+
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, module: astx.Module) -> None:
         """
@@ -40,6 +210,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             type: astx.Block
         """
         self._set_type(block, None)
+        self._predeclare_block_structs(block)
         for node in block.nodes:
             self.visit(node)
 
@@ -51,9 +222,13 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.FunctionPrototype
         """
+        for arg in node.args.nodes:
+            self._resolve_declared_type(arg.type_, node=arg)
+        self._resolve_declared_type(node.return_type, node=node)
         function = self.registry.resolve_function(node.name)
         if function is None:
             function = self.registry.register_function(node)
+        function = self._synchronize_function_signature(function, node)
         self.bindings.bind_function(node.name, function, node=node)
         self._set_function(node, function)
 
@@ -65,12 +240,20 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.FunctionDef
         """
+        for arg in node.prototype.args.nodes:
+            self._resolve_declared_type(arg.type_, node=arg)
+        self._resolve_declared_type(node.prototype.return_type, node=node)
         function = self.registry.resolve_function(node.name)
         if function is None:
             function = self.registry.register_function(
                 node.prototype,
                 definition=node,
             )
+        function = self._synchronize_function_signature(
+            function,
+            node.prototype,
+            definition=node,
+        )
         self.bindings.bind_function(node.name, function, node=node)
         self._set_function(node.prototype, function)
         self._set_function(node, function)
@@ -101,6 +284,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.VariableDeclaration
         """
+        self._resolve_declared_type(node.type_, node=node)
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
@@ -128,6 +312,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.InlineVariableDeclaration
         """
+        self._resolve_declared_type(node.type_, node=node)
         if node.value is not None and not isinstance(
             node.value, astx.Undefined
         ):
@@ -157,13 +342,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         """
         struct = self.registry.register_struct(node)
         self.bindings.bind_struct(node.name, struct, node=node)
+        struct = self._resolve_struct_fields(struct)
         self._set_struct(node, struct)
-        seen: set[str] = set()
-        for attr in node.attributes:
-            if attr.name in seen:
-                self.context.diagnostics.add(
-                    f"Struct field '{attr.name}' already defined.",
-                    node=attr,
-                )
-            seen.add(attr.name)
+        self._validate_struct_cycles(struct)
         self._set_type(node, None)

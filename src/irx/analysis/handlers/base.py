@@ -19,6 +19,7 @@ from irx.analysis.module_interfaces import ModuleKey, ParsedModule
 from irx.analysis.registry import SemanticRegistry
 from irx.analysis.resolved_nodes import (
     ResolvedAssignment,
+    ResolvedFieldAccess,
     ResolvedImportBinding,
     ResolvedOperator,
     SemanticFlags,
@@ -217,6 +218,86 @@ if TYPE_CHECKING:
                 type: astx.AST
               symbol:
                 type: SemanticSymbol | None
+            """
+            raise NotImplementedError
+
+        def _set_field_access(
+            self,
+            node: astx.AST,
+            field_access: ResolvedFieldAccess | None,
+        ) -> None:
+            """
+            title: Attach resolved field access metadata.
+            parameters:
+              node:
+                type: astx.AST
+              field_access:
+                type: ResolvedFieldAccess | None
+            """
+            raise NotImplementedError
+
+        def _resolve_struct_from_type(
+            self,
+            type_: astx.DataType | None,
+            *,
+            node: astx.AST,
+            unknown_message: str,
+        ) -> SemanticStruct | None:
+            """
+            title: Resolve one struct-valued type reference.
+            parameters:
+              type_:
+                type: astx.DataType | None
+              node:
+                type: astx.AST
+              unknown_message:
+                type: str
+            returns:
+              type: SemanticStruct | None
+            """
+            raise NotImplementedError
+
+        def _resolve_declared_type(
+            self,
+            type_: astx.DataType,
+            *,
+            node: astx.AST,
+            unknown_message: str = "Unknown type '{name}'",
+        ) -> astx.DataType:
+            """
+            title: Resolve one declared type in place.
+            parameters:
+              type_:
+                type: astx.DataType
+              node:
+                type: astx.AST
+              unknown_message:
+                type: str
+            returns:
+              type: astx.DataType
+            """
+            raise NotImplementedError
+
+        def _root_assignment_symbol(
+            self,
+            node: astx.AST | None,
+        ) -> SemanticSymbol | None:
+            """
+            title: Resolve the root symbol for an assignment target chain.
+            parameters:
+              node:
+                type: astx.AST | None
+            returns:
+              type: SemanticSymbol | None
+            """
+            raise NotImplementedError
+
+        def _predeclare_block_structs(self, block: astx.Block) -> None:
+            """
+            title: Predeclare struct definitions in one block.
+            parameters:
+              block:
+                type: astx.Block
             """
             raise NotImplementedError
 
@@ -547,6 +628,129 @@ class SemanticAnalyzerCore(BaseVisitor):
             info.resolved_assignment = None
             return
         info.resolved_assignment = ResolvedAssignment(symbol)
+
+    def _set_field_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedFieldAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved field access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedFieldAccess | None
+        """
+        self._semantic(node).resolved_field_access = field_access
+
+    def _resolve_struct_from_type(
+        self,
+        type_: astx.DataType | None,
+        *,
+        node: astx.AST,
+        unknown_message: str,
+    ) -> SemanticStruct | None:
+        """
+        title: Resolve one struct-valued type reference.
+        parameters:
+          type_:
+            type: astx.DataType | None
+          node:
+            type: astx.AST
+          unknown_message:
+            type: str
+        returns:
+          type: SemanticStruct | None
+        """
+        if not isinstance(type_, astx.StructType):
+            return None
+
+        binding = self.bindings.resolve(type_.name)
+        struct = (
+            binding.struct
+            if binding is not None and binding.kind == "struct"
+            else None
+        )
+        if struct is None and type_.module_key is not None:
+            lookup_name = type_.resolved_name or type_.name
+            struct = self.context.get_struct(type_.module_key, lookup_name)
+        if struct is None:
+            self.context.diagnostics.add(
+                unknown_message.format(name=type_.name),
+                node=node,
+            )
+            return None
+
+        type_.resolved_name = struct.name
+        type_.module_key = struct.module_key
+        type_.qualified_name = struct.qualified_name
+        self._set_struct(type_, struct)
+        self._set_type(type_, type_)
+        return struct
+
+    def _resolve_declared_type(
+        self,
+        type_: astx.DataType,
+        *,
+        node: astx.AST,
+        unknown_message: str = "Unknown type '{name}'",
+    ) -> astx.DataType:
+        """
+        title: Resolve one declared type in place.
+        parameters:
+          type_:
+            type: astx.DataType
+          node:
+            type: astx.AST
+          unknown_message:
+            type: str
+        returns:
+          type: astx.DataType
+        """
+        self._resolve_struct_from_type(
+            type_,
+            node=node,
+            unknown_message=unknown_message,
+        )
+        return type_
+
+    def _root_assignment_symbol(
+        self,
+        node: astx.AST | None,
+    ) -> SemanticSymbol | None:
+        """
+        title: Resolve the root symbol for an assignment target chain.
+        parameters:
+          node:
+            type: astx.AST | None
+        returns:
+          type: SemanticSymbol | None
+        """
+        if node is None:
+            return None
+        if isinstance(node, astx.Identifier):
+            return cast(
+                SemanticInfo,
+                getattr(node, "semantic", SemanticInfo()),
+            ).resolved_symbol
+        if isinstance(node, astx.FieldAccess):
+            return self._root_assignment_symbol(node.value)
+        return None
+
+    def _predeclare_block_structs(self, block: astx.Block) -> None:
+        """
+        title: Predeclare struct definitions in one block.
+        parameters:
+          block:
+            type: astx.Block
+        """
+        for node in block.nodes:
+            if not isinstance(node, astx.StructDefStmt):
+                continue
+            struct = self.registry.register_struct(node)
+            self.bindings.bind_struct(node.name, struct, node=node)
+            self._set_struct(node, struct)
 
     def _current_module_key(self) -> ModuleKey:
         """
