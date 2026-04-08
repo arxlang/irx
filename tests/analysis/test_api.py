@@ -9,7 +9,15 @@ from typing import cast
 import pytest
 
 from irx import astx
-from irx.analysis import DiagnosticBag, SemanticError, analyze
+from irx.analysis import (
+    CompilationSession,
+    DiagnosticBag,
+    SemanticAnalyzer,
+    SemanticContract,
+    SemanticError,
+    analyze,
+    get_semantic_contract,
+)
 from irx.analysis.module_symbols import (
     qualified_function_name,
     qualified_struct_name,
@@ -107,6 +115,30 @@ def test_analyze_rejects_unknown_identifier() -> None:
     module = _module_with_main(astx.FunctionReturn(astx.Identifier("missing")))
 
     with pytest.raises(SemanticError, match="Unknown variable name"):
+        analyze(module)
+
+
+def test_analyze_rejects_imports_without_multimodule_resolver() -> None:
+    """
+    title: Test analyze rejects imports without a resolver-backed session.
+    """
+    module = make_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("lib")]),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(0))),
+        ),
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="Import statements require analyze_modules",
+    ):
         analyze(module)
 
 
@@ -532,3 +564,52 @@ def test_diagnostic_bag_formats_messages() -> None:
     bag.add("unknown identifier")
 
     assert "unknown identifier" in bag.format()
+
+
+def test_public_analysis_contract_is_stable() -> None:
+    """
+    title: Test public analysis contract is stable.
+    """
+    contract = get_semantic_contract()
+
+    assert SemanticAnalyzer.__name__ == "SemanticAnalyzer"
+    assert isinstance(contract, SemanticContract)
+    assert tuple(phase.name for phase in contract.stable_phases) == (
+        "module_graph_expansion",
+        "top_level_predeclaration",
+        "top_level_import_resolution",
+        "semantic_validation",
+    )
+    assert contract.required_node_semantic_fields == (
+        "resolved_type",
+        "resolved_symbol",
+        "resolved_function",
+        "resolved_struct",
+        "resolved_module",
+        "resolved_imports",
+        "resolved_operator",
+        "resolved_assignment",
+        "semantic_flags",
+        "extras",
+    )
+    assert contract.required_session_fields == (
+        "root",
+        "modules",
+        "graph",
+        "load_order",
+        "visible_bindings",
+    )
+    assert set(contract.required_node_semantic_fields) <= set(
+        SemanticInfo.__dataclass_fields__
+    )
+    assert set(contract.required_session_fields) <= set(
+        CompilationSession.__dataclass_fields__
+    )
+    assert contract.allowed_host_entrypoints == (
+        "irx.analysis.analyze",
+        "irx.analysis.analyze_module",
+        "irx.analysis.analyze_modules",
+    )
+    semantic_boundary = contract.phase_error_boundaries[0]
+    assert semantic_boundary.phase == "semantic"
+    assert semantic_boundary.raises == "SemanticError"
