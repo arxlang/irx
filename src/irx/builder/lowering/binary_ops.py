@@ -40,7 +40,7 @@ from irx.builder.core import (
 )
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
-from irx.builder.types import is_fp_type
+from irx.builder.types import is_fp_type, is_int_type
 from irx.builder.vector import emit_add, emit_int_div, is_vector
 from irx.typecheck import typechecked
 
@@ -152,6 +152,34 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         finally:
             self.set_fast_math(prev_fast_math)
         return result
+
+    def _load_boolean_operands(
+        self,
+        node: astx.BinaryOp,
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Load Boolean operands for logical operators.
+        parameters:
+          node:
+            type: astx.BinaryOp
+        returns:
+          type: tuple[ir.Value, ir.Value]
+        """
+        llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(
+            node,
+            unify_numeric=False,
+        )
+        if (
+            not is_int_type(llvm_lhs.type)
+            or llvm_lhs.type.width != 1
+            or not is_int_type(llvm_rhs.type)
+            or llvm_rhs.type.width != 1
+        ):
+            raise Exception(
+                "codegen: logical operator "
+                f"'{node.op_code}' must lower Boolean operands."
+            )
+        return llvm_lhs, llvm_rhs
 
     def _emit_vector_sub(
         self,
@@ -524,7 +552,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
           node:
             type: LogicalAndBinOp
         """
-        llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
+        llvm_lhs, llvm_rhs = self._load_boolean_operands(node)
         result = self._llvm.ir_builder.and_(llvm_lhs, llvm_rhs, "andtmp")
         self.result_stack.append(result)
 
@@ -536,7 +564,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
           node:
             type: LogicalOrBinOp
         """
-        llvm_lhs, llvm_rhs, _unsigned = self._load_binary_operands(node)
+        llvm_lhs, llvm_rhs = self._load_boolean_operands(node)
         result = self._llvm.ir_builder.or_(llvm_lhs, llvm_rhs, "ortmp")
         self.result_stack.append(result)
 

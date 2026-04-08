@@ -5,6 +5,7 @@ title: Tests for the UnaryOp.
 import pytest
 
 from irx import astx
+from irx.analysis import SemanticError, analyze
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
 
@@ -73,25 +74,13 @@ def test_unary_op_increment_decrement(
         value=literal_type(10),
         mutability=astx.MutabilityKind.mutable,
     )
-    decl_c = astx.VariableDeclaration(
-        name="c",
-        type_=int_type(),
-        value=literal_type(0),
-        mutability=astx.MutabilityKind.mutable,
-    )
-
     var_a = astx.Identifier("a")
     var_b = astx.Identifier("b")
-    var_c = astx.Identifier("c")
 
     incr_a = astx.UnaryOp(op_code="++", operand=var_a)
     incr_a.type_ = int_type()
     decr_b = astx.UnaryOp(op_code="--", operand=var_b)
     decr_b.type_ = int_type()
-    not_c = astx.UnaryOp(op_code="!", operand=var_c)
-    not_c.type_ = int_type()
-
-    final_expr = incr_a + decr_b + not_c
 
     main_proto = astx.FunctionPrototype(
         name="main", args=astx.Arguments(), return_type=int_type()
@@ -99,8 +88,8 @@ def test_unary_op_increment_decrement(
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
-    main_block.append(decl_c)
-    main_block.append(final_expr)
+    main_block.append(incr_a)
+    main_block.append(decr_b)
     main_block.append(astx.FunctionReturn(literal_type(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
@@ -177,72 +166,40 @@ def test_unary_op_increment_decrement_float(
 
 
 @pytest.mark.parametrize(
-    "int_type, literal_type, value, expected_output",
+    "int_type, literal_type, value",
     [
-        (astx.Int32, astx.LiteralInt32, 0, "1"),
-        (astx.Int32, astx.LiteralInt32, 5, "0"),
-        (astx.Int32, astx.LiteralInt32, -3, "0"),
-        (astx.Int16, astx.LiteralInt16, 0, "1"),
-        (astx.Int16, astx.LiteralInt16, 7, "0"),
-        (astx.UInt32, astx.LiteralUInt32, 0, "1"),
-        (astx.UInt32, astx.LiteralUInt32, 10, "0"),
+        (astx.Int32, astx.LiteralInt32, 0),
+        (astx.Int32, astx.LiteralInt32, 5),
+        (astx.Int32, astx.LiteralInt32, -3),
+        (astx.Int16, astx.LiteralInt16, 0),
+        (astx.Int16, astx.LiteralInt16, 7),
+        (astx.UInt32, astx.LiteralUInt32, 0),
+        (astx.UInt32, astx.LiteralUInt32, 10),
     ],
 )
-@pytest.mark.parametrize(
-    "builder_class",
-    [
-        LLVMBuilder,
-    ],
-)
-def test_unary_op_logical_not_int(
-    builder_class: type[Builder],
+def test_unary_op_logical_not_int_rejected(
     int_type: type,
     literal_type: type,
     value: int,
-    expected_output: str,
 ) -> None:
     """
-    title: Test logical NOT (!) for integer types.
+    title: Logical NOT should reject integer operands.
     parameters:
-      builder_class:
-        type: type[Builder]
       int_type:
         type: type
       literal_type:
         type: type
       value:
         type: int
-      expected_output:
-        type: str
     """
-    builder = builder_class()
-    module = builder.module()
+    del int_type
+    expr = astx.UnaryOp(op_code="!", operand=literal_type(value))
 
-    decl_a = astx.VariableDeclaration(
-        name="a",
-        type_=int_type(),
-        value=literal_type(value),
-        mutability=astx.MutabilityKind.mutable,
-    )
-
-    var_a = astx.Identifier("a")
-
-    not_a = astx.UnaryOp(op_code="!", operand=var_a)
-    not_a.type_ = int_type()
-
-    main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
-    )
-    main_block = astx.Block()
-    main_block.append(decl_a)
-    main_block.append(not_a)
-    main_block.append(astx.FunctionReturn(astx.Identifier("a")))
-
-    main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
-
-    module.block.append(main_fn)
-
-    check_result("build", builder, module, expected_output=expected_output)
+    with pytest.raises(
+        SemanticError,
+        match=r"unary operator '!' requires Boolean operand",
+    ):
+        analyze(expr)
 
 
 @pytest.mark.parametrize(

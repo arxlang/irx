@@ -10,7 +10,7 @@ from irx import astx
 from irx.builder.core import VisitorCore, semantic_symbol_key
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
-from irx.builder.types import is_fp_type
+from irx.builder.types import is_fp_type, is_int_type
 from irx.typecheck import typechecked
 
 
@@ -88,18 +88,16 @@ class UnaryOpVisitorMixin(VisitorMixinBase):
             val = safe_pop(self.result_stack)
             if val is None:
                 raise Exception("codegen: Invalid unary operand.")
-
-            zero = ir.Constant(val.type, 0)
-            is_zero = self._llvm.ir_builder.icmp_signed(
-                "==", val, zero, "iszero"
-            )
-
-            if isinstance(val.type, ir.IntType) and val.type.width == 1:
-                result = is_zero
-            else:
-                result = self._llvm.ir_builder.zext(
-                    is_zero, val.type, "nottmp"
+            if not is_int_type(val.type) or val.type.width != 1:
+                raise Exception(
+                    "codegen: unary operator '!' must lower a Boolean operand."
                 )
+
+            result = self._llvm.ir_builder.xor(
+                val,
+                ir.Constant(self._llvm.BOOLEAN_TYPE, 1),
+                "nottmp",
+            )
 
             if isinstance(node.operand, astx.Identifier):
                 operand_key = semantic_symbol_key(

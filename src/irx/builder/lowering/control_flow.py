@@ -10,13 +10,37 @@ from irx import astx
 from irx.builder.core import VisitorCore, semantic_symbol_key
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
-from irx.builder.types import is_fp_type
+from irx.builder.types import is_fp_type, is_int_type
 from irx.builder.vector import emit_add
 from irx.typecheck import typechecked
 
 
 @typechecked
 class ControlFlowVisitorMixin(VisitorMixinBase):
+    def _lower_boolean_condition(
+        self,
+        value: ir.Value | None,
+        *,
+        context: str,
+    ) -> ir.Value:
+        """
+        title: Require one lowered control-flow condition to be Boolean.
+        parameters:
+          value:
+            type: ir.Value | None
+          context:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        if value is None:
+            raise Exception("codegen: Invalid condition expression.")
+        if not is_int_type(value.type) or value.type.width != 1:
+            raise Exception(
+                f"codegen: {context} condition must lower to Boolean."
+            )
+        return value
+
     @VisitorCore.visit.dispatch
     def visit(self, block: astx.Block) -> None:
         """
@@ -51,18 +75,10 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             type: astx.IfStmt
         """
         self.visit_child(node.condition)
-        cond_v = safe_pop(self.result_stack)
-        if cond_v is None:
-            raise Exception("codegen: Invalid condition expression.")
-
-        if is_fp_type(cond_v.type):
-            cmp_instruction = self._llvm.ir_builder.fcmp_ordered
-            zero_val = ir.Constant(cond_v.type, 0.0)
-        else:
-            cmp_instruction = self._llvm.ir_builder.icmp_signed
-            zero_val = ir.Constant(cond_v.type, 0)
-
-        cond_v = cmp_instruction("!=", cond_v, zero_val)
+        cond_v = self._lower_boolean_condition(
+            safe_pop(self.result_stack),
+            context="if",
+        )
 
         then_bb = self._llvm.ir_builder.function.append_basic_block(
             "bb_if_then"
@@ -155,18 +171,10 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
         self._llvm.ir_builder.position_at_end(cond_bb)
         self.visit_child(expr.condition)
-        cond_val = safe_pop(self.result_stack)
-        if cond_val is None:
-            raise Exception("codegen: Invalid condition expression.")
-
-        if is_fp_type(cond_val.type):
-            cmp_instruction = self._llvm.ir_builder.fcmp_ordered
-            zero_val = ir.Constant(cond_val.type, 0.0)
-        else:
-            cmp_instruction = self._llvm.ir_builder.icmp_signed
-            zero_val = ir.Constant(cond_val.type, 0)
-
-        cond_val = cmp_instruction("!=", cond_val, zero_val, "whilecond")
+        cond_val = self._lower_boolean_condition(
+            safe_pop(self.result_stack),
+            context="while",
+        )
         self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
         self.loop_stack.append(
             {
@@ -218,7 +226,10 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self.named_values[initializer_key] = var_addr
 
         self.visit_child(node.condition)
-        cond_val = safe_pop(self.result_stack)
+        cond_val = self._lower_boolean_condition(
+            safe_pop(self.result_stack),
+            context="for-count loop",
+        )
 
         loop_body_bb = self._llvm.ir_builder.function.append_basic_block(
             "loop.body"

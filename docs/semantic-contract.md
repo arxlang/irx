@@ -65,6 +65,19 @@ Comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`) promote their operands
 with the same table and always return `Boolean` semantically and `i1` in LLVM
 IR.
 
+## Boolean And Comparison Contract
+
+Boolean behavior is part of the stable semantic boundary:
+
+- comparisons always return `Boolean`
+- `if`, `while`, and `for-count` conditions must be `Boolean`
+- `&&`, `||`, and `!` require `Boolean` operands
+- implicit truthiness is forbidden for integers, floats, pointers, and other
+  non-boolean values
+
+Lowering should branch directly on the analyzed Boolean `i1` value for control
+flow instead of inventing zero-comparison truthiness rules during codegen.
+
 ### Canonical Cast Policy
 
 Implicit promotions in variable initializers, assignments, call arguments, and

@@ -49,7 +49,7 @@ def test_break_exits_to_after_block(builder_class: type[Builder]) -> None:
     body.append(astx.BreakStmt())
 
     loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=body,
     )
 
@@ -89,7 +89,7 @@ def test_break_skips_remaining_statements(
     )
 
     loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=body,
     )
 
@@ -121,7 +121,7 @@ def test_nested_loop_break_affects_only_inner(
     inner_body.append(astx.BreakStmt())
 
     inner_loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=inner_body,
     )
 
@@ -129,7 +129,7 @@ def test_nested_loop_break_affects_only_inner(
     outer_body.append(inner_loop)
 
     outer_loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=outer_body,
     )
 
@@ -161,7 +161,7 @@ def test_continue_branches_to_condition(builder_class: type[Builder]) -> None:
     body.append(astx.ContinueStmt())
 
     loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=body,
     )
 
@@ -201,7 +201,7 @@ def test_continue_skips_remaining_statements(
     )
 
     loop = astx.WhileStmt(
-        condition=astx.LiteralInt32(1),
+        condition=astx.LiteralBoolean(True),
         body=body,
     )
 

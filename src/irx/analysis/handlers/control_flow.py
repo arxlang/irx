@@ -14,12 +14,34 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.types import is_assignable
+from irx.analysis.types import is_assignable, is_boolean_type
 from irx.typecheck import typechecked
 
 
 @typechecked
 class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
+    def _validate_boolean_condition(
+        self,
+        condition: astx.AST,
+        *,
+        label: str,
+    ) -> None:
+        """
+        title: Validate a control-flow condition is Boolean.
+        parameters:
+          condition:
+            type: astx.AST
+          label:
+            type: str
+        """
+        condition_type = self._expr_type(condition)
+        if condition_type is None or is_boolean_type(condition_type):
+            return
+        self.context.diagnostics.add(
+            f"{label} condition must be Boolean",
+            node=condition,
+        )
+
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:
         """
@@ -54,6 +76,7 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             type: astx.IfStmt
         """
         self.visit(node.condition)
+        self._validate_boolean_condition(node.condition, label="if")
         self.visit(node.then)
         if node.else_ is not None:
             self.visit(node.else_)
@@ -68,6 +91,7 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             type: astx.WhileStmt
         """
         self.visit(node.condition)
+        self._validate_boolean_condition(node.condition, label="while")
         with self.context.in_loop():
             self.visit(node.body)
         self._set_type(node, None)
@@ -93,6 +117,10 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             )
             self._set_symbol(node.initializer, symbol)
             self.visit(node.condition)
+            self._validate_boolean_condition(
+                node.condition,
+                label="for-count loop",
+            )
             self.visit(node.update)
             with self.context.in_loop():
                 self.visit(node.body)
