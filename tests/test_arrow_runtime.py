@@ -86,14 +86,15 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
       type: subprocess.CompletedProcess[str]
     """
     feature = build_arrow_runtime_feature()
-    native_root = (
-        Path(__file__).resolve().parents[1]
-        / "src"
-        / "irx"
-        / "runtime"
-        / "arrow"
-        / "native"
-    )
+    include_dirs: list[Path] = []
+    seen_include_dirs: set[Path] = set()
+    for artifact in feature.artifacts:
+        for include_dir in artifact.include_dirs:
+            if include_dir in seen_include_dirs:
+                continue
+            seen_include_dirs.add(include_dir)
+            include_dirs.append(include_dir)
+
     clang_binary = shutil.which("clang")
     if clang_binary is None:
         pytest.skip("clang is required for Arrow runtime harness tests")
@@ -112,8 +113,11 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
                 str(source_path),
                 "-o",
                 str(object_path),
-                "-I",
-                str(native_root),
+                *[
+                    option
+                    for include_dir in include_dirs
+                    for option in ("-I", str(include_dir))
+                ],
                 "-std=c99",
             ],
             check=True,
