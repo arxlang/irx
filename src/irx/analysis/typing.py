@@ -41,9 +41,7 @@ def binary_result_type(
     if op_code in {"&&", "and", "||", "or"}:
         if is_boolean_type(lhs_type) and is_boolean_type(rhs_type):
             return astx.Boolean()
-        if is_numeric_type(lhs_type) and is_numeric_type(rhs_type):
-            return common_numeric_type(lhs_type, rhs_type)
-        return lhs_type if lhs_type == rhs_type else None
+        return None
 
     if op_code == "=":
         return lhs_type
@@ -82,7 +80,7 @@ def unary_result_type(
     if op_code == "!":
         if is_boolean_type(operand_type):
             return astx.Boolean()
-        return operand_type
+        return None
     if op_code in {"++", "--"} and is_numeric_type(operand_type):
         return operand_type
     return operand_type

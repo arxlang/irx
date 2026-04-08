@@ -105,6 +105,15 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         """
         self.visit(node.operand)
         operand_type = self._expr_type(node.operand)
+        if (
+            node.op_code == "!"
+            and operand_type is not None
+            and not is_boolean_type(operand_type)
+        ):
+            self.context.diagnostics.add(
+                "unary operator '!' requires Boolean operand",
+                node=node,
+            )
         result_type = unary_result_type(node.op_code, operand_type)
         if node.op_code in {"++", "--"} and isinstance(
             node.operand, astx.Identifier
@@ -199,6 +208,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
         if flags.fma and flags.fma_rhs is not None:
             self.visit(flags.fma_rhs)
+
+        if (
+            node.op_code in {"&&", "and", "||", "or"}
+            and lhs_type is not None
+            and rhs_type is not None
+            and not (is_boolean_type(lhs_type) and is_boolean_type(rhs_type))
+        ):
+            self.context.diagnostics.add(
+                f"logical operator '{node.op_code}' requires Boolean operands",
+                node=node,
+            )
 
         if node.op_code in {"+", "-", "*", "/", "%"} and not (
             (is_numeric_type(lhs_type) and is_numeric_type(rhs_type))
