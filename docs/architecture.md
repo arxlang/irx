@@ -51,10 +51,21 @@ The public entry points are:
 
 - `irx.analysis.analyze(node)`
 - `irx.analysis.analyze_module(module)`
+- `irx.analysis.analyze_modules(root, resolver)`
 
 These entry points return the same AST root after attaching semantic sidecars.
 If semantic validation fails, analysis raises `SemanticError` before codegen
 begins.
+
+### Semantic Contract
+
+The host-facing semantic boundary is now explicit in code through
+`irx.analysis.get_semantic_contract()`. That contract names the stable semantic
+phases, the `SemanticInfo` and `CompilationSession` metadata that must exist
+before codegen, and the boundary between semantic, lowering, and linking/runtime
+failures.
+
+See [Semantic Contract](semantic-contract.md) for the concise contract summary.
 
 ### Why sidecars instead of a separate HIR?
 

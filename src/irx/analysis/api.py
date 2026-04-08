@@ -1,8 +1,9 @@
 """
 title: Public semantic-analysis API entry points.
 summary: >-
-  Expose the public single- and multi-module semantic-analysis functions while
-  keeping the concrete analyzer implementation in smaller internal modules.
+  Expose the stable semantic-analysis entry points that hosts and backend
+  lowering call before code generation begins, while keeping the concrete
+  analyzer implementation in smaller internal modules.
 """
 
 from __future__ import annotations
@@ -30,7 +31,11 @@ __all__ = [
 @public
 def analyze(node: astx.AST) -> astx.AST:
     """
-    title: Analyze one AST root and attach node.semantic sidecars.
+    title: Analyze one AST root and attach semantic sidecars.
+    summary: >-
+      Run the stable single-root semantic-validation path, attach node.semantic
+      sidecars to analyzed nodes, and raise SemanticError before lowering when
+      diagnostics exist.
     parameters:
       node:
         type: astx.AST
@@ -44,6 +49,9 @@ def analyze(node: astx.AST) -> astx.AST:
 def analyze_module(module: astx.Module) -> astx.Module:
     """
     title: Analyze an AST module.
+    summary: >-
+      Convenience wrapper around analyze(...) for module roots with the same
+      semantic-error boundary and sidecar guarantees.
     parameters:
       module:
         type: astx.Module
@@ -60,6 +68,11 @@ def analyze_modules(
 ) -> CompilationSession:
     """
     title: Analyze a reachable graph of host-provided parsed modules.
+    summary: >-
+      Run the stable multi-module semantic pipeline: expand the reachable
+      module graph, predeclare top-level members, resolve top-level imports,
+      attach semantic sidecars, and raise SemanticError before lowering when
+      diagnostics exist.
     parameters:
       root:
         type: ParsedModule
