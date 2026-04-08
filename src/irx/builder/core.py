@@ -61,6 +61,7 @@ FLOAT128_BITS = 128
 
 
 @private
+@typechecked
 def is_unsigned_node(node: astx.AST) -> bool:
     """
     title: Is unsigned node.
@@ -75,6 +76,7 @@ def is_unsigned_node(node: astx.AST) -> bool:
 
 
 @private
+@typechecked
 def uses_unsigned_semantics(node: astx.AST) -> bool:
     """
     title: Uses unsigned semantics.
@@ -97,6 +99,7 @@ def uses_unsigned_semantics(node: astx.AST) -> bool:
 
 
 @private
+@typechecked
 def semantic_symbol_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic symbol key.
@@ -117,6 +120,7 @@ def semantic_symbol_key(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_assignment_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic assignment key.
@@ -138,6 +142,7 @@ def semantic_assignment_key(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_function_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic function key.
@@ -158,6 +163,7 @@ def semantic_function_key(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_function_name(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic LLVM function name.
@@ -179,6 +185,7 @@ def semantic_function_name(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_struct_key(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic struct key.
@@ -199,6 +206,7 @@ def semantic_struct_key(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_struct_name(node: astx.AST, fallback: str) -> str:
     """
     title: Semantic LLVM struct name.
@@ -220,6 +228,7 @@ def semantic_struct_name(node: astx.AST, fallback: str) -> str:
 
 
 @private
+@typechecked
 def semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
     """
     title: Semantic flag.
@@ -241,6 +250,7 @@ def semantic_flag(node: astx.AST, name: str, default: bool = False) -> bool:
 
 
 @private
+@typechecked
 def semantic_fma_rhs(node: astx.AST) -> astx.AST | None:
     """
     title: Semantic fma rhs.

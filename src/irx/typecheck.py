@@ -16,10 +16,19 @@ from typeguard._config import global_config
 
 _T = TypeVar("_T")
 
+typechecked = _typechecked(
+    forward_ref_policy=ForwardRefPolicy.IGNORE,
+    collection_check_strategy=CollectionCheckStrategy.ALL_ITEMS,
+)
+
+global_config.forward_ref_policy = ForwardRefPolicy.IGNORE
+global_config.collection_check_strategy = CollectionCheckStrategy.ALL_ITEMS
+
 __all__ = ["copy_type", "skip_unused", "typechecked"]
 
 
 @public
+@typechecked
 def skip_unused(*args: Any, **kwargs: Any) -> None:
     """
     title: Referencing variables to pacify static analyzers.
@@ -38,6 +47,7 @@ def skip_unused(*args: Any, **kwargs: Any) -> None:
 
 
 @public
+@typechecked
 def copy_type(f: _T) -> Callable[[Any], _T]:
     """
     title: Copy types for args, kwargs from parent class.
@@ -49,12 +59,3 @@ def copy_type(f: _T) -> Callable[[Any], _T]:
     """
     skip_unused(f)
     return lambda x: x
-
-
-typechecked = _typechecked(
-    forward_ref_policy=ForwardRefPolicy.IGNORE,
-    collection_check_strategy=CollectionCheckStrategy.ALL_ITEMS,
-)
-
-global_config.forward_ref_policy = ForwardRefPolicy.IGNORE
-global_config.collection_check_strategy = CollectionCheckStrategy.ALL_ITEMS

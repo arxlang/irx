@@ -14,8 +14,10 @@ from irx.analysis.types import (
     is_numeric_type,
     is_string_type,
 )
+from irx.typecheck import typechecked
 
 
+@typechecked
 def binary_result_type(
     op_code: str,
     lhs_type: astx.DataType | None,
@@ -62,6 +64,7 @@ def binary_result_type(
     return lhs_type if lhs_type == rhs_type else None
 
 
+@typechecked
 def unary_result_type(
     op_code: str,
     operand_type: astx.DataType | None,

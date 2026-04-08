@@ -71,6 +71,7 @@ from irx.astx.binary_op import (
 )
 from irx.astx.system import Cast as Cast
 from irx.astx.system import PrintExpr as PrintExpr
+from irx.typecheck import typechecked
 
 __all__ = (
     "SPECIALIZED_BINARY_OP_EXTRA",
@@ -118,3 +119,7 @@ def __dir__() -> list[str]:
       type: list[str]
     """
     return sorted(set(dir(_upstream_astx)) | set(__all__))
+
+
+__getattr__ = typechecked(__getattr__)
+__dir__ = typechecked(__dir__)

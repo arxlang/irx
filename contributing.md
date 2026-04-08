@@ -26,6 +26,20 @@ makim tests.linter
 makim tests.unittest
 ```
 
+## Runtime type checking
+
+- Use `irx.typecheck.typechecked` on every module-level function and every
+  concrete class under `src/irx`.
+- Class decorators are the default way to cover methods; do not add per-method
+  decorators unless a class cannot be decorated.
+- Keep `@public` or `@private` outermost and place `@typechecked` on the
+  implementation boundary; for wrappers like `@lru_cache(...)`, that means
+  keeping `@typechecked` closest to the original function.
+- Keep class decorators ordered as `@public` or `@private`, then `@typechecked`,
+  then `@dataclass(...)`.
+- Run `pytest tests/test_typechecked_policy.py -q` when you touch decorator
+  coverage or add an exemption.
+
 ## Full guidelines
 
 Please see the full contributing guide for project layout, workflow, and release

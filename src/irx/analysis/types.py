@@ -10,6 +10,7 @@ from __future__ import annotations
 from public import public
 
 from irx import astx
+from irx.typecheck import typechecked
 
 INT_TYPES = (astx.Int8, astx.Int16, astx.Int32, astx.Int64)
 UINT_TYPES = (astx.UInt8, astx.UInt16, astx.UInt32, astx.UInt64, astx.UInt128)
@@ -57,6 +58,7 @@ _FLOATS_BY_WIDTH: dict[int, type[astx.DataType]] = {
 
 
 @public
+@typechecked
 def clone_type(type_: astx.DataType) -> astx.DataType:
     """
     title: Clone an AST type by class.
@@ -70,6 +72,7 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
 
 
 @public
+@typechecked
 def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     title: Return whether two AST types share the same class.
@@ -87,6 +90,7 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is integer type.
@@ -100,6 +104,7 @@ def is_integer_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_signed_integer_type(type_: astx.DataType | None) -> bool:
     """
     title: Is signed integer type.
@@ -113,6 +118,7 @@ def is_signed_integer_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_unsigned_type(type_: astx.DataType | None) -> bool:
     """
     title: Is unsigned type.
@@ -126,6 +132,7 @@ def is_unsigned_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_float_type(type_: astx.DataType | None) -> bool:
     """
     title: Is float type.
@@ -139,6 +146,7 @@ def is_float_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_numeric_type(type_: astx.DataType | None) -> bool:
     """
     title: Is numeric type.
@@ -152,6 +160,7 @@ def is_numeric_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_boolean_type(type_: astx.DataType | None) -> bool:
     """
     title: Is boolean type.
@@ -165,6 +174,7 @@ def is_boolean_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_string_type(type_: astx.DataType | None) -> bool:
     """
     title: Is string type.
@@ -178,6 +188,7 @@ def is_string_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_temporal_type(type_: astx.DataType | None) -> bool:
     """
     title: Is temporal type.
@@ -191,6 +202,7 @@ def is_temporal_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def is_none_type(type_: astx.DataType | None) -> bool:
     """
     title: Is none type.
@@ -204,6 +216,7 @@ def is_none_type(type_: astx.DataType | None) -> bool:
 
 
 @public
+@typechecked
 def bit_width(type_: astx.DataType | None) -> int:
     """
     title: Return the nominal bit width for numeric types.
@@ -218,6 +231,7 @@ def bit_width(type_: astx.DataType | None) -> int:
     return _BIT_WIDTHS.get(type(type_), 0)
 
 
+@typechecked
 def _type_for_width(
     width: int,
     table: dict[int, type[astx.DataType]],
@@ -239,6 +253,7 @@ def _type_for_width(
 
 
 @public
+@typechecked
 def float_promotion_width_for_integer_width(width: int) -> int:
     """
     title: Return the float width floor used when integers promote with floats.
@@ -255,6 +270,7 @@ def float_promotion_width_for_integer_width(width: int) -> int:
     return BIT_WIDTH_64
 
 
+@typechecked
 def _common_integer_type(
     lhs: astx.DataType,
     rhs: astx.DataType,
@@ -295,6 +311,7 @@ def _common_integer_type(
     )
 
 
+@typechecked
 def _common_float_type(
     lhs: astx.DataType,
     rhs: astx.DataType,
@@ -325,6 +342,7 @@ def _common_float_type(
 
 
 @public
+@typechecked
 def common_numeric_type(
     lhs: astx.DataType | None,
     rhs: astx.DataType | None,
@@ -349,6 +367,7 @@ def common_numeric_type(
     return _common_integer_type(lhs, rhs)
 
 
+@typechecked
 def _is_safe_integer_assignment(
     target: astx.DataType,
     value: astx.DataType,
@@ -375,6 +394,7 @@ def _is_safe_integer_assignment(
     return False
 
 
+@typechecked
 def _is_safe_float_assignment(
     target: astx.DataType,
     value: astx.DataType,
@@ -400,6 +420,7 @@ def _is_safe_float_assignment(
 
 
 @public
+@typechecked
 def is_explicitly_castable(
     source: astx.DataType | None,
     target: astx.DataType | None,
@@ -432,6 +453,7 @@ def is_explicitly_castable(
 
 
 @public
+@typechecked
 def is_assignable(
     target: astx.DataType | None,
     value: astx.DataType | None,

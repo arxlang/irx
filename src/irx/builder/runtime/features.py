@@ -88,6 +88,7 @@ class RuntimeFeature:
     metadata: Mapping[str, object] = field(default_factory=dict)
 
 
+@typechecked
 def declare_external_function(
     module: ir.Module, name: str, fn_type: ir.FunctionType
 ) -> ir.Function:

@@ -14,8 +14,10 @@ from irx.analysis.types import (
     is_integer_type,
     is_unsigned_type,
 )
+from irx.typecheck import typechecked
 
 
+@typechecked
 def normalize_flags(
     node: astx.AST,
     *,
@@ -55,6 +57,7 @@ def normalize_flags(
     )
 
 
+@typechecked
 def normalize_operator(
     op_code: str,
     *,

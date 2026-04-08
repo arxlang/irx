@@ -13,11 +13,13 @@ from irx.builder.runtime.features import (
     RuntimeFeature,
     declare_external_function,
 )
+from irx.typecheck import typechecked
 
 if TYPE_CHECKING:
     from irx.builder.protocols import VisitorProtocol
 
 
+@typechecked
 def build_libc_runtime_feature() -> RuntimeFeature:
     """
     title: Build the libc runtime feature specification.
@@ -35,6 +37,7 @@ def build_libc_runtime_feature() -> RuntimeFeature:
     )
 
 
+@typechecked
 def _declare_exit(visitor: VisitorProtocol) -> ir.Function:
     """
     title: Declare exit.
@@ -51,6 +54,7 @@ def _declare_exit(visitor: VisitorProtocol) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "exit", fn_type)
 
 
+@typechecked
 def _declare_malloc(visitor: VisitorProtocol) -> ir.Function:
     """
     title: Declare malloc.
@@ -67,6 +71,7 @@ def _declare_malloc(visitor: VisitorProtocol) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "malloc", fn_type)
 
 
+@typechecked
 def _declare_puts(visitor: VisitorProtocol) -> ir.Function:
     """
     title: Declare puts.
@@ -83,6 +88,7 @@ def _declare_puts(visitor: VisitorProtocol) -> ir.Function:
     return declare_external_function(visitor._llvm.module, "puts", fn_type)
 
 
+@typechecked
 def _declare_snprintf(visitor: VisitorProtocol) -> ir.Function:
     """
     title: Declare snprintf.

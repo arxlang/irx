@@ -31,6 +31,7 @@ class NativeLinkInputs:
     linker_flags: tuple[str, ...]
 
 
+@typechecked
 def compile_native_artifacts(
     artifacts: Sequence[NativeArtifact],
     build_dir: Path,
@@ -72,6 +73,7 @@ def compile_native_artifacts(
     return NativeLinkInputs(tuple(objects), tuple(linker_flags))
 
 
+@typechecked
 def link_executable(
     primary_object: Path,
     output_file: Path,
@@ -108,6 +110,7 @@ def link_executable(
     _run_checked(command)
 
 
+@typechecked
 def _compile_c_source(
     artifact: NativeArtifact,
     build_dir: Path,
@@ -145,6 +148,7 @@ def _compile_c_source(
     return object_path
 
 
+@typechecked
 def _run_checked(command: Sequence[str]) -> None:
     """
     title: Run checked.

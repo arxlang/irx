@@ -16,6 +16,7 @@ from irx.analysis.types import (
     is_assignable,
     is_explicitly_castable,
 )
+from irx.typecheck import typechecked
 
 TIME_PARTS_HOUR_MINUTE = 2
 TIME_PARTS_HOUR_MINUTE_SECOND = 3
@@ -25,6 +26,7 @@ INT32_MIN = -(2**31)
 INT32_MAX = 2**31 - 1
 
 
+@typechecked
 def validate_assignment(
     diagnostics: DiagnosticBag,
     *,
@@ -54,6 +56,7 @@ def validate_assignment(
         )
 
 
+@typechecked
 def validate_call(
     diagnostics: DiagnosticBag,
     *,
@@ -85,6 +88,7 @@ def validate_call(
             )
 
 
+@typechecked
 def validate_cast(
     diagnostics: DiagnosticBag,
     *,
@@ -114,6 +118,7 @@ def validate_cast(
     )
 
 
+@typechecked
 def validate_literal_time(value: str) -> time:
     """
     title: Validate an astx time literal.
@@ -149,6 +154,7 @@ def validate_literal_time(value: str) -> time:
     return time(hour, minute, second)
 
 
+@typechecked
 def validate_literal_timestamp(value: str) -> datetime:
     """
     title: Validate an astx timestamp literal.
@@ -168,6 +174,7 @@ def validate_literal_timestamp(value: str) -> datetime:
         raise ValueError(str(exc)) from exc
 
 
+@typechecked
 def validate_literal_datetime(value: str) -> datetime:
     """
     title: Validate an astx datetime literal.
@@ -232,6 +239,7 @@ def validate_literal_datetime(value: str) -> datetime:
         raise ValueError("invalid calendar date/time") from exc
 
 
+@typechecked
 def validate_calendar_date(value: str) -> date:
     """
     title: Validate a date component.

@@ -231,6 +231,7 @@ class RuntimeFeatureState:
 
 
 @lru_cache(maxsize=1)
+@typechecked
 def get_default_runtime_feature_registry() -> RuntimeFeatureRegistry:
     """
     title: Build the default runtime feature registry.

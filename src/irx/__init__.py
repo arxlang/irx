@@ -4,7 +4,10 @@ title: Top-level package for IRx.
 
 from importlib import metadata as importlib_metadata
 
+from irx.typecheck import typechecked
 
+
+@typechecked
 def get_version() -> str:
     """
     title: Return the program version.

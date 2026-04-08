@@ -12,9 +12,11 @@ from irx import astx
 from irx.analysis.module_interfaces import ModuleKey
 from irx.analysis.module_symbols import qualified_local_name
 from irx.analysis.resolved_nodes import SemanticSymbol
+from irx.typecheck import typechecked
 
 
 @public
+@typechecked
 def variable_symbol(
     symbol_id: str,
     module_key: ModuleKey,
