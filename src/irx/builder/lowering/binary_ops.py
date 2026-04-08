@@ -9,6 +9,7 @@ from __future__ import annotations
 from llvmlite import ir
 
 from irx import astx
+from irx.analysis.types import common_numeric_type
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     AddBinOp,
@@ -90,12 +91,13 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         unsigned = uses_unsigned_semantics(node)
         lhs_type = self._resolved_ast_type(node.lhs)
         rhs_type = self._resolved_ast_type(node.rhs)
+        semantic_numeric_type = common_numeric_type(lhs_type, rhs_type)
         if (
             unify_numeric
             and self._is_numeric_value(llvm_lhs)
             and self._is_numeric_value(llvm_rhs)
         ):
-            if lhs_type is not None and rhs_type is not None:
+            if semantic_numeric_type is not None:
                 llvm_lhs, llvm_rhs = self._coerce_numeric_operands_for_types(
                     llvm_lhs,
                     llvm_rhs,
