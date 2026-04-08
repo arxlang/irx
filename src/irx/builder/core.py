@@ -27,6 +27,14 @@ from irx.analysis.module_symbols import (
     mangle_function_name,
     mangle_struct_name,
 )
+from irx.analysis.types import (
+    bit_width,
+    common_numeric_type,
+    is_boolean_type,
+    is_float_type,
+    is_integer_type,
+    is_unsigned_type,
+)
 from irx.builder.base import BuilderVisitor
 from irx.builder.runtime import safe_pop
 from irx.builder.runtime.registry import (
@@ -266,6 +274,7 @@ class VisitorCore(BuilderVisitor):
     _emitted_function_bodies: set[str]
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
+    _current_function_return_type: astx.DataType | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -292,6 +301,7 @@ class VisitorCore(BuilderVisitor):
         self._emitted_function_bodies = set()
         self.entry_function_symbol_id = None
         self._fast_math_enabled = False
+        self._current_function_return_type = None
 
         self.initialize()
         self.target = llvm.Target.from_default_triple()
@@ -748,6 +758,183 @@ class VisitorCore(BuilderVisitor):
             return isinstance(elem_ty, ir.IntType) or is_fp_type(elem_ty)
         return isinstance(value.type, ir.IntType) or is_fp_type(value.type)
 
+    def _resolved_ast_type(
+        self, node: astx.AST | None
+    ) -> astx.DataType | None:
+        """
+        title: Resolved ast type.
+        parameters:
+          node:
+            type: astx.AST | None
+        returns:
+          type: astx.DataType | None
+        """
+        if node is None:
+            return None
+        semantic = getattr(node, "semantic", None)
+        resolved_type = getattr(semantic, "resolved_type", None)
+        if isinstance(resolved_type, astx.DataType):
+            return resolved_type
+        fallback = getattr(node, "type_", None)
+        return fallback if isinstance(fallback, astx.DataType) else None
+
+    def _llvm_type_for_ast_type(
+        self, type_: astx.DataType | None
+    ) -> ir.Type | None:
+        """
+        title: Llvm type for ast type.
+        parameters:
+          type_:
+            type: astx.DataType | None
+        returns:
+          type: ir.Type | None
+        """
+        if type_ is None:
+            return None
+        type_name = type_.__class__.__name__.lower()
+        return self._llvm.get_data_type(type_name)
+
+    def _bool_value_from_numeric(
+        self,
+        value: ir.Value,
+        source_type: astx.DataType | None,
+        *,
+        name: str,
+    ) -> ir.Value:
+        """
+        title: Convert one numeric value to boolean truthiness.
+        parameters:
+          value:
+            type: ir.Value
+          source_type:
+            type: astx.DataType | None
+          name:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        if is_boolean_type(source_type):
+            return value
+        if is_float_type(source_type):
+            zero = ir.Constant(value.type, 0.0)
+            return self._llvm.ir_builder.fcmp_ordered("!=", value, zero, name)
+        if is_integer_type(source_type):
+            zero = ir.Constant(value.type, 0)
+            return self._llvm.ir_builder.icmp_unsigned("!=", value, zero, name)
+        raise Exception(f"Unsupported boolean conversion from {source_type!r}")
+
+    def _cast_ast_value(
+        self,
+        value: ir.Value,
+        *,
+        source_type: astx.DataType | None,
+        target_type: astx.DataType | None,
+    ) -> ir.Value:
+        """
+        title: Cast one lowered value using semantic scalar types.
+        parameters:
+          value:
+            type: ir.Value
+          source_type:
+            type: astx.DataType | None
+          target_type:
+            type: astx.DataType | None
+        returns:
+          type: ir.Value
+        """
+        if source_type is None or target_type is None:
+            return value
+
+        target_llvm_type = self._llvm_type_for_ast_type(target_type)
+        if target_llvm_type is None:
+            return value
+        if value.type == target_llvm_type:
+            return value
+
+        builder = self._llvm.ir_builder
+
+        if is_boolean_type(target_type):
+            return self._bool_value_from_numeric(
+                value,
+                source_type,
+                name="boolcast",
+            )
+
+        if is_boolean_type(source_type):
+            if is_integer_type(target_type):
+                return builder.zext(value, target_llvm_type, "bool_zext")
+            if is_float_type(target_type):
+                return builder.uitofp(value, target_llvm_type, "bool_to_fp")
+
+        if is_integer_type(source_type) and is_integer_type(target_type):
+            source_width = bit_width(source_type)
+            target_width = bit_width(target_type)
+
+            if source_width == target_width:
+                return value
+            if source_width < target_width:
+                if is_unsigned_type(source_type):
+                    return builder.zext(value, target_llvm_type, "zext")
+                return builder.sext(value, target_llvm_type, "sext")
+            return builder.trunc(value, target_llvm_type, "trunc")
+
+        if is_integer_type(source_type) and is_float_type(target_type):
+            if is_unsigned_type(source_type):
+                return builder.uitofp(value, target_llvm_type, "uitofp")
+            return builder.sitofp(value, target_llvm_type, "sitofp")
+
+        if is_float_type(source_type) and is_integer_type(target_type):
+            if is_unsigned_type(target_type):
+                return builder.fptoui(value, target_llvm_type, "fptoui")
+            return builder.fptosi(value, target_llvm_type, "fptosi")
+
+        if is_float_type(source_type) and is_float_type(target_type):
+            if bit_width(source_type) < bit_width(target_type):
+                return builder.fpext(value, target_llvm_type, "fpext")
+            return builder.fptrunc(value, target_llvm_type, "fptrunc")
+
+        raise Exception(
+            f"Unsupported scalar cast from {source_type!r} to {target_type!r}"
+        )
+
+    def _coerce_numeric_operands_for_types(
+        self,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        *,
+        lhs_type: astx.DataType | None,
+        rhs_type: astx.DataType | None,
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Coerce numeric operands from semantic types.
+        parameters:
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+          lhs_type:
+            type: astx.DataType | None
+          rhs_type:
+            type: astx.DataType | None
+        returns:
+          type: tuple[ir.Value, ir.Value]
+        """
+        target_type = common_numeric_type(lhs_type, rhs_type)
+        if target_type is None:
+            return lhs, rhs
+        return (
+            self._cast_ast_value(
+                lhs,
+                source_type=lhs_type,
+                target_type=target_type,
+            ),
+            self._cast_ast_value(
+                rhs,
+                source_type=rhs_type,
+                target_type=target_type,
+            ),
+        )
+
     def _unify_numeric_operands(
         self,
         lhs: ir.Value,
@@ -793,12 +980,31 @@ class VisitorCore(BuilderVisitor):
             lhs_base_ty = lhs.type
             rhs_base_ty = rhs.type
             if is_fp_type(lhs_base_ty) or is_fp_type(rhs_base_ty):
-                candidates = [
+                float_candidates = [
                     type_
                     for type_ in (lhs_base_ty, rhs_base_ty)
                     if is_fp_type(type_)
                 ]
-                target_scalar_ty = self._select_float_type(candidates)
+                integer_width = max(
+                    (
+                        getattr(type_, "width", 0)
+                        for type_ in (lhs_base_ty, rhs_base_ty)
+                        if is_int_type(type_)
+                    ),
+                    default=0,
+                )
+                float_width = max(
+                    (
+                        self._float_bit_width(type_)
+                        for type_ in float_candidates
+                    ),
+                    default=0,
+                )
+                target_width = max(
+                    float_width,
+                    self._min_float_width_for_integer_bits(integer_width),
+                )
+                target_scalar_ty = self._float_type_from_width(target_width)
             else:
                 lhs_width = getattr(lhs_base_ty, "width", 0)
                 rhs_width = getattr(rhs_base_ty, "width", 0)
@@ -819,6 +1025,21 @@ class VisitorCore(BuilderVisitor):
                 rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
 
         return lhs, rhs
+
+    def _min_float_width_for_integer_bits(self, width: int) -> int:
+        """
+        title: Minimum float width for integer bits.
+        parameters:
+          width:
+            type: int
+        returns:
+          type: int
+        """
+        if width <= FLOAT16_BITS:
+            return FLOAT16_BITS
+        if width <= FLOAT32_BITS:
+            return FLOAT32_BITS
+        return FLOAT64_BITS
 
     def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
         """
@@ -1735,13 +1956,18 @@ class VisitorCore(BuilderVisitor):
         raise Exception(f"String comparison operator {op} not implemented")
 
     def _normalize_int_for_printf(
-        self, value: ir.Value
+        self,
+        value: ir.Value,
+        *,
+        unsigned: bool = False,
     ) -> tuple[ir.Value, str]:
         """
         title: Normalize int for printf.
         parameters:
           value:
             type: ir.Value
+          unsigned:
+            type: bool
         returns:
           type: tuple[ir.Value, str]
         """
@@ -1750,12 +1976,14 @@ class VisitorCore(BuilderVisitor):
             raise Exception("Expected integer value")
         width = value.type.width
         if width < int64_width:
-            if width == 1:
+            if width == 1 or unsigned:
                 arg = self._llvm.ir_builder.zext(value, self._llvm.INT64_TYPE)
-            else:
-                arg = self._llvm.ir_builder.sext(value, self._llvm.INT64_TYPE)
+                return arg, "%llu"
+            arg = self._llvm.ir_builder.sext(value, self._llvm.INT64_TYPE)
             return arg, "%lld"
         if width == int64_width:
+            if unsigned:
+                return value, "%llu"
             return value, "%lld"
         raise Exception(
             "Casting integers wider than 64 bits to string is not supported"

@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from irx import astx
 from irx.analysis.resolved_nodes import ResolvedOperator, SemanticFlags
-from irx.analysis.types import is_unsigned_type
+from irx.analysis.types import (
+    common_numeric_type,
+    is_integer_type,
+    is_unsigned_type,
+)
 
 
 def normalize_flags(
@@ -31,10 +35,17 @@ def normalize_flags(
       type: SemanticFlags
     """
     explicit_unsigned = getattr(node, "unsigned", None)
+    promoted_type = common_numeric_type(lhs_type, rhs_type)
     unsigned = (
         bool(explicit_unsigned)
         if explicit_unsigned is not None
-        else is_unsigned_type(lhs_type) or is_unsigned_type(rhs_type)
+        else (
+            is_integer_type(promoted_type) and is_unsigned_type(promoted_type)
+        )
+        or (
+            promoted_type is None
+            and (is_unsigned_type(lhs_type) or is_unsigned_type(rhs_type))
+        )
     )
     return SemanticFlags(
         unsigned=unsigned,

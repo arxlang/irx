@@ -49,6 +49,46 @@ For multi-module compilation, IRx also guarantees the following
 Lowering should consume this semantic metadata instead of re-deriving meaning
 from raw syntax.
 
+## Scalar Numeric Foundation
+
+Binary scalar numerics use one canonical promotion table:
+
+| Operand mix           | Promoted operand type                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `float + float`       | wider float                                                                                          |
+| `float + integer`     | float widened to cover the integer width floor (`16`, `32`, or `64` bits), capped at `Float64`       |
+| `signed + signed`     | wider signed integer                                                                                 |
+| `unsigned + unsigned` | wider unsigned integer                                                                               |
+| `signed + unsigned`   | wider signed integer when the signed operand is strictly wider; otherwise the wider unsigned integer |
+
+Comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`) promote their operands
+with the same table and always return `Boolean` semantically and `i1` in LLVM
+IR.
+
+### Canonical Cast Policy
+
+Implicit promotions in variable initializers, assignments, call arguments, and
+returns are intentionally narrower than explicit casts:
+
+- same-type assignment is always allowed
+- signed integers may widen to wider signed integers
+- unsigned integers may widen to wider unsigned integers
+- unsigned integers may widen to strictly wider signed integers
+- integers may promote to floats when the target float width meets the same
+  `16`/`32`/`64` floor used by the numeric-promotion table
+- floats may widen to wider floats
+- implicit sign-changing integer casts to unsigned targets are rejected
+- implicit narrowing casts are rejected
+- implicit float-to-integer and numeric-to-boolean casts are rejected
+
+Explicit `Cast(...)` expressions allow the full scalar conversions:
+
+- numeric-to-numeric casts
+- boolean-to-numeric casts using `0` and `1`
+- numeric-to-boolean casts using `!= 0` or `!= 0.0`
+- string-to-string casts
+- numeric/boolean-to-string casts through runtime formatting
+
 ## Error Boundaries
 
 - Semantic errors: invalid programs, unsupported semantic input, and import

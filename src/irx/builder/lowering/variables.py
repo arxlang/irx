@@ -39,6 +39,11 @@ class VariableVisitorMixin(VisitorMixinBase):
         llvm_value = safe_pop(self.result_stack)
         if llvm_value is None:
             raise Exception("codegen: Invalid value in VariableAssignment.")
+        llvm_value = self._cast_ast_value(
+            llvm_value,
+            source_type=self._resolved_ast_type(expr.value),
+            target_type=self._resolved_ast_type(expr),
+        )
 
         llvm_var = self.named_values.get(var_key)
         if not llvm_var:
@@ -85,6 +90,11 @@ class VariableVisitorMixin(VisitorMixinBase):
             init_val = safe_pop(self.result_stack)
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+            init_val = self._cast_ast_value(
+                init_val,
+                source_type=self._resolved_ast_type(node.value),
+                target_type=node.type_,
+            )
 
             if type_str == "string":
                 alloca = self.create_entry_block_alloca(
@@ -148,6 +158,11 @@ class VariableVisitorMixin(VisitorMixinBase):
             init_val = safe_pop(self.result_stack)
             if init_val is None:
                 raise Exception("Initializer code generation failed.")
+            init_val = self._cast_ast_value(
+                init_val,
+                source_type=self._resolved_ast_type(node.value),
+                target_type=node.type_,
+            )
         elif "float" in type_str:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
         else:

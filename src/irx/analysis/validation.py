@@ -12,7 +12,10 @@ from datetime import date, datetime, time
 from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import SemanticFunction
-from irx.analysis.types import is_assignable, is_boolean_type, is_numeric_type
+from irx.analysis.types import (
+    is_assignable,
+    is_explicitly_castable,
+)
 
 TIME_PARTS_HOUR_MINUTE = 2
 TIME_PARTS_HOUR_MINUTE_SECOND = 3
@@ -103,30 +106,12 @@ def validate_cast(
     """
     if source_type is None or target_type is None:
         return
-    if is_assignable(target_type, source_type):
-        return
-    if _is_numeric_cast_type(source_type) and _is_numeric_cast_type(
-        target_type
-    ):
-        return
-    if isinstance(target_type, (astx.String, astx.UTF8String)):
+    if is_explicitly_castable(source_type, target_type):
         return
     diagnostics.add(
         f"Unsupported cast from {source_type} to {target_type}",
         node=node,
     )
-
-
-def _is_numeric_cast_type(type_: astx.DataType | None) -> bool:
-    """
-    title: Is numeric cast type.
-    parameters:
-      type_:
-        type: astx.DataType | None
-    returns:
-      type: bool
-    """
-    return is_numeric_type(type_) or is_boolean_type(type_)
 
 
 def validate_literal_time(value: str) -> time:

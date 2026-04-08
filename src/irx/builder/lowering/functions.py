@@ -36,11 +36,26 @@ class FunctionVisitorMixin(VisitorMixinBase):
             raise Exception("codegen: Incorrect # arguments passed.")
 
         llvm_args = []
-        for arg in node.args:
+        resolved_function = getattr(
+            getattr(node, "semantic", None),
+            "resolved_function",
+            None,
+        )
+        param_types = (
+            [param.type_ for param in resolved_function.args]
+            if resolved_function is not None
+            else [None] * len(node.args)
+        )
+        for arg, param_type in zip(node.args, param_types):
             self.visit_child(arg)
             llvm_arg = safe_pop(self.result_stack)
             if llvm_arg is None:
                 raise Exception("codegen: Invalid callee argument.")
+            llvm_arg = self._cast_ast_value(
+                llvm_arg,
+                source_type=self._resolved_ast_type(arg),
+                target_type=param_type,
+            )
             llvm_args.append(llvm_arg)
 
         result = self._llvm.ir_builder.call(callee_f, llvm_args, "calltmp")
@@ -66,26 +81,33 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         basic_block = fn.append_basic_block("entry")
         self._llvm.ir_builder = ir.IRBuilder(basic_block)
+        previous_return_type = self._current_function_return_type
+        self._current_function_return_type = proto.return_type
 
-        for idx, llvm_arg in enumerate(fn.args):
-            arg_ast = proto.args.nodes[idx]
-            type_str = arg_ast.type_.__class__.__name__.lower()
-            arg_type = self._llvm.get_data_type(type_str)
-            symbol_key = semantic_symbol_key(arg_ast, llvm_arg.name)
-            alloca = self._llvm.ir_builder.alloca(arg_type, name=llvm_arg.name)
-            self._llvm.ir_builder.store(llvm_arg, alloca)
-            self.named_values[symbol_key] = alloca
-
-        self.visit_child(node.body)
-        if not self._llvm.ir_builder.block.is_terminated:
-            return_type = fn.function_type.return_type
-            if isinstance(return_type, ir.VoidType):
-                self._llvm.ir_builder.ret_void()
-            else:
-                raise SyntaxError(
-                    f"Function '{proto.name}' with return type "
-                    f"'{return_type}' is missing a return statement"
+        try:
+            for idx, llvm_arg in enumerate(fn.args):
+                arg_ast = proto.args.nodes[idx]
+                type_str = arg_ast.type_.__class__.__name__.lower()
+                arg_type = self._llvm.get_data_type(type_str)
+                symbol_key = semantic_symbol_key(arg_ast, llvm_arg.name)
+                alloca = self._llvm.ir_builder.alloca(
+                    arg_type, name=llvm_arg.name
                 )
+                self._llvm.ir_builder.store(llvm_arg, alloca)
+                self.named_values[symbol_key] = alloca
+
+            self.visit_child(node.body)
+            if not self._llvm.ir_builder.block.is_terminated:
+                return_type = fn.function_type.return_type
+                if isinstance(return_type, ir.VoidType):
+                    self._llvm.ir_builder.ret_void()
+                else:
+                    raise SyntaxError(
+                        f"Function '{proto.name}' with return type "
+                        f"'{return_type}' is missing a return statement"
+                    )
+        finally:
+            self._current_function_return_type = previous_return_type
 
         self._emitted_function_bodies.add(function_key)
         self.result_stack.append(fn)
@@ -138,6 +160,11 @@ class FunctionVisitorMixin(VisitorMixinBase):
             retval = None
 
         if retval is not None:
+            retval = self._cast_ast_value(
+                retval,
+                source_type=self._resolved_ast_type(node.value),
+                target_type=self._current_function_return_type,
+            )
             fn_return_type = (
                 self._llvm.ir_builder.function.function_type.return_type
             )
