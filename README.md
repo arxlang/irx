@@ -72,9 +72,9 @@ More details:
 
 ```python
 import astx
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builder import Builder
 
-builder = LLVMLiteIR()
+builder = Builder()
 module = builder.module()
 
 # int main() { return 0; }
@@ -94,10 +94,10 @@ or binary; use it for inspection, tests, or feeding another tool.
 
 ```python
 import astx
-from irx.builders.llvmliteir import LLVMLiteIR
+from irx.builder import Builder
 from irx.system import PrintExpr
 
-builder = LLVMLiteIR()
+builder = Builder()
 module = builder.module()
 
 # int main() { print("Hello, IRx!"); return 0; }
@@ -116,14 +116,14 @@ print(result.stdout)             # "Hello, IRx!"
 
 ### Builders & Visitors
 
-- **`LLVMLiteIR` (public API)**
+- **`Builder` (public API)**
 
   - `translate(ast) -> str` — generate LLVM IR text.
   - `build(ast, output_path)` — emit object via llvmlite and link with `clang`.
   - `run()` — execute the produced binary; returns a `CommandResult` with
     `.stdout`, `.stderr`, `.returncode`, and `.success`.
 
-- **`LLVMLiteIRVisitor` (codegen)**
+- **`Visitor` (codegen)**
   - Uses `@dispatch` to visit each ASTx node type.
   - Maintains a **value stack** (`result_stack`) and **symbol table**
     (`named_values`).
@@ -152,7 +152,7 @@ belong as handwritten LLVM container logic.
 
 Arrow uses this path as its first substantial consumer:
 
-- native runtime implemented in C under `src/irx/runtime/arrow/`
+- native runtime implemented in C under `src/irx/builder/runtime/arrow/`
 - opaque `irx_arrow_*` handles only
 - Arrow C Data import/export boundary
 - Python `nanoarrow` installed by default for interop and tests
@@ -172,7 +172,7 @@ Example style (simplified):
 
 ```python
 def test_binary_op_basic():
-    builder = LLVMLiteIR()
+    builder = Builder()
     module = builder.module()
 
     decl_a = astx.VariableDeclaration("a", astx.Int32(), astx.LiteralInt32(1))

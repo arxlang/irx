@@ -22,12 +22,12 @@ grow optional native integrations later.
 
 The runtime stack is layered in four parts:
 
-1. `irx.runtime.features` Defines feature specs: external symbols, native
-   artifacts, linker flags, and metadata.
-2. `irx.runtime.registry` Registers features by name and tracks
+1. `irx.builder.runtime.features` Defines feature specs: external symbols,
+   native artifacts, linker flags, and metadata.
+2. `irx.builder.runtime.registry` Registers features by name and tracks
    activation/declarations for one LLVM module.
-3. `irx.runtime.linking` Compiles native C sources and links optional objects
-   only for active features.
+3. `irx.builder.runtime.linking` Compiles native C sources and links optional
+   objects only for active features.
 4. Feature packages such as `libc` and `arrow` Consume the generic system
    without special cases in the builder.
 

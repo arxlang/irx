@@ -5,8 +5,8 @@ summary: >-
   and backend codegen.
 """
 
+from irx.analysis.api import analyze, analyze_module, analyze_modules
 from irx.analysis.diagnostics import Diagnostic, DiagnosticBag, SemanticError
-from irx.analysis.facade import analyze, analyze_module, analyze_modules
 from irx.analysis.module_interfaces import (
     ImportResolver,
     ModuleKey,

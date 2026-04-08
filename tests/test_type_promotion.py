@@ -4,7 +4,7 @@ title: Tests for type promotion functionality.
 
 import pytest
 
-from irx.builders.llvmliteir import Visitor
+from irx.builder import Visitor
 from llvmlite import ir
 
 

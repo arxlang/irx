@@ -10,19 +10,22 @@ from typing import TYPE_CHECKING
 import pytest
 
 from irx import astx
-from irx.builders.llvmliteir import Builder, Visitor
-from irx.runtime.features import (
+from irx.builder import Builder, Visitor
+from irx.builder.runtime.features import (
     ExternalSymbolSpec,
     NativeArtifact,
     RuntimeFeature,
     declare_external_function,
 )
-from irx.runtime.registry import RuntimeFeatureRegistry, RuntimeFeatureState
+from irx.builder.runtime.registry import (
+    RuntimeFeatureRegistry,
+    RuntimeFeatureState,
+)
 from irx.system import PrintExpr
 from llvmlite import ir
 
 if TYPE_CHECKING:
-    from irx.builders.llvmliteir.protocols import VisitorProtocol
+    from irx.builder.protocols import VisitorProtocol
 
 
 def _declare_dummy_symbol(visitor: "VisitorProtocol") -> ir.Function:

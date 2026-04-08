@@ -8,8 +8,8 @@ import pytest
 from irx import astx
 from irx.analysis import SemanticError
 from irx.analysis.module_symbols import mangle_struct_name
-from irx.builders.base import Builder
-from irx.builders.llvmliteir import Builder as LLVMBuilder
+from irx.builder import Builder as LLVMBuilder
+from irx.builder.base import Builder
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])

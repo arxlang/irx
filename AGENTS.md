@@ -117,13 +117,13 @@ The public entry points are `irx.analysis.analyze(...)` and
 
 ### LLVM backend
 
-The LLVM backend lives in `src/irx/builders/llvmliteir/`.
+The LLVM backend lives in `src/irx/builder`.
 
 Important public backend names:
 
-- `irx.builders.llvmliteir.Builder`
-- `irx.builders.llvmliteir.Visitor`
-- `irx.builders.llvmliteir.VisitorProtocol`
+- `irx.builder.Builder`
+- `irx.builder.Visitor`
+- `irx.builder.VisitorProtocol`
 
 Important rule: the package path identifies the backend. Do not reintroduce
 public names like `LLVMLiteIRVisitor` or `LLVMLiteIR`. Backend class names are
@@ -145,9 +145,9 @@ API.
 - `src/irx/astx/`: IRx-owned AST facade and custom AST node extensions
 - `src/irx/base/visitors/`: shared visitor protocol and concrete dispatch
   scaffold
-- `src/irx/builders/base.py`: generic builder abstractions
-- `src/irx/builders/llvmliteir/`: LLVM backend package
-- `src/irx/runtime/`: runtime feature declarations and linking helpers
+- `src/irx/builder/base.py`: generic builder abstractions
+- `src/irx/builder`: LLVM backend package
+- `src/irx/builder/runtime/`: runtime feature declarations and linking helpers
 - `src/irx/system.py`: IRx-specific ASTx expression helpers
 - `src/irx/symbol_table.py`: older symbol-table utilities still present in the
   repo
@@ -164,11 +164,11 @@ API.
   re-deriving raw AST meaning.
 - Keep shared visitor behavior in `src/irx/base/visitors/` so semantic and
   backend visitors fail consistently for unsupported ASTx nodes.
-- Keep foundational backend infrastructure at the backend package root instead
+- Keep foundational backend infrastructure at the builder package root instead
   of creating a generic `helpers/` folder.
 - Keep mutable codegen state instance-local.
 - Preserve `visit(self, node: ...)` as the public codegen dispatch boundary.
-- Use package names, not class prefixes, to distinguish backends.
+- Keep the single `src/irx/builder` package as the public builder namespace.
 - Prefer clear module-level internal names plus `from public import private`
   when that reads better than underscore-prefixed exports. For methods and
   attributes, continue using underscores when they are still the clearest
@@ -185,12 +185,12 @@ API.
 - If a concrete class truly needs an exemption, document the reason and update
   `tests/test_typechecked_policy.py` in the same change.
 
-## Working In `llvmliteir`
+## Working In `irx.builder`
 
 The LLVM backend package is structured around:
 
 - `../src/irx/base/visitors/`: shared `BaseVisitor` and `BaseVisitorProtocol`
-- `facade.py`: public `Builder` and `Visitor`
+- `backend.py`: public `Builder` and `Visitor`
 - `core.py`: shared concrete visitor state and lifecycle, including the
   module-private `VisitorCore`
 - `protocols.py`: LLVM-specific typing contract layered on `BaseVisitorProtocol`

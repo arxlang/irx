@@ -9,9 +9,9 @@ from typing import cast
 import pytest
 
 from irx import astx
-from irx.builders.base import Builder
-from irx.builders.llvmliteir import Builder as LLVMBuilder
-from irx.builders.llvmliteir import Visitor as LLVMVisitor
+from irx.builder import Builder as LLVMBuilder
+from irx.builder import Visitor as LLVMVisitor
+from irx.builder.base import Builder
 from llvmlite import ir
 
 EXPECTED_DICT_LENGTH = 2

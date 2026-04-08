@@ -9,7 +9,7 @@ from typing import Any, Sequence
 import pytest
 
 from irx import astx
-from irx.builders.base import (
+from irx.builder.base import (
     Builder,
     BuilderVisitor,
     CommandError,
@@ -214,7 +214,7 @@ def test_builder_run_forwards_all_kwargs(
 
     builder = _DummyBuilder()
     builder.output_file = "/tmp/fake-bin"
-    monkeypatch.setattr("irx.builders.base.run_command", _fake_run)
+    monkeypatch.setattr("irx.builder.base.run_command", _fake_run)
 
     result = builder.run(
         capture_stderr=False, raise_on_error=False, debug=True
