@@ -34,6 +34,7 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_imports`
 - `resolved_operator`
 - `resolved_assignment`
+- `resolved_field_access`
 - `semantic_flags`
 - `extras`
 
@@ -77,6 +78,51 @@ Boolean behavior is part of the stable semantic boundary:
 
 Lowering should branch directly on the analyzed Boolean `i1` value for control
 flow instead of inventing zero-comparison truthiness rules during codegen.
+
+## Struct Contract
+
+Structs are IRx's stable composite storage and ABI foundation.
+
+- struct names are stable semantic symbols
+- field order is exactly declaration order
+- field names must be unique within a struct
+- field types must resolve semantically before lowering
+- field layout must not be implicitly reordered by semantics or lowering
+- field access must resolve semantically before codegen and lower by stable
+  field index
+- nested structs by value are allowed when every referenced struct is fully
+  defined
+- direct by-value recursive structs are forbidden
+- mutual by-value recursive structs are forbidden
+- structs can be passed and returned by value within IRx-defined functions
+- emitted LLVM struct types are plain data with no hidden headers, metadata,
+  tags, or runtime object payloads
+
+For now, empty structs are rejected explicitly instead of relying on backend-
+specific behavior.
+
+Example scalar wrapper:
+
+```python
+astx.StructDefStmt(
+    name="ScalarBox",
+    attributes=[
+        astx.VariableDeclaration(name="value", type_=astx.Int32()),
+    ],
+)
+```
+
+Example nested record:
+
+```python
+astx.StructDefStmt(
+    name="Descriptor",
+    attributes=[
+        astx.VariableDeclaration(name="point", type_=astx.StructType("Point")),
+        astx.VariableDeclaration(name="ready", type_=astx.Boolean()),
+    ],
+)
+```
 
 ### Canonical Cast Policy
 

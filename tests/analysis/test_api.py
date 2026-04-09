@@ -589,6 +589,7 @@ def test_public_analysis_contract_is_stable() -> None:
         "resolved_imports",
         "resolved_operator",
         "resolved_assignment",
+        "resolved_field_access",
         "semantic_flags",
         "extras",
     )

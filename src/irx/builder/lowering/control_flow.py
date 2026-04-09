@@ -49,6 +49,10 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
           block:
             type: astx.Block
         """
+        for node in block.nodes:
+            if isinstance(node, astx.StructDefStmt):
+                self.visit_child(node)
+
         result = None
         for node in block.nodes:
             if self._llvm.ir_builder.block.terminator is not None:

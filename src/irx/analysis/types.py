@@ -68,6 +68,13 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
     returns:
       type: astx.DataType
     """
+    if isinstance(type_, astx.StructType):
+        return astx.StructType(
+            type_.name,
+            resolved_name=type_.resolved_name,
+            module_key=type_.module_key,
+            qualified_name=type_.qualified_name,
+        )
     return type_.__class__()
 
 
@@ -86,6 +93,10 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     if lhs is None or rhs is None:
         return False
+    if isinstance(lhs, astx.StructType) and isinstance(rhs, astx.StructType):
+        lhs_identity = lhs.qualified_name or lhs.name
+        rhs_identity = rhs.qualified_name or rhs.name
+        return lhs_identity == rhs_identity
     return lhs.__class__ is rhs.__class__
 
 

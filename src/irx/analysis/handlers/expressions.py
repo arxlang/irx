@@ -17,7 +17,7 @@ from irx.analysis.handlers.base import (
     SemanticVisitorMixinBase,
 )
 from irx.analysis.normalization import normalize_flags, normalize_operator
-from irx.analysis.resolved_nodes import SemanticInfo
+from irx.analysis.resolved_nodes import ResolvedFieldAccess, SemanticInfo
 from irx.analysis.types import (
     is_boolean_type,
     is_float_type,
@@ -62,6 +62,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             return
         self._set_symbol(node, symbol)
+        self._set_type(node, symbol.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.VariableAssignment) -> None:
@@ -160,41 +161,47 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._semantic(node).extras[SPECIALIZED_BINARY_OP_EXTRA] = specialized
 
         if node.op_code == "=":
-            if not isinstance(node.lhs, astx.Identifier):
+            if not isinstance(node.lhs, (astx.Identifier, astx.FieldAccess)):
                 self.context.diagnostics.add(
-                    "destination of '=' must be a variable",
+                    "destination of '=' must be a variable or field",
                     node=node,
                 )
                 return
-            symbol = self.context.scopes.resolve(node.lhs.name)
+            symbol = self._root_assignment_symbol(node.lhs)
             if symbol is None:
                 self.context.diagnostics.add(
-                    "codegen: Invalid lhs variable name",
+                    "destination of '=' must be a variable or field",
                     node=node,
                 )
                 return
             if not symbol.is_mutable:
                 self.context.diagnostics.add(
-                    "Cannot assign to "
-                    f"'{node.lhs.name}': declared as constant",
+                    f"Cannot assign to '{symbol.name}': declared as constant",
                     node=node,
                 )
+            target_name = (
+                node.lhs.name
+                if isinstance(node.lhs, astx.Identifier)
+                else node.lhs.field_name
+            )
+            target_type = self._expr_type(node.lhs)
             validate_assignment(
                 self.context.diagnostics,
-                target_name=node.lhs.name,
-                target_type=symbol.type_,
+                target_name=target_name,
+                target_type=target_type,
                 value_type=rhs_type,
                 node=node,
             )
             self._set_assignment(node, symbol)
-            self._set_symbol(node.lhs, symbol)
-            self._set_type(node, symbol.type_)
+            if isinstance(node.lhs, astx.Identifier):
+                self._set_symbol(node.lhs, symbol)
+            self._set_type(node, target_type)
             self._set_operator(
                 node,
                 normalize_operator(
                     node.op_code,
-                    result_type=symbol.type_,
-                    lhs_type=symbol.type_,
+                    result_type=target_type,
+                    lhs_type=target_type,
                     rhs_type=rhs_type,
                     flags=flags,
                 ),
@@ -274,12 +281,51 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             return
         function = binding.function
         self._set_function(node, function)
+        self._set_type(node, function.return_type)
         validate_call(
             self.context.diagnostics,
             function=function,
             arg_types=arg_types,
             node=node,
         )
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.FieldAccess) -> None:
+        """
+        title: Visit FieldAccess nodes.
+        parameters:
+          node:
+            type: astx.FieldAccess
+        """
+        self.visit(node.value)
+        base_type = self._expr_type(node.value)
+        struct = self._resolve_struct_from_type(
+            base_type,
+            node=node,
+            unknown_message="field access requires a struct value",
+        )
+        if struct is None:
+            if not isinstance(base_type, astx.StructType):
+                self.context.diagnostics.add(
+                    "field access requires a struct value",
+                    node=node,
+                )
+            self._set_type(node, None)
+            return
+
+        field_index = struct.field_indices.get(node.field_name)
+        if field_index is None or field_index >= len(struct.fields):
+            self.context.diagnostics.add(
+                f"struct '{struct.name}' has no field '{node.field_name}'",
+                node=node,
+            )
+            self._set_type(node, None)
+            return
+
+        field = struct.fields[field_index]
+        self._set_struct(node, struct)
+        self._set_field_access(node, ResolvedFieldAccess(struct, field))
+        self._set_type(node, field.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.Cast) -> None:

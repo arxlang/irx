@@ -33,9 +33,9 @@ from irx.astx.binary_op import (
 )
 from irx.builder.core import (
     VisitorCore,
+    semantic_assignment_key,
     semantic_flag,
     semantic_fma_rhs,
-    semantic_symbol_key,
     uses_unsigned_semantics,
 )
 from irx.builder.protocols import VisitorMixinBase
@@ -392,11 +392,15 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             type: AssignmentBinOp
         """
         var_lhs = node.lhs
-        if not isinstance(var_lhs, astx.Identifier):
-            raise Exception("destination of '=' must be a variable")
+        if not isinstance(var_lhs, (astx.Identifier, astx.FieldAccess)):
+            raise Exception("destination of '=' must be a variable or field")
 
-        lhs_name = var_lhs.name
-        lhs_key = semantic_symbol_key(var_lhs, lhs_name)
+        lhs_name = (
+            var_lhs.name
+            if isinstance(var_lhs, astx.Identifier)
+            else var_lhs.field_name
+        )
+        lhs_key = semantic_assignment_key(node, lhs_name)
         if lhs_key in self.const_vars:
             raise Exception(
                 f"Cannot assign to '{lhs_name}': declared as constant"
@@ -412,9 +416,34 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             target_type=self._resolved_ast_type(node),
         )
 
-        llvm_lhs = self.named_values.get(lhs_key)
-        if not llvm_lhs:
-            raise Exception("codegen: Invalid lhs variable name")
+        if isinstance(var_lhs, astx.Identifier):
+            llvm_lhs = self.named_values.get(lhs_key)
+            if not llvm_lhs:
+                raise Exception("codegen: Invalid lhs variable name")
+        else:
+            if isinstance(var_lhs.value, astx.FieldAccess):
+                parent_ptr = self._field_address(var_lhs.value)
+                parent_value = self._llvm.ir_builder.load(
+                    parent_ptr,
+                    f"{var_lhs.field_name}_parent",
+                )
+                resolved = getattr(
+                    getattr(var_lhs, "semantic", None),
+                    "resolved_field_access",
+                    None,
+                )
+                if resolved is None:
+                    raise Exception("codegen: unresolved field access.")
+                updated_parent = self._llvm.ir_builder.insert_value(
+                    parent_value,
+                    llvm_rhs,
+                    resolved.field.index,
+                    name=f"set_{var_lhs.field_name}",
+                )
+                self._llvm.ir_builder.store(updated_parent, parent_ptr)
+                self.result_stack.append(llvm_rhs)
+                return
+            llvm_lhs = self._field_address(var_lhs)
 
         self._llvm.ir_builder.store(llvm_rhs, llvm_lhs)
         self.result_stack.append(llvm_rhs)
