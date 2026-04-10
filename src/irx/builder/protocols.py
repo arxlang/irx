@@ -10,6 +10,7 @@ from llvmlite import binding as llvm
 from llvmlite import ir
 
 from irx import astx
+from irx.analysis.resolved_nodes import FunctionSignature
 from irx.base.visitors.protocols import BaseVisitorProtocol
 from irx.builder.state import NamedValueMap, ResultStackValue
 from irx.builder.types import VariablesLLVM
@@ -45,6 +46,8 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: bool
       _current_function_return_type:
         type: astx.DataType | None
+      _current_function_signature:
+        type: FunctionSignature | None
       target:
         type: llvm.TargetRef
       target_machine:
@@ -64,6 +67,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
+    _current_function_signature: FunctionSignature | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -420,6 +424,8 @@ if TYPE_CHECKING:
             type: bool
           _current_function_return_type:
             type: astx.DataType | None
+          _current_function_signature:
+            type: FunctionSignature | None
           target:
             type: llvm.TargetRef
           target_machine:
@@ -439,6 +445,7 @@ if TYPE_CHECKING:
         entry_function_symbol_id: str | None
         _fast_math_enabled: bool
         _current_function_return_type: astx.DataType | None
+        _current_function_signature: FunctionSignature | None
         target: llvm.TargetRef
         target_machine: llvm.TargetMachine
 

@@ -8,6 +8,7 @@ from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
+from irx.system import Cast
 
 from .conftest import check_result
 
@@ -83,14 +84,16 @@ def test_unary_op_increment_decrement(
     decr_b.type_ = int_type()
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(incr_a)
     main_block.append(decr_b)
-    main_block.append(astx.FunctionReturn(literal_type(0)))
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
@@ -246,12 +249,22 @@ def test_unary_op_logical_not_boolean(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=astx.Boolean(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(not_a)
-    main_block.append(astx.FunctionReturn(astx.Identifier("a")))
+    main_block.append(
+        astx.FunctionReturn(
+            Cast(
+                value=astx.UnaryOp(
+                    op_code="!",
+                    operand=astx.Identifier("a"),
+                ),
+                target_type=astx.Int32(),
+            )
+        )
+    )
 
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 

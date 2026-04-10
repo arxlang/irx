@@ -29,6 +29,7 @@ from irx.analysis.module_symbols import (
     mangle_struct_name,
     qualified_struct_name,
 )
+from irx.analysis.resolved_nodes import FunctionSignature
 from irx.analysis.types import (
     bit_width,
     common_numeric_type,
@@ -179,10 +180,20 @@ def semantic_function_name(node: astx.AST, fallback: str) -> str:
     """
     semantic = getattr(node, "semantic", None)
     function = getattr(semantic, "resolved_function", None)
+    signature = getattr(function, "signature", None)
+    signature_symbol_name = getattr(signature, "symbol_name", None)
+    signature_is_extern = getattr(signature, "is_extern", False)
     module_key = getattr(function, "module_key", None)
     name = getattr(function, "name", None)
+    if signature_is_extern and isinstance(signature_symbol_name, str):
+        return signature_symbol_name
     if module_key is not None and name is not None:
-        return mangle_function_name(module_key, name)
+        base_name = (
+            signature_symbol_name
+            if isinstance(signature_symbol_name, str) and signature_symbol_name
+            else name
+        )
+        return mangle_function_name(module_key, base_name)
     return fallback
 
 
@@ -289,6 +300,7 @@ class VisitorCore(BuilderVisitor):
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
+    _current_function_signature: FunctionSignature | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -317,6 +329,7 @@ class VisitorCore(BuilderVisitor):
         self.entry_function_symbol_id = None
         self._fast_math_enabled = False
         self._current_function_return_type = None
+        self._current_function_signature = None
 
         self.initialize()
         self.target = llvm.Target.from_default_triple()

@@ -9,6 +9,7 @@ import pytest
 from irx import astx
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
+from irx.system import Cast
 
 from .conftest import check_result
 
@@ -122,11 +123,13 @@ def test_function_call_fibonacci(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=int_type(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     call_fib = astx.FunctionCall(fib_fn, [literal_type(10)])
-    main_block.append(astx.FunctionReturn(call_fib))
+    main_block.append(
+        astx.FunctionReturn(Cast(value=call_fib, target_type=astx.Int32()))
+    )
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 

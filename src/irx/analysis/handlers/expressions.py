@@ -328,13 +328,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 f"Cannot assign to '{node.name}': declared as constant",
                 node=node,
             )
-        validate_assignment(
-            self.context.diagnostics,
-            target_name=node.name,
-            target_type=symbol.type_,
-            value_type=self._expr_type(node.value),
-            node=node,
-        )
+        if self._require_value_expression(
+            node.value,
+            context=f"Assignment to '{node.name}'",
+        ):
+            validate_assignment(
+                self.context.diagnostics,
+                target_name=node.name,
+                target_type=symbol.type_,
+                value_type=self._expr_type(node.value),
+                node=node,
+            )
         self._set_symbol(node, symbol)
         self._set_assignment(node, symbol)
         self._set_type(node, symbol.type_)
@@ -348,6 +352,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: astx.UnaryOp
         """
         self.visit(node.operand)
+        if not self._require_value_expression(
+            node.operand,
+            context=f"Unary operator '{node.op_code}'",
+        ):
+            self._set_type(node, None)
+            return
         operand_type = self._expr_type(node.operand)
         if (
             node.op_code == "!"
@@ -428,13 +438,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 else node.lhs.field_name
             )
             target_type = self._expr_type(node.lhs)
-            validate_assignment(
-                self.context.diagnostics,
-                target_name=target_name,
-                target_type=target_type,
-                value_type=rhs_type,
-                node=node,
-            )
+            if self._require_value_expression(
+                node.rhs,
+                context=f"Assignment to '{target_name}'",
+            ):
+                validate_assignment(
+                    self.context.diagnostics,
+                    target_name=target_name,
+                    target_type=target_type,
+                    value_type=rhs_type,
+                    node=node,
+                )
             self._set_assignment(node, symbol)
             if isinstance(node.lhs, astx.Identifier):
                 self._set_symbol(node.lhs, symbol)
@@ -445,6 +459,28 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     node.op_code,
                     result_type=target_type,
                     lhs_type=target_type,
+                    rhs_type=rhs_type,
+                    flags=flags,
+                ),
+            )
+            return
+
+        lhs_has_value = self._require_value_expression(
+            node.lhs,
+            context=f"Operator '{node.op_code}'",
+        )
+        rhs_has_value = self._require_value_expression(
+            node.rhs,
+            context=f"Operator '{node.op_code}'",
+        )
+        if not (lhs_has_value and rhs_has_value):
+            self._set_type(node, None)
+            self._set_operator(
+                node,
+                normalize_operator(
+                    node.op_code,
+                    result_type=None,
+                    lhs_type=lhs_type,
                     rhs_type=rhs_type,
                     flags=flags,
                 ),
@@ -524,13 +560,14 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             return
         function = binding.function
         self._set_function(node, function)
-        self._set_type(node, function.return_type)
-        validate_call(
+        call_resolution = validate_call(
             self.context.diagnostics,
             function=function,
             arg_types=arg_types,
             node=node,
         )
+        self._set_call(node, call_resolution)
+        self._set_type(node, call_resolution.result_type)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FieldAccess) -> None:
@@ -541,6 +578,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: astx.FieldAccess
         """
         self.visit(node.value)
+        if not self._require_value_expression(
+            node.value,
+            context="Field access",
+        ):
+            self._set_type(node, None)
+            return
         base_type = self._expr_type(node.value)
         struct = self._resolve_struct_from_type(
             base_type,
@@ -579,6 +622,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: astx.Cast
         """
         self.visit(node.value)
+        if not self._require_value_expression(
+            node.value,
+            context="Cast",
+        ):
+            self._set_type(node, cast(astx.DataType | None, node.target_type))
+            return
         source_type = self._expr_type(node.value)
         target_type = cast(astx.DataType | None, node.target_type)
         validate_cast(
@@ -598,6 +647,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: astx.PrintExpr
         """
         self.visit(node.message)
+        if not self._require_value_expression(
+            node.message,
+            context="PrintExpr",
+        ):
+            self._set_type(node, astx.Int32())
+            return
         message_type = self._expr_type(node.message)
         if not (
             is_string_type(message_type)

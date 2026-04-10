@@ -16,6 +16,7 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.analysis.module_symbols import qualified_local_name
 from irx.analysis.resolved_nodes import (
     SemanticFunction,
     SemanticStruct,
@@ -49,16 +50,49 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         returns:
           type: SemanticFunction
         """
+        signature = self.registry.normalize_function_signature(
+            prototype,
+            definition=definition,
+        )
+        if (
+            function.prototype is not prototype
+            and definition is None
+            and not self.registry.signatures_match(
+                function.signature, signature
+            )
+        ):
+            return function
+        if (
+            definition is not None
+            and function.definition is not None
+            and function.definition is not definition
+            and not self.registry.signatures_match(
+                function.signature, signature
+            )
+        ):
+            return function
+
         updated = replace(
             function,
-            return_type=clone_type(prototype.return_type),
+            return_type=clone_type(signature.return_type),
             args=tuple(
-                replace(arg_symbol, type_=clone_type(arg_node.type_))
+                replace(
+                    arg_symbol,
+                    name=arg_node.name,
+                    type_=clone_type(arg_node.type_),
+                    qualified_name=qualified_local_name(
+                        function.module_key,
+                        arg_symbol.kind,
+                        arg_node.name,
+                        arg_symbol.symbol_id,
+                    ),
+                )
                 for arg_node, arg_symbol in zip(
                     prototype.args.nodes,
                     function.args,
                 )
             ),
+            signature=signature,
             prototype=prototype,
             definition=(
                 definition if definition is not None else function.definition
@@ -289,13 +323,17 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             node.value, astx.Undefined
         ):
             self.visit(node.value)
-            validate_assignment(
-                self.context.diagnostics,
-                target_name=node.name,
-                target_type=node.type_,
-                value_type=self._expr_type(node.value),
-                node=node,
-            )
+            if self._require_value_expression(
+                node.value,
+                context=f"Initializer for '{node.name}'",
+            ):
+                validate_assignment(
+                    self.context.diagnostics,
+                    target_name=node.name,
+                    target_type=node.type_,
+                    value_type=self._expr_type(node.value),
+                    node=node,
+                )
         symbol = self.registry.declare_local(
             node.name,
             node.type_,
@@ -317,13 +355,17 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             node.value, astx.Undefined
         ):
             self.visit(node.value)
-            validate_assignment(
-                self.context.diagnostics,
-                target_name=node.name,
-                target_type=node.type_,
-                value_type=self._expr_type(node.value),
-                node=node,
-            )
+            if self._require_value_expression(
+                node.value,
+                context=f"Initializer for '{node.name}'",
+            ):
+                validate_assignment(
+                    self.context.diagnostics,
+                    target_name=node.name,
+                    target_type=node.type_,
+                    value_type=self._expr_type(node.value),
+                    node=node,
+                )
         symbol = self.registry.declare_local(
             node.name,
             node.type_,

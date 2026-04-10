@@ -178,7 +178,7 @@ def make_main_module(
     return_type: astx.DataType | None = None,
 ) -> astx.Module:
     """
-    title: Build a small module with a single main function.
+    title: Build a small module with a deterministic Int32 main entrypoint.
     parameters:
       return_type:
         type: astx.DataType | None
@@ -189,15 +189,47 @@ def make_main_module(
       type: astx.Module
     """
     module = astx.Module()
-    prototype = astx.FunctionPrototype(
-        "main",
+    normalized_return_type = cast(Any, return_type or astx.Int32())
+
+    helper_name = "main_body"
+    helper_prototype = astx.FunctionPrototype(
+        helper_name,
         args=astx.Arguments(),
-        return_type=cast(Any, return_type or astx.Int32()),
+        return_type=normalized_return_type,
     )
-    body = astx.Block()
+    helper_body = astx.Block()
     for node in nodes:
-        body.append(node)
-    module.block.append(astx.FunctionDef(prototype=prototype, body=body))
+        helper_body.append(node)
+
+    if isinstance(normalized_return_type, astx.Int32):
+        module.block.append(
+            astx.FunctionDef(
+                prototype=astx.FunctionPrototype(
+                    "main",
+                    args=astx.Arguments(),
+                    return_type=astx.Int32(),
+                ),
+                body=helper_body,
+            )
+        )
+        return module
+
+    module.block.append(
+        astx.FunctionDef(prototype=helper_prototype, body=helper_body)
+    )
+    main_body = astx.Block()
+    main_body.append(astx.FunctionCall(helper_name, []))
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module.block.append(
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=main_body,
+        )
+    )
     return module
 
 

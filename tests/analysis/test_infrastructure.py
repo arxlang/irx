@@ -10,6 +10,7 @@ from irx.analysis.context import SemanticContext
 from irx.analysis.factories import SemanticEntityFactory
 from irx.analysis.module_symbols import qualified_function_name
 from irx.analysis.registry import SemanticRegistry
+from irx.analysis.resolved_nodes import CallingConvention
 
 
 def test_semantic_registry_rejects_duplicate_locals_in_one_scope() -> None:
@@ -83,9 +84,20 @@ def test_visible_bindings_report_conflicts_independently() -> None:
         name="shared",
         attributes=[astx.VariableDeclaration(name="x", type_=astx.Int32())],
     )
+    signature = factory.make_function_signature(
+        prototype,
+        calling_convention=CallingConvention.IRX_DEFAULT,
+        is_variadic=False,
+        is_extern=False,
+        symbol_name="shared",
+    )
 
     with context.in_module("app.main"):
-        function = factory.make_function("app.main", prototype)
+        function = factory.make_function(
+            "app.main",
+            prototype,
+            signature=signature,
+        )
         struct = factory.make_struct("app.main", struct_node)
         bindings.bind_function("shared", function, node=prototype)
         bindings.bind_struct("shared", struct, node=struct_node)
