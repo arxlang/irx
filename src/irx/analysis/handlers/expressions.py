@@ -41,7 +41,10 @@ from irx.astx.binary_op import (
 )
 from irx.buffer import (
     BUFFER_VIEW_METADATA_EXTRA,
+    BufferOwnership,
+    BufferViewMetadata,
     buffer_view_is_readonly,
+    buffer_view_ownership,
     validate_buffer_view_metadata,
 )
 from irx.typecheck import typechecked
@@ -51,6 +54,63 @@ RAW_BUFFER_BYTE_BITS = 8
 
 @typechecked
 class ExpressionVisitorMixin(SemanticVisitorMixinBase):
+    def _static_buffer_view_metadata(
+        self,
+        node: astx.AST,
+    ) -> BufferViewMetadata | None:
+        """
+        title: Return static buffer metadata when analysis can prove it.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: BufferViewMetadata | None
+        """
+        semantic = self._semantic(node)
+        metadata = semantic.extras.get(BUFFER_VIEW_METADATA_EXTRA)
+        if isinstance(metadata, BufferViewMetadata):
+            return metadata
+
+        symbol = semantic.resolved_symbol
+        declaration = symbol.declaration if symbol is not None else None
+        initializer = getattr(declaration, "value", None)
+        if not isinstance(initializer, astx.AST):
+            return None
+
+        initializer_semantic = getattr(initializer, "semantic", None)
+        initializer_extras = getattr(initializer_semantic, "extras", {})
+        metadata = initializer_extras.get(BUFFER_VIEW_METADATA_EXTRA)
+        if isinstance(metadata, BufferViewMetadata):
+            return metadata
+        return None
+
+    def _validate_buffer_lifetime_operation(
+        self,
+        *,
+        node: astx.AST,
+        view: astx.AST,
+        operation: str,
+    ) -> None:
+        """
+        title: Validate one explicit buffer lifetime helper operation.
+        parameters:
+          node:
+            type: astx.AST
+          view:
+            type: astx.AST
+          operation:
+            type: str
+        """
+        metadata = self._static_buffer_view_metadata(view)
+        if metadata is None:
+            return
+        ownership = buffer_view_ownership(metadata.flags)
+        if ownership is BufferOwnership.BORROWED or metadata.owner.is_null:
+            self.context.diagnostics.add(
+                f"buffer {operation} requires an owned or external-owner view",
+                node=node,
+            )
+
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.Identifier) -> None:
         """
@@ -428,9 +488,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 node=node,
             )
 
-        view_metadata = self._semantic(node.view).extras.get(
-            BUFFER_VIEW_METADATA_EXTRA
-        )
+        view_metadata = self._static_buffer_view_metadata(node.view)
         if view_metadata is not None and buffer_view_is_readonly(
             view_metadata.flags
         ):
@@ -465,6 +523,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 "buffer retain requires a BufferViewType view",
                 node=node,
             )
+        self._validate_buffer_lifetime_operation(
+            node=node,
+            view=node.view,
+            operation="retain",
+        )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
@@ -481,6 +544,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 "buffer release requires a BufferViewType view",
                 node=node,
             )
+        self._validate_buffer_lifetime_operation(
+            node=node,
+            view=node.view,
+            operation="release",
+        )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch

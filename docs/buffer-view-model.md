@@ -52,6 +52,8 @@ unrelated fields.
   generic lowering.
 - Retain and release are explicit runtime/native operations, not hidden generic
   lowering behavior.
+- Retain and release require an owned or external-owner view when the ownership
+  state is statically known; borrowed views are not lifetime-managed by IRx.
 
 The current `buffer` runtime feature provides opaque owner retain/release
 helpers and view retain/release helpers. The owner handle remains opaque in LLVM
@@ -88,6 +90,16 @@ Shape and strides describe logical indexing, not ownership.
 The descriptor supports contiguous and non-contiguous views. IRx does not add
 high-level slicing or broadcasting semantics in this layer.
 
+## Raw Byte Writes
+
+`BufferViewWrite` is a narrow raw byte write helper used by lowering tests and
+future compiler-generated substrate operations. It writes one 8-bit integer
+through a view at `offset_bytes + byte_offset`.
+
+It is not a generic typed element store, not a slicing operation, and not an
+array mutation API. Typed element stores, dtype-aware indexing, and higher-level
+container mutations belong in future Arx-facing layers.
+
 ## Runtime And Native Boundaries
 
 IRx-internal lowering may pass buffer views as plain struct values where that is
@@ -102,7 +114,12 @@ descriptor lowering does not drag in native runtime artifacts.
 The runtime boundary is intentionally conservative:
 
 - owner handles are opaque at the IR level
-- retain/release are explicit calls
+- retain/release are explicit calls for owned or external-owner views
 - ownership transfer is a helper-level concern
 - descriptor copies remain shallow metadata copies
+- raw byte writes remain a narrow substrate primitive
 - no particular high-level array library is assumed
+
+The IRx-owned Python AST helper nodes for descriptors, raw byte writes, and
+runtime helper calls are internal compiler substrate nodes. They are not
+intended as a source-level buffer programming model.

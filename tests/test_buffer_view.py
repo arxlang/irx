@@ -70,6 +70,45 @@ def _borrowed_metadata(
     )
 
 
+def _owned_metadata(
+    *,
+    data: BufferHandle = BufferHandle(),
+    owner: BufferHandle = BufferHandle(2),
+    dtype: BufferHandle = BufferHandle(1),
+    shape: tuple[int, ...] = (0,),
+    strides: tuple[int, ...] = (1,),
+    mutability: BufferMutability = BufferMutability.READONLY,
+) -> BufferViewMetadata:
+    """
+    title: Build owned buffer metadata.
+    parameters:
+      data:
+        type: BufferHandle
+      owner:
+        type: BufferHandle
+      dtype:
+        type: BufferHandle
+      shape:
+        type: tuple[int, Ellipsis]
+      strides:
+        type: tuple[int, Ellipsis]
+      mutability:
+        type: BufferMutability
+    returns:
+      type: BufferViewMetadata
+    """
+    return BufferViewMetadata(
+        data=data,
+        owner=owner,
+        dtype=dtype,
+        ndim=len(shape),
+        shape=shape,
+        strides=strides,
+        offset_bytes=0,
+        flags=buffer_view_flags(BufferOwnership.OWNED, mutability),
+    )
+
+
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
     """
     title: Build an int32 main module.
@@ -156,6 +195,40 @@ def test_buffer_view_descriptor_lowers_to_stable_struct() -> None:
     runtime_features = builder.translator.runtime_features
     active_features = runtime_features.active_feature_names()
     assert "buffer" not in active_features
+    assert_ir_parses(ir_text)
+
+
+def test_buffer_view_passes_by_value_to_irx_functions() -> None:
+    """
+    title: IRx-internal functions should pass view structs by value.
+    """
+    view_arg = astx.Argument("view", astx.BufferViewType())
+    use_view_body = astx.Block()
+    use_view_body.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    use_view = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="use_view",
+            args=astx.Arguments(view_arg),
+            return_type=astx.Int32(),
+        ),
+        body=use_view_body,
+    )
+    module = _module_with_main(
+        astx.FunctionReturn(
+            astx.FunctionCall(
+                "use_view",
+                [_descriptor(_borrowed_metadata())],
+            )
+        )
+    )
+    module.block.insert(0, use_view)
+
+    ir_text = Builder().translate(module)
+
+    assert (
+        'define i32 @"main__use_view"(%"irx_buffer_view" %"view")'
+    ) in ir_text
+    assert 'call i32 @"main__use_view"(%"irx_buffer_view" ' in ir_text
     assert_ir_parses(ir_text)
 
 
@@ -356,6 +429,34 @@ def test_buffer_view_rejects_readonly_write() -> None:
         analyze(module)
 
 
+def test_rejects_readonly_write_through_static_identifier() -> None:
+    """
+    title: Static descriptor metadata should flow to local identifiers.
+    """
+    module = _module_with_main(
+        astx.VariableDeclaration(
+            name="view",
+            type_=astx.BufferViewType(),
+            mutability=astx.MutabilityKind.mutable,
+            value=_descriptor(
+                _borrowed_metadata(
+                    data=BufferHandle(4096),
+                    shape=(1,),
+                    strides=(1,),
+                    mutability=BufferMutability.READONLY,
+                )
+            ),
+        ),
+        astx.BufferViewWrite(
+            astx.Identifier("view"),
+            astx.LiteralUInt8(7),
+        ),
+    )
+
+    with pytest.raises(SemanticError, match="readonly buffer view"):
+        analyze(module)
+
+
 def test_buffer_view_allows_mutable_borrowed_write() -> None:
     """
     title: Mutable borrowed views should be possible when explicitly flagged.
@@ -413,7 +514,7 @@ def test_buffer_view_retain_uses_buffer_runtime_feature() -> None:
     builder = Builder()
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.BufferViewRetain(_descriptor(_borrowed_metadata()))
+            astx.BufferViewRetain(_descriptor(_owned_metadata()))
         )
     )
 
@@ -425,6 +526,78 @@ def test_buffer_view_retain_uses_buffer_runtime_feature() -> None:
     assert "irx_buffer_view_retain" in ir_text
     assert builder.translator.runtime_features.native_artifacts()
     assert_ir_parses(ir_text)
+
+
+def test_buffer_view_runtime_boundary_uses_descriptor_pointer_abi() -> None:
+    """
+    title: Runtime helper calls should pass buffer views by descriptor pointer.
+    """
+    ir_text = Builder().translate(
+        _module_with_main(
+            astx.FunctionReturn(
+                astx.BufferViewRetain(_descriptor(_owned_metadata()))
+            )
+        )
+    )
+
+    assert (
+        'declare external i32 @"irx_buffer_view_retain"'
+        '(%"irx_buffer_view"* %".1")'
+    ) in ir_text
+    assert '%"irx_buffer_retain_view" = alloca %"irx_buffer_view"' in ir_text
+    assert (
+        'call i32 @"irx_buffer_view_retain"'
+        '(%"irx_buffer_view"* %"irx_buffer_retain_view")'
+    ) in ir_text
+    assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize(
+    "node_factory",
+    [
+        astx.BufferViewRetain,
+        astx.BufferViewRelease,
+    ],
+)
+def test_buffer_lifetime_helpers_reject_borrowed_static_views(
+    node_factory: type[astx.BufferViewRetain] | type[astx.BufferViewRelease],
+) -> None:
+    """
+    title: Borrowed views should not allow explicit retain/release helpers.
+    parameters:
+      node_factory:
+        type: type[astx.BufferViewRetain] | type[astx.BufferViewRelease]
+    """
+    module = _module_with_main(
+        astx.FunctionReturn(node_factory(_descriptor(_borrowed_metadata())))
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="requires an owned or external-owner view",
+    ):
+        analyze(module)
+
+
+def test_buffer_lifetime_helpers_reject_borrowed_static_identifiers() -> None:
+    """
+    title: Borrowed lifetime checks should inspect static local initializers.
+    """
+    module = _module_with_main(
+        astx.VariableDeclaration(
+            name="view",
+            type_=astx.BufferViewType(),
+            mutability=astx.MutabilityKind.mutable,
+            value=_descriptor(_borrowed_metadata()),
+        ),
+        astx.FunctionReturn(astx.BufferViewRetain(astx.Identifier("view"))),
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="requires an owned or external-owner view",
+    ):
+        analyze(module)
 
 
 def test_plain_buffer_descriptor_does_not_activate_runtime_feature() -> None:

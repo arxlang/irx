@@ -216,6 +216,31 @@ def buffer_view_is_readonly(flags: int) -> bool:
 
 @public
 @typechecked
+def buffer_view_ownership(flags: int) -> BufferOwnership | None:
+    """
+    title: Return the explicit ownership state encoded in flags.
+    parameters:
+      flags:
+        type: int
+    returns:
+      type: BufferOwnership | None
+    """
+    ownership = [
+        flag
+        for flag in BUFFER_OWNERSHIP_FLAGS
+        if buffer_flags_include(flags, flag)
+    ]
+    if len(ownership) != 1:
+        return None
+    if ownership[0] == BUFFER_FLAG_BORROWED:
+        return BufferOwnership.BORROWED
+    if ownership[0] == BUFFER_FLAG_OWNED:
+        return BufferOwnership.OWNED
+    return BufferOwnership.EXTERNAL_OWNER
+
+
+@public
+@typechecked
 def validate_buffer_view_metadata(
     metadata: BufferViewMetadata,
 ) -> tuple[str, ...]:
@@ -305,5 +330,6 @@ __all__ = [
     "buffer_flags_include",
     "buffer_view_flags",
     "buffer_view_is_readonly",
+    "buffer_view_ownership",
     "validate_buffer_view_metadata",
 ]

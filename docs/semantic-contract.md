@@ -128,9 +128,12 @@ Semantic rules:
 - descriptor copies are shallow metadata copies
 - deep copy is explicit and never implicit
 - retain and release go through runtime/native helpers
+- statically known borrowed views are rejected for retain/release helpers
 - mutability is attached to the view, not only the allocation
 - readonly and writable views are mutually exclusive
 - writes through statically readonly views are rejected semantically
+- raw byte writes require an 8-bit integer value and are not typed element
+  stores
 - shape and strides describe logical indexing, not ownership
 - offset support is part of the descriptor model
 - null data with statically nonzero extent is rejected

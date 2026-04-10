@@ -20,7 +20,7 @@ from irx.typecheck import typechecked
 @typechecked
 class BufferOwnerType(AnyType):
     """
-    title: Opaque buffer owner handle type.
+    title: Internal opaque buffer owner handle type.
     """
 
     def __str__(self) -> str:
@@ -35,7 +35,7 @@ class BufferOwnerType(AnyType):
 @typechecked
 class BufferViewType(AnyType):
     """
-    title: Canonical low-level buffer view descriptor type.
+    title: Internal canonical low-level buffer view descriptor type.
     """
 
     def __str__(self) -> str:
@@ -50,7 +50,7 @@ class BufferViewType(AnyType):
 @typechecked
 class BufferViewDescriptor(astx.base.DataType):
     """
-    title: Low-level buffer view descriptor literal.
+    title: Internal low-level buffer view descriptor literal.
     attributes:
       metadata:
         type: BufferViewMetadata
@@ -92,7 +92,10 @@ class BufferViewDescriptor(astx.base.DataType):
 @typechecked
 class BufferViewWrite(astx.base.DataType):
     """
-    title: Low-level raw byte write through a buffer view.
+    title: Internal low-level raw byte write through a buffer view.
+    summary: >-
+      Writes one 8-bit integer at offset_bytes + byte_offset. This is not a
+      generic typed element store or user-facing array mutation API.
     attributes:
       view:
         type: astx.AST
@@ -156,7 +159,7 @@ class BufferViewWrite(astx.base.DataType):
 @typechecked
 class BufferViewRetain(astx.base.DataType):
     """
-    title: Explicit runtime retain for a buffer view owner.
+    title: Internal explicit runtime retain for a buffer view owner.
     attributes:
       view:
         type: astx.AST
@@ -197,7 +200,7 @@ class BufferViewRetain(astx.base.DataType):
 @typechecked
 class BufferViewRelease(astx.base.DataType):
     """
-    title: Explicit runtime release for a buffer view owner.
+    title: Internal explicit runtime release for a buffer view owner.
     attributes:
       view:
         type: astx.AST

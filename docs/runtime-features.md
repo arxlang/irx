@@ -157,7 +157,9 @@ do not activate this feature. Explicit helper calls such as
 
 The feature keeps owner handles opaque at the IR level. Native code may retain
 or release an owner handle, but generic lowering does not infer ownership
-transfer or emit hidden retains/releases for descriptor copies.
+transfer or emit hidden retains/releases for descriptor copies. Statically known
+borrowed views are rejected before retain/release lowering; descriptor-pointer
+runtime calls are reserved for owned or external-owner views.
 
 ## What Exists Now
 
