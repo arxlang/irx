@@ -19,6 +19,7 @@ from irx.analysis.handlers.base import (
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import ResolvedFieldAccess, SemanticInfo
 from irx.analysis.types import (
+    bit_width,
     is_boolean_type,
     is_float_type,
     is_integer_type,
@@ -38,7 +39,14 @@ from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     specialize_binary_op,
 )
+from irx.buffer import (
+    BUFFER_VIEW_METADATA_EXTRA,
+    buffer_view_is_readonly,
+    validate_buffer_view_metadata,
+)
 from irx.typecheck import typechecked
+
+RAW_BUFFER_BYTE_BITS = 8
 
 
 @typechecked
@@ -383,6 +391,96 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     "Arrow helper supports only integer expressions",
                     node=item,
                 )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewDescriptor) -> None:
+        """
+        title: Visit BufferViewDescriptor nodes.
+        parameters:
+          node:
+            type: astx.BufferViewDescriptor
+        """
+        for error in validate_buffer_view_metadata(node.metadata):
+            self.context.diagnostics.add(error, node=node)
+        self._semantic(node).extras[BUFFER_VIEW_METADATA_EXTRA] = node.metadata
+        self._set_type(node, astx.BufferViewType())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewWrite) -> None:
+        """
+        title: Visit BufferViewWrite nodes.
+        parameters:
+          node:
+            type: astx.BufferViewWrite
+        """
+        if node.byte_offset < 0:
+            self.context.diagnostics.add(
+                "buffer view write byte_offset must be non-negative",
+                node=node,
+            )
+
+        self.visit(node.view)
+        view_type = self._expr_type(node.view)
+        if not isinstance(view_type, astx.BufferViewType):
+            self.context.diagnostics.add(
+                "buffer view write requires a BufferViewType view",
+                node=node,
+            )
+
+        view_metadata = self._semantic(node.view).extras.get(
+            BUFFER_VIEW_METADATA_EXTRA
+        )
+        if view_metadata is not None and buffer_view_is_readonly(
+            view_metadata.flags
+        ):
+            self.context.diagnostics.add(
+                "cannot write through a readonly buffer view",
+                node=node,
+            )
+
+        self.visit(node.value)
+        value_type = self._expr_type(node.value)
+        if (
+            not is_integer_type(value_type)
+            or bit_width(value_type) != RAW_BUFFER_BYTE_BITS
+        ):
+            self.context.diagnostics.add(
+                "buffer view raw writes require an 8-bit integer value",
+                node=node.value,
+            )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewRetain) -> None:
+        """
+        title: Visit BufferViewRetain nodes.
+        parameters:
+          node:
+            type: astx.BufferViewRetain
+        """
+        self.visit(node.view)
+        if not isinstance(self._expr_type(node.view), astx.BufferViewType):
+            self.context.diagnostics.add(
+                "buffer retain requires a BufferViewType view",
+                node=node,
+            )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewRelease) -> None:
+        """
+        title: Visit BufferViewRelease nodes.
+        parameters:
+          node:
+            type: astx.BufferViewRelease
+        """
+        self.visit(node.view)
+        if not isinstance(self._expr_type(node.view), astx.BufferViewType):
+            self.context.diagnostics.add(
+                "buffer release requires a BufferViewType view",
+                node=node,
+            )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch

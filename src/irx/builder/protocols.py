@@ -31,6 +31,8 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: dict[str, ir.Function]
       result_stack:
         type: list[ResultStackValue]
+      _buffer_view_global_counter:
+        type: int
       loop_stack:
         type: list[dict[str, Any]]
       struct_types:
@@ -55,6 +57,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     function_protos: dict[str, astx.FunctionPrototype]
     llvm_functions_by_symbol_id: dict[str, ir.Function]
     result_stack: list[ResultStackValue]
+    _buffer_view_global_counter: int
     loop_stack: list[dict[str, Any]]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
@@ -403,6 +406,8 @@ if TYPE_CHECKING:
             type: dict[str, ir.Function]
           result_stack:
             type: list[ResultStackValue]
+          _buffer_view_global_counter:
+            type: int
           loop_stack:
             type: list[dict[str, Any]]
           struct_types:
@@ -427,6 +432,7 @@ if TYPE_CHECKING:
         function_protos: dict[str, astx.FunctionPrototype]
         llvm_functions_by_symbol_id: dict[str, ir.Function]
         result_stack: list[ResultStackValue]
+        _buffer_view_global_counter: int
         loop_stack: list[dict[str, Any]]
         struct_types: dict[str, ir.Type]
         llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]

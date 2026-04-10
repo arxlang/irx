@@ -159,6 +159,8 @@ builder:
 - `types.py`, `casting.py`, `vector.py`, `strings.py`, `runtime/`: shared IR
   infrastructure
 - `lowering/`: concern-grouped `visit(...)` overloads
+- `../src/irx/buffer.py`: the canonical low-level buffer owner/view semantic
+  substrate that Arx can target without exposing an array API
 
 Foundational modules stay at the package root because they are architectural
 components, not incidental helpers.
@@ -224,6 +226,8 @@ When extending IRx, these rules help preserve the architecture:
 
 - Put semantic meaning and validation in `analysis/`, not in a backend.
 - Let codegen consume normalized semantic information instead of re-deriving it.
+- Keep buffer/view support framed as a low-level memory/container substrate, not
+  as NumPy-like user-facing array behavior.
 - Keep shared visitor dispatch defaults in `src/irx/base/visitors/` so semantic
   and backend visitors fail consistently for unsupported ASTx nodes.
 - Add new backend-wide infrastructure at the package root, not under `helpers/`.

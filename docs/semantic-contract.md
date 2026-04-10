@@ -101,6 +101,50 @@ Structs are IRx's stable composite storage and ABI foundation.
 For now, empty structs are rejected explicitly instead of relying on backend-
 specific behavior.
 
+## Buffer/View Model
+
+IRx defines a canonical buffer owner plus buffer view substrate for low-level
+memory/container interop. This is not a user-facing scientific array API, and it
+does not define broadcasting, slicing syntax, reductions, or tensor algebra.
+
+The canonical view descriptor is a plain stable struct conceptually equivalent
+to:
+
+- `data: ptr`
+- `owner: ptr | null`
+- `dtype: opaque handle or stable token`
+- `ndim: i32`
+- `shape: ptr<i64>`
+- `strides: ptr<i64>`
+- `offset_bytes: i64`
+- `flags: i32`
+
+Semantic rules:
+
+- ownership is explicit as borrowed, owned, or external-owner
+- exactly one ownership flag must be present
+- borrowed views do not free memory and use a null owner handle
+- owned and external-owner views use non-null opaque owner handles
+- descriptor copies are shallow metadata copies
+- deep copy is explicit and never implicit
+- retain and release go through runtime/native helpers
+- mutability is attached to the view, not only the allocation
+- readonly and writable views are mutually exclusive
+- writes through statically readonly views are rejected semantically
+- shape and strides describe logical indexing, not ownership
+- offset support is part of the descriptor model
+- null data with statically nonzero extent is rejected
+
+Lowering uses `irx_buffer_view` as a named plain struct with stable field order:
+
+```llvm
+%"irx_buffer_view" = type {i8*, i8*, i8*, i32, i64*, i64*, i64, i32}
+```
+
+Runtime/native lifetime operations are feature-gated behind the `buffer` runtime
+feature. Plain descriptors do not pull native helper symbols into a module
+unless a helper is used.
+
 Example scalar wrapper:
 
 ```python

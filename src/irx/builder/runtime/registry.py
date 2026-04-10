@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Iterable
 from llvmlite import ir
 
 from irx.builder.runtime.arrow.feature import build_arrow_runtime_feature
+from irx.builder.runtime.buffer.feature import build_buffer_runtime_feature
 from irx.builder.runtime.feature_libc import build_libc_runtime_feature
 from irx.builder.runtime.features import NativeArtifact, RuntimeFeature
 from irx.typecheck import typechecked
@@ -240,5 +241,6 @@ def get_default_runtime_feature_registry() -> RuntimeFeatureRegistry:
     """
     registry = RuntimeFeatureRegistry()
     registry.register(build_libc_runtime_feature())
+    registry.register(build_buffer_runtime_feature())
     registry.register(build_arrow_runtime_feature())
     return registry

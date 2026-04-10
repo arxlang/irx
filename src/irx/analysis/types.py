@@ -75,6 +75,8 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             module_key=type_.module_key,
             qualified_name=type_.qualified_name,
         )
+    if isinstance(type_, (astx.BufferOwnerType, astx.BufferViewType)):
+        return type_.__class__()
     return type_.__class__()
 
 

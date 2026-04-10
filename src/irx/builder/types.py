@@ -68,6 +68,8 @@ class VariablesLLVM:
     SIZE_T_TYPE: ir.types.Type | None
     POINTER_BITS: int
     OPAQUE_POINTER_TYPE: ir.types.Type
+    BUFFER_OWNER_HANDLE_TYPE: ir.types.Type
+    BUFFER_VIEW_TYPE: ir.types.Type
     ARROW_ARRAY_BUILDER_HANDLE_TYPE: ir.types.Type
     ARROW_ARRAY_HANDLE_TYPE: ir.types.Type
 
