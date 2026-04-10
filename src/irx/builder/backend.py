@@ -19,6 +19,7 @@ from irx.builder.core import VisitorCore
 from irx.builder.lowering import (
     ArrowVisitorMixin,
     BinaryOpVisitorMixin,
+    BufferVisitorMixin,
     ControlFlowVisitorMixin,
     FunctionVisitorMixin,
     LiteralVisitorMixin,
@@ -43,6 +44,7 @@ class Visitor(
     FunctionVisitorMixin,
     TemporalVisitorMixin,
     ArrowVisitorMixin,
+    BufferVisitorMixin,
     SystemVisitorMixin,
     ModuleVisitorMixin,
     VisitorCore,

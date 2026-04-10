@@ -69,6 +69,12 @@ from irx.astx.binary_op import (
 from irx.astx.binary_op import (
     specialize_binary_op as specialize_binary_op,
 )
+from irx.astx.buffer import BufferOwnerType as BufferOwnerType
+from irx.astx.buffer import BufferViewDescriptor as BufferViewDescriptor
+from irx.astx.buffer import BufferViewRelease as BufferViewRelease
+from irx.astx.buffer import BufferViewRetain as BufferViewRetain
+from irx.astx.buffer import BufferViewType as BufferViewType
+from irx.astx.buffer import BufferViewWrite as BufferViewWrite
 from irx.astx.structs import FieldAccess as FieldAccess
 from irx.astx.structs import StructType as StructType
 from irx.astx.system import Cast as Cast
@@ -83,6 +89,12 @@ __all__ = (
     "BitAndBinOp",
     "BitOrBinOp",
     "BitXorBinOp",
+    "BufferOwnerType",
+    "BufferViewDescriptor",
+    "BufferViewRelease",
+    "BufferViewRetain",
+    "BufferViewType",
+    "BufferViewWrite",
     "Cast",
     "DivBinOp",
     "EqBinOp",

@@ -15,6 +15,7 @@ from plum import dispatch
 from public import private
 
 from irx import astx
+from irx.buffer import BUFFER_VIEW_TYPE_NAME
 
 try:  # FP128 may not exist depending on llvmlite build.
     from llvmlite.ir import FP128Type
@@ -281,6 +282,7 @@ class VisitorCore(BuilderVisitor):
     const_vars: set[str]
     loop_stack: list[dict[str, ir.Block]]
     _set_value_ids: dict[int, ir.Value]
+    _buffer_view_global_counter: int
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     _emitted_function_bodies: set[str]
@@ -308,6 +310,7 @@ class VisitorCore(BuilderVisitor):
         self.result_stack = []
         self.loop_stack = []
         self._set_value_ids = {}
+        self._buffer_view_global_counter = 0
         self.struct_types = {}
         self.llvm_structs_by_qualified_name = {}
         self._emitted_function_bodies = set()
@@ -553,6 +556,22 @@ class VisitorCore(BuilderVisitor):
         self._llvm.ASCII_STRING_TYPE = ir.IntType(8).as_pointer()
         self._llvm.UTF8_STRING_TYPE = self._llvm.ASCII_STRING_TYPE
         self._llvm.OPAQUE_POINTER_TYPE = self._llvm.INT8_TYPE.as_pointer()
+        self._llvm.BUFFER_OWNER_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        buffer_view_type = self._llvm.module.context.get_identified_type(
+            BUFFER_VIEW_TYPE_NAME
+        )
+        if buffer_view_type.is_opaque:
+            buffer_view_type.set_body(
+                self._llvm.OPAQUE_POINTER_TYPE,
+                self._llvm.BUFFER_OWNER_HANDLE_TYPE,
+                self._llvm.OPAQUE_POINTER_TYPE,
+                self._llvm.INT32_TYPE,
+                self._llvm.INT64_TYPE.as_pointer(),
+                self._llvm.INT64_TYPE.as_pointer(),
+                self._llvm.INT64_TYPE,
+                self._llvm.INT32_TYPE,
+            )
+        self._llvm.BUFFER_VIEW_TYPE = buffer_view_type
         self._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE = (
             self._llvm.OPAQUE_POINTER_TYPE
         )
@@ -806,6 +825,10 @@ class VisitorCore(BuilderVisitor):
         """
         if type_ is None:
             return None
+        if isinstance(type_, astx.BufferOwnerType):
+            return self._llvm.BUFFER_OWNER_HANDLE_TYPE
+        if isinstance(type_, astx.BufferViewType):
+            return self._llvm.BUFFER_VIEW_TYPE
         if isinstance(type_, astx.StructType):
             struct_key = type_.qualified_name
             if struct_key is None and type_.module_key is not None:

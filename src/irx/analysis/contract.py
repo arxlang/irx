@@ -148,6 +148,8 @@ _SEMANTIC_CONTRACT = SemanticContract(
                 "Attach SemanticInfo sidecars to analyzed AST nodes.",
                 "Normalize resolved symbols, functions, structs, modules, "
                 "operators, assignment targets, and semantic flags.",
+                "Validate explicit low-level buffer/view ownership, "
+                "mutability, and static shape/stride descriptor metadata.",
                 "Raise SemanticError instead of entering lowering when "
                 "diagnostics exist.",
             ),
@@ -189,6 +191,8 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "the current MVP.",
         "Wildcard imports and import expressions are rejected semantically "
         "and are not part of the lowering contract.",
+        "Low-level buffer/view descriptors are accepted as an IRx substrate "
+        "for Arx lowering, not as a user-facing scientific array API.",
     ),
     phase_error_boundaries=(
         PhaseErrorBoundary(

@@ -102,3 +102,4 @@ ENV/
 # tmp
 tmp/*
 PLAN.md
+.codex/*

@@ -36,6 +36,7 @@ The runtime stack is layered in four parts:
 Runtime features are named, optional, and per-compilation-unit.
 
 - `libc` Declares symbols such as `puts`, `malloc`, and `snprintf`.
+- `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `arrow` Declares the IRx-owned Arrow runtime ABI and links the native Arrow
   runtime.
 
@@ -147,12 +148,26 @@ IRx compiles the packaged nanoarrow sources with
 `-DNANOARROW_NAMESPACE=IrxNanoarrow` to keep those helper symbols internal to
 the feature implementation.
 
+## Buffer As A Runtime Feature
+
+The `buffer` feature owns lifetime-sensitive helper operations for the canonical
+buffer/view substrate. Plain `irx_buffer_view` descriptors lower as structs and
+do not activate this feature. Explicit helper calls such as
+`irx_buffer_view_retain` and `irx_buffer_view_release` activate it.
+
+The feature keeps owner handles opaque at the IR level. Native code may retain
+or release an owner handle, but generic lowering does not infer ownership
+transfer or emit hidden retains/releases for descriptor copies. Statically known
+borrowed views are rejected before retain/release lowering; descriptor-pointer
+runtime calls are reserved for owned or external-owner views.
+
 ## What Exists Now
 
 Implemented in this phase:
 
 - generic runtime-feature registry/state/linking
 - `libc` routed through the new feature system
+- low-level `buffer` runtime feature for owner/view retain-release helpers
 - Arrow native runtime feature with packaged nanoarrow sources
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations

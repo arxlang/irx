@@ -9,6 +9,7 @@ nav:
   - Installation: installation.md
   - Architecture: architecture.md
   - Semantic Contract: semantic-contract.md
+  - Buffer/View Model: buffer-view-model.md
   - Changelog: changelog.md
   - Contributing: contributing.md
   # from gen-files
