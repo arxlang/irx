@@ -122,3 +122,43 @@ groups:
         help: run semantic release in dry-run mode
         run: |
           ${{ vars.app }} --dry-run
+
+  llm-config:
+    backend: bash
+    tasks:
+      setup:
+        help: Clone llm-config into a temporary project folder
+        run: |
+          set -eu
+
+          clone_dir=".tmp/llm-config"
+
+          rm -rf "${clone_dir}"
+          mkdir -p ".tmp"
+          git clone https://github.com/arxlang/llm-config "${clone_dir}"
+
+      cleanup:
+        help: Remove the temporary llm-config clone
+        run: |
+          set -eu
+
+          clone_dir=".tmp/llm-config"
+
+          rm -rf "${clone_dir}"
+          rmdir ".tmp" 2>/dev/null || true
+
+      codex:
+        help: Copy the .codex folder from llm-config into the project root
+        hooks:
+          pre-run:
+            - task: llm-config.setup
+          post-run:
+            - task: llm-config.cleanup
+        run: |
+          set -eu
+
+          clone_dir=".tmp/llm-config"
+
+          test -d "${clone_dir}/.codex"
+          rm -rf ./.codex
+          cp -R "${clone_dir}/.codex" ./.codex

@@ -26,6 +26,17 @@ makim tests.linter
 makim tests.unittest
 ```
 
+- Sync the repository's Codex configuration with:
+
+```bash
+makim llm-config.codex
+```
+
+This clones `https://github.com/arxlang/llm-config` into `./.tmp/llm-config`,
+copies its `.codex` directory into the repository root, and removes the
+temporary clone afterward. The underlying `llm-config.setup` and
+`llm-config.cleanup` tasks are available for reuse in other Makim hooks.
+
 ## Runtime type checking
 
 - Use `irx.typecheck.typechecked` on every module-level function and every

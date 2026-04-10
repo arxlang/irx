@@ -95,6 +95,18 @@ Ready to contribute? Here’s how to set up `irx` for local development.
     $ makim tests.unittest
     ```
 
+    If you need to bootstrap the repository's Codex configuration, run:
+
+    ```bash
+    $ makim llm-config.codex
+    ```
+
+    This task clones `https://github.com/arxlang/llm-config` into
+    `./.tmp/llm-config`, copies the cloned `.codex` directory into the
+    repository root, and removes the temporary clone when it finishes. The
+    reusable `llm-config.setup` and `llm-config.cleanup` tasks are available as
+    Makim hooks for future LLM config tasks.
+
 ## Runtime Type Checking
 
 IRx keeps runtime type checking on by default for its own code under `src/irx`.
