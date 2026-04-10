@@ -100,6 +100,9 @@ ENV/
 .idea/
 
 # tmp
+.tmp/
 tmp/*
+
+# LLM
 PLAN.md
 .codex/*

@@ -291,6 +291,29 @@ conda run -n irx pytest tests/test_vector.py -q
 conda run -n irx pytest tests/test_cast.py -q
 ```
 
+## Makim LLM Config Workflow
+
+Use the Makim task below when you need to sync Codex configuration into the
+repository root:
+
+```bash
+conda run -n irx makim llm-config.codex
+```
+
+Behavior:
+
+- clones `https://github.com/arxlang/llm-config` into `./.tmp/llm-config`
+- copies the cloned `.codex` directory into the repository root
+- removes the temporary clone after the task completes
+
+Reusable helper tasks:
+
+- `llm-config.setup`
+- `llm-config.cleanup`
+
+Use those helper tasks as Makim `pre-run` and `post-run` hooks for future LLM
+config tasks that need the same cloned repository.
+
 ## Documentation Expectations
 
 When behavior or workflow changes, update docs in the same change set.
@@ -316,6 +339,30 @@ Common places to touch:
   codegen when appropriate.
 - If you touch backend naming, preserve the generic `Builder` / `Visitor`
   convention inside backend packages.
+
+For non-trivial tasks, start by producing a short implementation plan and wait
+for confirmation before making edits. Do not begin code changes immediately
+unless the user explicitly asks for direct implementation.
+
+### Codex sandbox requirement (Linux)
+
+For Codex users, Codex relies on Bubblewrap (`bwrap`) for local sandbox
+execution. Ensure it is installed and available in `PATH`:
+
+```bash
+sudo apt update && sudo apt install bubblewrap
+```
+
+On Ubuntu 24.04, the default AppArmor restriction may block unprivileged user
+namespaces and cause sandbox failures (e.g.,
+`bwrap: loopback: Failed RTM_NEWADDR`). If this occurs, disable the restriction:
+
+```bash
+echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+```
+
+Without a working local sandbox, Codex may fall back to remote repository
+inspection, which is slower and may ignore local changes.
 
 ## Contributor Workflow Expectations
 
