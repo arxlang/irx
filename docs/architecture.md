@@ -165,6 +165,34 @@ builder:
 Foundational modules stay at the package root because they are architectural
 components, not incidental helpers.
 
+## Buffer/View Indexing
+
+IRx treats first-class indexing as a low-level operation over the canonical
+buffer/view descriptor in `src/irx/buffer.py`. It is the stable memory/container
+path that Arx can target for element access such as `a[i]`, `a[i, j]`, and the
+corresponding stores. It is not a NumPy-like array API and does not define
+slicing, broadcasting, fancy indexing, masks, or shape inference.
+
+Indexed access has an explicit IRx node surface for reads and stores. Semantic
+analysis validates the descriptor base, the number of indices, index scalar
+types, mutability for stores, static bounds when descriptor shape and literal
+indices make the answer provable, and the scalar element type used by lowering.
+The MVP requires static descriptor metadata for rank validation. Dynamic-rank
+runtime checks are intentionally deferred.
+
+Backend lowering keeps address computation separate from load/store emission.
+The address helper extracts descriptor fields through
+`BUFFER_VIEW_FIELD_INDICES`, starts from `data`, includes `offset_bytes`, loads
+byte strides from `strides`, and computes:
+
+`effective_byte_offset = offset_bytes + sum(index_k * stride_k)`
+
+The result is cast to the resolved element pointer type. Indexed reads emit a
+load from that pointer; indexed stores cast the right-hand side to the resolved
+element type and emit a store. The default bounds policy means semantic static
+bounds rejection when provable and no emitted runtime bounds helper yet. Future
+checked and unchecked runtime modes can reuse the same element-pointer helper.
+
 ## Why `visit(...)` Remains the Public Lowering Boundary
 
 The codegen layer continues to use method-based Plum multiple dispatch:

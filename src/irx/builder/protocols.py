@@ -575,6 +575,20 @@ if TYPE_CHECKING:
             """
             return False
 
+        def _llvm_type_for_ast_type(
+            self,
+            _type: astx.DataType | None,
+        ) -> ir.Type | None:
+            """
+            title: LLVM type for AST type.
+            parameters:
+              _type:
+                type: astx.DataType | None
+            returns:
+              type: ir.Type | None
+            """
+            return cast(ir.Type | None, None)
+
         def _resolved_ast_type(
             self, _node: astx.AST | None
         ) -> astx.DataType | None:

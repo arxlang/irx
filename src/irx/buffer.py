@@ -16,6 +16,7 @@ from irx.typecheck import typechecked
 
 BUFFER_VIEW_TYPE_NAME = "irx_buffer_view"
 BUFFER_VIEW_METADATA_EXTRA = "buffer_view_metadata"
+BUFFER_VIEW_ELEMENT_TYPE_EXTRA = "buffer_view_element_type"
 BUFFER_VIEW_FIELD_NAMES = (
     "data",
     "owner",
@@ -47,6 +48,22 @@ BUFFER_MUTABILITY_FLAGS = (
     BUFFER_FLAG_READONLY,
     BUFFER_FLAG_WRITABLE,
 )
+
+
+@public
+@typechecked
+class BufferIndexBoundsPolicy(str, Enum):
+    """
+    title: Buffer view indexing bounds policy hook.
+    summary: >-
+      DEFAULT performs semantic static-bounds rejection when analysis can prove
+      the bounds and emits no runtime bounds helper yet. CHECKED and UNCHECKED
+      are reserved for future lowering modes.
+    """
+
+    DEFAULT = "default"
+    CHECKED = "checked"
+    UNCHECKED = "unchecked"
 
 
 @public
@@ -319,11 +336,13 @@ __all__ = [
     "BUFFER_FLAG_WRITABLE",
     "BUFFER_MUTABILITY_FLAGS",
     "BUFFER_OWNERSHIP_FLAGS",
+    "BUFFER_VIEW_ELEMENT_TYPE_EXTRA",
     "BUFFER_VIEW_FIELD_INDICES",
     "BUFFER_VIEW_FIELD_NAMES",
     "BUFFER_VIEW_METADATA_EXTRA",
     "BUFFER_VIEW_TYPE_NAME",
     "BufferHandle",
+    "BufferIndexBoundsPolicy",
     "BufferMutability",
     "BufferOwnership",
     "BufferViewMetadata",
