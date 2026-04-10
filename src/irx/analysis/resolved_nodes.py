@@ -117,6 +117,7 @@ class SemanticStructField:
 
 
 @public
+@typechecked
 class ParameterPassingKind(str, Enum):
     """
     title: Stable semantic parameter-passing modes.
@@ -129,6 +130,7 @@ class ParameterPassingKind(str, Enum):
 
 
 @public
+@typechecked
 class CallingConvention(str, Enum):
     """
     title: Stable semantic calling-convention classes.
