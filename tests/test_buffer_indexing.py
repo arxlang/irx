@@ -303,6 +303,34 @@ def test_rank1_read_lowers_through_descriptor_fields() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_identifier_read_lowers_with_static_initializer_metadata() -> None:
+    """
+    title: Identifier-based reads should reuse the descriptor indexing path.
+    """
+    ir_text = Builder().translate(
+        _module_with_main(
+            astx.VariableDeclaration(
+                name="view",
+                type_=astx.BufferViewType(),
+                mutability=astx.MutabilityKind.mutable,
+                value=_descriptor(_metadata(shape=(4,), strides=(4,))),
+            ),
+            astx.FunctionReturn(
+                astx.BufferViewIndex(
+                    astx.Identifier("view"),
+                    [astx.LiteralInt32(1)],
+                )
+            ),
+        )
+    )
+
+    assert 'load %"irx_buffer_view"' in ir_text
+    assert "irx_buffer_view_data" in ir_text
+    assert "irx_buffer_index_stride_0" in ir_text
+    assert "load i32" in ir_text
+    assert_ir_parses(ir_text)
+
+
 def test_rank1_store_lowers_to_pointer_arithmetic_and_store() -> None:
     """
     title: Rank-1 stores should compute an element pointer and store into it.
@@ -325,6 +353,39 @@ def test_rank1_store_lowers_to_pointer_arithmetic_and_store() -> None:
 
     assert "irx_buffer_index_byte_ptr" in ir_text
     assert "irx_buffer_index_element_ptr" in ir_text
+    assert "store i32 7" in ir_text
+    assert_ir_parses(ir_text)
+
+
+def test_identifier_store_lowers_with_static_initializer_metadata() -> None:
+    """
+    title: Identifier-based stores should reuse the descriptor indexing path.
+    """
+    ir_text = Builder().translate(
+        _module_with_main(
+            astx.VariableDeclaration(
+                name="view",
+                type_=astx.BufferViewType(),
+                mutability=astx.MutabilityKind.mutable,
+                value=_descriptor(
+                    _metadata(
+                        shape=(4,),
+                        strides=(4,),
+                        mutability=BufferMutability.WRITABLE,
+                    )
+                ),
+            ),
+            astx.BufferViewStore(
+                astx.Identifier("view"),
+                [astx.LiteralInt32(1)],
+                astx.LiteralInt32(7),
+            ),
+        )
+    )
+
+    assert 'load %"irx_buffer_view"' in ir_text
+    assert "irx_buffer_view_data" in ir_text
+    assert "irx_buffer_index_stride_0" in ir_text
     assert "store i32 7" in ir_text
     assert_ir_parses(ir_text)
 
