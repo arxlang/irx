@@ -75,7 +75,14 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             module_key=type_.module_key,
             qualified_name=type_.qualified_name,
         )
-    if isinstance(type_, (astx.BufferOwnerType, astx.BufferViewType)):
+    if isinstance(type_, astx.BufferViewType):
+        element_type = (
+            clone_type(type_.element_type)
+            if type_.element_type is not None
+            else None
+        )
+        return astx.BufferViewType(element_type)
+    if isinstance(type_, astx.BufferOwnerType):
         return type_.__class__()
     return type_.__class__()
 
@@ -99,6 +106,13 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
         return lhs_identity == rhs_identity
+    if isinstance(lhs, astx.BufferViewType) and isinstance(
+        rhs,
+        astx.BufferViewType,
+    ):
+        if lhs.element_type is None or rhs.element_type is None:
+            return True
+        return same_type(lhs.element_type, rhs.element_type)
     return lhs.__class__ is rhs.__class__
 
 

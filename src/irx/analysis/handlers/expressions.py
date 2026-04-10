@@ -40,6 +40,7 @@ from irx.astx.binary_op import (
     specialize_binary_op,
 )
 from irx.buffer import (
+    BUFFER_VIEW_ELEMENT_TYPE_EXTRA,
     BUFFER_VIEW_METADATA_EXTRA,
     BufferOwnership,
     BufferViewMetadata,
@@ -83,6 +84,180 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if isinstance(metadata, BufferViewMetadata):
             return metadata
         return None
+
+    def _static_buffer_view_element_type(
+        self,
+        node: astx.AST,
+    ) -> astx.DataType | None:
+        """
+        title: Return the scalar element type when analysis can prove it.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: astx.DataType | None
+        """
+        semantic = self._semantic(node)
+        element_type = semantic.extras.get(BUFFER_VIEW_ELEMENT_TYPE_EXTRA)
+        if isinstance(element_type, astx.DataType):
+            return element_type
+
+        view_type = self._expr_type(node)
+        if (
+            isinstance(view_type, astx.BufferViewType)
+            and view_type.element_type is not None
+        ):
+            return view_type.element_type
+
+        symbol = semantic.resolved_symbol
+        declaration = symbol.declaration if symbol is not None else None
+        initializer = getattr(declaration, "value", None)
+        if not isinstance(initializer, astx.AST):
+            return None
+
+        initializer_semantic = getattr(initializer, "semantic", None)
+        initializer_extras = getattr(initializer_semantic, "extras", {})
+        element_type = initializer_extras.get(BUFFER_VIEW_ELEMENT_TYPE_EXTRA)
+        if isinstance(element_type, astx.DataType):
+            return element_type
+
+        initializer_type = getattr(
+            initializer_semantic,
+            "resolved_type",
+            getattr(initializer, "type_", None),
+        )
+        if (
+            isinstance(initializer_type, astx.BufferViewType)
+            and initializer_type.element_type is not None
+        ):
+            return initializer_type.element_type
+        return None
+
+    def _static_integer_literal_value(self, node: astx.AST) -> int | None:
+        """
+        title: Return a static integer literal value when present.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: int | None
+        """
+        if isinstance(
+            node,
+            (
+                astx.LiteralInt8,
+                astx.LiteralInt16,
+                astx.LiteralInt32,
+                astx.LiteralInt64,
+                astx.LiteralUInt8,
+                astx.LiteralUInt16,
+                astx.LiteralUInt32,
+                astx.LiteralUInt64,
+                astx.LiteralUInt128,
+            ),
+        ):
+            return int(node.value)
+        return None
+
+    def _validate_buffer_view_index_operation(
+        self,
+        *,
+        node: astx.AST,
+        base: astx.AST,
+        indices: list[astx.AST],
+        is_store: bool,
+    ) -> astx.DataType | None:
+        """
+        title: Validate one low-level buffer view indexed access.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          indices:
+            type: list[astx.AST]
+          is_store:
+            type: bool
+        returns:
+          type: astx.DataType | None
+        """
+        base_type = self._expr_type(base)
+        if not isinstance(base_type, astx.BufferViewType):
+            self.context.diagnostics.add(
+                "buffer view indexing requires a BufferViewType base",
+                node=node,
+            )
+
+        metadata = self._static_buffer_view_metadata(base)
+        if metadata is None:
+            self.context.diagnostics.add(
+                "buffer view indexing requires static descriptor metadata",
+                node=node,
+            )
+        elif len(indices) != metadata.ndim:
+            self.context.diagnostics.add(
+                "buffer view indexing index count must match descriptor ndim",
+                node=node,
+            )
+        elif len(metadata.shape) == metadata.ndim:
+            for axis, index in enumerate(indices):
+                extent = metadata.shape[axis]
+                static_index = self._static_integer_literal_value(index)
+                if static_index is None:
+                    continue
+                if static_index < 0 or static_index >= extent:
+                    self.context.diagnostics.add(
+                        "buffer view index "
+                        f"{axis} statically out of bounds for extent {extent}",
+                        node=index,
+                    )
+
+        if (
+            is_store
+            and metadata is not None
+            and buffer_view_is_readonly(metadata.flags)
+        ):
+            self.context.diagnostics.add(
+                "cannot write through a readonly buffer view",
+                node=node,
+            )
+
+        for index in indices:
+            index_type = self._expr_type(index)
+            if not is_integer_type(index_type):
+                self.context.diagnostics.add(
+                    "buffer view indices must be integer typed",
+                    node=index,
+                )
+                continue
+            if bit_width(index_type) > bit_width(astx.Int64()):
+                self.context.diagnostics.add(
+                    "buffer view indices must fit 64-bit "
+                    "descriptor stride arithmetic",
+                    node=index,
+                )
+
+        element_type = self._static_buffer_view_element_type(base)
+        if element_type is None:
+            self.context.diagnostics.add(
+                "buffer view indexing requires a known element type",
+                node=node,
+            )
+            return None
+        if not (
+            is_integer_type(element_type)
+            or is_float_type(element_type)
+            or is_boolean_type(element_type)
+        ):
+            self.context.diagnostics.add(
+                "buffer view indexing requires a scalar element type",
+                node=node,
+            )
+            return None
+        self._semantic(node).extras[BUFFER_VIEW_ELEMENT_TYPE_EXTRA] = (
+            element_type
+        )
+        return element_type
 
     def _validate_buffer_lifetime_operation(
         self,
@@ -464,7 +639,60 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         for error in validate_buffer_view_metadata(node.metadata):
             self.context.diagnostics.add(error, node=node)
         self._semantic(node).extras[BUFFER_VIEW_METADATA_EXTRA] = node.metadata
-        self._set_type(node, astx.BufferViewType())
+        if node.type_.element_type is not None:
+            self._semantic(node).extras[BUFFER_VIEW_ELEMENT_TYPE_EXTRA] = (
+                node.type_.element_type
+            )
+        self._set_type(node, node.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewIndex) -> None:
+        """
+        title: Visit BufferViewIndex nodes.
+        parameters:
+          node:
+            type: astx.BufferViewIndex
+        """
+        self.visit(node.base)
+        for index in node.indices:
+            self.visit(index)
+        element_type = self._validate_buffer_view_index_operation(
+            node=node,
+            base=node.base,
+            indices=node.indices,
+            is_store=False,
+        )
+        if element_type is not None:
+            node.type_ = element_type
+        self._set_type(node, element_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BufferViewStore) -> None:
+        """
+        title: Visit BufferViewStore nodes.
+        parameters:
+          node:
+            type: astx.BufferViewStore
+        """
+        self.visit(node.base)
+        for index in node.indices:
+            self.visit(index)
+        self.visit(node.value)
+        element_type = self._validate_buffer_view_index_operation(
+            node=node,
+            base=node.base,
+            indices=node.indices,
+            is_store=True,
+        )
+        if element_type is not None:
+            validate_assignment(
+                self.context.diagnostics,
+                target_name="buffer view element",
+                target_type=element_type,
+                value_type=self._expr_type(node.value),
+                node=node,
+            )
+        self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.BufferViewWrite) -> None:
