@@ -17,6 +17,7 @@ from .conftest import assert_ir_parses
 
 HAS_CLANG = shutil.which("clang") is not None
 EXPECTED_PUTS_CALLS = 2
+EXPECTED_ALIAS_PUTS_CALLS = 1
 EXPECTED_HELPER_EXIT = 7
 
 
@@ -168,6 +169,44 @@ def test_translate_emits_extern_declaration_once_with_symbol_name() -> None:
     assert 'declare external i32 @"puts"(i8* %"message")' in ir_text
     assert ir_text.count('declare external i32 @"puts"') == 1
     assert ir_text.count('call i32 @"puts"') == EXPECTED_PUTS_CALLS
+    assert_ir_parses(ir_text)
+
+
+def test_translate_honors_extern_symbol_aliases() -> None:
+    """
+    title: Extern lowering should call the linked symbol, not the IRx name.
+    """
+    module = astx.Module()
+    module.block.append(
+        _extern_prototype(
+            "c_puts",
+            astx.Argument("message", astx.UTF8String()),
+            return_type=astx.Int32(),
+            symbol_name="puts",
+        )
+    )
+
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=astx.Block(),
+    )
+    main.body.append(
+        astx.FunctionCall("c_puts", [astx.LiteralUTF8String("alias")])
+    )
+    main.body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module.block.append(main)
+
+    ir_text = Builder().translate(module)
+
+    assert 'declare external i32 @"puts"(i8* %"message")' in ir_text
+    assert 'call i32 @"puts"' in ir_text
+    assert ir_text.count('call i32 @"puts"') == EXPECTED_ALIAS_PUTS_CALLS
+    assert 'declare external i32 @"c_puts"' not in ir_text
+    assert 'call i32 @"c_puts"' not in ir_text
     assert_ir_parses(ir_text)
 
 
