@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import importlib
 
-from functools import lru_cache
 from typing import Iterable, cast
 
 from irx import astx
@@ -36,7 +35,6 @@ from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
-@lru_cache(maxsize=1)
 @typechecked
 def _runtime_feature_names() -> tuple[str, ...]:
     """

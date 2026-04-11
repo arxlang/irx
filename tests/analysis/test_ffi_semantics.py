@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import cast
 
+import irx.builder.runtime.registry as runtime_registry_module
 import pytest
 
 from irx import astx
@@ -15,6 +16,8 @@ from irx.analysis.resolved_nodes import (
     FFITypeClass,
     SemanticInfo,
 )
+from irx.builder.runtime.features import RuntimeFeature
+from irx.builder.runtime.registry import RuntimeFeatureRegistry
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -97,6 +100,56 @@ def test_analyze_attaches_ffi_metadata_for_feature_backed_extern() -> None:
     assert (
         resolved_function.signature.ffi.return_type.classification
         is FFITypeClass.FLOAT
+    )
+
+
+def test_runtime_feature_validation_sees_late_registry_registrations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    title: Runtime feature validation should observe later registry updates.
+    parameters:
+      monkeypatch:
+        type: pytest.MonkeyPatch
+    """
+    registry = RuntimeFeatureRegistry()
+    monkeypatch.setattr(
+        runtime_registry_module,
+        "get_default_runtime_feature_registry",
+        lambda: registry,
+    )
+
+    first_prototype = _extern_prototype(
+        "late_bound",
+        return_type=astx.Int32(),
+        runtime_feature="late_feature",
+    )
+    first_module = astx.Module()
+    first_module.block.append(first_prototype)
+
+    with pytest.raises(
+        SemanticError,
+        match="unknown runtime feature 'late_feature'",
+    ):
+        analyze(first_module)
+
+    registry.register(RuntimeFeature(name="late_feature"))
+
+    second_prototype = _extern_prototype(
+        "late_bound",
+        return_type=astx.Int32(),
+        runtime_feature="late_feature",
+    )
+    second_module = astx.Module()
+    second_module.block.append(second_prototype)
+
+    analyze(second_module)
+
+    resolved_function = _semantic(second_prototype).resolved_function
+
+    assert resolved_function is not None
+    assert resolved_function.signature.required_runtime_features == (
+        "late_feature",
     )
 
 
