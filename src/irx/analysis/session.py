@@ -12,13 +12,13 @@ from dataclasses import dataclass, field
 from public import public
 
 from irx import astx
-from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.module_interfaces import (
     ImportResolver,
     ModuleKey,
     ParsedModule,
 )
 from irx.analysis.resolved_nodes import SemanticBinding
+from irx.diagnostics import DiagnosticBag
 from irx.typecheck import typechecked
 
 

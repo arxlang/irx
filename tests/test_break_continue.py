@@ -12,6 +12,7 @@ from irx import astx
 from irx.builder import Builder as LLVMBuilder
 from irx.builder import Visitor as LLVMVisitor
 from irx.builder.base import Builder
+from irx.diagnostics import LoweringError
 from llvmlite import ir
 
 
@@ -225,7 +226,10 @@ def test_break_outside_loop_raises(builder_class: type[Builder]) -> None:
     visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    with pytest.raises(Exception, match="Break statement outside loop"):
+    with pytest.raises(
+        LoweringError,
+        match="break statement reached lowering outside a loop",
+    ):
         visitor.visit(astx.BreakStmt())
 
 
@@ -241,5 +245,8 @@ def test_continue_outside_loop_raises(builder_class: type[Builder]) -> None:
     visitor = cast(LLVMVisitor, builder.translator)
     visitor.result_stack.clear()
 
-    with pytest.raises(Exception, match="Continue statement outside loop"):
+    with pytest.raises(
+        LoweringError,
+        match="continue statement reached lowering outside a loop",
+    ):
         visitor.visit(astx.ContinueStmt())

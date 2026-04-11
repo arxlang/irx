@@ -98,6 +98,34 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
 
 @public
 @typechecked
+def display_type_name(type_: astx.DataType | None) -> str:
+    """
+    title: Return one stable human-facing type name.
+    parameters:
+      type_:
+        type: astx.DataType | None
+    returns:
+      type: str
+    """
+    if type_ is None:
+        return "<unknown>"
+    if isinstance(type_, astx.StructType):
+        return type_.qualified_name or type_.name
+    if isinstance(type_, astx.PointerType):
+        if type_.pointee_type is None:
+            return "PointerType"
+        return f"PointerType[{display_type_name(type_.pointee_type)}]"
+    if isinstance(type_, astx.OpaqueHandleType):
+        return type_.handle_name
+    if isinstance(type_, astx.BufferViewType):
+        if type_.element_type is None:
+            return "BufferViewType"
+        return f"BufferViewType[{display_type_name(type_.element_type)}]"
+    return str(type_.__class__.__name__)
+
+
+@public
+@typechecked
 def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     title: Return whether two AST types share the same class.

@@ -28,7 +28,11 @@ from irx.analysis.resolved_nodes import (
     SemanticStruct,
     SemanticSymbol,
 )
-from irx.analysis.types import same_type
+from irx.analysis.types import display_type_name, same_type
+from irx.diagnostics import (
+    DiagnosticCodes,
+    DiagnosticRelatedInformation,
+)
 from irx.typecheck import typechecked
 
 MAIN_FUNCTION_NAME = "main"
@@ -125,6 +129,7 @@ class SemanticRegistry:
         self.context.diagnostics.add(
             f"Function '{prototype_name}' has an invalid symbol_name",
             node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
         )
         return prototype_name
 
@@ -159,6 +164,7 @@ class SemanticRegistry:
         self.context.diagnostics.add(
             f"Function '{prototype.name}' uses an invalid calling convention",
             node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
         )
         return default
 
@@ -229,8 +235,9 @@ class SemanticRegistry:
             )
         if not same_type(lhs.return_type, rhs.return_type):
             return (
-                f"return_type differs ('{lhs.return_type}' vs "
-                f"'{rhs.return_type}')"
+                "return_type differs "
+                f"('{display_type_name(lhs.return_type)}' vs "
+                f"'{display_type_name(rhs.return_type)}')"
             )
         if len(lhs.parameters) != len(rhs.parameters):
             return (
@@ -253,8 +260,10 @@ class SemanticRegistry:
                 )
             if not same_type(lhs_param.type_, rhs_param.type_):
                 return (
-                    f"parameter {idx} type differs ('{lhs_param.type_}' vs "
-                    f"'{rhs_param.type_}')"
+                    "parameter "
+                    f"{idx} type differs "
+                    f"('{display_type_name(lhs_param.type_)}' vs "
+                    f"'{display_type_name(rhs_param.type_)}')"
                 )
         return "signature differs"
 
@@ -320,6 +329,7 @@ class SemanticRegistry:
                     f"Function '{prototype.name}' repeats parameter "
                     f"'{argument.name}'",
                     node=argument,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
             seen_parameter_names.add(argument.name)
@@ -340,18 +350,21 @@ class SemanticRegistry:
             self.context.diagnostics.add(
                 f"Extern function '{prototype.name}' cannot define a body",
                 node=definition,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         if is_variadic and not is_extern:
             self.context.diagnostics.add(
                 f"Function '{prototype.name}' may be variadic only when "
                 "declared extern",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         if is_extern and calling_convention is not CallingConvention.C:
             self.context.diagnostics.add(
                 f"Extern function '{prototype.name}' must use calling "
                 "convention 'c'",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         if (
             not is_extern
@@ -361,18 +374,21 @@ class SemanticRegistry:
                 f"IRx-defined function '{prototype.name}' must use calling "
                 "convention 'irx_default'",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         if not is_extern and symbol_name != prototype.name:
             self.context.diagnostics.add(
                 f"Function '{prototype.name}' may override symbol_name only "
                 "for extern declarations",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         if not is_extern and required_runtime_features:
             self.context.diagnostics.add(
                 f"Function '{prototype.name}' may declare runtime features "
                 "only when declared extern",
                 node=prototype,
+                code=DiagnosticCodes.RUNTIME_FEATURE_UNKNOWN,
             )
 
         signature = self.factory.make_function_signature(
@@ -398,16 +414,19 @@ class SemanticRegistry:
                 self.context.diagnostics.add(
                     "Function 'main' cannot be extern",
                     node=prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
                 )
             if signature.is_variadic:
                 self.context.diagnostics.add(
                     "Function 'main' must not be variadic",
                     node=prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
                 )
             if len(signature.parameters) != 0:
                 self.context.diagnostics.add(
                     "Function 'main' must not declare parameters",
                     node=prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
                 )
             if (
                 signature.calling_convention
@@ -417,11 +436,13 @@ class SemanticRegistry:
                     "Function 'main' must use calling convention "
                     "'irx_default'",
                     node=prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
                 )
             if not same_type(signature.return_type, astx.Int32()):
                 self.context.diagnostics.add(
                     "Function 'main' must return Int32",
                     node=prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
                 )
 
         return signature
@@ -459,10 +480,28 @@ class SemanticRegistry:
             declaration=declaration,
             kind=kind,
         )
+        current_scope = self.context.scopes.current
+        existing = (
+            current_scope.symbols.get(name)
+            if current_scope is not None
+            else None
+        )
         if not self.context.scopes.declare(symbol):
             self.context.diagnostics.add(
                 f"Identifier already declared: {name}",
                 node=declaration,
+                code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                related=(
+                    ()
+                    if existing is None or existing.declaration is None
+                    else (
+                        DiagnosticRelatedInformation(
+                            "previous declaration is here",
+                            node=existing.declaration,
+                            module_key=existing.module_key,
+                        ),
+                    )
+                ),
             )
         return symbol
 
@@ -503,12 +542,28 @@ class SemanticRegistry:
                     f"Conflicting declaration for function "
                     f"'{prototype.name}': {mismatch}",
                     node=definition or prototype,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    related=(
+                        DiagnosticRelatedInformation(
+                            "previous declaration is here",
+                            node=existing.definition or existing.prototype,
+                            module_key=existing.module_key,
+                        ),
+                    ),
                 )
                 return existing
             if definition is not None and existing.definition is not None:
                 self.context.diagnostics.add(
                     f"Function '{prototype.name}' already defined",
                     node=definition,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    related=(
+                        DiagnosticRelatedInformation(
+                            "previous definition is here",
+                            node=existing.definition,
+                            module_key=existing.module_key,
+                        ),
+                    ),
                 )
             if definition is not None and existing.definition is None:
                 updated = replace(existing, definition=definition)
@@ -539,6 +594,14 @@ class SemanticRegistry:
                     f"incompatibly by '{candidate.name}' and "
                     f"'{prototype.name}': {mismatch}",
                     node=definition or prototype,
+                    code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
+                    related=(
+                        DiagnosticRelatedInformation(
+                            "previous extern declaration is here",
+                            node=candidate.definition or candidate.prototype,
+                            module_key=candidate.module_key,
+                        ),
+                    ),
                 )
                 break
 
@@ -570,6 +633,14 @@ class SemanticRegistry:
                 self.context.diagnostics.add(
                     f"Struct '{node.name}' already defined.",
                     node=node,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    related=(
+                        DiagnosticRelatedInformation(
+                            "previous struct definition is here",
+                            node=existing.declaration,
+                            module_key=existing.module_key,
+                        ),
+                    ),
                 )
             return existing
 

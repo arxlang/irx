@@ -8,10 +8,17 @@ from llvmlite import ir
 
 from irx import astx
 from irx.builder.core import VisitorCore, semantic_symbol_key
+from irx.builder.diagnostics import (
+    lowered_value_type_name,
+    raise_lowering_internal_error,
+    require_lowered_value,
+    resolved_ast_type_name,
+)
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
 from irx.builder.types import is_fp_type, is_int_type
 from irx.builder.vector import emit_add
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -21,6 +28,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self,
         value: ir.Value | None,
         *,
+        node: astx.AST,
         context: str,
     ) -> ir.Value:
         """
@@ -28,16 +36,26 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         parameters:
           value:
             type: ir.Value | None
+          node:
+            type: astx.AST
           context:
             type: str
         returns:
           type: ir.Value
         """
         if value is None:
-            raise Exception("codegen: Invalid condition expression.")
+            raise_lowering_internal_error(
+                f"{context} condition did not lower to a value",
+                node=node,
+                notes=(f"semantic type: {resolved_ast_type_name(node)}",),
+            )
         if not is_int_type(value.type) or value.type.width != 1:
-            raise Exception(
-                f"codegen: {context} condition must lower to Boolean."
+            raise_lowering_internal_error(
+                f"{context} condition must lower to LLVM i1, got "
+                f"{lowered_value_type_name(value)}",
+                node=node,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+                notes=(f"semantic type: {resolved_ast_type_name(node)}",),
             )
         return value
 
@@ -81,6 +99,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self.visit_child(node.condition)
         cond_v = self._lower_boolean_condition(
             safe_pop(self.result_stack),
+            node=node.condition,
             context="if",
         )
 
@@ -177,6 +196,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self.visit_child(expr.condition)
         cond_val = self._lower_boolean_condition(
             safe_pop(self.result_stack),
+            node=expr.condition,
             context="while",
         )
         self._llvm.ir_builder.cbranch(cond_val, body_bb, after_bb)
@@ -212,9 +232,11 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.position_at_end(saved_block)
 
         self.visit_child(node.initializer)
-        initializer_val = safe_pop(self.result_stack)
-        if initializer_val is None:
-            raise Exception("codegen: Invalid initializer expression.")
+        initializer_val = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.initializer,
+            context="for-count loop initializer",
+        )
         self._llvm.ir_builder.store(initializer_val, var_addr)
 
         loop_header_bb = self._llvm.ir_builder.function.append_basic_block(
@@ -232,6 +254,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self.visit_child(node.condition)
         cond_val = self._lower_boolean_condition(
             safe_pop(self.result_stack),
+            node=node.condition,
             context="for-count loop",
         )
 
@@ -261,9 +284,11 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self.loop_stack.pop()
         self._llvm.ir_builder.position_at_start(loop_update_bb)
         self.visit_child(node.update)
-        update_val = safe_pop(self.result_stack)
-        if update_val is None:
-            raise Exception("codegen: Invalid update expression.")
+        update_val = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.update,
+            context="for-count loop update",
+        )
         self._llvm.ir_builder.store(update_val, var_addr)
         self._llvm.ir_builder.branch(loop_header_bb)
 
@@ -297,9 +322,11 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.position_at_end(saved_block)
 
         self.visit_child(node.start)
-        start_val = safe_pop(self.result_stack)
-        if start_val is None:
-            raise Exception("codegen: Invalid start argument.")
+        start_val = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.start,
+            context="for-range start expression",
+        )
         self._llvm.ir_builder.store(start_val, var_addr)
 
         func = self._llvm.ir_builder.function
@@ -312,15 +339,19 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.position_at_start(header_bb)
         cur_var = self._llvm.ir_builder.load(var_addr, node.variable.name)
         self.visit_child(node.end)
-        end_val = safe_pop(self.result_stack)
-        if end_val is None:
-            raise Exception("codegen: Invalid end argument.")
+        end_val = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.end,
+            context="for-range end expression",
+        )
 
         if node.step:
             self.visit_child(node.step)
-            step_val = safe_pop(self.result_stack)
-            if step_val is None:
-                raise Exception("codegen: Invalid step argument.")
+            step_val = require_lowered_value(
+                safe_pop(self.result_stack),
+                node=node.step,
+                context="for-range step expression",
+            )
         else:
             step_val = ir.Constant(
                 self._llvm.get_data_type(
@@ -392,7 +423,10 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             type: astx.BreakStmt
         """
         if not self.loop_stack:
-            raise Exception("codegen: Break statement outside loop.")
+            raise_lowering_internal_error(
+                "break statement reached lowering outside a loop",
+                node=node,
+            )
         break_target = self.loop_stack[-1]["break_target"]
         self._llvm.ir_builder.branch(break_target)
 
@@ -405,6 +439,9 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             type: astx.ContinueStmt
         """
         if not self.loop_stack:
-            raise Exception("codegen: Continue statement outside loop.")
+            raise_lowering_internal_error(
+                "continue statement reached lowering outside a loop",
+                node=node,
+            )
         continue_target = self.loop_stack[-1]["continue_target"]
         self._llvm.ir_builder.branch(continue_target)

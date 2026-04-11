@@ -4,6 +4,7 @@ title: Tests for the semantic-analysis API.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -16,6 +17,7 @@ from irx.analysis import (
     SemanticContract,
     SemanticError,
     analyze,
+    analyze_modules,
     get_semantic_contract,
 )
 from irx.analysis.module_symbols import (
@@ -28,7 +30,11 @@ from irx.astx.binary_op import (
     AddBinOp,
 )
 
-from tests.conftest import make_module
+from tests.conftest import (
+    StaticImportResolver,
+    make_module,
+    make_parsed_module,
+)
 
 
 def _module_with_main(*nodes: astx.AST) -> astx.Module:
@@ -82,6 +88,23 @@ def _block(*nodes: astx.AST) -> astx.Block:
     return block
 
 
+def _with_loc(node: astx.AST, line: int, col: int) -> astx.AST:
+    """
+    title: Attach a simple source location to one AST node.
+    parameters:
+      node:
+        type: astx.AST
+      line:
+        type: int
+      col:
+        type: int
+    returns:
+      type: astx.AST
+    """
+    node.loc = SimpleNamespace(line=line, col=col)
+    return node
+
+
 def test_analyze_attaches_symbol_sidecars() -> None:
     """
     title: Test analyze attaches symbol sidecars.
@@ -114,8 +137,125 @@ def test_analyze_rejects_unknown_identifier() -> None:
     """
     module = _module_with_main(astx.FunctionReturn(astx.Identifier("missing")))
 
-    with pytest.raises(SemanticError, match="Unknown variable name"):
+    with pytest.raises(SemanticError, match="cannot resolve name"):
         analyze(module)
+
+
+def test_unknown_identifier_diagnostic_includes_code_and_location() -> None:
+    """
+    title: Unknown-name diagnostics should render stable code and source info.
+    """
+    missing = _with_loc(astx.Identifier("missing"), 12, 8)
+    module = _module_with_main(astx.FunctionReturn(missing))
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze(module)
+
+    formatted = str(exc_info.value)
+
+    assert "12:8" in formatted
+    assert "IRX-S001" in formatted
+    assert "cannot resolve name 'missing'" in formatted
+
+
+def test_assignment_type_mismatch_reports_expected_and_actual_types() -> None:
+    """
+    title: >-
+      Assignment diagnostics should explain both expected and actual types.
+    """
+    assignment = _with_loc(
+        astx.VariableAssignment("count", astx.LiteralFloat64(1.5)),
+        6,
+        4,
+    )
+    module = _module_with_main(
+        astx.VariableDeclaration(
+            name="count",
+            type_=astx.Int32(),
+            mutability=astx.MutabilityKind.mutable,
+            value=astx.LiteralInt32(1),
+        ),
+        assignment,
+        astx.FunctionReturn(astx.LiteralInt32(0)),
+    )
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze(module)
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-S010" in formatted
+    assert "cannot assign Float64 to 'count' of type Int32" in formatted
+
+
+def test_argument_type_mismatch_reports_argument_position_and_callee() -> None:
+    """
+    title: Call diagnostics should identify the failing argument and callee.
+    """
+    helper = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "mix",
+            args=astx.Arguments(
+                astx.Argument("lhs", astx.Int32()),
+                astx.Argument("rhs", astx.Float64()),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_block(astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    call = _with_loc(
+        astx.FunctionCall(
+            "mix",
+            [astx.LiteralInt32(1), astx.LiteralUTF8String("oops")],
+        ),
+        9,
+        6,
+    )
+    module = astx.Module()
+    module.block.append(helper)
+    module.block.append(
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(call, astx.FunctionReturn(astx.LiteralInt32(0))),
+        )
+    )
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze(module)
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-S010" in formatted
+    assert (
+        "argument 2 of call to 'mix' expects Float64 but got UTF8String"
+        in formatted
+    )
+
+
+def test_boolean_condition_diagnostic_reports_actual_type() -> None:
+    """
+    title: Control-flow condition diagnostics should report the actual type.
+    """
+    condition = _with_loc(astx.LiteralInt32(1), 4, 5)
+    module = _module_with_main(
+        astx.IfStmt(
+            condition=condition,
+            then=_block(astx.FunctionReturn(astx.LiteralInt32(1))),
+            else_=_block(astx.FunctionReturn(astx.LiteralInt32(0))),
+        )
+    )
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze(module)
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-S003" in formatted
+    assert "if condition must be Boolean, got Int32" in formatted
 
 
 def test_analyze_rejects_imports_without_multimodule_resolver() -> None:
@@ -140,6 +280,53 @@ def test_analyze_rejects_imports_without_multimodule_resolver() -> None:
         match="Import statements require analyze_modules",
     ):
         analyze(module)
+
+
+def test_multimodule_semantic_failure_includes_module_attribution() -> None:
+    """
+    title: Multi-module semantic diagnostics should render the failing module.
+    """
+    helper_return = astx.FunctionReturn(
+        _with_loc(astx.Identifier("missing_value"), 7, 3)
+    )
+    helper_module = make_parsed_module(
+        "lib.math",
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "helper",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(helper_return),
+        ),
+    )
+    app_module = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("lib.math")]),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "main",
+                args=astx.Arguments(),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.LiteralInt32(0))),
+        ),
+    )
+    resolver = StaticImportResolver(
+        {
+            "app.main": app_module,
+            "lib.math": helper_module,
+        }
+    )
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze_modules(app_module, resolver)
+
+    formatted = str(exc_info.value)
+
+    assert "lib.math:7:3" in formatted
+    assert "IRX-S001" in formatted
+    assert "cannot resolve name 'missing_value'" in formatted
 
 
 def test_analyze_rejects_const_write() -> None:
@@ -223,7 +410,10 @@ def test_analyze_rejects_call_arity_mismatch() -> None:
     main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.append(astx.FunctionDef(prototype=main_proto, body=main_body))
 
-    with pytest.raises(SemanticError, match="Incorrect # arguments passed"):
+    with pytest.raises(
+        SemanticError,
+        match="call to 'add' expects 2 arguments but got 1",
+    ):
         analyze(module)
 
 

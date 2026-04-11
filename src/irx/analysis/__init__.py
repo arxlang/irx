@@ -17,7 +17,6 @@ from irx.analysis.contract import (
     SemanticPhase,
     get_semantic_contract,
 )
-from irx.analysis.diagnostics import Diagnostic, DiagnosticBag, SemanticError
 from irx.analysis.module_interfaces import (
     ImportResolver,
     ModuleKey,
@@ -41,6 +40,7 @@ from irx.analysis.resolved_nodes import (
     SemanticSymbol,
 )
 from irx.analysis.session import CompilationSession
+from irx.diagnostics import Diagnostic, DiagnosticBag, SemanticError
 
 __all__ = [
     "CompilationSession",

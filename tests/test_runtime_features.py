@@ -4,8 +4,11 @@ title: Tests for the runtime feature registry and activation state.
 
 from __future__ import annotations
 
+import subprocess
+
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -17,9 +20,18 @@ from irx.builder.runtime.features import (
     RuntimeFeature,
     declare_external_function,
 )
+from irx.builder.runtime.linking import (
+    compile_native_artifacts,
+    link_executable,
+)
 from irx.builder.runtime.registry import (
     RuntimeFeatureRegistry,
     RuntimeFeatureState,
+)
+from irx.diagnostics import (
+    LinkingError,
+    NativeCompileError,
+    RuntimeFeatureError,
 )
 from irx.system import PrintExpr
 from llvmlite import ir
@@ -237,3 +249,145 @@ def test_feature_backed_extern_collects_linker_flags() -> None:
     )
     assert builder.translator.runtime_features.linker_flags() == ("-lm",)
     assert builder.translator.runtime_features.native_artifacts() == ()
+
+
+def test_runtime_feature_state_reports_unknown_feature_structurally() -> None:
+    """
+    title: Unknown runtime features should raise structured runtime errors.
+    """
+    state = RuntimeFeatureState(Visitor(), RuntimeFeatureRegistry())
+
+    with pytest.raises(RuntimeFeatureError) as exc_info:
+        state.activate("missing")
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-R001" in formatted
+    assert "runtime feature 'missing' is not registered" in formatted
+
+
+def test_runtime_feature_state_reports_missing_symbol_structurally() -> None:
+    """
+    title: Missing runtime symbols should raise structured runtime errors.
+    """
+    registry = RuntimeFeatureRegistry()
+    registry.register(RuntimeFeature(name="dummy"))
+    state = RuntimeFeatureState(Visitor(), registry)
+
+    with pytest.raises(RuntimeFeatureError) as exc_info:
+        state.require_symbol("dummy", "dummy_symbol")
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-R002" in formatted
+    assert (
+        "runtime feature 'dummy' does not declare symbol 'dummy_symbol'"
+        in formatted
+    )
+
+
+def test_compile_native_artifact_failure_surfaces_compile_phase_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    title: Native compile failures should preserve command and phase context.
+    parameters:
+      monkeypatch:
+        type: pytest.MonkeyPatch
+      tmp_path:
+        type: Path
+    """
+    artifact = NativeArtifact("c_source", tmp_path / "runtime.c")
+
+    def _fail_compile(
+        *args: object, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """
+        title: Return a failing compiler result.
+        parameters:
+          args:
+            type: object
+            variadic: positional
+          kwargs:
+            type: object
+            variadic: keyword
+        returns:
+          type: subprocess.CompletedProcess[str]
+        """
+        command = list(cast(Sequence[str], args[0])) if args else []
+        _ = kwargs
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="fatal error: buffer_runtime.h not found",
+        )
+
+    monkeypatch.setattr(
+        "irx.builder.runtime.linking.subprocess.run", _fail_compile
+    )
+
+    with pytest.raises(NativeCompileError) as exc_info:
+        compile_native_artifacts([artifact], tmp_path)
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-C001" in formatted
+    assert "native-compile" in formatted
+    assert str(artifact.path) in formatted
+    assert "command:" in formatted
+    assert "stderr: fatal error: buffer_runtime.h not found" in formatted
+
+
+def test_link_failure_surfaces_link_phase_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    title: Link failures should preserve command and output context.
+    parameters:
+      monkeypatch:
+        type: pytest.MonkeyPatch
+      tmp_path:
+        type: Path
+    """
+    primary_object = tmp_path / "main.o"
+
+    def _fail_link(
+        *args: object, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """
+        title: Return a failing linker result.
+        parameters:
+          args:
+            type: object
+            variadic: positional
+          kwargs:
+            type: object
+            variadic: keyword
+        returns:
+          type: subprocess.CompletedProcess[str]
+        """
+        command = list(cast(Sequence[str], args[0])) if args else []
+        _ = kwargs
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="undefined reference to `sqrt'",
+        )
+
+    monkeypatch.setattr(
+        "irx.builder.runtime.linking.subprocess.run", _fail_link
+    )
+
+    with pytest.raises(LinkingError) as exc_info:
+        link_executable(primary_object, tmp_path / "demo", ())
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-K001" in formatted
+    assert "link failed while producing 'demo'" in formatted
+    assert "command:" in formatted
+    assert "stderr: undefined reference to `sqrt'" in formatted

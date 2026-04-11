@@ -20,6 +20,7 @@ from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import ResolvedFieldAccess, SemanticInfo
 from irx.analysis.types import (
     bit_width,
+    display_type_name,
     is_boolean_type,
     is_float_type,
     is_integer_type,
@@ -48,6 +49,7 @@ from irx.buffer import (
     buffer_view_ownership,
     validate_buffer_view_metadata,
 )
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 RAW_BUFFER_BYTE_BITS = 8
@@ -186,6 +188,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view indexing requires a BufferViewType base",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         metadata = self._static_buffer_view_metadata(base)
@@ -193,11 +196,13 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view indexing requires static descriptor metadata",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         elif len(indices) != metadata.ndim:
             self.context.diagnostics.add(
                 "buffer view indexing index count must match descriptor ndim",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         elif len(metadata.shape) == metadata.ndim:
             for axis, index in enumerate(indices):
@@ -210,6 +215,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                         "buffer view index "
                         f"{axis} statically out of bounds for extent {extent}",
                         node=index,
+                        code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                     )
 
         if (
@@ -220,6 +226,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "cannot write through a readonly buffer view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         for index in indices:
@@ -228,6 +235,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 self.context.diagnostics.add(
                     "buffer view indices must be integer typed",
                     node=index,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                 )
                 continue
             if bit_width(index_type) > bit_width(astx.Int64()):
@@ -235,6 +243,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     "buffer view indices must fit 64-bit "
                     "descriptor stride arithmetic",
                     node=index,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                 )
 
         element_type = self._static_buffer_view_element_type(base)
@@ -242,6 +251,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view indexing requires a known element type",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
             return None
         if not (
@@ -252,6 +262,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view indexing requires a scalar element type",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
             return None
         self._semantic(node).extras[BUFFER_VIEW_ELEMENT_TYPE_EXTRA] = (
@@ -284,6 +295,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 f"buffer {operation} requires an owned or external-owner view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
     @SemanticAnalyzerCore.visit.dispatch
@@ -297,8 +309,9 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
             self.context.diagnostics.add(
-                f"Unknown variable name: {node.name}",
+                f"cannot resolve name '{node.name}'",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
             )
             self._set_type(
                 node, cast(astx.DataType | None, getattr(node, "type_", None))
@@ -319,14 +332,16 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         symbol = self.context.scopes.resolve(node.name)
         if symbol is None:
             self.context.diagnostics.add(
-                f"Identifier '{node.name}' not found in the named values.",
+                f"cannot assign to unresolved name '{node.name}'",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
             )
             return
         if not symbol.is_mutable:
             self.context.diagnostics.add(
                 f"Cannot assign to '{node.name}': declared as constant",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
             )
         if self._require_value_expression(
             node.value,
@@ -416,21 +431,24 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if node.op_code == "=":
             if not isinstance(node.lhs, (astx.Identifier, astx.FieldAccess)):
                 self.context.diagnostics.add(
-                    "destination of '=' must be a variable or field",
+                    "assignment target must be a variable or field",
                     node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
                 )
                 return
             symbol = self._root_assignment_symbol(node.lhs)
             if symbol is None:
                 self.context.diagnostics.add(
-                    "destination of '=' must be a variable or field",
+                    "assignment target must be a variable or field",
                     node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
                 )
                 return
             if not symbol.is_mutable:
                 self.context.diagnostics.add(
                     f"Cannot assign to '{symbol.name}': declared as constant",
                     node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
                 )
             target_name = (
                 node.lhs.name
@@ -548,14 +566,16 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         binding = self.bindings.resolve(node.fn)
         if binding is None:
             self.context.diagnostics.add(
-                "Unknown function referenced",
+                f"cannot resolve function '{node.fn}'",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
             )
             return
         if binding.kind != "function" or binding.function is None:
             self.context.diagnostics.add(
-                f"Name '{node.fn}' does not resolve to a function",
+                f"name '{node.fn}' does not resolve to a function",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
             )
             return
         function = binding.function
@@ -593,8 +613,10 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if struct is None:
             if not isinstance(base_type, astx.StructType):
                 self.context.diagnostics.add(
-                    "field access requires a struct value",
+                    "field access requires a struct value, got "
+                    f"{display_type_name(base_type)}",
                     node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
                 )
             self._set_type(node, None)
             return
@@ -604,6 +626,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 f"struct '{struct.name}' has no field '{node.field_name}'",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
             )
             self._set_type(node, None)
             return
@@ -661,8 +684,10 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             or is_boolean_type(message_type)
         ):
             self.context.diagnostics.add(
-                f"Unsupported message type in PrintExpr: {message_type}",
+                "unsupported PrintExpr message type "
+                f"{display_type_name(message_type)}",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
         self._set_type(node, astx.Int32())
 
@@ -761,6 +786,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view write byte_offset must be non-negative",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         self.visit(node.view)
@@ -769,6 +795,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view write requires a BufferViewType view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         view_metadata = self._static_buffer_view_metadata(node.view)
@@ -778,6 +805,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "cannot write through a readonly buffer view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         self.visit(node.value)
@@ -789,6 +817,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer view raw writes require an 8-bit integer value",
                 node=node.value,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int32())
 
@@ -805,6 +834,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer retain requires a BufferViewType view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._validate_buffer_lifetime_operation(
             node=node,
@@ -826,6 +856,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "buffer release requires a BufferViewType view",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._validate_buffer_lifetime_operation(
             node=node,

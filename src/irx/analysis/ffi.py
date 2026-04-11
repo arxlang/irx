@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import importlib
 
-from functools import lru_cache
 from typing import Iterable, cast
 
 from irx import astx
 from irx.analysis.context import SemanticContext
-from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import (
     FFIAdmissibility,
     FFICallableInfo,
@@ -25,16 +23,17 @@ from irx.analysis.resolved_nodes import (
     SemanticStruct,
 )
 from irx.analysis.types import (
+    display_type_name,
     is_boolean_type,
     is_float_type,
     is_integer_type,
     is_none_type,
     is_string_type,
 )
+from irx.diagnostics import DiagnosticBag, DiagnosticCodes
 from irx.typecheck import typechecked
 
 
-@lru_cache(maxsize=1)
 @typechecked
 def _runtime_feature_names() -> tuple[str, ...]:
     """
@@ -74,6 +73,7 @@ def normalize_runtime_features(
             f"Extern function '{prototype.name}' may use either "
             "'runtime_feature' or 'runtime_features', not both",
             node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
         )
         return ()
 
@@ -91,6 +91,7 @@ def normalize_runtime_features(
                 f"Extern function '{prototype.name}' has an invalid "
                 "runtime_features value",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
             return ()
 
@@ -103,6 +104,7 @@ def normalize_runtime_features(
                 f"Extern function '{prototype.name}' has an invalid runtime "
                 "feature name",
                 node=prototype,
+                code=DiagnosticCodes.RUNTIME_FEATURE_UNKNOWN,
             )
             continue
         if value in seen:
@@ -114,6 +116,15 @@ def normalize_runtime_features(
                 f"Extern function '{prototype.name}' requires unknown runtime "
                 f"feature '{value}'",
                 node=prototype,
+                code=DiagnosticCodes.RUNTIME_FEATURE_UNKNOWN,
+                notes=(
+                    (
+                        "known runtime features: "
+                        f"{', '.join(sorted(known_features))}"
+                    ),
+                )
+                if known_features
+                else (),
             )
 
     return tuple(normalized)
@@ -129,15 +140,7 @@ def _display_type_name(type_: astx.DataType) -> str:
     returns:
       type: str
     """
-    if isinstance(type_, astx.StructType):
-        return type_.qualified_name or type_.name
-    if isinstance(type_, astx.PointerType):
-        if type_.pointee_type is None:
-            return "PointerType"
-        return f"PointerType[{_display_type_name(type_.pointee_type)}]"
-    if isinstance(type_, astx.OpaqueHandleType):
-        return type_.handle_name
-    return cast(str, type_.__class__.__name__)
+    return display_type_name(type_)
 
 
 @typechecked
@@ -239,8 +242,10 @@ def _classify_ffi_type(
         if allow_void:
             return FFITypeInfo(FFITypeClass.VOID, _display_type_name(type_))
         context.diagnostics.add(
-            f"Extern function '{prototype.name}' {position} cannot use void",
+            f"extern '{prototype.name}' is not FFI-safe: {position} cannot "
+            "use NoneType",
             node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
         )
         return None
 
@@ -271,9 +276,11 @@ def _classify_ffi_type(
             )
         if is_none_type(type_.pointee_type):
             context.diagnostics.add(
-                f"Extern function '{prototype.name}' {position} uses a "
-                "pointer to void; use PointerType() for an opaque pointer",
+                f"extern '{prototype.name}' is not FFI-safe: {position} uses "
+                "PointerType[NoneType]; use PointerType() for an opaque "
+                "pointer",
                 node=prototype,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
             return None
         pointee_info = _classify_ffi_type(
@@ -309,9 +316,10 @@ def _classify_ffi_type(
         )
 
     context.diagnostics.add(
-        f"Extern function '{prototype.name}' {position} uses unsupported "
-        f"FFI type '{_display_type_name(type_)}'",
+        f"extern '{prototype.name}' is not FFI-safe: {position} uses "
+        f"unsupported FFI type '{_display_type_name(type_)}'",
         node=prototype,
+        code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
     )
     return None
 
@@ -347,9 +355,10 @@ def _classify_ffi_struct(
     struct = _resolve_struct(context, struct_type)
     if struct is None:
         context.diagnostics.add(
-            f"Extern function '{prototype.name}' {position} uses unresolved "
-            f"struct type '{struct_type.name}'",
+            f"extern '{prototype.name}' is not FFI-safe: {position} uses "
+            f"unresolved struct type '{struct_type.name}'",
             node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
         )
         return None
 
@@ -367,9 +376,7 @@ def _classify_ffi_struct(
             context,
             type_=field.type_,
             prototype=prototype,
-            position=(
-                f"{position} uses struct '{struct.name}', field '{field.name}'"
-            ),
+            position=f"{position} field '{field.name}'",
             allow_void=False,
             struct_stack=next_stack,
             referenced_via_pointer=False,

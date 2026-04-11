@@ -14,6 +14,11 @@ from irx.builder.runtime.buffer.feature import build_buffer_runtime_feature
 from irx.builder.runtime.feature_libc import build_libc_runtime_feature
 from irx.builder.runtime.feature_libm import build_libm_runtime_feature
 from irx.builder.runtime.features import NativeArtifact, RuntimeFeature
+from irx.diagnostics import (
+    Diagnostic,
+    DiagnosticCodes,
+    RuntimeFeatureError,
+)
 from irx.typecheck import typechecked
 
 if TYPE_CHECKING:
@@ -60,7 +65,20 @@ class RuntimeFeatureRegistry:
         try:
             return self._features[name]
         except KeyError as exc:
-            raise KeyError(f"Unknown runtime feature '{name}'") from exc
+            available = self.names()
+            raise RuntimeFeatureError(
+                Diagnostic(
+                    message=f"runtime feature '{name}' is not registered",
+                    code=DiagnosticCodes.RUNTIME_FEATURE_UNKNOWN,
+                    phase="runtime",
+                    notes=(
+                        f"available runtime features: {', '.join(available)}",
+                    )
+                    if available
+                    else (),
+                    cause=KeyError(name),
+                )
+            ) from exc
 
     def names(self) -> tuple[str, ...]:
         """
@@ -200,9 +218,22 @@ class RuntimeFeatureState:
         try:
             symbol_spec = feature.symbols[symbol_name]
         except KeyError as exc:
-            raise KeyError(
-                f"Runtime feature '{feature_name}' does not declare "
-                f"symbol '{symbol_name}'"
+            raise RuntimeFeatureError(
+                Diagnostic(
+                    message=(
+                        f"runtime feature '{feature_name}' does not declare "
+                        f"symbol '{symbol_name}'"
+                    ),
+                    code=DiagnosticCodes.RUNTIME_FEATURE_SYMBOL_MISSING,
+                    phase="runtime",
+                    notes=(
+                        "declared symbols: "
+                        f"{', '.join(sorted(feature.symbols))}",
+                    )
+                    if feature.symbols
+                    else (),
+                    cause=KeyError(symbol_name),
+                )
             ) from exc
 
         declared = symbol_spec.declare(self._owner)
