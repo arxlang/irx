@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import date, datetime, time
 
 from irx import astx
-from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import (
     CallableResolution,
     CallResolution,
@@ -29,7 +28,7 @@ from irx.analysis.types import (
     is_none_type,
     same_type,
 )
-from irx.diagnostics import DiagnosticCodes
+from irx.diagnostics import DiagnosticBag, DiagnosticCodes
 from irx.typecheck import typechecked
 
 TIME_PARTS_HOUR_MINUTE = 2

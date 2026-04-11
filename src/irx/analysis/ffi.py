@@ -13,7 +13,6 @@ from typing import Iterable, cast
 
 from irx import astx
 from irx.analysis.context import SemanticContext
-from irx.analysis.diagnostics import DiagnosticBag
 from irx.analysis.resolved_nodes import (
     FFIAdmissibility,
     FFICallableInfo,
@@ -31,7 +30,7 @@ from irx.analysis.types import (
     is_none_type,
     is_string_type,
 )
-from irx.diagnostics import DiagnosticCodes
+from irx.diagnostics import DiagnosticBag, DiagnosticCodes
 from irx.typecheck import typechecked
 
 
