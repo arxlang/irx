@@ -182,22 +182,49 @@ class FunctionVisitorMixin(VisitorMixinBase):
             function.prototype,
             function.name,
         )
-        global_value = self._llvm.module.globals.get(llvm_name)
-        if global_value is not None:
-            if not isinstance(global_value, ir.Function):
-                raise Exception(
-                    f"codegen: Global '{llvm_name}' is not a function."
+        fn: ir.Function | None = None
+        declared_feature_name: str | None = None
+        for feature_name in signature.required_runtime_features:
+            if self.runtime_features.feature_declares_symbol(
+                feature_name,
+                signature.symbol_name,
+            ):
+                fn = self.require_runtime_symbol(
+                    feature_name,
+                    signature.symbol_name,
                 )
-            if global_value.function_type != fn_type:
-                raise Exception(
-                    f"codegen: Function '{llvm_name}' already exists with a "
-                    "different signature."
-                )
-            fn = global_value
-        else:
-            fn = ir.Function(self._llvm.module, fn_type, llvm_name)
-            if signature.is_extern or function.definition is None:
-                fn.linkage = "external"
+                declared_feature_name = feature_name
+                if fn.function_type != fn_type:
+                    raise Exception(
+                        "codegen: Runtime feature "
+                        f"'{feature_name}' declares symbol "
+                        f"'{signature.symbol_name}' with a different "
+                        "signature."
+                    )
+                break
+
+        for feature_name in signature.required_runtime_features:
+            if feature_name == declared_feature_name:
+                continue
+            self.activate_runtime_feature(feature_name)
+
+        if fn is None:
+            global_value = self._llvm.module.globals.get(llvm_name)
+            if global_value is not None:
+                if not isinstance(global_value, ir.Function):
+                    raise Exception(
+                        f"codegen: Global '{llvm_name}' is not a function."
+                    )
+                if global_value.function_type != fn_type:
+                    raise Exception(
+                        f"codegen: Function '{llvm_name}' already exists "
+                        "with a different signature."
+                    )
+                fn = global_value
+            else:
+                fn = ir.Function(self._llvm.module, fn_type, llvm_name)
+                if signature.is_extern or function.definition is None:
+                    fn.linkage = "external"
 
         for idx, llvm_arg in enumerate(fn.args):
             llvm_arg.name = function.args[idx].name

@@ -124,8 +124,9 @@ _SEMANTIC_CONTRACT = SemanticContract(
             guarantees=(
                 "Register top-level functions and structs for every reachable "
                 "module before body validation.",
-                "Normalize callable signatures, calling conventions, and "
-                "declaration compatibility before lowering.",
+                "Normalize callable signatures, calling conventions, public "
+                "FFI/runtime-feature metadata, and declaration "
+                "compatibility before lowering.",
                 "Establish module-aware semantic identities that later "
                 "imports and lowering reuse.",
             ),
@@ -151,6 +152,8 @@ _SEMANTIC_CONTRACT = SemanticContract(
                 "Normalize resolved symbols, functions, structs, modules, "
                 "operators, callable metadata, call results, return "
                 "semantics, assignment targets, and semantic flags.",
+                "Validate explicit extern declarations against the narrow "
+                "public FFI admissibility contract before lowering.",
                 "Validate explicit low-level buffer/view ownership, "
                 "mutability, and static shape/stride descriptor metadata.",
                 "Raise SemanticError instead of entering lowering when "
@@ -198,8 +201,12 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "Wildcard imports and import expressions are rejected semantically "
         "and are not part of the lowering contract.",
         "FunctionPrototype metadata is intentionally narrow; when present, "
-        "IRx consumes is_extern, calling_convention, is_variadic, and "
-        "symbol_name during semantic predeclaration.",
+        "IRx consumes is_extern, calling_convention, is_variadic, "
+        "symbol_name, runtime_feature, and runtime_features during "
+        "semantic signature normalization.",
+        "Public FFI declarations may use PointerType, OpaqueHandleType, "
+        "ABI-safe structs, and the stable buffer/view descriptor subset "
+        "documented in the semantic contract.",
         "Low-level buffer/view descriptors are accepted as an IRx substrate "
         "for Arx lowering, not as a user-facing scientific array API.",
     ),

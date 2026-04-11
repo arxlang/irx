@@ -35,8 +35,8 @@ via `clang`.
 - **Built-ins:** `putchar`, `putchard` (emitted as IR); `puts` declaration when
   needed.
 - **Optional native runtimes:** `libc` externs are routed through the runtime
-  feature layer, and Arrow is now available as an optional native runtime
-  feature.
+  feature layer, feature-backed externs can request `libm`, and Arrow is now
+  available as an optional native runtime feature.
 
 ## Quick Start
 
@@ -143,12 +143,20 @@ print(result.stdout)             # "Hello, IRx!"
 IRx now has a generic runtime-feature system for native integrations that do not
 belong as handwritten LLVM container logic.
 
-- Features are registered by name, such as `libc` and `arrow`.
+- Features are registered by name, such as `libc`, `libm`, and `arrow`.
 - Features can declare external symbols, native C sources, objects, or static
   libraries.
 - The linker only compiles and links artifacts for features that are active in
   the current compilation unit.
 - This is intentionally separate from any future Arx import/module layer.
+
+Public extern declarations integrate with the same layer:
+
+- plain externs emit an LLVM declaration and rely on the system linker
+- externs with `runtime_feature` / `runtime_features` activate the named runtime
+  features for that compilation unit
+- known feature-owned symbols are declared through the runtime registry instead
+  of a separate ad hoc native path
 
 Arrow uses this path as its first substantial consumer:
 
@@ -200,7 +208,61 @@ reconstructing function meaning during lowering:
 
 The current ASTx surface remains intentionally small. When present, IRx reads
 the following `FunctionPrototype` attributes during semantic predeclaration:
-`is_extern`, `calling_convention`, `is_variadic`, and `symbol_name`.
+`is_extern`, `calling_convention`, `is_variadic`, `symbol_name`,
+`runtime_feature`, and `runtime_features`.
+
+## Public FFI Layer
+
+IRx now exposes one explicit public FFI contract that Arx can target for native
+scientific libraries:
+
+- explicit extern declarations are the public entrypoint
+- `PointerType` and `OpaqueHandleType` provide stable public pointer/handle
+  types
+- ABI-safe structs are validated semantically before lowering
+- symbol-name overrides and runtime-feature dependencies are part of the
+  canonical semantic signature
+- plain externs and feature-backed externs share one lowering path and one
+  link/runtime story
+
+Minimal examples:
+
+```python
+puts = astx.FunctionPrototype(
+    "puts",
+    args=astx.Arguments(astx.Argument("message", astx.UTF8String())),
+    return_type=astx.Int32(),
+)
+puts.is_extern = True
+puts.calling_convention = "c"
+puts.symbol_name = "puts"
+```
+
+```python
+sqrt = astx.FunctionPrototype(
+    "sqrt",
+    args=astx.Arguments(astx.Argument("value", astx.Float64())),
+    return_type=astx.Float64(),
+)
+sqrt.is_extern = True
+sqrt.calling_convention = "c"
+sqrt.symbol_name = "sqrt"
+sqrt.runtime_feature = "libm"
+```
+
+```python
+open_handle = astx.FunctionPrototype(
+    "open_handle",
+    args=astx.Arguments(),
+    return_type=astx.OpaqueHandleType("demo_handle"),
+)
+open_handle.is_extern = True
+open_handle.calling_convention = "c"
+open_handle.symbol_name = "open_handle"
+```
+
+See `docs/semantic-contract.md` for the exact admissible FFI type subset and
+symbol-resolution rules.
 
 ## Testing
 

@@ -12,6 +12,7 @@ from llvmlite import ir
 from irx.builder.runtime.arrow.feature import build_arrow_runtime_feature
 from irx.builder.runtime.buffer.feature import build_buffer_runtime_feature
 from irx.builder.runtime.feature_libc import build_libc_runtime_feature
+from irx.builder.runtime.feature_libm import build_libm_runtime_feature
 from irx.builder.runtime.features import NativeArtifact, RuntimeFeature
 from irx.typecheck import typechecked
 
@@ -157,6 +158,23 @@ class RuntimeFeatureState:
         """
         return self._registry.get(feature_name)
 
+    def feature_declares_symbol(
+        self,
+        feature_name: str,
+        symbol_name: str,
+    ) -> bool:
+        """
+        title: Return whether one feature declares one symbol.
+        parameters:
+          feature_name:
+            type: str
+          symbol_name:
+            type: str
+        returns:
+          type: bool
+        """
+        return symbol_name in self.feature(feature_name).symbols
+
     def require_symbol(
         self,
         feature_name: str,
@@ -241,6 +259,7 @@ def get_default_runtime_feature_registry() -> RuntimeFeatureRegistry:
     """
     registry = RuntimeFeatureRegistry()
     registry.register(build_libc_runtime_feature())
+    registry.register(build_libm_runtime_feature())
     registry.register(build_buffer_runtime_feature())
     registry.register(build_arrow_runtime_feature())
     return registry

@@ -944,13 +944,17 @@ class SemanticAnalyzerCore(BaseVisitor):
         """
         for node in module.nodes:
             if isinstance(node, astx.FunctionPrototype):
-                function = self.registry.register_function(node)
+                function = self.registry.register_function(
+                    node,
+                    validate_ffi=False,
+                )
                 self.bindings.bind_function(node.name, function, node=node)
                 self._set_function(node, function)
             elif isinstance(node, astx.FunctionDef):
                 function = self.registry.register_function(
                     node.prototype,
                     definition=node,
+                    validate_ffi=False,
                 )
                 self.bindings.bind_function(
                     node.prototype.name,

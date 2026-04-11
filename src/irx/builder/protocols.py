@@ -15,6 +15,9 @@ from irx.base.visitors.protocols import BaseVisitorProtocol
 from irx.builder.state import NamedValueMap, ResultStackValue
 from irx.builder.types import VariablesLLVM
 
+if TYPE_CHECKING:
+    from irx.builder.runtime.registry import RuntimeFeatureState
+
 
 class VisitorProtocol(BaseVisitorProtocol, Protocol):
     """
@@ -40,6 +43,8 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: dict[str, ir.Type]
       llvm_structs_by_qualified_name:
         type: dict[str, ir.IdentifiedStructType]
+      runtime_features:
+        type: RuntimeFeatureState
       entry_function_symbol_id:
         type: str | None
       _fast_math_enabled:
@@ -64,6 +69,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     loop_stack: list[dict[str, Any]]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
+    runtime_features: RuntimeFeatureState
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
@@ -137,6 +143,15 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
             type: str
         returns:
           type: ir.Function
+        """
+        ...
+
+    def activate_runtime_feature(self, _feature_name: str) -> None:
+        """
+        title: Activate runtime feature.
+        parameters:
+          _feature_name:
+            type: str
         """
         ...
 
@@ -418,6 +433,8 @@ if TYPE_CHECKING:
             type: dict[str, ir.Type]
           llvm_structs_by_qualified_name:
             type: dict[str, ir.IdentifiedStructType]
+          runtime_features:
+            type: RuntimeFeatureState
           entry_function_symbol_id:
             type: str | None
           _fast_math_enabled:
@@ -442,6 +459,7 @@ if TYPE_CHECKING:
         loop_stack: list[dict[str, Any]]
         struct_types: dict[str, ir.Type]
         llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
+        runtime_features: RuntimeFeatureState
         entry_function_symbol_id: str | None
         _fast_math_enabled: bool
         _current_function_return_type: astx.DataType | None
@@ -535,6 +553,15 @@ if TYPE_CHECKING:
               type: ir.Function
             """
             return cast(ir.Function, None)
+
+        def activate_runtime_feature(self, _feature_name: str) -> None:
+            """
+            title: Activate runtime feature.
+            parameters:
+              _feature_name:
+                type: str
+            """
+            return None
 
         def set_fast_math(self, _enabled: bool) -> None:
             """

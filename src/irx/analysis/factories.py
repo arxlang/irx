@@ -19,6 +19,7 @@ from irx.analysis.module_symbols import (
 from irx.analysis.resolved_nodes import (
     CallableResolution,
     CallingConvention,
+    FFICallableInfo,
     FunctionSignature,
     ParameterPassingKind,
     ParameterSpec,
@@ -146,6 +147,8 @@ class SemanticEntityFactory:
         is_variadic: bool,
         is_extern: bool,
         symbol_name: str,
+        required_runtime_features: tuple[str, ...] = (),
+        ffi: FFICallableInfo | None = None,
     ) -> FunctionSignature:
         """
         title: Create one canonical semantic function signature.
@@ -160,6 +163,10 @@ class SemanticEntityFactory:
             type: bool
           symbol_name:
             type: str
+          required_runtime_features:
+            type: tuple[str, Ellipsis]
+          ffi:
+            type: FFICallableInfo | None
         returns:
           type: FunctionSignature
         """
@@ -174,6 +181,8 @@ class SemanticEntityFactory:
             is_variadic=is_variadic,
             is_extern=is_extern,
             symbol_name=symbol_name,
+            required_runtime_features=required_runtime_features,
+            ffi=ffi,
         )
 
     def make_function(

@@ -14,15 +14,22 @@ import astx
 
 from astx.types import AnyType
 
+from irx.astx.ffi import OpaqueHandleType
 from irx.buffer import BufferViewMetadata
 from irx.typecheck import typechecked
 
 
 @typechecked
-class BufferOwnerType(AnyType):
+class BufferOwnerType(OpaqueHandleType):
     """
     title: Internal opaque buffer owner handle type.
     """
+
+    def __init__(self) -> None:
+        """
+        title: Initialize the buffer owner handle type.
+        """
+        super().__init__("irx_buffer_owner_handle")
 
     def __str__(self) -> str:
         """
