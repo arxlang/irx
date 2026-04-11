@@ -20,6 +20,7 @@ from irx.analysis.resolved_nodes import (
 )
 from irx.analysis.types import (
     bit_width,
+    display_type_name,
     is_assignable,
     is_boolean_type,
     is_explicitly_castable,
@@ -28,6 +29,7 @@ from irx.analysis.types import (
     is_none_type,
     same_type,
 )
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 TIME_PARTS_HOUR_MINUTE = 2
@@ -37,6 +39,32 @@ MAX_MINUTE_SECOND = 59
 INT32_MIN = -(2**31)
 INT32_MAX = 2**31 - 1
 DEFAULT_C_INTEGER_PROMOTION_WIDTH = 32
+
+
+@typechecked
+def _implicit_conversion_note(
+    source_type: astx.DataType | None,
+    target_type: astx.DataType | None,
+) -> tuple[str, ...]:
+    """
+    title: Describe one rejected implicit conversion when relevant.
+    parameters:
+      source_type:
+        type: astx.DataType | None
+      target_type:
+        type: astx.DataType | None
+    returns:
+      type: tuple[str, Ellipsis]
+    """
+    if source_type is None or target_type is None:
+        return ()
+    if same_type(source_type, target_type):
+        return ()
+    return (
+        "no implicit conversion is defined from "
+        f"{display_type_name(source_type)} to "
+        f"{display_type_name(target_type)} in this context",
+    )
 
 
 @typechecked
@@ -144,8 +172,12 @@ def validate_assignment(
     """
     if not is_assignable(target_type, value_type):
         diagnostics.add(
-            f"Cannot assign value of type '{value_type}' to '{target_name}'",
+            "cannot assign "
+            f"{display_type_name(value_type)} to '{target_name}' of type "
+            f"{display_type_name(target_type)}",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            notes=_implicit_conversion_note(value_type, target_type),
         )
 
 
@@ -177,17 +209,17 @@ def validate_call(
     if signature.is_variadic:
         if arg_count < fixed_param_count:
             diagnostics.add(
-                "Incorrect # arguments passed to "
-                f"'{function.name}': expected at least "
-                f"{fixed_param_count}, got {arg_count}",
+                f"call to '{function.name}' expects at least "
+                f"{fixed_param_count} arguments but got {arg_count}",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_CALL_ARITY,
             )
     elif fixed_param_count != arg_count:
         diagnostics.add(
-            "Incorrect # arguments passed to "
-            f"'{function.name}': expected {fixed_param_count}, "
-            f"got {arg_count}",
+            f"call to '{function.name}' expects {fixed_param_count} "
+            f"arguments but got {arg_count}",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_CALL_ARITY,
         )
 
     resolved_argument_types: list[astx.DataType | None] = []
@@ -198,8 +230,12 @@ def validate_call(
     ):
         if not is_assignable(param.type_, arg_type):
             diagnostics.add(
-                f"Argument {idx} for '{function.name}' has incompatible type",
+                f"argument {idx + 1} of call to '{function.name}' expects "
+                f"{display_type_name(param.type_)} but got "
+                f"{display_type_name(arg_type)}",
                 node=node.args[idx],
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                notes=_implicit_conversion_note(arg_type, param.type_),
             )
             resolved_argument_types.append(arg_type)
             implicit_conversions.append(None)
@@ -228,9 +264,10 @@ def validate_call(
             continue
         if signature.is_variadic:
             diagnostics.add(
-                f"Variadic argument {idx} for '{function.name}' uses an "
-                "unsupported type",
+                f"variadic argument {idx + 1} of call to '{function.name}' "
+                f"uses unsupported type {display_type_name(arg_type)}",
                 node=node.args[idx],
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
         resolved_argument_types.append(arg_type)
         implicit_conversions.append(None)
@@ -280,8 +317,10 @@ def resolve_return(
                 returns_void=True,
             )
         diagnostics.add(
-            f"Void function '{function.name}' cannot return a value",
+            f"void function '{function.name}' cannot return a value of type "
+            f"{display_type_name(value_type)}",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
         )
         return ReturnResolution(
             callable=callable_resolution,
@@ -292,8 +331,10 @@ def resolve_return(
 
     if _is_void_return_sentinel(value):
         diagnostics.add(
-            f"Function '{function.name}' must return a value",
+            f"function '{function.name}' must return "
+            f"{display_type_name(expected_type)}",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
         )
         return ReturnResolution(
             callable=callable_resolution,
@@ -304,8 +345,10 @@ def resolve_return(
 
     if _is_void_call_value(value):
         diagnostics.add(
-            "Return statement cannot use the result of void call as a value",
+            f"return in '{function.name}' cannot use the result of a void "
+            "call as a value",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
         )
         return ReturnResolution(
             callable=callable_resolution,
@@ -316,9 +359,12 @@ def resolve_return(
 
     if not is_assignable(expected_type, value_type):
         diagnostics.add(
-            f"Function '{function.name}' returns '{value_type}', expected "
-            f"'{expected_type}'",
+            f"return in '{function.name}' expects "
+            f"{display_type_name(expected_type)} but got "
+            f"{display_type_name(value_type)}",
             node=node,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            notes=_implicit_conversion_note(value_type, expected_type),
         )
         return ReturnResolution(
             callable=callable_resolution,
@@ -364,8 +410,10 @@ def validate_cast(
     if is_explicitly_castable(source_type, target_type):
         return
     diagnostics.add(
-        f"Unsupported cast from {source_type} to {target_type}",
+        f"unsupported cast from {display_type_name(source_type)} to "
+        f"{display_type_name(target_type)}",
         node=node,
+        code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
     )
 
 

@@ -245,6 +245,35 @@ def test_analyze_rejects_struct_with_non_ffi_field_in_extern_signature() -> (
         analyze(module)
 
 
+def test_ffi_diagnostic_includes_extern_context_and_code() -> None:
+    """
+    title: FFI diagnostics should render stable code and field context.
+    """
+    bad_struct = astx.StructDefStmt(
+        name="BadRecord",
+        attributes=[
+            astx.VariableDeclaration(name="when", type_=astx.DateTime()),
+        ],
+    )
+    prototype = _extern_prototype(
+        "consume_bad",
+        astx.Argument("value", astx.StructType("BadRecord")),
+        return_type=astx.Int32(),
+    )
+    module = astx.Module()
+    module.block.append(bad_struct)
+    module.block.append(prototype)
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze(module)
+
+    formatted = str(exc_info.value)
+
+    assert "IRX-F001" in formatted
+    assert "extern 'consume_bad' is not FFI-safe" in formatted
+    assert "field 'when' uses unsupported FFI type 'DateTime'" in formatted
+
+
 def test_analyze_rejects_incompatible_symbol_alias_redeclarations() -> None:
     """
     title: Duplicate extern symbols should reject incompatible ABI meaning.

@@ -24,6 +24,7 @@ from irx.analysis.resolved_nodes import (
 )
 from irx.analysis.types import clone_type
 from irx.analysis.validation import validate_assignment
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 DIRECT_STRUCT_CYCLE_LENGTH = 2
@@ -120,6 +121,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 f"Struct '{struct.name}' must declare at least one field",
                 node=struct.declaration,
+                code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
 
         for index, attr in enumerate(struct.declaration.attributes):
@@ -127,6 +129,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 self.context.diagnostics.add(
                     f"Struct field '{attr.name}' already defined.",
                     node=attr,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
             seen.add(attr.name)
             self._resolve_declared_type(

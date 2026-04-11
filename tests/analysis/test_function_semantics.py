@@ -347,7 +347,10 @@ def test_analyze_rejects_too_many_call_arguments() -> None:
     module = _main_module(call, astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.insert(0, helper)
 
-    with pytest.raises(SemanticError, match="Incorrect # arguments passed"):
+    with pytest.raises(
+        SemanticError,
+        match="call to 'helper' expects 0 arguments but got 1",
+    ):
         analyze(module)
 
 
@@ -371,7 +374,7 @@ def test_analyze_rejects_implicit_call_narrowing() -> None:
 
     with pytest.raises(
         SemanticError,
-        match="Argument 0 for 'helper' has incompatible type",
+        match="argument 1 of call to 'helper' expects Int16 but got Int32",
     ):
         analyze(module)
 
@@ -396,7 +399,7 @@ def test_analyze_rejects_sign_changing_call_cast() -> None:
 
     with pytest.raises(
         SemanticError,
-        match="Argument 0 for 'helper' has incompatible type",
+        match="argument 1 of call to 'helper' expects UInt32 but got Int32",
     ):
         analyze(module)
 
@@ -493,7 +496,7 @@ def test_nonvoid_function_bare_return_is_rejected() -> None:
 
     with pytest.raises(
         SemanticError,
-        match="must return a value",
+        match="function 'helper' must return Int32",
     ):
         analyze(module)
 

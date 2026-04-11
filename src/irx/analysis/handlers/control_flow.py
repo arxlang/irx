@@ -14,8 +14,9 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.types import is_boolean_type
+from irx.analysis.types import display_type_name, is_boolean_type
 from irx.analysis.validation import resolve_return
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -41,8 +42,10 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
         if condition_type is None or is_boolean_type(condition_type):
             return
         self.context.diagnostics.add(
-            f"{label} condition must be Boolean",
+            f"{label} condition must be Boolean, got "
+            f"{display_type_name(condition_type)}",
             node=condition,
+            code=DiagnosticCodes.SEMANTIC_INVALID_CONDITION,
         )
 
     @SemanticAnalyzerCore.visit.dispatch
@@ -57,6 +60,7 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "Return statement outside function.",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
             )
             return
         if node.value is not None:
@@ -168,6 +172,7 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "Break statement outside loop.",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
             )
         self._set_type(node, None)
 
@@ -183,5 +188,6 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             self.context.diagnostics.add(
                 "Continue statement outside loop.",
                 node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
             )
         self._set_type(node, None)

@@ -16,13 +16,21 @@ from irx.analysis.resolved_nodes import (
     ReturnResolution,
     SemanticFunction,
 )
+from irx.analysis.types import display_type_name
 from irx.builder.core import (
     VisitorCore,
     semantic_symbol_key,
 )
+from irx.builder.diagnostics import (
+    raise_lowering_error,
+    raise_lowering_internal_error,
+    require_lowered_value,
+    require_semantic_metadata,
+)
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
 from irx.builder.types import is_int_type
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -46,9 +54,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
         """
         semantic = getattr(node, "semantic", None)
         function = getattr(semantic, "resolved_function", None)
-        if function is None:
-            raise Exception(f"codegen: Missing semantic function for {label}.")
-        return cast(SemanticFunction, function)
+        return require_semantic_metadata(
+            cast(SemanticFunction | None, function),
+            node=node,
+            metadata="resolved_function",
+            context=label,
+        )
 
     def _semantic_signature(
         self,
@@ -82,9 +93,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
         """
         semantic = getattr(node, "semantic", None)
         resolution = getattr(semantic, "resolved_call", None)
-        if resolution is None:
-            raise Exception("codegen: Missing semantic call resolution.")
-        return cast(CallResolution, resolution)
+        return require_semantic_metadata(
+            cast(CallResolution | None, resolution),
+            node=node,
+            metadata="resolved_call",
+            context=f"call to '{node.fn}'",
+        )
 
     def _semantic_return_resolution(
         self,
@@ -100,9 +114,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
         """
         semantic = getattr(node, "semantic", None)
         resolution = getattr(semantic, "resolved_return", None)
-        if resolution is None:
-            raise Exception("codegen: Missing semantic return resolution.")
-        return cast(ReturnResolution, resolution)
+        return require_semantic_metadata(
+            cast(ReturnResolution | None, resolution),
+            node=node,
+            metadata="resolved_return",
+            context="return lowering",
+        )
 
     def _apply_calling_convention(
         self,
@@ -119,9 +136,10 @@ class FunctionVisitorMixin(VisitorMixinBase):
             CallingConvention.C,
         }:
             return
-        raise Exception(
-            "codegen: Unsupported semantic calling convention "
-            f"'{signature.calling_convention.value}'."
+        raise_lowering_internal_error(
+            "unsupported semantic calling convention "
+            f"'{signature.calling_convention.value}'",
+            node=None,
         )
 
     def _llvm_function_type_for_signature(
@@ -140,17 +158,21 @@ class FunctionVisitorMixin(VisitorMixinBase):
         for parameter in signature.parameters:
             llvm_type = self._llvm_type_for_ast_type(parameter.type_)
             if llvm_type is None:
-                raise Exception(
-                    "codegen: Unknown LLVM type for function argument "
-                    f"'{parameter.name}'."
+                raise_lowering_error(
+                    "cannot lower parameter "
+                    f"'{parameter.name}' of '{signature.name}' with type "
+                    f"{display_type_name(parameter.type_)}",
+                    code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
                 )
             args_type.append(llvm_type)
 
         return_type = self._llvm_type_for_ast_type(signature.return_type)
         if return_type is None:
-            raise Exception(
-                "codegen: Unknown LLVM return type for function "
-                f"'{signature.name}'."
+            raise_lowering_error(
+                "cannot lower return type "
+                f"{display_type_name(signature.return_type)} for "
+                f"'{signature.name}'",
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
             )
         self._apply_calling_convention(signature)
         return ir.FunctionType(
@@ -195,11 +217,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
                 )
                 declared_feature_name = feature_name
                 if fn.function_type != fn_type:
-                    raise Exception(
-                        "codegen: Runtime feature "
-                        f"'{feature_name}' declares symbol "
-                        f"'{signature.symbol_name}' with a different "
-                        "signature."
+                    raise_lowering_error(
+                        f"runtime feature '{feature_name}' declares symbol "
+                        f"'{signature.symbol_name}' with an incompatible "
+                        "LLVM signature",
+                        code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+                        node=function.prototype,
                     )
                 break
 
@@ -212,13 +235,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
             global_value = self._llvm.module.globals.get(llvm_name)
             if global_value is not None:
                 if not isinstance(global_value, ir.Function):
-                    raise Exception(
-                        f"codegen: Global '{llvm_name}' is not a function."
+                    raise_lowering_internal_error(
+                        f"global '{llvm_name}' is not a function",
+                        node=function.prototype,
                     )
                 if global_value.function_type != fn_type:
-                    raise Exception(
-                        f"codegen: Function '{llvm_name}' already exists "
-                        "with a different signature."
+                    raise_lowering_error(
+                        f"function '{llvm_name}' already exists with an "
+                        "incompatible LLVM signature",
+                        code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+                        node=function.prototype,
                     )
                 fn = global_value
             else:
@@ -251,9 +277,11 @@ class FunctionVisitorMixin(VisitorMixinBase):
         llvm_args: list[ir.Value] = []
         for index, arg in enumerate(node.args):
             self.visit_child(arg)
-            llvm_arg = safe_pop(self.result_stack)
-            if llvm_arg is None or not isinstance(llvm_arg, ir.Value):
-                raise Exception("codegen: Invalid callee argument.")
+            llvm_arg = require_lowered_value(
+                safe_pop(self.result_stack),
+                node=arg,
+                context=(f"argument {index + 1} of call to '{node.fn}'"),
+            )
             target_type = (
                 resolution.resolved_argument_types[index]
                 if index < len(resolution.resolved_argument_types)
@@ -319,9 +347,15 @@ class FunctionVisitorMixin(VisitorMixinBase):
                     signature.parameters[idx].type_
                 )
                 if arg_type is None:
-                    raise Exception(
-                        "codegen: Unknown LLVM type for function argument "
-                        f"'{arg_symbol.name}'."
+                    parameter_type_name = display_type_name(
+                        signature.parameters[idx].type_
+                    )
+                    raise_lowering_error(
+                        "cannot lower parameter "
+                        f"'{arg_symbol.name}' of '{function.name}' with "
+                        f"type {parameter_type_name}",
+                        code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+                        node=function.prototype.args.nodes[idx],
                     )
                 alloca = self._llvm.ir_builder.alloca(
                     arg_type,
@@ -340,9 +374,14 @@ class FunctionVisitorMixin(VisitorMixinBase):
                 if isinstance(return_type, ir.VoidType):
                     self._llvm.ir_builder.ret_void()
                 else:
-                    raise SyntaxError(
-                        f"Function '{function.name}' with return type "
-                        f"'{return_type}' is missing a return statement"
+                    raise_lowering_internal_error(
+                        f"function '{function.name}' reached lowering "
+                        "without a terminating return",
+                        node=node,
+                        notes=(
+                            "semantic analysis should reject reachable "
+                            "non-void fallthrough before lowering",
+                        ),
                     )
         finally:
             self._current_function_return_type = previous_return_type
@@ -381,12 +420,19 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
         if node.value is not None:
             self.visit_child(node.value)
-            retval = safe_pop(self.result_stack)
+            retval = require_lowered_value(
+                safe_pop(self.result_stack),
+                node=node.value,
+                context="return expression",
+            )
         else:
             retval = None
 
-        if retval is None or not isinstance(retval, ir.Value):
-            raise Exception("codegen: Invalid return value.")
+        if retval is None:
+            raise_lowering_internal_error(
+                "return expression did not lower to a value",
+                node=node,
+            )
 
         retval = self._cast_ast_value(
             retval,

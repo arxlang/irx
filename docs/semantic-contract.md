@@ -53,6 +53,110 @@ For multi-module compilation, IRx also guarantees the following
 Lowering should consume this semantic metadata instead of re-deriving meaning
 from raw syntax.
 
+When lowering or build layers discover that this contract has been violated,
+they now raise structured diagnostics instead of flattening the failure to a
+plain Python exception string. In other words:
+
+- semantic failures continue to aggregate in `SemanticError`
+- lowering failures surface as `LoweringError`
+- native runtime-artifact compilation failures surface as `NativeCompileError`
+- final executable link failures surface as `LinkingError`
+- runtime feature activation and symbol-resolution failures surface as
+  `RuntimeFeatureError`
+
+Each of those exception types carries one `Diagnostic` record with stable code,
+phase, and best-effort source attribution when IRx can recover it.
+
+## Diagnostic Contract
+
+IRx now uses one shared diagnostics model across semantic analysis, lowering,
+native artifact compilation, final linking, and runtime feature resolution.
+
+Every diagnostic may include:
+
+- phase
+- message
+- logical code such as `S010` or `K001`
+- module attribution when known
+- best-effort source location derived from `node.loc`
+- note and hint lines
+- wrapped cause information
+- related secondary locations
+
+Semantic analysis still aggregates multiple diagnostics in `DiagnosticBag` and
+raises `SemanticError` only after the semantic pass completes. Later phases
+raise one structured diagnostic exception immediately because they do not have a
+bagging pass today.
+
+### Source Locations
+
+IRx centralizes source extraction through shared helpers:
+
+- `get_node_source_location(node)` safely reads `node.loc` without assuming
+  every AST node carries a full span
+- `SourceLocation` stores line and column today and already has optional end
+  fields for future span-aware parsers
+- `format_source_location(...)` renders module and line/column consistently for
+  semantic and non-semantic diagnostics
+
+IRx does not invent fake spans. If an AST node does not carry location data, the
+diagnostic still formats cleanly without a location prefix.
+
+### Diagnostic Codes And Prefixes
+
+Diagnostic codes are split into a stable logical identifier and a configurable
+display prefix.
+
+- IRx stores logical identifiers such as `S001`, `S010`, `L001`, `F001`, `R001`,
+  `C001`, and `K001`
+- IRx renders them through one shared `DiagnosticCodeFormatter`
+- the default display prefix is `IRX-`
+
+Current high-level families:
+
+- `Sxxx`: semantic analysis
+- `Fxxx`: public FFI contract
+- `Lxxx`: lowering and codegen
+- `Rxxx`: runtime feature activation and symbol resolution
+- `Cxxx`: native runtime-artifact compilation
+- `Kxxx`: final executable linking
+
+Downstream compilers can override the prefix without forking IRx formatting
+logic:
+
+```python
+from irx.diagnostics import set_diagnostic_code_prefix
+
+set_diagnostic_code_prefix("ARX-")
+```
+
+After that override, the same logical code renders as `ARX-S010`, `ARX-L001`,
+`ARX-R001`, and so on.
+
+### Formatting
+
+IRx keeps the first diagnostic line compact:
+
+```text
+module_a:12:8: error[IRX-S010]: argument 1 of call to 'puts' expects UTF8String but got Int32
+```
+
+When extra context exists, the formatter appends indented follow-up lines:
+
+```text
+module_a:4:2: error[IRX-S002]: Identifier already declared: value
+  note: duplicate declarations in one scope are not allowed
+  related: module_a:1:1: previous declaration is here
+```
+
+Non-semantic failures also keep their phase visible:
+
+```text
+error[IRX-K001] (link): link failed while producing 'demo'
+  note: command: clang /tmp/irx_module.o -o /tmp/demo
+  note: stderr: undefined reference to `sqrt`
+```
+
 ## Function Signature And Calling Contract
 
 Callable semantics are part of IRx's stable semantic boundary.
@@ -257,6 +361,13 @@ Returns are also validated semantically before lowering:
 - non-void functions must not fall through
 - structured control flow is analyzed conservatively; missing returns on any
   reachable path are rejected
+
+Representative examples of the current semantic style:
+
+- `cannot assign Float64 to 'count' of type Int32`
+- `argument 2 of call to 'sqrt' expects Float64 but got Int32`
+- `if condition must be Boolean, got Int32`
+- `extern 'take_point' is not FFI-safe: parameter 'point' field 'x' uses unsupported FFI type 'DateTime'`
 
 Void and non-void usage is explicit:
 

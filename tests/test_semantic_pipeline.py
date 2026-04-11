@@ -5,6 +5,7 @@ title: Integration tests for the semantic-analysis pipeline.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import irx.builder as builder_api
 import irx.builder.backend as builder_backend
@@ -20,6 +21,12 @@ from irx.builder import (
     is_fp_type,
     safe_pop,
     splat_scalar,
+)
+from irx.diagnostics import (
+    Diagnostic,
+    DiagnosticCodes,
+    LinkingError,
+    LoweringError,
 )
 from llvmlite import ir
 
@@ -68,7 +75,7 @@ def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
     visitor = Visitor()
     module = _main_module(astx.FunctionReturn(astx.Identifier("missing")))
 
-    with pytest.raises(SemanticError, match="Unknown variable name"):
+    with pytest.raises(SemanticError, match="cannot resolve name"):
         visitor.translate(module)
 
 
@@ -94,7 +101,7 @@ def test_semantic_failures_stop_before_lowering_dispatch(
 
     monkeypatch.setattr(visitor, "visit", _unexpected_lowering)
 
-    with pytest.raises(SemanticError, match="Unknown variable name"):
+    with pytest.raises(SemanticError, match="cannot resolve name"):
         visitor.translate(astx.Identifier("missing"))
 
 
@@ -139,12 +146,63 @@ def test_build_surfaces_linking_failures_after_semantic_analysis(
         """
         _ = args
         _ = kwargs
-        raise RuntimeError("link failed")
+        raise LinkingError(
+            Diagnostic(
+                message="link failed while producing 'main'",
+                code=DiagnosticCodes.LINK_FAILED,
+                phase="link",
+            )
+        )
 
     monkeypatch.setattr(builder_backend, "link_executable", _fail_link)
 
-    with pytest.raises(RuntimeError, match="link failed"):
+    with pytest.raises(LinkingError, match="IRX-K001"):
         builder.build(module, output_file=str(tmp_path / "main"))
+
+
+def test_lowering_missing_semantic_metadata_is_structured() -> None:
+    """
+    title: Direct lowering should raise structured errors for missing sidecars.
+    """
+    visitor = Visitor()
+    call = astx.FunctionCall("helper", [])
+    call.loc = SimpleNamespace(line=5, col=2)
+
+    with pytest.raises(LoweringError) as exc_info:
+        visitor.visit(call)
+
+    formatted = str(exc_info.value)
+
+    assert "5:2" in formatted
+    assert "IRX-L001" in formatted
+    assert "lowering" in formatted
+    assert (
+        "missing resolved_call metadata during call to 'helper'" in formatted
+    )
+
+
+def test_control_flow_boolean_lowering_failure_is_not_generic_exception() -> (
+    None
+):
+    """
+    title: Boolean lowering failures should use the structured lowering error.
+    """
+    visitor = Visitor()
+    condition = astx.LiteralInt32(1)
+    condition.loc = SimpleNamespace(line=9, col=4)
+
+    with pytest.raises(LoweringError) as exc_info:
+        visitor._lower_boolean_condition(
+            ir.Constant(ir.IntType(32), 1),
+            node=condition,
+            context="if",
+        )
+
+    formatted = str(exc_info.value)
+
+    assert "9:4" in formatted
+    assert "IRX-L010" in formatted
+    assert "if condition must lower to LLVM i1, got i32" in formatted
 
 
 def test_public_imports_remain_stable() -> None:

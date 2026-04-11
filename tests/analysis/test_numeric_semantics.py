@@ -113,7 +113,10 @@ def test_analyze_rejects_implicit_signed_to_unsigned_assignment() -> None:
     body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.append(astx.FunctionDef(prototype=proto, body=body))
 
-    with pytest.raises(SemanticError, match="Cannot assign value of type"):
+    with pytest.raises(
+        SemanticError,
+        match="cannot assign Int32 to 'value' of type UInt32",
+    ):
         analyze(module)
 
 
@@ -138,7 +141,10 @@ def test_rejects_implicit_unsigned_to_same_width_signed_assignment() -> None:
     body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.append(astx.FunctionDef(prototype=proto, body=body))
 
-    with pytest.raises(SemanticError, match="Cannot assign value of type"):
+    with pytest.raises(
+        SemanticError,
+        match="cannot assign UInt32 to 'value' of type Int32",
+    ):
         analyze(module)
 
 
@@ -151,5 +157,8 @@ def test_analyze_rejects_explicit_string_to_int_cast() -> None:
         target_type=astx.Int32(),
     )
 
-    with pytest.raises(SemanticError, match="Unsupported cast"):
+    with pytest.raises(
+        SemanticError,
+        match="unsupported cast from String to Int32",
+    ):
         analyze(expr)
