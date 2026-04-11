@@ -99,19 +99,6 @@ class UnaryOpVisitorMixin(VisitorMixinBase):
                 "nottmp",
             )
 
-            if isinstance(node.operand, astx.Identifier):
-                operand_key = semantic_symbol_key(
-                    node.operand, node.operand.name
-                )
-                if operand_key in self.const_vars:
-                    raise Exception(
-                        f"Cannot mutate '{node.operand.name}':"
-                        "declared as constant"
-                    )
-                addr = self.named_values.get(operand_key)
-                if addr:
-                    self._llvm.ir_builder.store(result, addr)
-
             self.result_stack.append(result)
             return
 

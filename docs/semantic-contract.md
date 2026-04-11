@@ -29,6 +29,9 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_type`
 - `resolved_symbol`
 - `resolved_function`
+- `resolved_callable`
+- `resolved_call`
+- `resolved_return`
 - `resolved_struct`
 - `resolved_module`
 - `resolved_imports`
@@ -49,6 +52,74 @@ For multi-module compilation, IRx also guarantees the following
 
 Lowering should consume this semantic metadata instead of re-deriving meaning
 from raw syntax.
+
+## Function Signature And Calling Contract
+
+Callable semantics are part of IRx's stable semantic boundary.
+
+- every callable is normalized into one canonical semantic signature before
+  lowering
+- the canonical signature includes callable identity, ordered parameters, return
+  type, calling convention class, variadic flag, extern/native status, and
+  lowered symbol name
+- parameter order is stable and exactly matches declaration order
+- duplicate parameter names are rejected semantically
+- unresolved parameter or return types are rejected semantically
+- conflicting declarations are rejected semantically
+
+Calling conventions are classified semantically even when current LLVM emission
+is shared:
+
+- `irx_default` for IRx-defined functions
+- `c` for explicit extern/native declarations
+
+Current declaration metadata is intentionally narrow. When present on
+`FunctionPrototype`, IRx consumes:
+
+- `is_extern`
+- `calling_convention`
+- `is_variadic`
+- `symbol_name`
+
+## Call And Return Validation
+
+Function calls are validated through one semantic path before lowering:
+
+- callee resolution must produce a callable symbol with a canonical signature
+- fixed-arity calls must match the declared parameter count exactly
+- variadic calls are limited to explicit extern/native declarations
+- fixed prefix arguments use the canonical implicit-cast policy
+- successful call analysis records resolved callable metadata, resolved argument
+  types, result type, and any inserted implicit conversions
+- lowering must consume that metadata instead of repairing malformed calls
+
+Returns are also validated semantically before lowering:
+
+- `return expr` is valid only in non-void functions
+- bare `return` is valid only in void functions
+- implicit return conversion follows the same canonical cast policy used for
+  assignments and call arguments
+- non-void functions must not fall through
+- structured control flow is analyzed conservatively; missing returns on any
+  reachable path are rejected
+
+Void and non-void usage is explicit:
+
+- void calls may be used as statements
+- void calls may not be used as expression values
+- non-void calls may be used as expressions or discarded as statements
+
+## `main` Contract
+
+`main` is part of the stable semantic contract rather than a backend caveat:
+
+- `main` must be `Int32 main()`
+- `main` must not be variadic
+- `main` must not be extern
+- `main` must return deterministically along every path
+
+IRx no longer accepts loose `void main` behavior or non-deterministic
+fallthrough.
 
 ## Scalar Numeric Foundation
 

@@ -106,14 +106,11 @@ def test_function_accepts_boolean_parameter_and_returns_boolean(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=astx.Boolean(),
+        return_type=astx.Int32(),
     )
     main_body = astx.Block()
-    main_body.append(
-        astx.FunctionReturn(
-            astx.FunctionCall("negate", [astx.LiteralBoolean(True)])
-        )
-    )
+    main_body.append(astx.FunctionCall("negate", [astx.LiteralBoolean(True)]))
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.append(astx.FunctionDef(prototype=main_proto, body=main_body))
 
     ir_text = builder.translate(module)
@@ -195,17 +192,16 @@ def test_comparison_result_returns_from_function(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=astx.Boolean(),
+        return_type=astx.Int32(),
     )
     main_body = astx.Block()
     main_body.append(
-        astx.FunctionReturn(
-            astx.FunctionCall(
-                "less",
-                [astx.LiteralInt32(1), astx.LiteralInt32(2)],
-            )
+        astx.FunctionCall(
+            "less",
+            [astx.LiteralInt32(1), astx.LiteralInt32(2)],
         )
     )
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     module.block.append(astx.FunctionDef(prototype=main_proto, body=main_body))
 
     ir_text = builder.translate(module)

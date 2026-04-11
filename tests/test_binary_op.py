@@ -7,7 +7,7 @@ import pytest
 from irx import astx
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
-from irx.system import PrintExpr
+from irx.system import Cast, PrintExpr
 
 from .conftest import check_result
 
@@ -144,14 +144,16 @@ def test_binary_op_basic(
     basic_op = lit_1 + b - a * c / a + (b - a + c / a)
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     main_block.append(decl_a)
     main_block.append(decl_b)
     main_block.append(decl_c)
     main_block.append(basic_op)
-    main_block.append(astx.FunctionReturn(literal_type(0)))
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
 
     module.block.append(main_fn)
@@ -237,12 +239,16 @@ def test_binary_op_logical_and_or(
     )
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=astx.Boolean()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     main_block.append(decl_x)
     main_block.append(decl_y)
-    main_block.append(astx.FunctionReturn(expr))
+    main_block.append(
+        astx.FunctionReturn(Cast(value=expr, target_type=astx.Int32()))
+    )
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 

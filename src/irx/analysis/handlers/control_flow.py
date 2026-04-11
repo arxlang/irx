@@ -14,7 +14,8 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.types import is_assignable, is_boolean_type
+from irx.analysis.types import is_boolean_type
+from irx.analysis.validation import resolve_return
 from irx.typecheck import typechecked
 
 
@@ -34,6 +35,8 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
           label:
             type: str
         """
+        if not self._require_value_expression(condition, context=label):
+            return
         condition_type = self._expr_type(condition)
         if condition_type is None or is_boolean_type(condition_type):
             return
@@ -58,14 +61,15 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             return
         if node.value is not None:
             self.visit(node.value)
-        return_type = self.context.current_function.return_type
-        value_type = self._expr_type(node.value)
-        if not is_assignable(return_type, value_type):
-            self.context.diagnostics.add(
-                "Return type mismatch.",
-                node=node,
-            )
-        self._set_type(node, return_type)
+        return_resolution = resolve_return(
+            self.context.diagnostics,
+            function=self.context.current_function,
+            value=node.value,
+            value_type=self._expr_type(node.value),
+            node=node,
+        )
+        self._set_return(node, return_resolution)
+        self._set_type(node, return_resolution.expected_type)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:

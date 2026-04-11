@@ -11,10 +11,22 @@ from datetime import date, datetime, time
 
 from irx import astx
 from irx.analysis.diagnostics import DiagnosticBag
-from irx.analysis.resolved_nodes import SemanticFunction
+from irx.analysis.resolved_nodes import (
+    CallableResolution,
+    CallResolution,
+    ImplicitConversion,
+    ReturnResolution,
+    SemanticFunction,
+)
 from irx.analysis.types import (
+    bit_width,
     is_assignable,
+    is_boolean_type,
     is_explicitly_castable,
+    is_float_type,
+    is_integer_type,
+    is_none_type,
+    same_type,
 )
 from irx.typecheck import typechecked
 
@@ -24,6 +36,87 @@ MAX_HOUR = 23
 MAX_MINUTE_SECOND = 59
 INT32_MIN = -(2**31)
 INT32_MAX = 2**31 - 1
+DEFAULT_C_INTEGER_PROMOTION_WIDTH = 32
+
+
+@typechecked
+def _callable_resolution(function: SemanticFunction) -> CallableResolution:
+    """
+    title: Return the canonical callable wrapper for one semantic function.
+    parameters:
+      function:
+        type: SemanticFunction
+    returns:
+      type: CallableResolution
+    """
+    return CallableResolution(function=function, signature=function.signature)
+
+
+@typechecked
+def _is_void_return_sentinel(node: astx.AST | None) -> bool:
+    """
+    title: Return whether one AST value represents a bare void return.
+    parameters:
+      node:
+        type: astx.AST | None
+    returns:
+      type: bool
+    """
+    return node is None or isinstance(node, astx.LiteralNone)
+
+
+@typechecked
+def _is_void_call_value(node: astx.AST | None) -> bool:
+    """
+    title: Return whether one AST value is the result of a void call.
+    parameters:
+      node:
+        type: astx.AST | None
+    returns:
+      type: bool
+    """
+    semantic = getattr(node, "semantic", None)
+    resolved_call = getattr(semantic, "resolved_call", None)
+    resolved_type = getattr(semantic, "resolved_type", None)
+    return resolved_call is not None and is_none_type(resolved_type)
+
+
+@typechecked
+def _variadic_argument_type(
+    arg_type: astx.DataType | None,
+) -> astx.DataType | None:
+    """
+    title: Return the normalized type for one C-style variadic argument.
+    parameters:
+      arg_type:
+        type: astx.DataType | None
+    returns:
+      type: astx.DataType | None
+    """
+    if arg_type is None or is_none_type(arg_type):
+        return None
+    if is_boolean_type(arg_type):
+        return astx.Int32()
+    if is_integer_type(arg_type) and bit_width(arg_type) < (
+        DEFAULT_C_INTEGER_PROMOTION_WIDTH
+    ):
+        return astx.Int32()
+    if isinstance(arg_type, astx.Float16 | astx.Float32):
+        return astx.Float64()
+    if (
+        is_integer_type(arg_type)
+        or is_float_type(arg_type)
+        or isinstance(
+            arg_type,
+            (
+                astx.String,
+                astx.UTF8String,
+                astx.UTF8Char,
+            ),
+        )
+    ):
+        return arg_type
+    return None
 
 
 @typechecked
@@ -63,7 +156,7 @@ def validate_call(
     function: SemanticFunction,
     arg_types: list[astx.DataType | None],
     node: astx.FunctionCall,
-) -> None:
+) -> CallResolution:
     """
     title: Validate a function call.
     parameters:
@@ -75,17 +168,175 @@ def validate_call(
         type: list[astx.DataType | None]
       node:
         type: astx.FunctionCall
+    returns:
+      type: CallResolution
     """
-    if len(function.args) != len(list(node.args)):
-        diagnostics.add("codegen: Incorrect # arguments passed.", node=node)
-        return
+    signature = function.signature
+    fixed_param_count = len(signature.parameters)
+    arg_count = len(arg_types)
+    if signature.is_variadic:
+        if arg_count < fixed_param_count:
+            diagnostics.add(
+                "Incorrect # arguments passed to "
+                f"'{function.name}': expected at least "
+                f"{fixed_param_count}, got {arg_count}",
+                node=node,
+            )
+    elif fixed_param_count != arg_count:
+        diagnostics.add(
+            "Incorrect # arguments passed to "
+            f"'{function.name}': expected {fixed_param_count}, "
+            f"got {arg_count}",
+            node=node,
+        )
 
-    for idx, (param, arg_type) in enumerate(zip(function.args, arg_types)):
+    resolved_argument_types: list[astx.DataType | None] = []
+    implicit_conversions: list[ImplicitConversion | None] = []
+
+    for idx, (param, arg_type) in enumerate(
+        zip(signature.parameters, arg_types)
+    ):
         if not is_assignable(param.type_, arg_type):
             diagnostics.add(
                 f"Argument {idx} for '{function.name}' has incompatible type",
-                node=node,
+                node=node.args[idx],
             )
+            resolved_argument_types.append(arg_type)
+            implicit_conversions.append(None)
+            continue
+        resolved_argument_types.append(param.type_)
+        if same_type(param.type_, arg_type):
+            implicit_conversions.append(None)
+        else:
+            implicit_conversions.append(
+                ImplicitConversion(arg_type, param.type_)
+            )
+
+    for idx, arg_type in enumerate(
+        arg_types[fixed_param_count:],
+        start=fixed_param_count,
+    ):
+        promoted_type = _variadic_argument_type(arg_type)
+        if signature.is_variadic and promoted_type is not None:
+            resolved_argument_types.append(promoted_type)
+            if same_type(promoted_type, arg_type):
+                implicit_conversions.append(None)
+            else:
+                implicit_conversions.append(
+                    ImplicitConversion(arg_type, promoted_type)
+                )
+            continue
+        if signature.is_variadic:
+            diagnostics.add(
+                f"Variadic argument {idx} for '{function.name}' uses an "
+                "unsupported type",
+                node=node.args[idx],
+            )
+        resolved_argument_types.append(arg_type)
+        implicit_conversions.append(None)
+
+    return CallResolution(
+        callee=_callable_resolution(function),
+        signature=signature,
+        resolved_argument_types=tuple(resolved_argument_types),
+        result_type=signature.return_type,
+        implicit_conversions=tuple(implicit_conversions),
+    )
+
+
+@typechecked
+def resolve_return(
+    diagnostics: DiagnosticBag,
+    *,
+    function: SemanticFunction,
+    value: astx.AST | None,
+    value_type: astx.DataType | None,
+    node: astx.FunctionReturn,
+) -> ReturnResolution:
+    """
+    title: Validate one return statement.
+    parameters:
+      diagnostics:
+        type: DiagnosticBag
+      function:
+        type: SemanticFunction
+      value:
+        type: astx.AST | None
+      value_type:
+        type: astx.DataType | None
+      node:
+        type: astx.FunctionReturn
+    returns:
+      type: ReturnResolution
+    """
+    expected_type = function.signature.return_type
+    callable_resolution = _callable_resolution(function)
+    if is_none_type(expected_type):
+        if _is_void_return_sentinel(value):
+            return ReturnResolution(
+                callable=callable_resolution,
+                expected_type=expected_type,
+                value_type=None,
+                returns_void=True,
+            )
+        diagnostics.add(
+            f"Void function '{function.name}' cannot return a value",
+            node=node,
+        )
+        return ReturnResolution(
+            callable=callable_resolution,
+            expected_type=expected_type,
+            value_type=value_type,
+            returns_void=True,
+        )
+
+    if _is_void_return_sentinel(value):
+        diagnostics.add(
+            f"Function '{function.name}' must return a value",
+            node=node,
+        )
+        return ReturnResolution(
+            callable=callable_resolution,
+            expected_type=expected_type,
+            value_type=None,
+            returns_void=False,
+        )
+
+    if _is_void_call_value(value):
+        diagnostics.add(
+            "Return statement cannot use the result of void call as a value",
+            node=node,
+        )
+        return ReturnResolution(
+            callable=callable_resolution,
+            expected_type=expected_type,
+            value_type=value_type,
+            returns_void=False,
+        )
+
+    if not is_assignable(expected_type, value_type):
+        diagnostics.add(
+            f"Function '{function.name}' returns '{value_type}', expected "
+            f"'{expected_type}'",
+            node=node,
+        )
+        return ReturnResolution(
+            callable=callable_resolution,
+            expected_type=expected_type,
+            value_type=value_type,
+            returns_void=False,
+        )
+
+    implicit_conversion = None
+    if not same_type(expected_type, value_type):
+        implicit_conversion = ImplicitConversion(value_type, expected_type)
+    return ReturnResolution(
+        callable=callable_resolution,
+        expected_type=expected_type,
+        value_type=value_type,
+        returns_void=False,
+        implicit_conversion=implicit_conversion,
+    )
 
 
 @typechecked

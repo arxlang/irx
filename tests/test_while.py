@@ -81,12 +81,14 @@ def test_while_expr(
 
     # Main function
     proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     fn_block = astx.Block()
     fn_block.append(init_var)
     fn_block.append(while_expr)
-    fn_block.append(astx.FunctionReturn(literal_type(0)))
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 
@@ -264,11 +266,13 @@ def test_while_false_condition(
     while_expr = astx.WhileStmt(condition=cond, body=body)
 
     proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     fn_block = astx.Block()
     fn_block.append(while_expr)
-    fn_block.append(astx.FunctionReturn(literal_type(0)))
+    fn_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     fn_main = astx.FunctionDef(prototype=proto, body=fn_block)
 

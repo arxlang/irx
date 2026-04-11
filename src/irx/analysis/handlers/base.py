@@ -18,10 +18,12 @@ from irx.analysis.factories import SemanticEntityFactory
 from irx.analysis.module_interfaces import ModuleKey, ParsedModule
 from irx.analysis.registry import SemanticRegistry
 from irx.analysis.resolved_nodes import (
+    CallResolution,
     ResolvedAssignment,
     ResolvedFieldAccess,
     ResolvedImportBinding,
     ResolvedOperator,
+    ReturnResolution,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
@@ -128,6 +130,40 @@ if TYPE_CHECKING:
                 type: SemanticFunction | None
             returns:
               type: SemanticFunction | None
+            """
+            raise NotImplementedError
+
+        def _set_call(
+            self,
+            node: astx.AST,
+            call: CallResolution | None,
+        ) -> CallResolution | None:
+            """
+            title: Attach one resolved call site.
+            parameters:
+              node:
+                type: astx.AST
+              call:
+                type: CallResolution | None
+            returns:
+              type: CallResolution | None
+            """
+            raise NotImplementedError
+
+        def _set_return(
+            self,
+            node: astx.AST,
+            return_resolution: ReturnResolution | None,
+        ) -> ReturnResolution | None:
+            """
+            title: Attach one resolved return site.
+            parameters:
+              node:
+                type: astx.AST
+              return_resolution:
+                type: ReturnResolution | None
+            returns:
+              type: ReturnResolution | None
             """
             raise NotImplementedError
 
@@ -331,6 +367,24 @@ if TYPE_CHECKING:
             """
             raise NotImplementedError
 
+        def _require_value_expression(
+            self,
+            node: astx.AST | None,
+            *,
+            context: str,
+        ) -> bool:
+            """
+            title: Require one expression context to receive a non-void value.
+            parameters:
+              node:
+                type: astx.AST | None
+              context:
+                type: str
+            returns:
+              type: bool
+            """
+            raise NotImplementedError
+
         def _visit_module(
             self,
             module: astx.Module,
@@ -530,8 +584,53 @@ class SemanticAnalyzerCore(BaseVisitor):
         info = self._semantic(node)
         info.resolved_function = function
         if function is not None:
+            info.resolved_callable = self.factory.make_callable_resolution(
+                function
+            )
             self._set_type(node, function.return_type)
+        else:
+            info.resolved_callable = None
         return function
+
+    def _set_call(
+        self,
+        node: astx.AST,
+        call: CallResolution | None,
+    ) -> CallResolution | None:
+        """
+        title: Attach one resolved call site.
+        parameters:
+          node:
+            type: astx.AST
+          call:
+            type: CallResolution | None
+        returns:
+          type: CallResolution | None
+        """
+        info = self._semantic(node)
+        info.resolved_call = call
+        if call is not None:
+            info.resolved_callable = call.callee
+        return call
+
+    def _set_return(
+        self,
+        node: astx.AST,
+        return_resolution: ReturnResolution | None,
+    ) -> ReturnResolution | None:
+        """
+        title: Attach one resolved return site.
+        parameters:
+          node:
+            type: astx.AST
+          return_resolution:
+            type: ReturnResolution | None
+        returns:
+          type: ReturnResolution | None
+        """
+        info = self._semantic(node)
+        info.resolved_return = return_resolution
+        return return_resolution
 
     def _set_struct(
         self,
@@ -802,6 +901,40 @@ class SemanticAnalyzerCore(BaseVisitor):
             return info.resolved_type
         return getattr(node, "type_", None)
 
+    def _require_value_expression(
+        self,
+        node: astx.AST | None,
+        *,
+        context: str,
+    ) -> bool:
+        """
+        title: Require one expression context to receive a non-void value.
+        parameters:
+          node:
+            type: astx.AST | None
+          context:
+            type: str
+        returns:
+          type: bool
+        """
+        if node is None:
+            return True
+        resolved_type = self._expr_type(node)
+        if not isinstance(resolved_type, astx.NoneType):
+            return True
+        semantic = cast(SemanticInfo | None, getattr(node, "semantic", None))
+        if semantic is not None and semantic.resolved_call is not None:
+            self.context.diagnostics.add(
+                f"{context} cannot use the result of void call as a value",
+                node=node,
+            )
+            return False
+        self.context.diagnostics.add(
+            f"{context} requires a non-void value",
+            node=node,
+        )
+        return False
+
     def _predeclare_module_members(self, module: astx.Module) -> None:
         """
         title: Predeclare one module's top-level members.
@@ -851,6 +984,15 @@ class SemanticAnalyzerCore(BaseVisitor):
                 self._predeclare_module_members(module)
             for node in module.nodes:
                 self.visit(node)
+        main_function = self.context.get_function(
+            self._current_module_key(),
+            "main",
+        )
+        if main_function is not None and main_function.definition is None:
+            self.context.diagnostics.add(
+                "Function 'main' must have a definition",
+                node=module,
+            )
 
     def _visit_plain_typed_node(self, node: astx.AST) -> None:
         """

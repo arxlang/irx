@@ -17,6 +17,11 @@ from irx.analysis.module_symbols import (
     qualified_struct_name,
 )
 from irx.analysis.resolved_nodes import (
+    CallableResolution,
+    CallingConvention,
+    FunctionSignature,
+    ParameterPassingKind,
+    ParameterSpec,
     ResolvedImportBinding,
     SemanticBinding,
     SemanticFunction,
@@ -115,11 +120,68 @@ class SemanticEntityFactory:
             kind="argument",
         )
 
+    def make_parameter_spec(
+        self,
+        argument: astx.Argument,
+    ) -> ParameterSpec:
+        """
+        title: Create one canonical semantic parameter specification.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: ParameterSpec
+        """
+        return ParameterSpec(
+            name=argument.name,
+            type_=clone_type(argument.type_),
+            passing_kind=ParameterPassingKind.BY_VALUE,
+        )
+
+    def make_function_signature(
+        self,
+        prototype: astx.FunctionPrototype,
+        *,
+        calling_convention: CallingConvention,
+        is_variadic: bool,
+        is_extern: bool,
+        symbol_name: str,
+    ) -> FunctionSignature:
+        """
+        title: Create one canonical semantic function signature.
+        parameters:
+          prototype:
+            type: astx.FunctionPrototype
+          calling_convention:
+            type: CallingConvention
+          is_variadic:
+            type: bool
+          is_extern:
+            type: bool
+          symbol_name:
+            type: str
+        returns:
+          type: FunctionSignature
+        """
+        return FunctionSignature(
+            name=prototype.name,
+            parameters=tuple(
+                self.make_parameter_spec(argument)
+                for argument in prototype.args.nodes
+            ),
+            return_type=clone_type(prototype.return_type),
+            calling_convention=calling_convention,
+            is_variadic=is_variadic,
+            is_extern=is_extern,
+            symbol_name=symbol_name,
+        )
+
     def make_function(
         self,
         module_key: ModuleKey,
         prototype: astx.FunctionPrototype,
         *,
+        signature: FunctionSignature,
         definition: astx.FunctionDef | None = None,
         args: tuple[SemanticSymbol, ...] | None = None,
     ) -> SemanticFunction:
@@ -130,6 +192,8 @@ class SemanticEntityFactory:
             type: ModuleKey
           prototype:
             type: astx.FunctionPrototype
+          signature:
+            type: FunctionSignature
           definition:
             type: astx.FunctionDef | None
           args:
@@ -146,12 +210,30 @@ class SemanticEntityFactory:
         return SemanticFunction(
             symbol_id=self.context.next_symbol_id("fn"),
             name=prototype.name,
-            return_type=prototype.return_type,
+            return_type=clone_type(signature.return_type),
             args=semantic_args,
+            signature=signature,
             prototype=prototype,
             definition=definition,
             module_key=module_key,
             qualified_name=qualified_function_name(module_key, prototype.name),
+        )
+
+    def make_callable_resolution(
+        self,
+        function: SemanticFunction,
+    ) -> CallableResolution:
+        """
+        title: Create one resolved callable wrapper.
+        parameters:
+          function:
+            type: SemanticFunction
+        returns:
+          type: CallableResolution
+        """
+        return CallableResolution(
+            function=function,
+            signature=function.signature,
         )
 
     def make_struct(

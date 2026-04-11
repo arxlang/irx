@@ -190,11 +190,11 @@ def test_non_void_function_missing_return_raises_error(
     main_proto = astx.FunctionPrototype(
         name="main",
         args=astx.Arguments(),
-        return_type=int_type(),
+        return_type=astx.Int32(),
     )
     main_body = astx.Block()
     main_body.append(astx.FunctionCall(missing_return_fn, []))
-    main_body.append(astx.FunctionReturn(literal_type(0)))
+    main_body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
 
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_body)
     module.block.append(main_fn)

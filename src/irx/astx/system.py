@@ -55,26 +55,26 @@ class PrintExpr(astx.Expr):
 
 
 @typechecked
-class Cast(astx.Expr):
+class Cast(astx.DataType):
     """
     title: Cast AST node for type conversions.
     summary: Represents a cast of `value` to a specified `target_type`.
     attributes:
       value:
-        type: astx.AST
+        type: astx.DataType
       target_type:
         type: Any
     """
 
-    value: astx.AST = astx.LiteralNone()
+    value: astx.DataType = astx.LiteralNone()
     target_type: Any = astx.LiteralNone()
 
-    def __init__(self, value: astx.AST, target_type: Any) -> None:
+    def __init__(self, value: astx.DataType, target_type: Any) -> None:
         """
         title: Initialize Cast.
         parameters:
           value:
-            type: astx.AST
+            type: astx.DataType
           target_type:
             type: Any
         """

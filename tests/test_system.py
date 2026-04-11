@@ -60,11 +60,13 @@ def test_print_expr(
     print_node = PrintExpr(astx.LiteralUTF8String("Hello, world!"))
 
     main_proto = astx.FunctionPrototype(
-        name="main", args=astx.Arguments(), return_type=int_type()
+        name="main",
+        args=astx.Arguments(),
+        return_type=astx.Int32(),
     )
     main_block = astx.Block()
     main_block.append(print_node)
-    main_block.append(astx.FunctionReturn(literal_type(0)))
+    main_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
     main_fn = astx.FunctionDef(prototype=main_proto, body=main_block)
     module.block.append(main_fn)
 

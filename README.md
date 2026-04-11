@@ -175,6 +175,33 @@ IRx now treats scalar numerics as a stable substrate instead of an ad hoc
 The full contract lives in
 [docs/semantic-contract.md](https://github.com/arxlang/irx/blob/main/docs/semantic-contract.md).
 
+## Function Signatures And Calling Semantics
+
+IRx now treats callable semantics as a stable semantic contract instead of
+reconstructing function meaning during lowering:
+
+- every declared or defined callable is normalized into one canonical semantic
+  signature before codegen
+- parameter order is semantic and preserved exactly as declared
+- IRx-defined functions default to calling convention `irx_default`
+- explicit extern/native declarations default to calling convention `c`
+- lowering preserves the semantic calling-convention classification even when
+  LLVM emission is currently the same
+- calls are validated semantically before lowering: callee resolution, arity,
+  narrow extern varargs policy, and canonical implicit argument conversions all
+  happen in one path
+- returns are validated semantically before lowering: `return expr` is only for
+  non-void functions, bare `return` is only for void functions, and non-void
+  fallthrough is rejected
+- void calls may be used as statements, but not as values in assignments,
+  returns, operators, or other expressions
+- `main` is now explicit and deterministic: it must be `Int32 main()`, it may
+  not be variadic or extern, and it must return along every path
+
+The current ASTx surface remains intentionally small. When present, IRx reads
+the following `FunctionPrototype` attributes during semantic predeclaration:
+`is_extern`, `calling_convention`, `is_variadic`, and `symbol_name`.
+
 ## Testing
 
 ```bash
@@ -218,10 +245,12 @@ def test_binary_op_basic():
 
 - CI note: macOS jobs currently run on **Python 3.12** only.
 
-### Non-zero exit when function returns `void`
+### `main` rejected by semantic analysis
 
-- Define `main` to return **`Int32`** and emit `return 0`. Falling off the end
-  or returning `void` can yield an arbitrary exit code.
+- IRx now requires `main` to be `Int32 main()` with a deterministic return on
+  every control-flow path.
+- `void main`, variadic `main`, extern `main`, and non-returning non-void `main`
+  bodies are rejected before lowering.
 
 ### `plum.resolver.NotFoundLookupError`
 
