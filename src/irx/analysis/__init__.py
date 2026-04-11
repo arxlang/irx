@@ -24,6 +24,11 @@ from irx.analysis.module_interfaces import (
     ParsedModule,
 )
 from irx.analysis.resolved_nodes import (
+    FFIAdmissibility,
+    FFICallableInfo,
+    FFILinkStrategy,
+    FFITypeClass,
+    FFITypeInfo,
     ResolvedAssignment,
     ResolvedImportBinding,
     ResolvedOperator,
@@ -41,6 +46,11 @@ __all__ = [
     "CompilationSession",
     "Diagnostic",
     "DiagnosticBag",
+    "FFIAdmissibility",
+    "FFICallableInfo",
+    "FFILinkStrategy",
+    "FFITypeClass",
+    "FFITypeInfo",
     "ImportResolver",
     "ModuleKey",
     "ParsedModule",

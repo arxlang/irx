@@ -840,6 +840,15 @@ class VisitorCore(BuilderVisitor):
             return None
         if isinstance(type_, astx.BufferOwnerType):
             return self._llvm.BUFFER_OWNER_HANDLE_TYPE
+        if isinstance(type_, astx.OpaqueHandleType):
+            return self._llvm.OPAQUE_POINTER_TYPE
+        if isinstance(type_, astx.PointerType):
+            if type_.pointee_type is None:
+                return self._llvm.OPAQUE_POINTER_TYPE
+            pointee_type = self._llvm_type_for_ast_type(type_.pointee_type)
+            if pointee_type is None:
+                return None
+            return pointee_type.as_pointer()
         if isinstance(type_, astx.BufferViewType):
             return self._llvm.BUFFER_VIEW_TYPE
         if isinstance(type_, astx.StructType):

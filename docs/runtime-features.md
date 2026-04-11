@@ -16,7 +16,8 @@ way to:
 - keep native runtime ownership rules outside the LLVM IR middle-end
 
 This runtime-feature layer keeps IRx focused on lowering while allowing Arx to
-grow optional native integrations later.
+grow optional native integrations later. It is also the public native-dependency
+side of IRx's stable FFI contract.
 
 ## Architecture
 
@@ -36,12 +37,15 @@ The runtime stack is layered in four parts:
 Runtime features are named, optional, and per-compilation-unit.
 
 - `libc` Declares symbols such as `puts`, `malloc`, and `snprintf`.
+- `libm` Declares math symbols such as `sqrt` and contributes `-lm`.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `arrow` Declares the IRx-owned Arrow runtime ABI and links the native Arrow
   runtime.
 
 The builder and visitor cooperate as follows:
 
+- explicit extern declarations may declare `runtime_feature` or
+  `runtime_features` on `FunctionPrototype`
 - lowering requests feature-owned symbols through
   `require_runtime_symbol(feature, symbol)`
 - the request activates the feature for that compilation unit
@@ -51,6 +55,29 @@ The builder and visitor cooperate as follows:
 This is intentionally separate from any future language-level import or module
 system. A future Arx `std.arrow` layer can decide when to activate `arrow`, but
 the native integration remains owned by IRx.
+
+## Extern Declarations And Feature-Backed Linking
+
+Public FFI declarations now use one consistent rule:
+
+- extern declarations with no runtime features emit only an LLVM external
+  declaration and rely on the system linker/toolchain to resolve the symbol
+- extern declarations with `runtime_feature` / `runtime_features` still lower as
+  ordinary externs, but they also activate the named runtime features for that
+  compilation unit
+- if a runtime feature already owns a matching symbol declaration, lowering
+  reuses that feature-owned declaration instead of inventing a parallel native
+  path
+- runtime features remain the only place where IRx packages native objects,
+  native C sources, or extra linker flags
+
+Example split:
+
+- plain `puts` extern: system linker resolution only
+- `sqrt` extern with `runtime_feature = "libm"`: LLVM declaration plus the
+  `libm` feature's `-lm` linker flag
+- Arrow helpers: IRx-owned nodes imply the `arrow` feature and its packaged
+  native runtime
 
 ## External Symbols
 

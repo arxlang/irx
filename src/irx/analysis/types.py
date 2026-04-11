@@ -75,6 +75,17 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             module_key=type_.module_key,
             qualified_name=type_.qualified_name,
         )
+    if isinstance(type_, astx.PointerType):
+        pointee_type = (
+            clone_type(type_.pointee_type)
+            if type_.pointee_type is not None
+            else None
+        )
+        return astx.PointerType(pointee_type)
+    if isinstance(type_, astx.BufferOwnerType):
+        return type_.__class__()
+    if isinstance(type_, astx.OpaqueHandleType):
+        return astx.OpaqueHandleType(type_.handle_name)
     if isinstance(type_, astx.BufferViewType):
         element_type = (
             clone_type(type_.element_type)
@@ -82,8 +93,6 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             else None
         )
         return astx.BufferViewType(element_type)
-    if isinstance(type_, astx.BufferOwnerType):
-        return type_.__class__()
     return type_.__class__()
 
 
@@ -106,6 +115,15 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
         return lhs_identity == rhs_identity
+    if isinstance(lhs, astx.PointerType) and isinstance(rhs, astx.PointerType):
+        if lhs.pointee_type is None or rhs.pointee_type is None:
+            return lhs.pointee_type is None and rhs.pointee_type is None
+        return same_type(lhs.pointee_type, rhs.pointee_type)
+    if isinstance(lhs, astx.OpaqueHandleType) and isinstance(
+        rhs,
+        astx.OpaqueHandleType,
+    ):
+        return lhs.handle_name == rhs.handle_name
     if isinstance(lhs, astx.BufferViewType) and isinstance(
         rhs,
         astx.BufferViewType,

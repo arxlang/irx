@@ -62,6 +62,8 @@ Callable semantics are part of IRx's stable semantic boundary.
 - the canonical signature includes callable identity, ordered parameters, return
   type, calling convention class, variadic flag, extern/native status, and
   lowered symbol name
+- extern signatures additionally record required runtime features and validated
+  public FFI classification metadata
 - parameter order is stable and exactly matches declaration order
 - duplicate parameter names are rejected semantically
 - unresolved parameter or return types are rejected semantically
@@ -80,6 +82,159 @@ Current declaration metadata is intentionally narrow. When present on
 - `calling_convention`
 - `is_variadic`
 - `symbol_name`
+- `runtime_feature`
+- `runtime_features`
+
+## Public FFI Contract
+
+IRx now treats explicit extern/native declarations as one public FFI layer
+instead of an incidental backend escape hatch.
+
+### What Qualifies As A Public FFI Callable
+
+- only explicit extern declarations participate in the public FFI contract
+- extern declarations must not define an IRx body
+- extern declarations default to calling convention `c`
+- source-level function names default to `symbol_name == name`
+- `symbol_name` may override the linked/native symbol while keeping a different
+  IRx-visible wrapper name
+- `runtime_feature` or `runtime_features` may declare explicit native dependency
+  packaging for that extern
+- semantic analysis records the public/source name, linked symbol name, calling
+  convention, variadic flag, extern flag, required runtime features, and public
+  FFI admissibility metadata before lowering
+
+### Public FFI Type Policy
+
+IRx intentionally keeps the public FFI type surface narrow in this phase.
+
+Accepted in extern signatures:
+
+- scalar integers
+- scalar floats
+- `Boolean`
+- `NoneType` only as a return type (`void`)
+- `String` / `UTF8String` / `UTF8Char` only as pointer-based extern values
+- `PointerType(T)` when `T` is itself FFI-admissible
+- `PointerType()` as an opaque pointer
+- `OpaqueHandleType("name")`
+- `BufferOwnerType` as a named opaque handle
+- ABI-compatible structs
+- nested ABI-compatible structs by value
+- the canonical `BufferViewType` descriptor, which is a stable plain ABI struct
+
+Rejected in extern signatures:
+
+- unresolved or unsized types
+- non-ABI-stable internal-only composite forms
+- temporal and other IRx-only types without an explicit public FFI ABI contract
+- pointers to unsupported pointee types
+- arbitrary variadic IRx-defined callables
+- function pointers and callbacks in this phase
+
+### ABI-Compatible Structs For FFI
+
+The public FFI layer accepts a validated subset of IRx structs:
+
+- fields must resolve semantically before lowering
+- declaration order is the ABI field order
+- empty structs are rejected
+- direct or mutual by-value recursive layouts are rejected
+- every field must itself be FFI-admissible
+- nested structs are allowed when every nested field remains ABI-admissible
+- by-value and by-pointer passing both use the same validated layout assumptions
+- lowering emits the same plain LLVM struct layout that semantic validation
+  approved; no hidden headers or runtime payloads are introduced
+
+### Pointers And Opaque Handles
+
+- `PointerType(T)` represents a typed native pointer
+- `PointerType()` represents an opaque pointer with no visible pointee layout
+- `OpaqueHandleType("name")` represents a first-class named native handle whose
+  layout is intentionally hidden
+- opaque handles may be passed, returned, stored, and compared when comparison
+  is otherwise semantically supported
+- opaque handles do not support field access or indexing
+- nullability is not modeled statically yet; null is currently a runtime-level
+  concern rather than a typed IRx value
+
+### Symbol Resolution And Runtime Features
+
+- an extern with no runtime features emits only an LLVM external declaration;
+  the final system toolchain/linker is expected to resolve the symbol
+- an extern with `runtime_feature` / `runtime_features` still emits one semantic
+  extern declaration, but it also activates the named runtime feature set for
+  that compilation unit
+- runtime features remain the only place where IRx packages native C sources,
+  objects, static libraries, or linker flags
+- duplicate extern declarations with incompatible ABI or runtime-feature meaning
+  are rejected semantically
+- duplicate source-level declarations or duplicate `symbol_name` aliases must be
+  compatible in calling convention, variadic status, symbol name, parameter
+  types, return type, and required runtime features
+
+### Intentionally Unsupported For Now
+
+- dynamic loading or plugin discovery
+- callbacks and public function-pointer interop
+- broad platform-specific ABI tuning beyond the current LLVM/data-layout model
+- arbitrary variadic IRx-defined functions
+- auto-coercion between incompatible pointers, structs, or opaque handles
+
+Minimal examples:
+
+```python
+puts = astx.FunctionPrototype(
+    "puts",
+    args=astx.Arguments(astx.Argument("message", astx.UTF8String())),
+    return_type=astx.Int32(),
+)
+puts.is_extern = True
+puts.calling_convention = "c"
+puts.symbol_name = "puts"
+```
+
+```python
+sqrt = astx.FunctionPrototype(
+    "sqrt",
+    args=astx.Arguments(astx.Argument("value", astx.Float64())),
+    return_type=astx.Float64(),
+)
+sqrt.is_extern = True
+sqrt.calling_convention = "c"
+sqrt.symbol_name = "sqrt"
+sqrt.runtime_feature = "libm"
+```
+
+```python
+open_handle = astx.FunctionPrototype(
+    "open_handle",
+    args=astx.Arguments(),
+    return_type=astx.OpaqueHandleType("demo_handle"),
+)
+open_handle.is_extern = True
+open_handle.calling_convention = "c"
+open_handle.symbol_name = "open_handle"
+```
+
+```python
+astx.StructDefStmt(
+    name="Point",
+    attributes=[
+        astx.VariableDeclaration(name="x", type_=astx.Float64()),
+        astx.VariableDeclaration(name="y", type_=astx.Float64()),
+    ],
+)
+
+take_point = astx.FunctionPrototype(
+    "take_point",
+    args=astx.Arguments(astx.Argument("point", astx.StructType("Point"))),
+    return_type=astx.Int32(),
+)
+take_point.is_extern = True
+take_point.calling_convention = "c"
+take_point.symbol_name = "take_point"
+```
 
 ## Call And Return Validation
 
@@ -166,6 +321,7 @@ Structs are IRx's stable composite storage and ABI foundation.
 - direct by-value recursive structs are forbidden
 - mutual by-value recursive structs are forbidden
 - structs can be passed and returned by value within IRx-defined functions
+- the public FFI layer accepts only the ABI-compatible subset described above
 - emitted LLVM struct types are plain data with no hidden headers, metadata,
   tags, or runtime object payloads
 

@@ -57,6 +57,40 @@ def _main_return_zero_module() -> astx.Module:
     return module
 
 
+def _extern_prototype(
+    name: str,
+    *args: astx.Argument,
+    return_type: astx.DataType,
+    runtime_feature: str | None = None,
+) -> astx.FunctionPrototype:
+    """
+    title: Build one explicit extern prototype.
+    parameters:
+      name:
+        type: str
+      return_type:
+        type: astx.DataType
+      runtime_feature:
+        type: str | None
+      args:
+        type: astx.Argument
+        variadic: positional
+    returns:
+      type: astx.FunctionPrototype
+    """
+    prototype = astx.FunctionPrototype(
+        name,
+        args=astx.Arguments(*args),
+        return_type=return_type,
+    )
+    prototype.is_extern = True
+    prototype.calling_convention = "c"
+    prototype.symbol_name = name
+    if runtime_feature is not None:
+        prototype.runtime_feature = runtime_feature
+    return prototype
+
+
 def test_runtime_feature_registry_rejects_duplicate_names() -> None:
     """
     title: Runtime feature registry should reject duplicate feature names.
@@ -164,4 +198,42 @@ def test_simple_module_has_no_native_runtime_artifacts() -> None:
 
     builder.translate(_main_return_zero_module())
 
+    assert builder.translator.runtime_features.native_artifacts() == ()
+
+
+def test_feature_backed_extern_collects_linker_flags() -> None:
+    """
+    title: >-
+      Feature-backed externs should activate linker flags without artifacts.
+    """
+    builder = Builder()
+    module = astx.Module()
+    module.block.append(
+        _extern_prototype(
+            "sqrt",
+            astx.Argument("value", astx.Float64()),
+            return_type=astx.Float64(),
+            runtime_feature="libm",
+        )
+    )
+    main_proto = astx.FunctionPrototype(
+        "main", args=astx.Arguments(), return_type=astx.Int32()
+    )
+    body = astx.Block()
+    body.append(
+        astx.FunctionReturn(
+            astx.Cast(
+                astx.FunctionCall("sqrt", [astx.LiteralFloat64(9.0)]),
+                astx.Int32(),
+            )
+        )
+    )
+    module.block.append(astx.FunctionDef(prototype=main_proto, body=body))
+
+    builder.translate(module)
+
+    assert builder.translator.runtime_features.active_feature_names() == (
+        "libm",
+    )
+    assert builder.translator.runtime_features.linker_flags() == ("-lm",)
     assert builder.translator.runtime_features.native_artifacts() == ()

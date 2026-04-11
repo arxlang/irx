@@ -77,6 +77,8 @@ from irx.astx.buffer import BufferViewRetain as BufferViewRetain
 from irx.astx.buffer import BufferViewStore as BufferViewStore
 from irx.astx.buffer import BufferViewType as BufferViewType
 from irx.astx.buffer import BufferViewWrite as BufferViewWrite
+from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
+from irx.astx.ffi import PointerType as PointerType
 from irx.astx.structs import FieldAccess as FieldAccess
 from irx.astx.structs import StructType as StructType
 from irx.astx.system import Cast as Cast
@@ -112,6 +114,8 @@ __all__ = (
     "ModBinOp",
     "MulBinOp",
     "NeBinOp",
+    "OpaqueHandleType",
+    "PointerType",
     "PrintExpr",
     "StructType",
     "SubBinOp",

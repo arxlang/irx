@@ -145,6 +145,107 @@ class CallingConvention(str, Enum):
 
 @public
 @typechecked
+class FFIAdmissibility(str, Enum):
+    """
+    title: Stable semantic FFI admissibility classes.
+    summary: >-
+      Distinguish regular IRx callables from callables that satisfy the public
+      FFI contract.
+    """
+
+    INTERNAL_ONLY = "internal_only"
+    PUBLIC = "public"
+
+
+@public
+@typechecked
+class FFILinkStrategy(str, Enum):
+    """
+    title: Stable semantic native symbol-resolution strategies.
+    summary: >-
+      Describe whether an extern symbol relies only on the system linker or on
+      one or more explicit runtime features.
+    """
+
+    SYSTEM_LINKER = "system_linker"
+    RUNTIME_FEATURES = "runtime_features"
+
+
+@public
+@typechecked
+class FFITypeClass(str, Enum):
+    """
+    title: Stable semantic FFI type classes.
+    summary: >-
+      Classify the narrow set of public ABI-safe value categories supported by
+      IRx's current FFI contract.
+    """
+
+    BOOLEAN = "boolean"
+    FLOAT = "float"
+    INTEGER = "integer"
+    OPAQUE_HANDLE = "opaque_handle"
+    POINTER = "pointer"
+    STRING = "string"
+    STRUCT = "struct"
+    VOID = "void"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class FFITypeInfo:
+    """
+    title: One canonical semantic FFI type description.
+    summary: >-
+      Describe how one semantically validated public FFI type participates in
+      the stable ABI contract.
+    attributes:
+      classification:
+        type: FFITypeClass
+      display_name:
+        type: str
+      metadata:
+        type: dict[str, Any]
+    """
+
+    classification: FFITypeClass
+    display_name: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class FFICallableInfo:
+    """
+    title: Canonical public FFI callable metadata.
+    summary: >-
+      Record the validated FFI classification, type categories, symbol
+      resolution strategy, and runtime-feature dependencies for one extern
+      callable.
+    attributes:
+      admissibility:
+        type: FFIAdmissibility
+      parameters:
+        type: tuple[FFITypeInfo, Ellipsis]
+      return_type:
+        type: FFITypeInfo
+      required_runtime_features:
+        type: tuple[str, Ellipsis]
+      link_strategy:
+        type: FFILinkStrategy
+    """
+
+    admissibility: FFIAdmissibility
+    parameters: tuple[FFITypeInfo, ...]
+    return_type: FFITypeInfo
+    required_runtime_features: tuple[str, ...] = ()
+    link_strategy: FFILinkStrategy = FFILinkStrategy.SYSTEM_LINKER
+
+
+@public
+@typechecked
 @dataclass(frozen=True)
 class ParameterSpec:
     """
@@ -193,6 +294,10 @@ class FunctionSignature:
         type: bool
       symbol_name:
         type: str
+      required_runtime_features:
+        type: tuple[str, Ellipsis]
+      ffi:
+        type: FFICallableInfo | None
       metadata:
         type: dict[str, Any]
     """
@@ -204,6 +309,8 @@ class FunctionSignature:
     is_variadic: bool = False
     is_extern: bool = False
     symbol_name: str = ""
+    required_runtime_features: tuple[str, ...] = ()
+    ffi: FFICallableInfo | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

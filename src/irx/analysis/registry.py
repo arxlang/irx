@@ -15,6 +15,10 @@ from public import public
 from irx import astx
 from irx.analysis.context import SemanticContext
 from irx.analysis.factories import SemanticEntityFactory
+from irx.analysis.ffi import (
+    build_ffi_callable_info,
+    normalize_runtime_features,
+)
 from irx.analysis.module_interfaces import ModuleKey
 from irx.analysis.resolved_nodes import (
     CallingConvention,
@@ -179,6 +183,81 @@ class SemanticRegistry:
             and same_type(lhs.type_, rhs.type_)
         )
 
+    def _signature_mismatch_detail(
+        self,
+        lhs: FunctionSignature,
+        rhs: FunctionSignature,
+        *,
+        abi_only: bool,
+    ) -> str:
+        """
+        title: Describe the first incompatible function-signature field.
+        parameters:
+          lhs:
+            type: FunctionSignature
+          rhs:
+            type: FunctionSignature
+          abi_only:
+            type: bool
+        returns:
+          type: str
+        """
+        if not abi_only and lhs.name != rhs.name:
+            return f"name differs ('{lhs.name}' vs '{rhs.name}')"
+        if lhs.calling_convention is not rhs.calling_convention:
+            return (
+                "calling_convention differs "
+                f"('{lhs.calling_convention.value}' vs "
+                f"'{rhs.calling_convention.value}')"
+            )
+        if lhs.is_variadic != rhs.is_variadic:
+            return (
+                f"is_variadic differs ({lhs.is_variadic} vs {rhs.is_variadic})"
+            )
+        if lhs.is_extern != rhs.is_extern:
+            return f"is_extern differs ({lhs.is_extern} vs {rhs.is_extern})"
+        if lhs.symbol_name != rhs.symbol_name:
+            return (
+                f"symbol_name differs ('{lhs.symbol_name}' vs "
+                f"'{rhs.symbol_name}')"
+            )
+        if lhs.required_runtime_features != rhs.required_runtime_features:
+            return (
+                "required_runtime_features differ "
+                f"({lhs.required_runtime_features} vs "
+                f"{rhs.required_runtime_features})"
+            )
+        if not same_type(lhs.return_type, rhs.return_type):
+            return (
+                f"return_type differs ('{lhs.return_type}' vs "
+                f"'{rhs.return_type}')"
+            )
+        if len(lhs.parameters) != len(rhs.parameters):
+            return (
+                f"parameter count differs ({len(lhs.parameters)} vs "
+                f"{len(rhs.parameters)})"
+            )
+        for idx, (lhs_param, rhs_param) in enumerate(
+            zip(lhs.parameters, rhs.parameters)
+        ):
+            if not abi_only and lhs_param.name != rhs_param.name:
+                return (
+                    f"parameter {idx} name differs ('{lhs_param.name}' vs "
+                    f"'{rhs_param.name}')"
+                )
+            if lhs_param.passing_kind is not rhs_param.passing_kind:
+                return (
+                    f"parameter {idx} passing_kind differs "
+                    f"('{lhs_param.passing_kind.value}' vs "
+                    f"'{rhs_param.passing_kind.value}')"
+                )
+            if not same_type(lhs_param.type_, rhs_param.type_):
+                return (
+                    f"parameter {idx} type differs ('{lhs_param.type_}' vs "
+                    f"'{rhs_param.type_}')"
+                )
+        return "signature differs"
+
     def signatures_match(
         self,
         lhs: FunctionSignature,
@@ -204,6 +283,8 @@ class SemanticRegistry:
             return False
         if lhs.symbol_name != rhs.symbol_name:
             return False
+        if lhs.required_runtime_features != rhs.required_runtime_features:
+            return False
         if not same_type(lhs.return_type, rhs.return_type):
             return False
         if len(lhs.parameters) != len(rhs.parameters):
@@ -218,6 +299,7 @@ class SemanticRegistry:
         prototype: astx.FunctionPrototype,
         *,
         definition: astx.FunctionDef | None = None,
+        validate_ffi: bool = True,
     ) -> FunctionSignature:
         """
         title: Normalize and validate one semantic function signature.
@@ -226,6 +308,8 @@ class SemanticRegistry:
             type: astx.FunctionPrototype
           definition:
             type: astx.FunctionDef | None
+          validate_ffi:
+            type: bool
         returns:
           type: FunctionSignature
         """
@@ -243,6 +327,10 @@ class SemanticRegistry:
         is_extern = self._prototype_is_extern(prototype)
         is_variadic = self._prototype_is_variadic(prototype)
         symbol_name = self._prototype_symbol_name(prototype)
+        required_runtime_features = normalize_runtime_features(
+            prototype,
+            diagnostics=self.context.diagnostics,
+        )
         calling_convention = self._prototype_calling_convention(
             prototype,
             is_extern=is_extern,
@@ -280,6 +368,12 @@ class SemanticRegistry:
                 "for extern declarations",
                 node=prototype,
             )
+        if not is_extern and required_runtime_features:
+            self.context.diagnostics.add(
+                f"Function '{prototype.name}' may declare runtime features "
+                "only when declared extern",
+                node=prototype,
+            )
 
         signature = self.factory.make_function_signature(
             prototype,
@@ -287,7 +381,17 @@ class SemanticRegistry:
             is_variadic=is_variadic,
             is_extern=is_extern,
             symbol_name=symbol_name,
+            required_runtime_features=required_runtime_features,
         )
+
+        if validate_ffi and signature.is_extern:
+            ffi = build_ffi_callable_info(
+                self.context,
+                signature=signature,
+                prototype=prototype,
+            )
+            if ffi is not None:
+                signature = replace(signature, ffi=ffi)
 
         if signature.name == MAIN_FUNCTION_NAME:
             if signature.is_extern:
@@ -367,6 +471,7 @@ class SemanticRegistry:
         prototype: astx.FunctionPrototype,
         *,
         definition: astx.FunctionDef | None = None,
+        validate_ffi: bool = True,
     ) -> SemanticFunction:
         """
         title: Register one top-level function.
@@ -375,19 +480,28 @@ class SemanticRegistry:
             type: astx.FunctionPrototype
           definition:
             type: astx.FunctionDef | None
+          validate_ffi:
+            type: bool
         returns:
           type: SemanticFunction
         """
         signature = self.normalize_function_signature(
             prototype,
             definition=definition,
+            validate_ffi=validate_ffi,
         )
         module_key = self._current_module_key()
         existing = self.context.get_function(module_key, prototype.name)
         if existing is not None:
             if not self.signatures_match(existing.signature, signature):
+                mismatch = self._signature_mismatch_detail(
+                    existing.signature,
+                    signature,
+                    abi_only=False,
+                )
                 self.context.diagnostics.add(
-                    f"Conflicting declaration for function '{prototype.name}'",
+                    f"Conflicting declaration for function "
+                    f"'{prototype.name}': {mismatch}",
                     node=definition or prototype,
                 )
                 return existing
@@ -401,6 +515,32 @@ class SemanticRegistry:
                 self.context.register_function(updated)
                 return updated
             return existing
+
+        if signature.is_extern:
+            for candidate in self.context.functions.values():
+                if candidate.module_key != module_key:
+                    continue
+                candidate_signature = candidate.signature
+                if not candidate_signature.is_extern:
+                    continue
+                if candidate_signature.symbol_name != signature.symbol_name:
+                    continue
+                if candidate_signature.name == prototype.name:
+                    continue
+                if self.signatures_match(candidate_signature, signature):
+                    continue
+                mismatch = self._signature_mismatch_detail(
+                    candidate_signature,
+                    signature,
+                    abi_only=True,
+                )
+                self.context.diagnostics.add(
+                    f"Extern symbol '{signature.symbol_name}' is declared "
+                    f"incompatibly by '{candidate.name}' and "
+                    f"'{prototype.name}': {mismatch}",
+                    node=definition or prototype,
+                )
+                break
 
         function = self.factory.make_function(
             module_key,
