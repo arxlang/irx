@@ -120,6 +120,10 @@ IRx keeps runtime type checking on by default for its own code under `src/irx`.
   keeping `@typechecked` closest to the original function.
 - Keep class decorators ordered as `@public` or `@private`, then `@typechecked`,
   then `@dataclass(...)`.
+- Write Douki docstrings for private helpers too. Underscore-prefixed functions,
+  methods, and other internal implementation helpers should still have
+  repository-style docstrings unless they are a clearly documented exemption
+  such as a typing-only stub.
 - If you need an exemption for a `Protocol` or a typing-only stub, document it
   clearly and update `tests/test_typechecked_policy.py` in the same change.
 
@@ -136,6 +140,12 @@ the codebase easier to evolve:
   practical.
 - Prefer a "never nesting" style when possible: use guard clauses, early
   returns, and extracted helpers to keep control flow flat and readable.
+- Keep test function names short and descriptive. Prefer a concise test name
+  plus a clear docstring over one long function name that tries to spell out the
+  entire scenario.
+- Avoid literal numbers in assertions when the number is part of the expected
+  behavior. Assign the expected value to a local variable first so the assertion
+  documents intent without relying on magic numbers.
 
 6.  Commit your changes and push your branch to GitHub:
 
