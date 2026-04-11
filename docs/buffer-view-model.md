@@ -13,16 +13,16 @@ ABI data without baking array-library behavior into IRx.
 The canonical view descriptor is the identified struct `irx_buffer_view` with
 this stable field order:
 
-| Index | Field          | Meaning                                  |
-| ----- | -------------- | ---------------------------------------- |
-| 0     | `data`         | Opaque data pointer.                     |
-| 1     | `owner`        | Opaque owner handle or null.             |
-| 2     | `dtype`        | Opaque dtype handle or stable token.     |
-| 3     | `ndim`         | Rank as `i32`.                           |
-| 4     | `shape`        | Pointer to `i64` shape metadata.         |
-| 5     | `strides`      | Pointer to `i64` stride metadata.        |
-| 6     | `offset_bytes` | Byte offset from `data`.                 |
-| 7     | `flags`        | Ownership, mutability, and layout flags. |
+| Index | Field          | Meaning                                           |
+| ----- | -------------- | ------------------------------------------------- |
+| 0     | `data`         | Opaque data pointer.                              |
+| 1     | `owner`        | Opaque owner handle or null.                      |
+| 2     | `dtype`        | Opaque dtype handle or stable token.              |
+| 3     | `ndim`         | Rank as `i32`.                                    |
+| 4     | `shape`        | Pointer to `i64` shape metadata.                  |
+| 5     | `strides`      | Pointer to `i64` stride metadata.                 |
+| 6     | `offset_bytes` | Byte offset from `data`.                          |
+| 7     | `flags`        | Ownership, mutability, layout, and interop flags. |
 
 The lowered LLVM shape is:
 
@@ -33,6 +33,28 @@ The lowered LLVM shape is:
 There are no hidden headers or backend-only object layouts. IRx lowers the
 descriptor as a plain struct value, consistent with the project struct ABI
 foundation.
+
+## Built-In Primitive Dtype Tokens
+
+When a producer does not need an out-of-band dtype handle, it may use these
+stable low-level primitive dtype tokens in the `dtype` field:
+
+| Token | Name      |
+| ----- | --------- |
+| 1     | `bool`    |
+| 2     | `int8`    |
+| 3     | `int16`   |
+| 4     | `int32`   |
+| 5     | `int64`   |
+| 6     | `uint8`   |
+| 7     | `uint16`  |
+| 8     | `uint32`  |
+| 9     | `uint64`  |
+| 10    | `float32` |
+| 11    | `float64` |
+
+These tokens are a low-level interop convenience, not a full dtype system.
+Producers may still use opaque dtype handles where that is a better fit.
 
 ## Ownership
 
@@ -73,6 +95,19 @@ Mutability is attached to the view.
 
 This deliberately separates "may write through this view" from "who owns the
 underlying allocation."
+
+## Interop Sidecars
+
+The buffer/view substrate may advertise extra producer-side metadata through
+generic interop flags.
+
+- `IRX_BUFFER_FLAG_VALIDITY_BITMAP` means the producer has separate validity
+  metadata for the same logical elements.
+- The flag does not make generic buffer indexing null-aware.
+- A consumer that cares about validity semantics must use the producer-specific
+  API that created the view.
+- The Arrow runtime uses this flag when projecting nullable fixed-width arrays
+  into `irx_buffer_view`.
 
 ## Shape And Strides
 

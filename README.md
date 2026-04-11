@@ -161,14 +161,19 @@ Public extern declarations integrate with the same layer:
 Arrow uses this path as its first substantial consumer:
 
 - native runtime implemented in C under `src/irx/builder/runtime/arrow/`
-- opaque `irx_arrow_*` handles only
-- Arrow C Data import/export boundary
+- opaque `irx_arrow_*` handles for schemas, builders, and arrays
+- Arrow C Data import/export boundary with explicit copy and move/adopt import
+  modes
+- supported primitive storage types: `int8`, `int16`, `int32`, `int64`, `uint8`,
+  `uint16`, `uint32`, `uint64`, `float32`, `float64`, and `bool`
+- explicit Arrow-side nullability inspection plus a readonly value-buffer bridge
+  into the generic `irx_buffer_view` substrate for fixed-width numeric arrays
 - Python `nanoarrow` installed by default for interop and tests
 - `arx-nanoarrow-sources` installed by default for native runtime builds
 
-The current MVP is intentionally narrow: primitive `int32` arrays, lifecycle
-operations, inspection, and C Data roundtrip support. No full Arrow container
-semantics are encoded directly in LLVM IR.
+The Arrow layer remains intentionally low-level: handles, lifecycle, inspection,
+C Data interop, and a conservative buffer/view bridge. IRx still does not encode
+dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.
 
 ## Scalar Numeric Semantics
 
@@ -353,7 +358,7 @@ def test_binary_op_basic():
 - Alternative backends and/or JIT runner.
 - Better diagnostics and source locations in IR.
 - Expand optional [Apache Arrow](https://arrow.apache.org/) runtime support:
-  nullable arrays, more primitive types, streams, and higher-level handles.
+  streams, variable-width primitives, and higher-level interop handles.
 
 ## Contributing
 

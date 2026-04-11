@@ -346,6 +346,21 @@ to:
 - `offset_bytes: i64`
 - `flags: i32`
 
+Stable built-in primitive dtype tokens are also available when a producer does
+not need an out-of-band dtype handle:
+
+- `1: bool`
+- `2: int8`
+- `3: int16`
+- `4: int32`
+- `5: int64`
+- `6: uint8`
+- `7: uint16`
+- `8: uint32`
+- `9: uint64`
+- `10: float32`
+- `11: float64`
+
 Semantic rules:
 
 - ownership is explicit as borrowed, owned, or external-owner
@@ -364,6 +379,8 @@ Semantic rules:
 - shape and strides describe logical indexing, not ownership
 - offset support is part of the descriptor model
 - null data with statically nonzero extent is rejected
+- `IRX_BUFFER_FLAG_VALIDITY_BITMAP` may advertise producer-side validity
+  metadata, but generic buffer operations remain null-agnostic
 
 Lowering uses `irx_buffer_view` as a named plain struct with stable field order:
 
@@ -374,6 +391,65 @@ Lowering uses `irx_buffer_view` as a named plain struct with stable field order:
 Runtime/native lifetime operations are feature-gated behind the `buffer` runtime
 feature. Plain descriptors do not pull native helper symbols into a module
 unless a helper is used.
+
+## Arrow Runtime Interop Contract
+
+IRx exposes Arrow as one optional runtime feature and FFI-owned ABI surface. It
+is not a first-class language container model.
+
+Stable scope in this phase:
+
+- supported plain primitive Arrow storage types: `bool`, `int8`, `int16`,
+  `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, and
+  `float64`
+- opaque schema, array builder, and array handles under `irx_arrow_*`
+- Arrow C Data import/export as the external interchange boundary
+- explicit Arrow-to-`irx_buffer_view` projection for supported fixed-width
+  numeric arrays
+
+Import/export rules:
+
+- `irx_arrow_array_import_copy(...)` copies external Arrow C Data into a new
+  runtime-owned array handle
+- `irx_arrow_array_import_move(...)` adopts external Arrow C Data into a new
+  runtime-owned array handle and leaves the source structs moved-from on success
+- `irx_arrow_array_export(...)` copies a runtime-owned array handle into an
+  independent Arrow C Data pair that the caller releases separately
+- schema handles use the same copy-oriented pattern through
+  `irx_arrow_schema_import_copy(...)` and `irx_arrow_schema_export(...)`
+
+Nullability rules:
+
+- Arrow nullability is modeled on Arrow handles, not as generic `BufferViewType`
+  element semantics
+- `irx_arrow_array_is_nullable(...)`, `irx_arrow_array_null_count(...)`, and
+  `irx_arrow_array_has_validity_bitmap(...)` are the stable Arrow-side
+  inspection surface
+- `irx_arrow_array_validity_bitmap(...)` exposes the physical validity bitmap
+  pointer plus bit offset and length
+- generic buffer indexing, stores, and raw writes remain null-agnostic
+
+Arrow-to-buffer-view bridge rules:
+
+- only fixed-width, byte-addressable primitive arrays are buffer-view compatible
+  in this phase
+- the bridge is always readonly and borrowed
+- bridged views use a null owner handle; the caller must keep the Arrow array
+  handle alive explicitly
+- bridged views populate dtype, shape, strides, and offset for one 1-D columnar
+  value buffer
+- when a validity bitmap exists, the returned view sets
+  `IRX_BUFFER_FLAG_VALIDITY_BITMAP`
+- bool arrays are supported as Arrow handles but are not buffer-view compatible
+  because their values are bit-packed
+
+Intentionally out of scope here:
+
+- ArrowArrayStream, RecordBatch, and Table runtime handles
+- dataframe/query semantics
+- compute kernels
+- nested, dictionary, temporal, decimal, and other non-primitive Arrow layouts
+- implicit null-aware scalar semantics on generic buffer views
 
 Example scalar wrapper:
 

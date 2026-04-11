@@ -16,6 +16,7 @@ import pytest
 from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.buffer import (
+    BUFFER_DTYPE_TOKENS,
     BUFFER_FLAG_BORROWED,
     BUFFER_FLAG_OWNED,
     BUFFER_FLAG_READONLY,
@@ -25,6 +26,9 @@ from irx.buffer import (
     BufferMutability,
     BufferOwnership,
     BufferViewMetadata,
+    buffer_dtype_handle,
+    buffer_dtype_name,
+    buffer_dtype_token,
     buffer_view_flags,
 )
 from irx.builder import Builder
@@ -170,6 +174,32 @@ def test_buffer_view_field_order_is_stable() -> None:
         "offset_bytes": 6,
         "flags": 7,
     }
+
+
+def test_buffer_primitive_dtype_tokens_are_stable() -> None:
+    """
+    title: Built-in primitive dtype tokens should remain stable.
+    """
+    assert BUFFER_DTYPE_TOKENS == {
+        "bool": 1,
+        "int8": 2,
+        "int16": 3,
+        "int32": 4,
+        "int64": 5,
+        "uint8": 6,
+        "uint16": 7,
+        "uint32": 8,
+        "uint64": 9,
+        "float32": 10,
+        "float64": 11,
+    }
+    expected_int32_token = 4
+    expected_float32_name = "float32"
+    expected_uint64_handle = BufferHandle(9)
+
+    assert buffer_dtype_token("int32") == expected_int32_token
+    assert buffer_dtype_name(10) == expected_float32_name
+    assert buffer_dtype_handle("uint64") == expected_uint64_handle
 
 
 def test_buffer_view_descriptor_lowers_to_stable_struct() -> None:

@@ -108,12 +108,16 @@ reproducible on Linux and macOS without introducing dynamic loading.
 Arrow support is implemented as an optional native runtime, not as handwritten
 LLVM IR container logic.
 
-Current Arrow MVP:
+Current Arrow substrate:
 
-- opaque runtime handles only
-- primitive `int32` arrays only
-- explicit create / append / finish / inspect / release lifecycle
-- Arrow C Data import/export support
+- opaque runtime handles for schemas, array builders, and arrays
+- supported primitive storage types: `int8`, `int16`, `int32`, `int64`, `uint8`,
+  `uint16`, `uint32`, `uint64`, `float32`, `float64`, and `bool`
+- explicit builder / import / inspect / export / release lifecycle
+- Arrow C Data import/export support with copy and move/adopt imports
+- explicit nullability and validity-bitmap inspection on Arrow handles
+- readonly bridge from supported fixed-width numeric arrays into
+  `irx_buffer_view`
 - Python `nanoarrow` dependency installed by default in IRx
 - `nanoarrow` used internally for schema/array helpers and validation
 
@@ -123,6 +127,7 @@ What IRx does not do here:
 - no full Arrow type system
 - no Arx language syntax or module layer
 - no RecordBatch, Table, or ArrowArrayStream runtime yet
+- no dataframe/query semantics or compute-kernel surface
 
 ## ABI Boundary
 
@@ -135,9 +140,17 @@ Key rules:
 - runtime-owned memory is released with explicit `irx_arrow_*_release()`
 - `nanoarrow` stays internal to the implementation
 - Arrow C Data structs are the interchange boundary
-
-The Arrow runtime currently copies arrays on import/export. That keeps ownership
-simple for the first phase and avoids leaking runtime-private storage details.
+- import is explicit:
+  - `irx_arrow_array_import_copy(...)` copies external C Data into a new
+    runtime-owned array handle
+  - `irx_arrow_array_import_move(...)` adopts external C Data into a new
+    runtime-owned array handle and leaves the input structs moved-from on
+    success
+- export is explicit:
+  - `irx_arrow_array_export(...)` copies a runtime-owned array handle into an
+    independent Arrow C Data pair that the caller releases separately
+- schema handles use the same pattern through
+  `irx_arrow_schema_import_copy(...)` and `irx_arrow_schema_export(...)`
 
 ## Ownership Rules
 
@@ -145,13 +158,40 @@ Current ownership model:
 
 - builder handles own their mutable Arrow builder state
 - finishing a builder transfers ownership into an immutable array handle
+- schema and array handles are refcounted through explicit retain/release calls
 - array handles own their schema plus array resources
 - exported Arrow C Data structs own their copied resources and must be released
   independently
-- imported Arrow C Data values are copied into a new IRx array handle
+- copied imports leave the caller's Arrow C Data ownership unchanged
+- move/adopt imports transfer ownership into IRx on success
 
-Nullable arrays are intentionally deferred to the next phase, so MVP import
-currently rejects arrays with nulls.
+## Nullability And Buffer Bridges
+
+Arrow nullability stays Arrow-specific in this layer.
+
+- Arrow arrays may be nullable independently of `irx_buffer_view`
+- `irx_arrow_array_is_nullable(...)`, `irx_arrow_array_null_count(...)`, and
+  `irx_arrow_array_has_validity_bitmap(...)` expose Arrow-side null metadata
+- `irx_arrow_array_validity_bitmap(...)` exposes the physical validity bitmap
+  pointer plus bit offset and length
+- `irx_buffer_view` remains a plain physical view; generic indexing and writes
+  do not become null-aware
+- `irx_arrow_array_borrow_buffer_view(...)` projects only the physical value
+  buffer and always returns a borrowed readonly `irx_buffer_view`
+- when a bridged Arrow array has a validity bitmap, the returned view sets
+  `IRX_BUFFER_FLAG_VALIDITY_BITMAP`
+- bool arrays are supported as Arrow handles but are not buffer-view compatible
+  because their values are bit-packed
+- caller code that needs null semantics must keep using Arrow inspection APIs
+
+The buffer bridge is intentionally conservative:
+
+- only fixed-width byte-addressable primitive arrays are bridged
+- the bridge is 1-D and columnar (`shape[0] == length`,
+  `stride == element_size`)
+- writable views are not exposed in this phase
+- borrowed views use a null owner handle, so the caller must keep the Arrow
+  array handle alive explicitly
 
 ## Nanoarrow
 
@@ -199,15 +239,15 @@ Implemented in this phase:
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
 - one internal Arrow lowering path: `irx.arrow.ArrowInt32ArrayLength`
-- tests for registry behavior, IR declarations, build integration, runtime ABI,
-  and Arrow C Data roundtrip
+- tests for registry behavior, IR declarations, build integration, primitive
+  type coverage, nullability, move/copy ownership, and Arrow-to-buffer-view
+  projection
 
 ## Follow-up Roadmap
 
 Phase 2:
 
-- nullable primitive arrays
-- string arrays
+- string and binary arrays
 - richer schema helpers
 - better Arrow import/export diagnostics
 
@@ -215,7 +255,7 @@ Phase 3:
 
 - RecordBatch and Table handles
 - ArrowArrayStream support
-- more primitive element types
+- richer stream-oriented interop helpers
 
 Phase 4:
 

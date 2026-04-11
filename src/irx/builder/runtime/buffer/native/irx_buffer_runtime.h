@@ -14,6 +14,19 @@ extern "C" {
 #define IRX_BUFFER_FLAG_WRITABLE (1 << 4)
 #define IRX_BUFFER_FLAG_C_CONTIGUOUS (1 << 5)
 #define IRX_BUFFER_FLAG_F_CONTIGUOUS (1 << 6)
+#define IRX_BUFFER_FLAG_VALIDITY_BITMAP (1 << 7)
+
+#define IRX_BUFFER_DTYPE_BOOL 1
+#define IRX_BUFFER_DTYPE_INT8 2
+#define IRX_BUFFER_DTYPE_INT16 3
+#define IRX_BUFFER_DTYPE_INT32 4
+#define IRX_BUFFER_DTYPE_INT64 5
+#define IRX_BUFFER_DTYPE_UINT8 6
+#define IRX_BUFFER_DTYPE_UINT16 7
+#define IRX_BUFFER_DTYPE_UINT32 8
+#define IRX_BUFFER_DTYPE_UINT64 9
+#define IRX_BUFFER_DTYPE_FLOAT32 10
+#define IRX_BUFFER_DTYPE_FLOAT64 11
 
 typedef struct irx_buffer_owner_handle irx_buffer_owner_handle;
 typedef void (*irx_buffer_owner_release_fn)(void* context);

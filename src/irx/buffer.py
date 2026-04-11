@@ -38,6 +38,7 @@ BUFFER_FLAG_READONLY = 1 << 3
 BUFFER_FLAG_WRITABLE = 1 << 4
 BUFFER_FLAG_C_CONTIGUOUS = 1 << 5
 BUFFER_FLAG_F_CONTIGUOUS = 1 << 6
+BUFFER_FLAG_VALIDITY_BITMAP = 1 << 7
 
 BUFFER_OWNERSHIP_FLAGS = (
     BUFFER_FLAG_BORROWED,
@@ -48,6 +49,36 @@ BUFFER_MUTABILITY_FLAGS = (
     BUFFER_FLAG_READONLY,
     BUFFER_FLAG_WRITABLE,
 )
+
+BUFFER_DTYPE_BOOL = 1
+BUFFER_DTYPE_INT8 = 2
+BUFFER_DTYPE_INT16 = 3
+BUFFER_DTYPE_INT32 = 4
+BUFFER_DTYPE_INT64 = 5
+BUFFER_DTYPE_UINT8 = 6
+BUFFER_DTYPE_UINT16 = 7
+BUFFER_DTYPE_UINT32 = 8
+BUFFER_DTYPE_UINT64 = 9
+BUFFER_DTYPE_FLOAT32 = 10
+BUFFER_DTYPE_FLOAT64 = 11
+
+BUFFER_DTYPE_TOKENS = {
+    "bool": BUFFER_DTYPE_BOOL,
+    "int8": BUFFER_DTYPE_INT8,
+    "int16": BUFFER_DTYPE_INT16,
+    "int32": BUFFER_DTYPE_INT32,
+    "int64": BUFFER_DTYPE_INT64,
+    "uint8": BUFFER_DTYPE_UINT8,
+    "uint16": BUFFER_DTYPE_UINT16,
+    "uint32": BUFFER_DTYPE_UINT32,
+    "uint64": BUFFER_DTYPE_UINT64,
+    "float32": BUFFER_DTYPE_FLOAT32,
+    "float64": BUFFER_DTYPE_FLOAT64,
+}
+
+BUFFER_DTYPE_NAMES = {
+    token: name for name, token in BUFFER_DTYPE_TOKENS.items()
+}
 
 
 @public
@@ -233,6 +264,71 @@ def buffer_view_is_readonly(flags: int) -> bool:
 
 @public
 @typechecked
+def buffer_view_has_validity_bitmap(flags: int) -> bool:
+    """
+    title: Return whether a buffer view advertises a validity sidecar.
+    summary: >-
+      This flag only says that the producer has separate validity metadata. It
+      does not make generic buffer indexing null-aware.
+    parameters:
+      flags:
+        type: int
+    returns:
+      type: bool
+    """
+    return buffer_flags_include(flags, BUFFER_FLAG_VALIDITY_BITMAP)
+
+
+@public
+@typechecked
+def buffer_dtype_token(name: str) -> int:
+    """
+    title: Return one canonical primitive dtype token.
+    parameters:
+      name:
+        type: str
+    returns:
+      type: int
+    """
+    try:
+        return BUFFER_DTYPE_TOKENS[name]
+    except KeyError as exc:  # pragma: no cover - narrow guard
+        raise ValueError(f"unknown buffer dtype token {name!r}") from exc
+
+
+@public
+@typechecked
+def buffer_dtype_name(token: int) -> str:
+    """
+    title: Return the canonical name for one primitive dtype token.
+    parameters:
+      token:
+        type: int
+    returns:
+      type: str
+    """
+    try:
+        return BUFFER_DTYPE_NAMES[token]
+    except KeyError as exc:  # pragma: no cover - narrow guard
+        raise ValueError(f"unknown buffer dtype token {token!r}") from exc
+
+
+@public
+@typechecked
+def buffer_dtype_handle(name: str) -> BufferHandle:
+    """
+    title: Return one canonical primitive dtype token as a buffer handle.
+    parameters:
+      name:
+        type: str
+    returns:
+      type: BufferHandle
+    """
+    return BufferHandle(buffer_dtype_token(name))
+
+
+@public
+@typechecked
 def buffer_view_ownership(flags: int) -> BufferOwnership | None:
     """
     title: Return the explicit ownership state encoded in flags.
@@ -327,12 +423,26 @@ def validate_buffer_view_metadata(
 
 
 __all__ = [
+    "BUFFER_DTYPE_BOOL",
+    "BUFFER_DTYPE_FLOAT32",
+    "BUFFER_DTYPE_FLOAT64",
+    "BUFFER_DTYPE_INT8",
+    "BUFFER_DTYPE_INT16",
+    "BUFFER_DTYPE_INT32",
+    "BUFFER_DTYPE_INT64",
+    "BUFFER_DTYPE_NAMES",
+    "BUFFER_DTYPE_TOKENS",
+    "BUFFER_DTYPE_UINT8",
+    "BUFFER_DTYPE_UINT16",
+    "BUFFER_DTYPE_UINT32",
+    "BUFFER_DTYPE_UINT64",
     "BUFFER_FLAG_BORROWED",
     "BUFFER_FLAG_C_CONTIGUOUS",
     "BUFFER_FLAG_EXTERNAL_OWNER",
     "BUFFER_FLAG_F_CONTIGUOUS",
     "BUFFER_FLAG_OWNED",
     "BUFFER_FLAG_READONLY",
+    "BUFFER_FLAG_VALIDITY_BITMAP",
     "BUFFER_FLAG_WRITABLE",
     "BUFFER_MUTABILITY_FLAGS",
     "BUFFER_OWNERSHIP_FLAGS",
@@ -346,8 +456,12 @@ __all__ = [
     "BufferMutability",
     "BufferOwnership",
     "BufferViewMetadata",
+    "buffer_dtype_handle",
+    "buffer_dtype_name",
+    "buffer_dtype_token",
     "buffer_flags_include",
     "buffer_view_flags",
+    "buffer_view_has_validity_bitmap",
     "buffer_view_is_readonly",
     "buffer_view_ownership",
     "validate_buffer_view_metadata",

@@ -195,6 +195,10 @@ API.
   to the original function so Typeguard can instrument it.
 - For classes, keep `@public` or `@private` outermost, then `@typechecked`, then
   `@dataclass(...)` so generated dataclass methods are instrumented.
+- Write Douki docstrings for private helpers too. Underscore-prefixed functions,
+  methods, and other internal implementation helpers should still carry proper
+  repository-style docstrings unless they are a deliberate typing-only stub or
+  other documented exemption.
 - Exempt only `Protocol` definitions and type-checking-only helper stubs that
   are intentionally kept out of the runtime MRO.
 - If a function or concrete class truly needs an exemption, document the reason
@@ -290,6 +294,12 @@ so clearly in your final update instead of implying full verification passed.
 - For behavior that depends on execution, add or update build/run coverage.
 - When changing public imports or documentation-facing behavior, add a small
   surface regression test.
+- Keep test function names short and descriptive. Do not encode the full
+  scenario in one very long test name when a concise name plus a docstring
+  communicates the intent more clearly.
+- Avoid literal numbers in assertions when the value is part of the expected
+  behavior. Bind the expected value to a local variable first so the assertion
+  reads as a named contract instead of a magic number.
 
 Useful examples:
 
