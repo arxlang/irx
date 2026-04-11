@@ -173,6 +173,14 @@ API.
   when that reads better than underscore-prefixed exports. For methods and
   attributes, continue using underscores when they are still the clearest
   internal signal.
+- Do not define classes inside `if TYPE_CHECKING:` blocks. Prefer top-level
+  `Protocol` definitions plus aliases or other patterns that keep typing helpers
+  out of the runtime MRO without hiding class definitions inside conditional
+  blocks.
+- Apply SOLID principles when they improve the design and keep the diff
+  practical.
+- Prefer a "never nesting" style when possible: use guard clauses, early
+  returns, and extracted helpers to keep control flow flat and readable.
 
 ## Runtime Type Checking
 

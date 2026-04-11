@@ -123,6 +123,20 @@ IRx keeps runtime type checking on by default for its own code under `src/irx`.
 - If you need an exemption for a `Protocol` or a typing-only stub, document it
   clearly and update `tests/test_typechecked_policy.py` in the same change.
 
+## Code Style And Architecture
+
+When contributing to IRx, prefer a small set of architectural habits that keep
+the codebase easier to evolve:
+
+- Do not define classes inside `if TYPE_CHECKING:` blocks. Prefer top-level
+  `Protocol` definitions, aliases, or other patterns that keep typing helpers
+  out of the runtime MRO without hiding class definitions behind conditional
+  blocks.
+- Apply SOLID principles when they improve the design and keep the change
+  practical.
+- Prefer a "never nesting" style when possible: use guard clauses, early
+  returns, and extracted helpers to keep control flow flat and readable.
+
 6.  Commit your changes and push your branch to GitHub:
 
     ```bash
