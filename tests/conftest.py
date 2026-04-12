@@ -2,6 +2,7 @@
 title: General configuration module for pytest.
 """
 
+import ctypes
 import os
 import tempfile
 
@@ -146,6 +147,60 @@ def assert_build_succeeds(builder: Builder, module: astx.Module) -> None:
     assert result.returncode == 0, (
         f"Expected build/run success, got exit {result.returncode} "
         f"with stderr {result.stderr.strip()!r}"
+    )
+
+
+def jit_int_main(builder: Builder, module: astx.Module) -> int:
+    """
+    title: JIT-run one Int32 main function directly from translated IR.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+    returns:
+      type: int
+    """
+    ir_text = translate_ir(builder, module)
+    llvm_module = llvm.parse_assembly(ir_text)
+    llvm_module.verify()
+
+    target = llvm.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_module = llvm.parse_assembly("")
+    engine = llvm.create_mcjit_compiler(backing_module, target_machine)
+
+    engine.add_module(llvm_module)
+    engine.finalize_object()
+    engine.run_static_constructors()
+    address = engine.get_function_address("main")
+    if address == 0:
+        raise AssertionError(
+            "Translated module does not define a JIT-callable main"
+        )
+
+    main = ctypes.CFUNCTYPE(ctypes.c_int32)(address)
+    return int(main())
+
+
+def assert_jit_int_main_result(
+    builder: Builder,
+    module: astx.Module,
+    expected_result: int,
+) -> None:
+    """
+    title: Assert that JIT-running Int32 main yields one expected result.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+      expected_result:
+        type: int
+    """
+    actual_result = jit_int_main(builder, module)
+    assert actual_result == expected_result, (
+        f"Expected JIT result `{expected_result}`, got `{actual_result}`"
     )
 
 

@@ -68,6 +68,22 @@ def test_builder_translate_runs_analysis_before_codegen() -> None:
         builder.translate(module)
 
 
+def test_builder_translate_rejects_continue_outside_loop_before_codegen() -> (
+    None
+):
+    """
+    title: Continue misuse should stop at semantic analysis before lowering.
+    """
+    builder = Builder()
+    module = _main_module(
+        astx.ContinueStmt(),
+        astx.FunctionReturn(astx.LiteralInt32(0)),
+    )
+
+    with pytest.raises(SemanticError, match="Continue statement outside loop"):
+        builder.translate(module)
+
+
 def test_direct_visitor_translate_runs_analysis_before_codegen() -> None:
     """
     title: Test direct visitor translate runs analysis before codegen.

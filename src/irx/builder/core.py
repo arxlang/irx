@@ -45,7 +45,7 @@ from irx.builder.runtime.registry import (
     RuntimeFeatureState,
     get_default_runtime_feature_registry,
 )
-from irx.builder.state import NamedValueMap, ResultStackValue
+from irx.builder.state import LoopTargets, NamedValueMap, ResultStackValue
 from irx.builder.types import (
     VariablesLLVM,
     is_fp_type,
@@ -291,7 +291,7 @@ class VisitorCore(BuilderVisitor):
     result_stack: list[ResultStackValue]
     runtime_features: RuntimeFeatureState
     const_vars: set[str]
-    loop_stack: list[dict[str, ir.Block]]
+    loop_stack: list[LoopTargets]
     _set_value_ids: dict[int, ir.Value]
     _buffer_view_global_counter: int
     struct_types: dict[str, ir.Type]
