@@ -15,6 +15,7 @@ from irx.analysis.factories import SemanticEntityFactory
 from irx.analysis.module_interfaces import ModuleKey
 from irx.analysis.resolved_nodes import (
     SemanticBinding,
+    SemanticClass,
     SemanticFunction,
     SemanticModule,
     SemanticStruct,
@@ -209,6 +210,35 @@ class VisibleBindings:
         return self.bind(
             local_name,
             self.factory.make_struct_binding(struct),
+            node=node,
+            module_key=module_key,
+        )
+
+    def bind_class(
+        self,
+        local_name: str,
+        class_: SemanticClass,
+        *,
+        node: astx.AST,
+        module_key: ModuleKey | None = None,
+    ) -> SemanticBinding:
+        """
+        title: Bind a class in a module namespace.
+        parameters:
+          local_name:
+            type: str
+          class_:
+            type: SemanticClass
+          node:
+            type: astx.AST
+          module_key:
+            type: ModuleKey | None
+        returns:
+          type: SemanticBinding
+        """
+        return self.bind(
+            local_name,
+            self.factory.make_class_binding(class_),
             node=node,
             module_key=module_key,
         )

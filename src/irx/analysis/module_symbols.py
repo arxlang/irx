@@ -86,6 +86,22 @@ def struct_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
 
 @public
 @typechecked
+def class_key(module_key: ModuleKey, name: str) -> tuple[ModuleKey, str]:
+    """
+    title: Return a module-aware class registry key.
+    parameters:
+      module_key:
+        type: ModuleKey
+      name:
+        type: str
+    returns:
+      type: tuple[ModuleKey, str]
+    """
+    return (module_key, name)
+
+
+@public
+@typechecked
 def qualified_function_name(module_key: ModuleKey, name: str) -> str:
     """
     title: Return a qualified semantic function name.
@@ -102,6 +118,22 @@ def qualified_function_name(module_key: ModuleKey, name: str) -> str:
 
 @public
 @typechecked
+def qualified_class_name(module_key: ModuleKey, name: str) -> str:
+    """
+    title: Return a qualified semantic class name.
+    parameters:
+      module_key:
+        type: ModuleKey
+      name:
+        type: str
+    returns:
+      type: str
+    """
+    return f"{module_key}::class::{name}"
+
+
+@public
+@typechecked
 def qualified_struct_name(module_key: ModuleKey, name: str) -> str:
     """
     title: Return a qualified semantic struct name.
@@ -114,6 +146,28 @@ def qualified_struct_name(module_key: ModuleKey, name: str) -> str:
       type: str
     """
     return f"{module_key}::struct::{name}"
+
+
+@public
+@typechecked
+def qualified_class_member_name(
+    module_key: ModuleKey,
+    class_name: str,
+    member_name: str,
+) -> str:
+    """
+    title: Return a qualified semantic class-member name.
+    parameters:
+      module_key:
+        type: ModuleKey
+      class_name:
+        type: str
+      member_name:
+        type: str
+    returns:
+      type: str
+    """
+    return f"{module_key}::class::{class_name}::member::{member_name}"
 
 
 @public

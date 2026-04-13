@@ -316,6 +316,139 @@ class FunctionSignature:
 
 @public
 @typechecked
+class ClassMemberKind(str, Enum):
+    """
+    title: Stable semantic class-member categories.
+    summary: Distinguish fields from methods inside one class member namespace.
+    """
+
+    ATTRIBUTE = "attribute"
+    METHOD = "method"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassMember:
+    """
+    title: Canonical semantic class-member record.
+    summary: >-
+      Normalize one declared class member so later phases can reason about
+      visibility, storage, mutability, and overrides without re-reading raw AST
+      modifier fields.
+    attributes:
+      symbol_id:
+        type: str
+      name:
+        type: str
+      qualified_name:
+        type: str
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+      kind:
+        type: ClassMemberKind
+      visibility:
+        type: astx.VisibilityKind
+      is_static:
+        type: bool
+      is_constant:
+        type: bool
+      is_mutable:
+        type: bool
+      declaration:
+        type: astx.AST
+      type_:
+        type: astx.DataType | None
+      signature:
+        type: FunctionSignature | None
+      overrides:
+        type: str | None
+    """
+
+    symbol_id: str
+    name: str
+    qualified_name: str
+    owner_name: str
+    owner_qualified_name: str
+    kind: ClassMemberKind
+    visibility: astx.VisibilityKind
+    is_static: bool
+    is_constant: bool
+    is_mutable: bool
+    declaration: astx.AST
+    type_: astx.DataType | None = None
+    signature: FunctionSignature | None = None
+    overrides: str | None = None
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClass:
+    """
+    title: Resolved class information.
+    summary: >-
+      Describe one top-level class declaration together with normalized bases,
+      member tables, and deterministic inheritance metadata.
+    attributes:
+      symbol_id:
+        type: str
+      name:
+        type: str
+      module_key:
+        type: ModuleKey
+      qualified_name:
+        type: str
+      declaration:
+        type: astx.ClassDefStmt
+      bases:
+        type: tuple[SemanticClass, Ellipsis]
+      declared_members:
+        type: tuple[SemanticClassMember, Ellipsis]
+      declared_member_table:
+        type: dict[str, SemanticClassMember]
+      member_table:
+        type: dict[str, SemanticClassMember]
+      instance_attributes:
+        type: tuple[SemanticClassMember, Ellipsis]
+      static_attributes:
+        type: tuple[SemanticClassMember, Ellipsis]
+      instance_methods:
+        type: tuple[SemanticClassMember, Ellipsis]
+      static_methods:
+        type: tuple[SemanticClassMember, Ellipsis]
+      inheritance_graph:
+        type: tuple[str, Ellipsis]
+      mro:
+        type: tuple[SemanticClass, Ellipsis]
+      is_resolved:
+        type: bool
+    """
+
+    symbol_id: str
+    name: str
+    module_key: ModuleKey
+    qualified_name: str
+    declaration: astx.ClassDefStmt
+    bases: tuple["SemanticClass", ...] = ()
+    declared_members: tuple[SemanticClassMember, ...] = ()
+    declared_member_table: dict[str, SemanticClassMember] = field(
+        default_factory=dict
+    )
+    member_table: dict[str, SemanticClassMember] = field(default_factory=dict)
+    instance_attributes: tuple[SemanticClassMember, ...] = ()
+    static_attributes: tuple[SemanticClassMember, ...] = ()
+    instance_methods: tuple[SemanticClassMember, ...] = ()
+    static_methods: tuple[SemanticClassMember, ...] = ()
+    inheritance_graph: tuple[str, ...] = ()
+    mro: tuple["SemanticClass", ...] = ()
+    is_resolved: bool = False
+
+
+@public
+@typechecked
 @dataclass(frozen=True)
 class ImplicitConversion:
     """
@@ -493,6 +626,8 @@ class SemanticBinding:
         type: SemanticFunction | None
       struct:
         type: SemanticStruct | None
+      class_:
+        type: SemanticClass | None
       module:
         type: SemanticModule | None
     """
@@ -502,6 +637,7 @@ class SemanticBinding:
     qualified_name: str
     function: SemanticFunction | None = None
     struct: SemanticStruct | None = None
+    class_: SemanticClass | None = None
     module: SemanticModule | None = None
 
 
@@ -643,6 +779,8 @@ class SemanticInfo:
         type: CallableResolution | None
       resolved_struct:
         type: SemanticStruct | None
+      resolved_class:
+        type: SemanticClass | None
       resolved_module:
         type: SemanticModule | None
       resolved_imports:
@@ -668,6 +806,7 @@ class SemanticInfo:
     resolved_function: SemanticFunction | None = None
     resolved_callable: CallableResolution | None = None
     resolved_struct: SemanticStruct | None = None
+    resolved_class: SemanticClass | None = None
     resolved_module: SemanticModule | None = None
     resolved_imports: tuple[ResolvedImportBinding, ...] = ()
     resolved_call: CallResolution | None = None

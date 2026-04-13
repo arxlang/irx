@@ -21,6 +21,7 @@ from irx.analysis import (
     get_semantic_contract,
 )
 from irx.analysis.module_symbols import (
+    qualified_class_name,
     qualified_function_name,
     qualified_struct_name,
 )
@@ -485,7 +486,11 @@ def test_analyze_rejects_duplicate_struct_definitions() -> None:
         astx.StructDefStmt(
             name="Point",
             attributes=[
-                astx.VariableDeclaration(name="x", type_=astx.Int32()),
+                astx.VariableDeclaration(
+                    name="x",
+                    type_=astx.Int32(),
+                    mutability=astx.MutabilityKind.mutable,
+                ),
             ],
         ),
         astx.StructDefStmt(
@@ -727,11 +732,10 @@ def test_analyze_prefers_inner_for_count_scope_symbols() -> None:
     assert resolved_outer_ident.symbol_id == outer_symbol.symbol_id
 
 
-def test_analyze_preserves_module_qualified_function_and_struct_names() -> (
-    None
-):
+def test_preserves_module_qualified_function_struct_and_class_names() -> None:
     """
-    title: Test analyze keeps module-qualified function and struct names.
+    title: >-
+      Test analyze keeps module-qualified function, struct, and class names.
     """
     struct = astx.StructDefStmt(
         name="Point",
@@ -745,15 +749,27 @@ def test_analyze_preserves_module_qualified_function_and_struct_names() -> (
         ),
         body=_block(astx.FunctionReturn(astx.LiteralInt32(1))),
     )
-    module = make_module("pkg.tools", struct, function)
+    class_def = astx.ClassDefStmt(
+        name="Vector",
+        attributes=[
+            astx.VariableDeclaration(
+                name="x",
+                type_=astx.Int32(),
+                mutability=astx.MutabilityKind.mutable,
+            ),
+        ],
+    )
+    module = make_module("pkg.tools", struct, function, class_def)
 
     analyze(module)
 
     resolved_struct = _semantic(struct).resolved_struct
     resolved_function = _semantic(function).resolved_function
+    resolved_class = _semantic(class_def).resolved_class
 
     assert resolved_struct is not None
     assert resolved_function is not None
+    assert resolved_class is not None
     assert resolved_struct.qualified_name == qualified_struct_name(
         "pkg.tools",
         "Point",
@@ -761,6 +777,10 @@ def test_analyze_preserves_module_qualified_function_and_struct_names() -> (
     assert resolved_function.qualified_name == qualified_function_name(
         "pkg.tools",
         "helper",
+    )
+    assert resolved_class.qualified_name == qualified_class_name(
+        "pkg.tools",
+        "Vector",
     )
 
 
@@ -839,6 +859,7 @@ def test_public_analysis_contract_is_stable() -> None:
         "resolved_call",
         "resolved_return",
         "resolved_struct",
+        "resolved_class",
         "resolved_module",
         "resolved_imports",
         "resolved_operator",
