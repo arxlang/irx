@@ -1003,7 +1003,10 @@ class VisitorCore(BuilderVisitor):
         returns:
           type: ir.Value
         """
-        if is_fp_type(lhs.type):
+        check_ty = lhs.type
+        if isinstance(check_ty, ir.VectorType):
+            check_ty = check_ty.element
+        if is_fp_type(check_ty):
             return self._llvm.ir_builder.fcmp_ordered(op_code, lhs, rhs, name)
         if unsigned:
             return self._llvm.ir_builder.icmp_unsigned(
@@ -1158,10 +1161,16 @@ class VisitorCore(BuilderVisitor):
                     f"{lhs.type.count} vs {rhs.type.count}"
                 )
             if lhs.type.element != rhs.type.element:
-                raise Exception(
-                    "Vector element type mismatch: "
-                    f"{lhs.type.element} vs {rhs.type.element}"
+                lhs_elem = lhs.type.element
+                rhs_elem = rhs.type.element
+                count = lhs.type.count
+                common = self._common_numeric_type(
+                    lhs_elem, rhs_elem, unsigned
                 )
+                lhs_vec = ir.VectorType(common, count)
+                rhs_vec = ir.VectorType(common, count)
+                lhs = self._cast_vector_elements(lhs, lhs_vec, unsigned)
+                rhs = self._cast_vector_elements(rhs, rhs_vec, unsigned)
             return lhs, rhs
 
         if lhs_is_vec:
@@ -1220,6 +1229,86 @@ class VisitorCore(BuilderVisitor):
                 rhs = splat_scalar(self._llvm.ir_builder, rhs, vec_ty)
 
         return lhs, rhs
+
+    def _common_numeric_type(
+        self,
+        a: ir.Type,
+        b: ir.Type,
+        unsigned: bool,
+    ) -> ir.Type:
+        """
+        title: >-
+          Return the common promoted numeric type for two scalar LLVM types.
+        parameters:
+          a:
+            type: ir.Type
+          b:
+            type: ir.Type
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Type
+        """
+        a_fp = is_fp_type(a)
+        b_fp = is_fp_type(b)
+        if a_fp and b_fp:
+            a_w = self._float_bit_width(a)
+            b_w = self._float_bit_width(b)
+            return a if a_w >= b_w else b
+        if a_fp and not b_fp:
+            return a
+        if b_fp and not a_fp:
+            return b
+        a_w = getattr(a, "width", 0)
+        b_w = getattr(b, "width", 0)
+        return a if a_w >= b_w else b
+
+    def _cast_vector_elements(
+        self,
+        value: ir.Value,
+        target_vec_type: ir.VectorType,
+        unsigned: bool,
+    ) -> ir.Value:
+        """
+        title: >-
+          Cast a vector value to a target vector type by converting each
+          element.
+        parameters:
+          value:
+            type: ir.Value
+          target_vec_type:
+            type: ir.VectorType
+          unsigned:
+            type: bool
+        returns:
+          type: ir.Value
+        """
+        src_elem = value.type.element
+        dst_elem = target_vec_type.element
+        if src_elem == dst_elem:
+            return value
+        builder = self._llvm.ir_builder
+        if is_fp_type(dst_elem) and is_fp_type(src_elem):
+            if self._float_bit_width(dst_elem) > self._float_bit_width(
+                src_elem
+            ):
+                return builder.fpext(value, target_vec_type)
+            return builder.fptrunc(value, target_vec_type)
+        if is_fp_type(dst_elem) and is_int_type(src_elem):
+            if unsigned:
+                return builder.uitofp(value, target_vec_type)
+            return builder.sitofp(value, target_vec_type)
+        if is_int_type(dst_elem) and is_int_type(src_elem):
+            src_w = getattr(src_elem, "width", 0)
+            dst_w = getattr(dst_elem, "width", 0)
+            if dst_w > src_w:
+                if unsigned:
+                    return builder.zext(value, target_vec_type)
+                return builder.sext(value, target_vec_type)
+            return builder.trunc(value, target_vec_type)
+        raise Exception(
+            f"Cannot cast vector elements from {src_elem} to {dst_elem}"
+        )
 
     def _select_float_type(self, candidates: list[ir.Type]) -> ir.Type:
         """

@@ -613,43 +613,33 @@ def test_vector_size_mismatch_raises(
         _run_vector_binop("+", v1, v2)
 
 
-def test_vector_element_type_mismatch_raises() -> None:
+def test_vector_element_type_promotion() -> None:
     """
-    title: Mismatched vector element types raise an exception.
+    title: Mismatched vector element types are promoted to the wider type.
     """
     builder = setup_builder()
-    v1 = ir.Constant(ir.VectorType(builder._llvm.INT32_TYPE, VEC2), [1] * VEC2)
-    v2 = ir.Constant(ir.VectorType(builder._llvm.INT64_TYPE, VEC2), [1] * VEC2)
-    with pytest.raises(Exception, match="Vector element type mismatch"):
-        _run_vector_binop("+", v1, v2)
+    i32_ty = builder._llvm.INT32_TYPE
+    i64_ty = builder._llvm.INT64_TYPE
+    v1 = ir.Constant(ir.VectorType(i32_ty, VEC2), [1] * VEC2)
+    v2 = ir.Constant(ir.VectorType(i64_ty, VEC2), [1] * VEC2)
+    result = _run_vector_binop("+", v1, v2)
+    assert isinstance(result.type, ir.VectorType)
+    assert result.type.element == i64_ty
+    assert result.type.count == VEC2
 
 
 @pytest.mark.parametrize(
     "op, match",
     [
         ("%", r"Vector binop .* not implemented"),
-        ("==", r"Vector binop .* not implemented"),
-        ("!=", r"Vector binop .* not implemented"),
-        ("<", r"Vector binop .* not implemented"),
-        ("<=", r"Vector binop .* not implemented"),
-        (">", r"Vector binop .* not implemented"),
-        (">=", r"Vector binop .* not implemented"),
     ],
     ids=[
         "unsupported_%",
-        "cmp_eq",
-        "cmp_ne",
-        "cmp_lt",
-        "cmp_le",
-        "cmp_gt",
-        "cmp_ge",
     ],
 )
 def test_unsupported_vector_op_raises(op: str, match: str) -> None:
     """
-    title: >-
-      Unsupported and unimplemented comparison operators all raise an
-      exception.
+    title: Unsupported vector operators raise an exception.
     parameters:
       op:
         type: str
