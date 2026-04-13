@@ -324,52 +324,6 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             self.set_fast_math(prev_fast_math)
         return result
 
-    def _emit_ordered_compare(
-        self,
-        op_code: str,
-        llvm_lhs: ir.Value,
-        llvm_rhs: ir.Value,
-        *,
-        unsigned: bool,
-        name: str,
-    ) -> ir.Value:
-        """
-        title: Emit ordered compare.
-        parameters:
-          op_code:
-            type: str
-          llvm_lhs:
-            type: ir.Value
-          llvm_rhs:
-            type: ir.Value
-          unsigned:
-            type: bool
-          name:
-            type: str
-        returns:
-          type: ir.Value
-        """
-        if is_fp_type(llvm_lhs.type):
-            return self._llvm.ir_builder.fcmp_ordered(
-                op_code,
-                llvm_lhs,
-                llvm_rhs,
-                name,
-            )
-        if unsigned:
-            return self._llvm.ir_builder.icmp_unsigned(
-                op_code,
-                llvm_lhs,
-                llvm_rhs,
-                name,
-            )
-        return self._llvm.ir_builder.icmp_signed(
-            op_code,
-            llvm_lhs,
-            llvm_rhs,
-            name,
-        )
-
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.BinaryOp) -> None:
         """
@@ -608,7 +562,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
-        result = self._emit_ordered_compare(
+        result = self._emit_numeric_compare(
             "<",
             llvm_lhs,
             llvm_rhs,
@@ -628,7 +582,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
-        result = self._emit_ordered_compare(
+        result = self._emit_numeric_compare(
             ">",
             llvm_lhs,
             llvm_rhs,
@@ -648,7 +602,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
-        result = self._emit_ordered_compare(
+        result = self._emit_numeric_compare(
             "<=",
             llvm_lhs,
             llvm_rhs,
@@ -668,7 +622,7 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
         llvm_lhs, llvm_rhs, unsigned = self._load_binary_operands(node)
         if is_vector(llvm_lhs) and is_vector(llvm_rhs):
             raise Exception(f"Vector binop {node.op_code} not implemented.")
-        result = self._emit_ordered_compare(
+        result = self._emit_numeric_compare(
             ">=",
             llvm_lhs,
             llvm_rhs,
@@ -697,26 +651,13 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
         ):
             result = self._handle_string_comparison(llvm_lhs, llvm_rhs, "==")
-        elif is_fp_type(llvm_lhs.type):
-            result = self._llvm.ir_builder.fcmp_ordered(
-                "==",
-                llvm_lhs,
-                llvm_rhs,
-                "eqtmp",
-            )
-        elif unsigned:
-            result = self._llvm.ir_builder.icmp_unsigned(
-                "==",
-                llvm_lhs,
-                llvm_rhs,
-                "eqtmp",
-            )
         else:
-            result = self._llvm.ir_builder.icmp_signed(
+            result = self._emit_numeric_compare(
                 "==",
                 llvm_lhs,
                 llvm_rhs,
-                "eqtmp",
+                unsigned=unsigned,
+                name="eqtmp",
             )
         self.result_stack.append(result)
 
@@ -740,26 +681,13 @@ class BinaryOpVisitorMixin(VisitorMixinBase):
             and llvm_rhs.type.pointee == self._llvm.INT8_TYPE
         ):
             result = self._handle_string_comparison(llvm_lhs, llvm_rhs, "!=")
-        elif is_fp_type(llvm_lhs.type):
-            result = self._llvm.ir_builder.fcmp_ordered(
-                "!=",
-                llvm_lhs,
-                llvm_rhs,
-                "netmp",
-            )
-        elif unsigned:
-            result = self._llvm.ir_builder.icmp_unsigned(
-                "!=",
-                llvm_lhs,
-                llvm_rhs,
-                "netmp",
-            )
         else:
-            result = self._llvm.ir_builder.icmp_signed(
+            result = self._emit_numeric_compare(
                 "!=",
                 llvm_lhs,
                 llvm_rhs,
-                "netmp",
+                unsigned=unsigned,
+                name="netmp",
             )
         self.result_stack.append(result)
 

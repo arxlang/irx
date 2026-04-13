@@ -268,37 +268,6 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             return "negative"
         return "zero"
 
-    def _compare_numeric(
-        self,
-        op: str,
-        lhs: ir.Value,
-        rhs: ir.Value,
-        *,
-        unsigned: bool,
-        name: str,
-    ) -> ir.Value:
-        """
-        title: Compare two numeric values using one stable policy.
-        parameters:
-          op:
-            type: str
-          lhs:
-            type: ir.Value
-          rhs:
-            type: ir.Value
-          unsigned:
-            type: bool
-          name:
-            type: str
-        returns:
-          type: ir.Value
-        """
-        if is_fp_type(lhs.type):
-            return self._llvm.ir_builder.fcmp_ordered(op, lhs, rhs, name)
-        if unsigned:
-            return self._llvm.ir_builder.icmp_unsigned(op, lhs, rhs, name)
-        return self._llvm.ir_builder.icmp_signed(op, lhs, rhs, name)
-
     def _range_step_flags(
         self,
         step_value: ir.Value,
@@ -428,7 +397,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
           type: ir.Value
         """
         builder = self._llvm.ir_builder
-        before_end = self._compare_numeric(
+        before_end = self._emit_numeric_compare(
             "<",
             current_value,
             end_value,
@@ -448,7 +417,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
                 )
             return builder.and_(step_positive, before_end, "for.range.cond")
 
-        after_end = self._compare_numeric(
+        after_end = self._emit_numeric_compare(
             ">",
             current_value,
             end_value,

@@ -685,6 +685,35 @@ class VisitorMixinTypingBase:
         _ = rhs_type
         return cast(tuple[ir.Value, ir.Value], (None, None))
 
+    def _emit_numeric_compare(
+        self,
+        _op_code: str,
+        _lhs: ir.Value,
+        _rhs: ir.Value,
+        *,
+        unsigned: bool,
+        name: str,
+    ) -> ir.Value:
+        """
+        title: Emit numeric compare.
+        parameters:
+          _op_code:
+            type: str
+          _lhs:
+            type: ir.Value
+          _rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+          name:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        _ = unsigned
+        _ = name
+        return cast(ir.Value, None)
+
     def _unify_numeric_operands(
         self,
         _lhs: ir.Value,
