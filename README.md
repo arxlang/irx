@@ -6,9 +6,9 @@
 that can **translate** ASTs to LLVM IR text or **produce runnable executables**
 via `clang`.
 
-> Status: early but functional. Arithmetic, variables, functions, returns, basic
-> control flow, and a few system-level expressions (e.g. `PrintExpr`) are
-> supported.
+> Status: early but functional. Arithmetic, variables, functions, returns,
+> structured control flow with canonical loop lowering, and a few system-level
+> expressions (e.g. `PrintExpr`) are supported.
 
 ## Features
 
@@ -27,7 +27,8 @@ via `clang`.
     `InlineVariableDeclaration`
   - **Ops:** `UnaryOp` (`++`, `--`), `BinaryOp` (`+ - * / < >`) with documented
     scalar numeric promotion and cast rules
-  - **Flow:** `IfStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`
+  - **Flow:** `IfStmt`, `WhileStmt`, `ForCountLoopStmt`, `ForRangeLoopStmt`,
+    `BreakStmt`, `ContinueStmt`
   - **Functions:** `FunctionPrototype`, `Function`, `FunctionReturn`,
     `FunctionCall`
   - **System:** `system.PrintExpr` (string printing)
@@ -128,6 +129,27 @@ print(result.stdout)             # "Hello, IRx!"
   - Maintains a **value stack** (`result_stack`) and **symbol table**
     (`named_values`).
   - Emits LLVM IR with `llvmlite.ir.IRBuilder`.
+
+### Loop Lowering
+
+Loop lowering now follows one canonical control-flow shape per loop form:
+
+- `WhileStmt`: `while.cond -> while.body -> while.exit`
+- `ForCountLoopStmt`:
+  `for.count.cond -> for.count.body -> for.count.update -> for.count.exit`
+- `ForRangeLoopStmt`:
+  `for.range.cond -> for.range.body -> for.range.step -> for.range.exit`
+
+Semantic invariants:
+
+- `break` exits the nearest enclosing loop
+- `continue` targets the canonical re-entry block for that loop form
+- for-count initializer symbols are loop-scoped and visible only to the loop
+  condition, body, and update
+- for-range induction variables are loop-scoped, body-visible, mutable inside
+  the body, and not visible after the loop
+- for-range `start`, `end`, and `step` are observed before the first iteration;
+  body mutation of the induction variable feeds the step block
 
 ### System Printing
 

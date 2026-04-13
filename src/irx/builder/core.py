@@ -45,7 +45,7 @@ from irx.builder.runtime.registry import (
     RuntimeFeatureState,
     get_default_runtime_feature_registry,
 )
-from irx.builder.state import NamedValueMap, ResultStackValue
+from irx.builder.state import LoopTargets, NamedValueMap, ResultStackValue
 from irx.builder.types import (
     VariablesLLVM,
     is_fp_type,
@@ -291,7 +291,7 @@ class VisitorCore(BuilderVisitor):
     result_stack: list[ResultStackValue]
     runtime_features: RuntimeFeatureState
     const_vars: set[str]
-    loop_stack: list[dict[str, ir.Block]]
+    loop_stack: list[LoopTargets]
     _set_value_ids: dict[int, ir.Value]
     _buffer_view_global_counter: int
     struct_types: dict[str, ir.Type]
@@ -960,11 +960,59 @@ class VisitorCore(BuilderVisitor):
             return value
         if is_float_type(source_type):
             zero = ir.Constant(value.type, 0.0)
-            return self._llvm.ir_builder.fcmp_ordered("!=", value, zero, name)
+            return self._emit_numeric_compare(
+                "!=",
+                value,
+                zero,
+                unsigned=False,
+                name=name,
+            )
         if is_integer_type(source_type):
             zero = ir.Constant(value.type, 0)
-            return self._llvm.ir_builder.icmp_unsigned("!=", value, zero, name)
+            return self._emit_numeric_compare(
+                "!=",
+                value,
+                zero,
+                unsigned=True,
+                name=name,
+            )
         raise Exception(f"Unsupported boolean conversion from {source_type!r}")
+
+    def _emit_numeric_compare(
+        self,
+        op_code: str,
+        lhs: ir.Value,
+        rhs: ir.Value,
+        *,
+        unsigned: bool,
+        name: str,
+    ) -> ir.Value:
+        """
+        title: Emit one numeric compare using shared signedness policy.
+        parameters:
+          op_code:
+            type: str
+          lhs:
+            type: ir.Value
+          rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+          name:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        if is_fp_type(lhs.type):
+            return self._llvm.ir_builder.fcmp_ordered(op_code, lhs, rhs, name)
+        if unsigned:
+            return self._llvm.ir_builder.icmp_unsigned(
+                op_code,
+                lhs,
+                rhs,
+                name,
+            )
+        return self._llvm.ir_builder.icmp_signed(op_code, lhs, rhs, name)
 
     def _cast_ast_value(
         self,

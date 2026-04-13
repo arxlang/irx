@@ -384,6 +384,18 @@ def test_analyze_rejects_break_outside_loop() -> None:
         analyze(module)
 
 
+def test_analyze_rejects_continue_outside_loop() -> None:
+    """
+    title: Test analyze rejects continue outside loop.
+    """
+    module = _module_with_main(
+        astx.ContinueStmt(), astx.FunctionReturn(astx.LiteralInt32(0))
+    )
+
+    with pytest.raises(SemanticError, match="Continue statement outside loop"):
+        analyze(module)
+
+
 def test_analyze_rejects_call_arity_mismatch() -> None:
     """
     title: Test analyze rejects call arity mismatch.
@@ -645,6 +657,55 @@ def test_analyze_prefers_inner_for_scope_symbols() -> None:
             start=astx.LiteralInt32(0),
             end=astx.LiteralInt32(3),
             step=astx.LiteralInt32(1),
+            body=_block(inner_ident),
+        ),
+        astx.FunctionReturn(outer_ident),
+    )
+
+    analyze(module)
+
+    outer_symbol = _semantic(outer_decl).resolved_symbol
+    loop_symbol = _semantic(loop_var).resolved_symbol
+    inner_symbol = _semantic(inner_ident).resolved_symbol
+    resolved_outer_ident = _semantic(outer_ident).resolved_symbol
+
+    assert outer_symbol is not None
+    assert loop_symbol is not None
+    assert inner_symbol is not None
+    assert resolved_outer_ident is not None
+    assert inner_symbol.symbol_id == loop_symbol.symbol_id
+    assert inner_symbol.symbol_id != outer_symbol.symbol_id
+    assert resolved_outer_ident.symbol_id == outer_symbol.symbol_id
+
+
+def test_analyze_prefers_inner_for_count_scope_symbols() -> None:
+    """
+    title: Test for-count loop initializers can shadow an outer local.
+    """
+    outer_decl = astx.VariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+        value=astx.LiteralInt32(99),
+    )
+    loop_var = astx.InlineVariableDeclaration(
+        name="x",
+        type_=astx.Int32(),
+        value=astx.LiteralInt32(0),
+        mutability=astx.MutabilityKind.mutable,
+    )
+    inner_ident = astx.Identifier("x")
+    outer_ident = astx.Identifier("x")
+    module = _module_with_main(
+        outer_decl,
+        astx.ForCountLoopStmt(
+            initializer=loop_var,
+            condition=astx.BinaryOp(
+                op_code="<",
+                lhs=astx.Identifier("x"),
+                rhs=astx.LiteralInt32(1),
+            ),
+            update=astx.UnaryOp(op_code="++", operand=astx.Identifier("x")),
             body=_block(inner_ident),
         ),
         astx.FunctionReturn(outer_ident),

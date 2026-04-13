@@ -416,6 +416,25 @@ Boolean behavior is part of the stable semantic boundary:
 Lowering should branch directly on the analyzed Boolean `i1` value for control
 flow instead of inventing zero-comparison truthiness rules during codegen.
 
+## Loop Contract
+
+Loop semantics are now part of the stable lowering contract for structured
+control flow:
+
+- `break` exits the nearest enclosing loop
+- `continue` targets the canonical re-entry block for the active loop form
+- `WhileStmt` re-enters through its condition block
+- `ForCountLoopStmt` evaluates initializer once, condition before each
+  iteration, update after each fallthrough or `continue`, and stores the update
+  result as the next loop-variable value
+- `ForRangeLoopStmt` initializes its induction variable once before the first
+  condition check, observes `end` and `step` before iteration begins, runs body
+  mutations before the step block, and does not expose the loop variable after
+  the loop
+- loop misuse such as `break` or `continue` outside a loop is rejected
+  semantically before lowering and still surfaces as a structured lowering
+  diagnostic in direct backend use
+
 ## Struct Contract
 
 Structs are IRx's stable composite storage and ABI foundation.

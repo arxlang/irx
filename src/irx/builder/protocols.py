@@ -12,7 +12,7 @@ from llvmlite import ir
 from irx import astx
 from irx.analysis.resolved_nodes import FunctionSignature
 from irx.base.visitors.protocols import BaseVisitorProtocol
-from irx.builder.state import NamedValueMap, ResultStackValue
+from irx.builder.state import LoopTargets, NamedValueMap, ResultStackValue
 from irx.builder.types import VariablesLLVM
 from irx.typecheck import typechecked
 
@@ -39,7 +39,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
       _buffer_view_global_counter:
         type: int
       loop_stack:
-        type: list[dict[str, Any]]
+        type: list[LoopTargets]
       struct_types:
         type: dict[str, ir.Type]
       llvm_structs_by_qualified_name:
@@ -67,7 +67,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     llvm_functions_by_symbol_id: dict[str, ir.Function]
     result_stack: list[ResultStackValue]
     _buffer_view_global_counter: int
-    loop_stack: list[dict[str, Any]]
+    loop_stack: list[LoopTargets]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     runtime_features: RuntimeFeatureState
@@ -428,7 +428,7 @@ class VisitorMixinTypingBase:
       _buffer_view_global_counter:
         type: int
       loop_stack:
-        type: list[dict[str, Any]]
+        type: list[LoopTargets]
       struct_types:
         type: dict[str, ir.Type]
       llvm_structs_by_qualified_name:
@@ -456,7 +456,7 @@ class VisitorMixinTypingBase:
     llvm_functions_by_symbol_id: dict[str, ir.Function]
     result_stack: list[ResultStackValue]
     _buffer_view_global_counter: int
-    loop_stack: list[dict[str, Any]]
+    loop_stack: list[LoopTargets]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     runtime_features: RuntimeFeatureState
@@ -684,6 +684,35 @@ class VisitorMixinTypingBase:
         _ = lhs_type
         _ = rhs_type
         return cast(tuple[ir.Value, ir.Value], (None, None))
+
+    def _emit_numeric_compare(
+        self,
+        _op_code: str,
+        _lhs: ir.Value,
+        _rhs: ir.Value,
+        *,
+        unsigned: bool,
+        name: str,
+    ) -> ir.Value:
+        """
+        title: Emit numeric compare.
+        parameters:
+          _op_code:
+            type: str
+          _lhs:
+            type: ir.Value
+          _rhs:
+            type: ir.Value
+          unsigned:
+            type: bool
+          name:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        _ = unsigned
+        _ = name
+        return cast(ir.Value, None)
 
     def _unify_numeric_operands(
         self,

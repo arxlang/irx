@@ -329,7 +329,7 @@ def test_boolean_condition_in_for_count_loop(
     assert "br i1" in ir_text
     assert "icmp " not in ir_text
     assert "fcmp " not in ir_text
-    assert "loop.body" in ir_text
+    assert "for.count.body" in ir_text
 
 
 @pytest.mark.parametrize(

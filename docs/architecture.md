@@ -248,6 +248,22 @@ Examples of concern boundaries include:
 This keeps dispatch organization aligned with language structure while still
 sharing one lowering state object.
 
+## Canonical Loop Lowering
+
+IRx now treats loop lowering as one small shared control-flow contract instead
+of three ad hoc visitors:
+
+- `while`: `cond -> body -> exit`, with `continue` targeting `cond`
+- `for-count`: `cond -> body -> update -> exit`, with `continue` targeting
+  `update`
+- `for-range`: `cond -> body -> step -> exit`, with `continue` targeting `step`
+
+Loop variables remain semantic symbols rather than backend-only temporaries.
+For-count initializers are visible only within the loop. For-range induction
+variables are body-visible, loop-scoped, and restored after lowering so outer
+shadowed bindings remain stable. Mutable post-loop state reconciles through the
+existing variable-slot model instead of accidental value-stack state.
+
 ## Contributor Guidelines
 
 When extending IRx, these rules help preserve the architecture:
