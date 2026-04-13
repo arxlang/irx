@@ -14,7 +14,11 @@ from typing import Iterator
 from public import public
 
 from irx.analysis.module_interfaces import ModuleKey
-from irx.analysis.resolved_nodes import SemanticFunction, SemanticStruct
+from irx.analysis.resolved_nodes import (
+    SemanticClass,
+    SemanticFunction,
+    SemanticStruct,
+)
 from irx.analysis.scopes import ScopeStack
 from irx.diagnostics import DiagnosticBag
 from irx.typecheck import typechecked
@@ -38,8 +42,12 @@ class SemanticContext:
         type: dict[tuple[ModuleKey, str], SemanticFunction]
       structs:
         type: dict[tuple[ModuleKey, str], SemanticStruct]
+      classes:
+        type: dict[tuple[ModuleKey, str], SemanticClass]
       current_function:
         type: SemanticFunction | None
+      current_class:
+        type: SemanticClass | None
       current_module_key:
         type: ModuleKey | None
       loop_depth:
@@ -56,7 +64,11 @@ class SemanticContext:
     structs: dict[tuple[ModuleKey, str], SemanticStruct] = field(
         default_factory=dict
     )
+    classes: dict[tuple[ModuleKey, str], SemanticClass] = field(
+        default_factory=dict
+    )
     current_function: SemanticFunction | None = None
+    current_class: SemanticClass | None = None
     current_module_key: ModuleKey | None = None
     loop_depth: int = 0
     _symbol_counter: int = 0
@@ -140,6 +152,38 @@ class SemanticContext:
         """
         return self.structs.get((module_key, name))
 
+    def register_class(self, class_: SemanticClass) -> None:
+        """
+        title: Register a top-level class by module and name.
+        summary: >-
+          Store the canonical semantic class object for one module-qualified
+          top-level name.
+        parameters:
+          class_:
+            type: SemanticClass
+        """
+        self.classes[(class_.module_key, class_.name)] = class_
+
+    def get_class(
+        self,
+        module_key: ModuleKey,
+        name: str,
+    ) -> SemanticClass | None:
+        """
+        title: Return a top-level class by module and name.
+        summary: >-
+          Retrieve the canonical semantic class for one module-qualified top-
+          level name.
+        parameters:
+          module_key:
+            type: ModuleKey
+          name:
+            type: str
+        returns:
+          type: SemanticClass | None
+        """
+        return self.classes.get((module_key, name))
+
     @contextmanager
     def scope(self, kind: str) -> Iterator[None]:
         """
@@ -178,6 +222,26 @@ class SemanticContext:
             yield
         finally:
             self.current_function = previous
+
+    @contextmanager
+    def in_class(self, class_: SemanticClass) -> Iterator[None]:
+        """
+        title: Temporarily set current_class.
+        summary: >-
+          Remember which class declaration is being analyzed so inheritance and
+          member-semantics helpers can consult the active owner.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: Iterator[None]
+        """
+        previous = self.current_class
+        self.current_class = class_
+        try:
+            yield
+        finally:
+            self.current_class = previous
 
     @contextmanager
     def in_module(self, module_key: ModuleKey) -> Iterator[None]:

@@ -23,6 +23,7 @@ from irx.analysis.module_interfaces import (
     ParsedModule,
 )
 from irx.analysis.resolved_nodes import (
+    ClassMemberKind,
     FFIAdmissibility,
     FFICallableInfo,
     FFILinkStrategy,
@@ -32,6 +33,8 @@ from irx.analysis.resolved_nodes import (
     ResolvedImportBinding,
     ResolvedOperator,
     SemanticBinding,
+    SemanticClass,
+    SemanticClassMember,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
@@ -43,6 +46,7 @@ from irx.analysis.session import CompilationSession
 from irx.diagnostics import Diagnostic, DiagnosticBag, SemanticError
 
 __all__ = [
+    "ClassMemberKind",
     "CompilationSession",
     "Diagnostic",
     "DiagnosticBag",
@@ -60,6 +64,8 @@ __all__ = [
     "ResolvedOperator",
     "SemanticAnalyzer",
     "SemanticBinding",
+    "SemanticClass",
+    "SemanticClassMember",
     "SemanticContract",
     "SemanticError",
     "SemanticFlags",

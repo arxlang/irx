@@ -122,8 +122,8 @@ _SEMANTIC_CONTRACT = SemanticContract(
             name="top_level_predeclaration",
             entrypoints=("irx.analysis.analyze_modules",),
             guarantees=(
-                "Register top-level functions and structs for every reachable "
-                "module before body validation.",
+                "Register top-level functions, structs, and classes for "
+                "every reachable module before body validation.",
                 "Normalize callable signatures, calling conventions, public "
                 "FFI/runtime-feature metadata, and declaration "
                 "compatibility before lowering.",
@@ -149,8 +149,9 @@ _SEMANTIC_CONTRACT = SemanticContract(
             ),
             guarantees=(
                 "Attach SemanticInfo sidecars to analyzed AST nodes.",
-                "Normalize resolved symbols, functions, structs, modules, "
-                "operators, callable metadata, call results, return "
+                "Normalize resolved symbols, functions, structs, "
+                "classes, modules, operators, callable metadata, "
+                "call results, return "
                 "semantics, assignment targets, and semantic flags.",
                 "Validate explicit extern declarations against the narrow "
                 "public FFI admissibility contract before lowering.",
@@ -169,6 +170,7 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "resolved_call",
         "resolved_return",
         "resolved_struct",
+        "resolved_class",
         "resolved_module",
         "resolved_imports",
         "resolved_operator",

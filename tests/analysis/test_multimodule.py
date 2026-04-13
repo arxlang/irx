@@ -78,6 +78,27 @@ def _point_struct(name: str = "Point") -> astx.StructDefStmt:
     )
 
 
+def _shape_class(name: str = "Shape") -> astx.ClassDefStmt:
+    """
+    title: Build a simple class definition.
+    parameters:
+      name:
+        type: str
+    returns:
+      type: astx.ClassDefStmt
+    """
+    return astx.ClassDefStmt(
+        name=name,
+        attributes=[
+            astx.VariableDeclaration(
+                name="rank",
+                type_=astx.Int32(),
+                mutability=astx.MutabilityKind.mutable,
+            )
+        ],
+    )
+
+
 def test_analyze_modules_resolves_imported_function_identity() -> None:
     """
     title: Imported functions resolve to their original defining module.
@@ -223,6 +244,30 @@ def test_analyze_modules_resolves_imported_struct_binding() -> None:
     assert resolved_import.binding.struct is not None
     assert resolved_import.binding.struct.module_key == "models"
     assert resolved_import.local_name == "UserPoint"
+
+
+def test_analyze_modules_resolves_imported_class_binding() -> None:
+    """
+    title: Imported classes keep the original defining module.
+    """
+    import_stmt = astx.ImportFromStmt(
+        module="models",
+        names=[astx.AliasExpr("Shape", asname="UserShape")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    models = make_parsed_module("models", _shape_class("Shape"))
+
+    analyze_modules(root, StaticImportResolver({"models": models}))
+
+    resolved_import = _semantic(import_stmt).resolved_imports[0]
+
+    assert resolved_import.binding.class_ is not None
+    assert resolved_import.binding.class_.module_key == "models"
+    assert resolved_import.local_name == "UserShape"
 
 
 def test_analyze_modules_reports_missing_module() -> None:

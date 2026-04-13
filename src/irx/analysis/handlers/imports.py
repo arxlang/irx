@@ -109,6 +109,7 @@ class ImportVisitorMixin(SemanticVisitorMixinBase):
             if target_binding is None or target_binding.kind not in {
                 "function",
                 "struct",
+                "class",
             }:
                 self.context.diagnostics.add(
                     f"Imported symbol '{alias.name}' was not found in "
@@ -135,6 +136,8 @@ class ImportVisitorMixin(SemanticVisitorMixinBase):
                 self._set_function(alias, target_binding.function)
             if target_binding.struct is not None:
                 self._set_struct(alias, target_binding.struct)
+            if target_binding.class_ is not None:
+                self._set_class(alias, target_binding.class_)
 
         self._set_imports(node, tuple(resolved_imports))
 

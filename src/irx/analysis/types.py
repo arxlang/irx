@@ -75,6 +75,13 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             module_key=type_.module_key,
             qualified_name=type_.qualified_name,
         )
+    if isinstance(type_, astx.ClassType):
+        return astx.ClassType(
+            type_.name,
+            resolved_name=type_.resolved_name,
+            module_key=type_.module_key,
+            qualified_name=type_.qualified_name,
+        )
     if isinstance(type_, astx.PointerType):
         pointee_type = (
             clone_type(type_.pointee_type)
@@ -111,6 +118,8 @@ def display_type_name(type_: astx.DataType | None) -> str:
         return "<unknown>"
     if isinstance(type_, astx.StructType):
         return type_.qualified_name or type_.name
+    if isinstance(type_, astx.ClassType):
+        return type_.qualified_name or type_.name
     if isinstance(type_, astx.PointerType):
         if type_.pointee_type is None:
             return "PointerType"
@@ -140,6 +149,10 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     if lhs is None or rhs is None:
         return False
     if isinstance(lhs, astx.StructType) and isinstance(rhs, astx.StructType):
+        lhs_identity = lhs.qualified_name or lhs.name
+        rhs_identity = rhs.qualified_name or rhs.name
+        return lhs_identity == rhs_identity
+    if isinstance(lhs, astx.ClassType) and isinstance(rhs, astx.ClassType):
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
         return lhs_identity == rhs_identity

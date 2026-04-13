@@ -24,6 +24,7 @@ from irx.analysis.resolved_nodes import (
     CallingConvention,
     FunctionSignature,
     ParameterSpec,
+    SemanticClass,
     SemanticFunction,
     SemanticStruct,
     SemanticSymbol,
@@ -309,6 +310,7 @@ class SemanticRegistry:
         *,
         definition: astx.FunctionDef | None = None,
         validate_ffi: bool = True,
+        validate_main: bool = True,
     ) -> FunctionSignature:
         """
         title: Normalize and validate one semantic function signature.
@@ -318,6 +320,8 @@ class SemanticRegistry:
           definition:
             type: astx.FunctionDef | None
           validate_ffi:
+            type: bool
+          validate_main:
             type: bool
         returns:
           type: FunctionSignature
@@ -409,7 +413,7 @@ class SemanticRegistry:
             if ffi is not None:
                 signature = replace(signature, ffi=ffi)
 
-        if signature.name == MAIN_FUNCTION_NAME:
+        if validate_main and signature.name == MAIN_FUNCTION_NAME:
             if signature.is_extern:
                 self.context.diagnostics.add(
                     "Function 'main' cannot be extern",
@@ -648,6 +652,40 @@ class SemanticRegistry:
         self.context.register_struct(struct)
         return struct
 
+    def register_class(
+        self,
+        node: astx.ClassDefStmt,
+    ) -> SemanticClass:
+        """
+        title: Register one top-level class.
+        parameters:
+          node:
+            type: astx.ClassDefStmt
+        returns:
+          type: SemanticClass
+        """
+        module_key = self._current_module_key()
+        existing = self.context.get_class(module_key, node.name)
+        if existing is not None:
+            if existing.declaration is not node:
+                self.context.diagnostics.add(
+                    f"Class '{node.name}' already defined.",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    related=(
+                        DiagnosticRelatedInformation(
+                            "previous class definition is here",
+                            node=existing.declaration,
+                            module_key=existing.module_key,
+                        ),
+                    ),
+                )
+            return existing
+
+        class_ = self.factory.make_class(module_key, node)
+        self.context.register_class(class_)
+        return class_
+
     def resolve_function(
         self,
         name: str,
@@ -666,6 +704,25 @@ class SemanticRegistry:
         """
         lookup_module_key = module_key or self._current_module_key()
         return self.context.get_function(lookup_module_key, name)
+
+    def resolve_class(
+        self,
+        name: str,
+        *,
+        module_key: ModuleKey | None = None,
+    ) -> SemanticClass | None:
+        """
+        title: Resolve one registered class.
+        parameters:
+          name:
+            type: str
+          module_key:
+            type: ModuleKey | None
+        returns:
+          type: SemanticClass | None
+        """
+        lookup_module_key = module_key or self._current_module_key()
+        return self.context.get_class(lookup_module_key, name)
 
     def resolve_struct(
         self,

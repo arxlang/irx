@@ -24,6 +24,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedImportBinding,
     ResolvedOperator,
     ReturnResolution,
+    SemanticClass,
     SemanticFlags,
     SemanticFunction,
     SemanticInfo,
@@ -184,6 +185,23 @@ class SemanticVisitorMixinTypingBase:
         """
         raise NotImplementedError
 
+    def _set_class(
+        self,
+        node: astx.AST,
+        class_: SemanticClass | None,
+    ) -> SemanticClass | None:
+        """
+        title: Attach one resolved class to a node.
+        parameters:
+          node:
+            type: astx.AST
+          class_:
+            type: SemanticClass | None
+        returns:
+          type: SemanticClass | None
+        """
+        raise NotImplementedError
+
     def _set_module(
         self,
         node: astx.AST,
@@ -293,6 +311,27 @@ class SemanticVisitorMixinTypingBase:
         """
         raise NotImplementedError
 
+    def _resolve_class_from_type(
+        self,
+        type_: astx.DataType | None,
+        *,
+        node: astx.AST,
+        unknown_message: str,
+    ) -> SemanticClass | None:
+        """
+        title: Resolve one class-valued type reference.
+        parameters:
+          type_:
+            type: astx.DataType | None
+          node:
+            type: astx.AST
+          unknown_message:
+            type: str
+        returns:
+          type: SemanticClass | None
+        """
+        raise NotImplementedError
+
     def _resolve_declared_type(
         self,
         type_: astx.DataType,
@@ -330,7 +369,7 @@ class SemanticVisitorMixinTypingBase:
 
     def _predeclare_block_structs(self, block: astx.Block) -> None:
         """
-        title: Predeclare struct definitions in one block.
+        title: Predeclare composite definitions in one block.
         parameters:
           block:
             type: astx.Block
@@ -657,6 +696,25 @@ class SemanticAnalyzerCore(BaseVisitor):
         info.resolved_struct = struct
         return struct
 
+    def _set_class(
+        self,
+        node: astx.AST,
+        class_: SemanticClass | None,
+    ) -> SemanticClass | None:
+        """
+        title: Attach one resolved class to a node.
+        parameters:
+          node:
+            type: astx.AST
+          class_:
+            type: SemanticClass | None
+        returns:
+          type: SemanticClass | None
+        """
+        info = self._semantic(node)
+        info.resolved_class = class_
+        return class_
+
     def _set_module(
         self,
         node: astx.AST,
@@ -794,6 +852,51 @@ class SemanticAnalyzerCore(BaseVisitor):
         self._set_type(type_, type_)
         return struct
 
+    def _resolve_class_from_type(
+        self,
+        type_: astx.DataType | None,
+        *,
+        node: astx.AST,
+        unknown_message: str,
+    ) -> SemanticClass | None:
+        """
+        title: Resolve one class-valued type reference.
+        parameters:
+          type_:
+            type: astx.DataType | None
+          node:
+            type: astx.AST
+          unknown_message:
+            type: str
+        returns:
+          type: SemanticClass | None
+        """
+        if not isinstance(type_, astx.ClassType):
+            return None
+
+        binding = self.bindings.resolve(type_.name)
+        class_ = (
+            binding.class_
+            if binding is not None and binding.kind == "class"
+            else None
+        )
+        if class_ is None and type_.module_key is not None:
+            lookup_name = type_.resolved_name or type_.name
+            class_ = self.context.get_class(type_.module_key, lookup_name)
+        if class_ is None:
+            self.context.diagnostics.add(
+                unknown_message.format(name=type_.name),
+                node=node,
+            )
+            return None
+
+        type_.resolved_name = class_.name
+        type_.module_key = class_.module_key
+        type_.qualified_name = class_.qualified_name
+        self._set_class(type_, class_)
+        self._set_type(type_, type_)
+        return class_
+
     def _resolve_declared_type(
         self,
         type_: astx.DataType,
@@ -814,6 +917,11 @@ class SemanticAnalyzerCore(BaseVisitor):
           type: astx.DataType
         """
         self._resolve_struct_from_type(
+            type_,
+            node=node,
+            unknown_message=unknown_message,
+        )
+        self._resolve_class_from_type(
             type_,
             node=node,
             unknown_message=unknown_message,
@@ -845,17 +953,22 @@ class SemanticAnalyzerCore(BaseVisitor):
 
     def _predeclare_block_structs(self, block: astx.Block) -> None:
         """
-        title: Predeclare struct definitions in one block.
+        title: Predeclare composite definitions in one block.
         parameters:
           block:
             type: astx.Block
         """
         for node in block.nodes:
-            if not isinstance(node, astx.StructDefStmt):
+            if isinstance(node, astx.StructDefStmt):
+                struct = self.registry.register_struct(node)
+                self.bindings.bind_struct(node.name, struct, node=node)
+                self._set_struct(node, struct)
                 continue
-            struct = self.registry.register_struct(node)
-            self.bindings.bind_struct(node.name, struct, node=node)
-            self._set_struct(node, struct)
+            if not isinstance(node, astx.ClassDefStmt):
+                continue
+            class_ = self.registry.register_class(node)
+            self.bindings.bind_class(node.name, class_, node=node)
+            self._set_class(node, class_)
 
     def _current_module_key(self) -> ModuleKey:
         """
@@ -973,6 +1086,10 @@ class SemanticAnalyzerCore(BaseVisitor):
                 struct = self.registry.register_struct(node)
                 self.bindings.bind_struct(node.name, struct, node=node)
                 self._set_struct(node, struct)
+            elif isinstance(node, astx.ClassDefStmt):
+                class_ = self.registry.register_class(node)
+                self.bindings.bind_class(node.name, class_, node=node)
+                self._set_class(node, class_)
 
     def _visit_module(
         self,

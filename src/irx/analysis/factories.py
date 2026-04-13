@@ -13,18 +13,23 @@ from irx import astx
 from irx.analysis.context import SemanticContext
 from irx.analysis.module_interfaces import ModuleKey
 from irx.analysis.module_symbols import (
+    qualified_class_member_name,
+    qualified_class_name,
     qualified_function_name,
     qualified_struct_name,
 )
 from irx.analysis.resolved_nodes import (
     CallableResolution,
     CallingConvention,
+    ClassMemberKind,
     FFICallableInfo,
     FunctionSignature,
     ParameterPassingKind,
     ParameterSpec,
     ResolvedImportBinding,
     SemanticBinding,
+    SemanticClass,
+    SemanticClassMember,
     SemanticFunction,
     SemanticModule,
     SemanticStruct,
@@ -268,6 +273,98 @@ class SemanticEntityFactory:
             declaration=node,
         )
 
+    def make_class(
+        self,
+        module_key: ModuleKey,
+        node: astx.ClassDefStmt,
+    ) -> SemanticClass:
+        """
+        title: Create one semantic class entity.
+        parameters:
+          module_key:
+            type: ModuleKey
+          node:
+            type: astx.ClassDefStmt
+        returns:
+          type: SemanticClass
+        """
+        return SemanticClass(
+            symbol_id=self.context.next_symbol_id("class"),
+            name=node.name,
+            module_key=module_key,
+            qualified_name=qualified_class_name(module_key, node.name),
+            declaration=node,
+        )
+
+    def make_class_member(
+        self,
+        class_: SemanticClass,
+        *,
+        name: str,
+        kind: ClassMemberKind,
+        declaration: astx.AST,
+        visibility: astx.VisibilityKind,
+        is_static: bool,
+        is_constant: bool,
+        is_mutable: bool,
+        type_: astx.DataType | None = None,
+        signature: FunctionSignature | None = None,
+        overrides: str | None = None,
+    ) -> SemanticClassMember:
+        """
+        title: Create one semantic class-member record.
+        parameters:
+          class_:
+            type: SemanticClass
+          name:
+            type: str
+          kind:
+            type: ClassMemberKind
+          declaration:
+            type: astx.AST
+          visibility:
+            type: astx.VisibilityKind
+          is_static:
+            type: bool
+          is_constant:
+            type: bool
+          is_mutable:
+            type: bool
+          type_:
+            type: astx.DataType | None
+          signature:
+            type: FunctionSignature | None
+          overrides:
+            type: str | None
+        returns:
+          type: SemanticClassMember
+        """
+        prefix = (
+            "class_attr"
+            if kind is ClassMemberKind.ATTRIBUTE
+            else "class_method"
+        )
+        return SemanticClassMember(
+            symbol_id=self.context.next_symbol_id(prefix),
+            name=name,
+            qualified_name=qualified_class_member_name(
+                class_.module_key,
+                class_.name,
+                name,
+            ),
+            owner_name=class_.name,
+            owner_qualified_name=class_.qualified_name,
+            kind=kind,
+            visibility=visibility,
+            is_static=is_static,
+            is_constant=is_constant,
+            is_mutable=is_mutable,
+            declaration=declaration,
+            type_=clone_type(type_) if type_ is not None else None,
+            signature=signature,
+            overrides=overrides,
+        )
+
     def make_module(
         self,
         module_key: ModuleKey,
@@ -325,6 +422,25 @@ class SemanticEntityFactory:
             module_key=struct.module_key,
             qualified_name=struct.qualified_name,
             struct=struct,
+        )
+
+    def make_class_binding(
+        self,
+        class_: SemanticClass,
+    ) -> SemanticBinding:
+        """
+        title: Create a visible binding for a class.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: SemanticBinding
+        """
+        return SemanticBinding(
+            kind="class",
+            module_key=class_.module_key,
+            qualified_name=class_.qualified_name,
+            class_=class_,
         )
 
     def make_module_binding(

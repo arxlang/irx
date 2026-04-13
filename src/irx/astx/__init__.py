@@ -77,6 +77,8 @@ from irx.astx.buffer import BufferViewRetain as BufferViewRetain
 from irx.astx.buffer import BufferViewStore as BufferViewStore
 from irx.astx.buffer import BufferViewType as BufferViewType
 from irx.astx.buffer import BufferViewWrite as BufferViewWrite
+from irx.astx.classes import ClassDefStmt as ClassDefStmt
+from irx.astx.classes import ClassType as ClassType
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
 from irx.astx.structs import FieldAccess as FieldAccess
@@ -102,6 +104,8 @@ __all__ = (
     "BufferViewType",
     "BufferViewWrite",
     "Cast",
+    "ClassDefStmt",
+    "ClassType",
     "DivBinOp",
     "EqBinOp",
     "FieldAccess",
