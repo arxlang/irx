@@ -9,7 +9,11 @@ from typing import cast
 import pytest
 
 from irx import astx
-from irx.analysis import SemanticError, analyze
+from irx.analysis import (
+    ClassMemberResolutionKind,
+    SemanticError,
+    analyze,
+)
 from irx.analysis.module_symbols import qualified_class_name
 from irx.analysis.resolved_nodes import SemanticInfo
 
@@ -181,6 +185,13 @@ def test_analyze_resolves_class_bases_and_c3_mro() -> None:
         "Root",
     ]
     assert resolved.member_table["select"].owner_name == "Left"
+    assert resolved.member_resolution["select"].kind is (
+        ClassMemberResolutionKind.INHERITED
+    )
+    assert [
+        member.owner_name
+        for member in resolved.member_resolution["select"].candidates
+    ] == ["Left", "Right"]
 
 
 def test_analyze_rejects_unknown_base_class() -> None:
@@ -293,6 +304,13 @@ def test_analyze_tracks_method_override_metadata() -> None:
     assert member.overrides is not None
     assert member.overrides.endswith("::member::render")
     assert resolved.member_table["render"].owner_name == "Child"
+    assert resolved.member_resolution["render"].kind is (
+        ClassMemberResolutionKind.OVERRIDE
+    )
+    assert [
+        candidate.owner_name
+        for candidate in resolved.member_resolution["render"].candidates
+    ] == ["Child", "Base"]
 
 
 def test_analyze_rejects_method_override_signature_changes() -> None:
@@ -336,3 +354,60 @@ def test_analyze_rejects_ambiguous_inherited_attribute() -> None:
         SemanticError, match="inherits ambiguous attribute 'value'"
     ):
         analyze(make_module("app.main", left, right, child))
+
+
+def test_analyze_tracks_shared_ancestors_in_diamond_mro() -> None:
+    """
+    title: Diamond inheritance keeps one shared ancestor in the linearization.
+    """
+    root = astx.ClassDefStmt(
+        name="Root",
+        attributes=[_attribute("value", astx.Int32())],
+    )
+    left = astx.ClassDefStmt(name="Left", bases=[_class_type("Root")])
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+    )
+
+    analyze(make_module("app.main", root, left, right, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert [item.name for item in resolved.shared_ancestors] == ["Root"]
+    assert resolved.member_table["value"].owner_name == "Root"
+    assert resolved.member_resolution["value"].kind is (
+        ClassMemberResolutionKind.INHERITED
+    )
+    assert [
+        candidate.owner_name
+        for candidate in resolved.member_resolution["value"].candidates
+    ] == ["Root"]
+
+
+def test_analyze_rejects_inconsistent_c3_mro() -> None:
+    """
+    title: Inconsistent multiple-inheritance orderings are rejected.
+    """
+    x = astx.ClassDefStmt(name="X")
+    y = astx.ClassDefStmt(name="Y")
+    a = astx.ClassDefStmt(
+        name="A",
+        bases=[_class_type("X"), _class_type("Y")],
+    )
+    b = astx.ClassDefStmt(
+        name="B",
+        bases=[_class_type("Y"), _class_type("X")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("A"), _class_type("B")],
+    )
+
+    with pytest.raises(SemanticError, match="has no consistent MRO"):
+        analyze(make_module("app.main", x, y, a, b, child))

@@ -19,9 +19,11 @@ from irx.analysis.handlers.base import (
 from irx.analysis.module_symbols import qualified_local_name
 from irx.analysis.resolved_nodes import (
     ClassMemberKind,
+    ClassMemberResolutionKind,
     FunctionSignature,
     SemanticClass,
     SemanticClassMember,
+    SemanticClassMemberResolution,
     SemanticFunction,
     SemanticStruct,
     SemanticStructField,
@@ -32,6 +34,7 @@ from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 DIRECT_STRUCT_CYCLE_LENGTH = 2
+MIN_SHARED_ANCESTOR_BASE_COUNT = 2
 
 
 @typechecked
@@ -409,6 +412,41 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 ):
                     sequence.pop(0)
 
+    def _shared_class_ancestors(
+        self,
+        bases: tuple[SemanticClass, ...],
+        mro: tuple[SemanticClass, ...],
+    ) -> tuple[SemanticClass, ...]:
+        """
+        title: Return ancestors reachable through more than one base lineage.
+        parameters:
+          bases:
+            type: tuple[SemanticClass, Ellipsis]
+          mro:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: tuple[SemanticClass, Ellipsis]
+        """
+        if len(bases) < MIN_SHARED_ANCESTOR_BASE_COUNT:
+            return ()
+
+        counts: dict[str, int] = {}
+        for base in bases:
+            lineage_seen: set[str] = set()
+            for ancestor in base.mro or (base,):
+                if ancestor.qualified_name in lineage_seen:
+                    continue
+                lineage_seen.add(ancestor.qualified_name)
+                counts[ancestor.qualified_name] = (
+                    counts.get(ancestor.qualified_name, 0) + 1
+                )
+
+        return tuple(
+            ancestor
+            for ancestor in mro[1:]
+            if counts.get(ancestor.qualified_name, 0) > 1
+        )
+
     def _ancestor_declared_members(
         self,
         mro: tuple[SemanticClass, ...],
@@ -670,7 +708,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         class_: SemanticClass,
         mro: tuple[SemanticClass, ...],
         declared_member_table: dict[str, SemanticClassMember],
-    ) -> dict[str, SemanticClassMember]:
+    ) -> tuple[
+        dict[str, SemanticClassMember],
+        dict[str, SemanticClassMemberResolution],
+    ]:
         """
         title: Resolve the effective member table for one class.
         parameters:
@@ -681,10 +722,27 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           declared_member_table:
             type: dict[str, SemanticClassMember]
         returns:
-          type: dict[str, SemanticClassMember]
+          type: >-
+            tuple[dict[str, SemanticClassMember], dict[str,
+            SemanticClassMemberResolution]]
         """
         effective_members = dict(declared_member_table)
         ancestor_members = self._ancestor_declared_members(mro)
+        member_resolution: dict[str, SemanticClassMemberResolution] = {}
+
+        for name, member in declared_member_table.items():
+            inherited_candidates = tuple(ancestor_members.get(name, ()))
+            resolution_kind = (
+                ClassMemberResolutionKind.OVERRIDE
+                if inherited_candidates
+                else ClassMemberResolutionKind.DECLARED
+            )
+            member_resolution[name] = SemanticClassMemberResolution(
+                name=name,
+                kind=resolution_kind,
+                selected=member,
+                candidates=(member, *inherited_candidates),
+            )
 
         for name, candidates in ancestor_members.items():
             if name in effective_members:
@@ -692,6 +750,12 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             primary = candidates[0]
             if len(candidates) == 1:
                 effective_members[name] = primary
+                member_resolution[name] = SemanticClassMemberResolution(
+                    name=name,
+                    kind=ClassMemberResolutionKind.INHERITED,
+                    selected=primary,
+                    candidates=tuple(candidates),
+                )
                 continue
             owner_names = ", ".join(member.owner_name for member in candidates)
             if any(
@@ -736,8 +800,14 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 )
                 continue
             effective_members[name] = primary
+            member_resolution[name] = SemanticClassMemberResolution(
+                name=name,
+                kind=ClassMemberResolutionKind.INHERITED,
+                selected=primary,
+                candidates=tuple(candidates),
+            )
 
-        return effective_members
+        return effective_members, member_resolution
 
     def _resolve_class_definition(
         self,
@@ -791,18 +861,22 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             declared_member_table = {
                 member.name: member for member in declared_members
             }
-            member_table = self._resolve_effective_class_members(
-                current,
-                mro,
-                declared_member_table,
+            member_table, member_resolution = (
+                self._resolve_effective_class_members(
+                    current,
+                    mro,
+                    declared_member_table,
+                )
             )
             effective_members = tuple(member_table.values())
+            shared_ancestors = self._shared_class_ancestors(bases, mro)
             updated = replace(
                 current,
                 bases=bases,
                 declared_members=declared_members,
                 declared_member_table=declared_member_table,
                 member_table=member_table,
+                member_resolution=member_resolution,
                 instance_attributes=tuple(
                     member
                     for member in effective_members
@@ -830,6 +904,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 inheritance_graph=tuple(
                     ancestor.qualified_name for ancestor in mro[1:]
                 ),
+                shared_ancestors=shared_ancestors,
                 mro=(
                     current,
                     *tuple(

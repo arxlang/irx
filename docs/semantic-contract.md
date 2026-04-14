@@ -189,6 +189,24 @@ Current declaration metadata is intentionally narrow. When present on
 - `runtime_feature`
 - `runtime_features`
 
+## Class Inheritance Contract
+
+Class semantics are also part of IRx's stable semantic boundary.
+
+- every analyzed class records a deterministic C3 linearization in
+  `SemanticClass.mro`
+- multiple inheritance is allowed when C3 can produce a consistent order; if it
+  cannot, semantic analysis raises a diagnostic before lowering
+- method lookup follows MRO order, and `SemanticClass.member_resolution` records
+  the ordered candidate set plus the selected member for every resolved name
+- same-name inherited attributes from distinct ancestors are rejected as
+  ambiguous unless they collapse to one logical shared ancestor in the MRO
+- diamond inheritance is allowed semantically; `SemanticClass.shared_ancestors`
+  records ancestors reached through more than one direct-base lineage so later
+  layout/lowering phases can reuse that metadata instead of re-deriving it
+- private members do not participate in inherited lookup; non-private inherited
+  members are normalized before lowering in `SemanticClass.member_table`
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

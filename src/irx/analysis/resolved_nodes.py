@@ -328,6 +328,21 @@ class ClassMemberKind(str, Enum):
 
 @public
 @typechecked
+class ClassMemberResolutionKind(str, Enum):
+    """
+    title: Stable class-member resolution categories.
+    summary: >-
+      Distinguish members declared locally, members that override inherited
+      declarations, and members inherited directly from the resolved MRO.
+    """
+
+    DECLARED = "declared"
+    OVERRIDE = "override"
+    INHERITED = "inherited"
+
+
+@public
+@typechecked
 @dataclass(frozen=True)
 class SemanticClassMember:
     """
@@ -386,6 +401,32 @@ class SemanticClassMember:
 @public
 @typechecked
 @dataclass(frozen=True)
+class SemanticClassMemberResolution:
+    """
+    title: Canonical class-member lookup resolution.
+    summary: >-
+      Record the ordered candidate set that one class member name considered
+      and the member that won after deterministic inheritance resolution.
+    attributes:
+      name:
+        type: str
+      kind:
+        type: ClassMemberResolutionKind
+      selected:
+        type: SemanticClassMember
+      candidates:
+        type: tuple[SemanticClassMember, Ellipsis]
+    """
+
+    name: str
+    kind: ClassMemberResolutionKind
+    selected: SemanticClassMember
+    candidates: tuple[SemanticClassMember, ...] = ()
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class SemanticClass:
     """
     title: Resolved class information.
@@ -411,6 +452,8 @@ class SemanticClass:
         type: dict[str, SemanticClassMember]
       member_table:
         type: dict[str, SemanticClassMember]
+      member_resolution:
+        type: dict[str, SemanticClassMemberResolution]
       instance_attributes:
         type: tuple[SemanticClassMember, Ellipsis]
       static_attributes:
@@ -421,6 +464,8 @@ class SemanticClass:
         type: tuple[SemanticClassMember, Ellipsis]
       inheritance_graph:
         type: tuple[str, Ellipsis]
+      shared_ancestors:
+        type: tuple[SemanticClass, Ellipsis]
       mro:
         type: tuple[SemanticClass, Ellipsis]
       is_resolved:
@@ -438,11 +483,15 @@ class SemanticClass:
         default_factory=dict
     )
     member_table: dict[str, SemanticClassMember] = field(default_factory=dict)
+    member_resolution: dict[str, SemanticClassMemberResolution] = field(
+        default_factory=dict
+    )
     instance_attributes: tuple[SemanticClassMember, ...] = ()
     static_attributes: tuple[SemanticClassMember, ...] = ()
     instance_methods: tuple[SemanticClassMember, ...] = ()
     static_methods: tuple[SemanticClassMember, ...] = ()
     inheritance_graph: tuple[str, ...] = ()
+    shared_ancestors: tuple["SemanticClass", ...] = ()
     mro: tuple["SemanticClass", ...] = ()
     is_resolved: bool = False
 
