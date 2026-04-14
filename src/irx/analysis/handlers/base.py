@@ -20,6 +20,7 @@ from irx.analysis.registry import SemanticRegistry
 from irx.analysis.resolved_nodes import (
     CallResolution,
     ResolvedAssignment,
+    ResolvedClassConstruction,
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedImportBinding,
@@ -319,6 +320,21 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           method_call:
             type: ResolvedMethodCall | None
+        """
+        raise NotImplementedError
+
+    def _set_class_construction(
+        self,
+        node: astx.AST,
+        construction: ResolvedClassConstruction | None,
+    ) -> None:
+        """
+        title: Attach resolved class-construction metadata.
+        parameters:
+          node:
+            type: astx.AST
+          construction:
+            type: ResolvedClassConstruction | None
         """
         raise NotImplementedError
 
@@ -868,6 +884,21 @@ class SemanticAnalyzerCore(BaseVisitor):
             type: ResolvedMethodCall | None
         """
         self._semantic(node).resolved_method_call = method_call
+
+    def _set_class_construction(
+        self,
+        node: astx.AST,
+        construction: ResolvedClassConstruction | None,
+    ) -> None:
+        """
+        title: Attach resolved class-construction metadata.
+        parameters:
+          node:
+            type: astx.AST
+          construction:
+            type: ResolvedClassConstruction | None
+        """
+        self._semantic(node).resolved_class_construction = construction
 
     def _resolve_struct_from_type(
         self,

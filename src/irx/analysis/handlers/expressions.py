@@ -20,6 +20,7 @@ from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
     ClassMemberKind,
     MethodDispatchKind,
+    ResolvedClassConstruction,
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedMethodCall,
@@ -1090,6 +1091,44 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         )
         self._set_call(node, call_resolution)
         self._set_type(node, call_resolution.result_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ClassConstruct) -> None:
+        """
+        title: Visit ClassConstruct nodes.
+        parameters:
+          node:
+            type: astx.ClassConstruct
+        """
+        class_ = self._resolve_named_class(node.class_name, node=node)
+        if class_ is None:
+            self._set_type(node, None)
+            return
+        resolve_definition = getattr(self, "_resolve_class_definition", None)
+        if callable(resolve_definition) and not class_.is_resolved:
+            class_ = resolve_definition(class_)
+        if class_.layout is None or class_.initialization is None:
+            raise TypeError(
+                "class construction requires resolved layout metadata"
+            )
+        resolved_type = astx.ClassType(
+            class_.name,
+            resolved_name=class_.name,
+            module_key=class_.module_key,
+            qualified_name=class_.qualified_name,
+            ancestor_qualified_names=tuple(
+                ancestor.qualified_name for ancestor in class_.mro[1:]
+            ),
+        )
+        self._set_class(node, class_)
+        self._set_class_construction(
+            node,
+            ResolvedClassConstruction(
+                class_=class_,
+                initialization=class_.initialization,
+            ),
+        )
+        self._set_type(node, resolved_type)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.MethodCall) -> None:

@@ -27,18 +27,22 @@ from irx.analysis.module_symbols import (
 )
 from irx.analysis.resolved_nodes import (
     ClassHeaderFieldKind,
+    ClassInitializationSourceKind,
     ClassMemberKind,
     ClassMemberResolutionKind,
     ClassObjectRepresentationKind,
     FunctionSignature,
     ParameterSpec,
     SemanticClass,
+    SemanticClassFieldInitializer,
     SemanticClassHeaderField,
+    SemanticClassInitialization,
     SemanticClassLayout,
     SemanticClassLayoutField,
     SemanticClassMember,
     SemanticClassMemberResolution,
     SemanticClassMethodDispatch,
+    SemanticClassStaticInitializer,
     SemanticClassStaticStorage,
     SemanticFunction,
     SemanticStruct,
@@ -320,6 +324,57 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         if isinstance(raw_value, bool):
             return raw_value
         return False
+
+    def _initializer_source_kind(
+        self,
+        value: astx.AST | None,
+    ) -> ClassInitializationSourceKind:
+        """
+        title: Return how one class attribute obtains its initial value.
+        parameters:
+          value:
+            type: astx.AST | None
+        returns:
+          type: ClassInitializationSourceKind
+        """
+        if value is None or isinstance(value, astx.Undefined):
+            return ClassInitializationSourceKind.DEFAULT
+        return ClassInitializationSourceKind.DECLARATION
+
+    def _static_initializer_is_supported(
+        self,
+        value: astx.AST | None,
+    ) -> bool:
+        """
+        title: >-
+          Return whether one static field initializer is deterministic now.
+        parameters:
+          value:
+            type: astx.AST | None
+        returns:
+          type: bool
+        """
+        if value is None or isinstance(value, astx.Undefined):
+            return True
+        return isinstance(
+            value,
+            (
+                astx.LiteralBoolean,
+                astx.LiteralInt8,
+                astx.LiteralInt16,
+                astx.LiteralInt32,
+                astx.LiteralInt64,
+                astx.LiteralUInt8,
+                astx.LiteralUInt16,
+                astx.LiteralUInt32,
+                astx.LiteralUInt64,
+                astx.LiteralUInt128,
+                astx.LiteralFloat16,
+                astx.LiteralFloat32,
+                astx.LiteralFloat64,
+                astx.LiteralNone,
+            ),
+        )
 
     def _method_signature_key(
         self,
@@ -910,6 +965,64 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             visible_static_storage=visible_static_storage,
         )
 
+    def _build_class_initialization(
+        self,
+        class_: SemanticClass,
+        layout: SemanticClassLayout,
+    ) -> SemanticClassInitialization:
+        """
+        title: Build one canonical class initialization plan.
+        parameters:
+          class_:
+            type: SemanticClass
+          layout:
+            type: SemanticClassLayout
+        returns:
+          type: SemanticClassInitialization
+        """
+        instance_initializers = tuple(
+            SemanticClassFieldInitializer(
+                field=field,
+                source_kind=self._initializer_source_kind(
+                    getattr(field.member.declaration, "value", None)
+                ),
+                value=(
+                    None
+                    if isinstance(
+                        getattr(field.member.declaration, "value", None),
+                        astx.Undefined,
+                    )
+                    else getattr(field.member.declaration, "value", None)
+                ),
+                owner_name=field.owner_name,
+                owner_qualified_name=field.owner_qualified_name,
+            )
+            for field in layout.instance_fields
+        )
+        static_initializers = tuple(
+            SemanticClassStaticInitializer(
+                storage=storage,
+                source_kind=self._initializer_source_kind(
+                    getattr(storage.member.declaration, "value", None)
+                ),
+                value=(
+                    None
+                    if isinstance(
+                        getattr(storage.member.declaration, "value", None),
+                        astx.Undefined,
+                    )
+                    else getattr(storage.member.declaration, "value", None)
+                ),
+                owner_name=storage.owner_name,
+                owner_qualified_name=storage.owner_qualified_name,
+            )
+            for storage in layout.static_fields
+        )
+        return SemanticClassInitialization(
+            instance_initializers=instance_initializers,
+            static_initializers=static_initializers,
+        )
+
     def _normalize_class_method_signature(
         self,
         class_: SemanticClass,
@@ -1220,6 +1333,18 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     ),
                     node=attribute,
                     code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
+                )
+            if self._attribute_is_static(attribute) and not (
+                self._static_initializer_is_supported(attribute.value)
+            ):
+                self.context.diagnostics.add(
+                    (
+                        "Static attribute "
+                        f"'{class_.name}.{attribute.name}' requires "
+                        "a literal initializer or default construction"
+                    ),
+                    node=attribute,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
                 )
             if (
                 attribute.name in ancestor_attributes
@@ -1886,6 +2011,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             visible_methods = tuple(
                 member for group in method_groups.values() for member in group
             )
+            initialization = self._build_class_initialization(
+                class_stub,
+                layout,
+            )
             updated = replace(
                 class_stub,
                 member_table=member_table,
@@ -1917,6 +2046,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 ),
                 shared_ancestors=structural_class.shared_ancestors,
                 layout=layout,
+                initialization=initialization,
                 mro=(structural_class, *mro_ancestors),
                 is_resolved=True,
             )

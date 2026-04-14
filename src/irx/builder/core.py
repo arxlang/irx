@@ -591,8 +591,12 @@ class VisitorCore(BuilderVisitor):
         title: Initialize.
         """
         self._llvm = VariablesLLVM()
-        self._llvm.module = ir.module.Module("Arx")
-        self._llvm.context = self._llvm.module.context
+        llvm_context = ir.Context()
+        self._llvm.module = ir.module.Module(
+            "Arx",
+            context=llvm_context,
+        )
+        self._llvm.context = llvm_context
         self._init_native_size_types()
 
         llvm.initialize_all_targets()

@@ -294,6 +294,28 @@ to lowering or runtime behavior.
   derived-typed receiver, analysis resolves the originating base member and
   lowering reuses the existing class-pointer upcast path
 
+## Class Construction Contract
+
+IRx now exposes one low-level default-construction path for classes without
+introducing high-level constructor syntax yet.
+
+- `ClassConstruct("Name")` allocates one heap object and returns the analyzed
+  class pointer type for `Name`
+- construction initializes object headers first, then instance fields in the
+  same canonical flattened storage order recorded in
+  `SemanticClass.layout.instance_fields`
+- the reserved type-descriptor header slot is initialized to null for now
+- the dispatch-table header slot is initialized to the class dispatch global
+  when one exists, otherwise null
+- instance fields use their declaration initializer when present; otherwise they
+  receive the same zero/null default used for ordinary local declarations
+- instance constant fields must have declaration initializers in the current
+  model because dedicated constructors are not implemented yet
+- static class fields initialize once at module load from literal declaration
+  initializers or their zero/null default when no initializer is present
+- non-literal static field initializers are rejected during semantic analysis in
+  this phase so codegen never has to invent runtime initialization order
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

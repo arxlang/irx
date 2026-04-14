@@ -11,6 +11,7 @@ import pytest
 from irx import astx
 from irx.analysis import (
     ClassHeaderFieldKind,
+    ClassInitializationSourceKind,
     ClassMemberResolutionKind,
     ClassObjectRepresentationKind,
     SemanticError,
@@ -649,4 +650,156 @@ def test_analyze_flattens_inherited_layout_in_canonical_storage_order() -> (
     assert (
         resolved.layout.visible_field_slots["child"].storage_index
         == FOURTH_INSTANCE_STORAGE_INDEX
+    )
+
+
+def test_analyze_builds_class_initialization_plan_in_storage_order() -> None:
+    """
+    title: Default construction follows canonical ancestor-first storage order.
+    """
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute("root", astx.Int32(), value=astx.LiteralInt32(3))
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        attributes=[
+            _attribute("flag", astx.Boolean()),
+            _attribute("count", astx.Int32(), value=astx.LiteralInt32(9)),
+        ],
+    )
+
+    analyze(make_module("app.main", base, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert resolved.initialization is not None
+    assert [
+        initializer.field.member.name
+        for initializer in resolved.initialization.instance_initializers
+    ] == ["root", "flag", "count"]
+    assert [
+        initializer.owner_name
+        for initializer in resolved.initialization.instance_initializers
+    ] == ["Base", "Child", "Child"]
+    assert [
+        initializer.source_kind
+        for initializer in resolved.initialization.instance_initializers
+    ] == [
+        ClassInitializationSourceKind.DECLARATION,
+        ClassInitializationSourceKind.DEFAULT,
+        ClassInitializationSourceKind.DECLARATION,
+    ]
+
+
+def test_analyze_tracks_static_initializer_sources() -> None:
+    """
+    title: Static fields keep one deterministic initialization-source plan.
+    """
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "shared",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(7),
+            ),
+            _attribute("count", astx.Int32(), is_static=True),
+        ],
+    )
+
+    analyze(make_module("app.main", node))
+
+    resolved = _semantic(node).resolved_class
+
+    assert resolved is not None
+    assert resolved.initialization is not None
+    assert [
+        initializer.storage.member.name
+        for initializer in resolved.initialization.static_initializers
+    ] == ["shared", "count"]
+    assert [
+        initializer.source_kind
+        for initializer in resolved.initialization.static_initializers
+    ] == [
+        ClassInitializationSourceKind.DECLARATION,
+        ClassInitializationSourceKind.DEFAULT,
+    ]
+
+
+def test_analyze_rejects_nonliteral_static_attribute_initializer() -> None:
+    """
+    title: Static fields require literal or default initialization for now.
+    """
+    helper_body = astx.Block()
+    helper_body.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    helper = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="helper",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=helper_body,
+    )
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "shared",
+                astx.Int32(),
+                is_static=True,
+                value=astx.FunctionCall("helper", []),
+            )
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="requires a literal initializer or default construction",
+    ):
+        analyze(make_module("app.main", helper, node))
+
+
+def test_analyze_attaches_resolved_class_construction_metadata() -> None:
+    """
+    title: ClassConstruct expressions resolve one default initialization plan.
+    """
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute("value", astx.Int32(), value=astx.LiteralInt32(7))
+        ],
+    )
+    construct = astx.ClassConstruct("Counter")
+    main_body = astx.Block()
+    main_body.append(astx.FunctionReturn(construct))
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="make_counter",
+            args=astx.Arguments(),
+            return_type=_class_type("Counter"),
+        ),
+        body=main_body,
+    )
+
+    analyze(make_module("app.main", node, main))
+
+    resolved = _semantic(construct).resolved_class_construction
+    resolved_type = _semantic(construct).resolved_type
+
+    assert resolved is not None
+    assert resolved.class_.name == "Counter"
+    assert [
+        initializer.field.member.name
+        for initializer in resolved.initialization.instance_initializers
+    ] == ["value"]
+    assert isinstance(resolved_type, astx.ClassType)
+    assert resolved_type.qualified_name == qualified_class_name(
+        "app.main",
+        "Counter",
     )

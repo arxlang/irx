@@ -232,6 +232,55 @@ class ClassDefStmt(astx.StructDeclStmt):
 
 
 @typechecked
+class ClassConstruct(astx.DataType):
+    """
+    title: Low-level default class construction expression.
+    attributes:
+      class_name:
+        type: str
+      type_:
+        type: AnyType
+    """
+
+    class_name: str
+    type_: AnyType
+
+    def __init__(
+        self,
+        class_name: str,
+    ) -> None:
+        """
+        title: Initialize one default class construction expression.
+        parameters:
+          class_name:
+            type: str
+        """
+        super().__init__()
+        self.class_name = class_name
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one class construction expression as text.
+        returns:
+          type: str
+        """
+        return f"ClassConstruct[{self.class_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for class construction.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"CLASS-CONSTRUCT[{self.class_name}]"
+        return self._prepare_struct(key, self.class_name, simplified)
+
+
+@typechecked
 class MethodCall(astx.DataType):
     """
     title: Instance method call expression.
@@ -378,4 +427,10 @@ class StaticMethodCall(astx.DataType):
         )
 
 
-__all__ = ["ClassDefStmt", "ClassType", "MethodCall", "StaticMethodCall"]
+__all__ = [
+    "ClassConstruct",
+    "ClassDefStmt",
+    "ClassType",
+    "MethodCall",
+    "StaticMethodCall",
+]
