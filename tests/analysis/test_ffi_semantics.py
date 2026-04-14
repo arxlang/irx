@@ -382,6 +382,7 @@ def test_analyze_rejects_field_access_on_opaque_handle() -> None:
     module.block.append(main)
 
     with pytest.raises(
-        SemanticError, match="field access requires a struct value"
+        SemanticError,
+        match="field access requires a struct or class value",
     ):
         analyze(module)
