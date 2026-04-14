@@ -10,14 +10,27 @@ import pytest
 
 from irx import astx
 from irx.analysis import (
+    ClassHeaderFieldKind,
     ClassMemberResolutionKind,
+    ClassObjectRepresentationKind,
     SemanticError,
     analyze,
 )
-from irx.analysis.module_symbols import qualified_class_name
+from irx.analysis.module_symbols import (
+    mangle_class_dispatch_name,
+    mangle_class_name,
+    mangle_class_static_name,
+    qualified_class_name,
+)
 from irx.analysis.resolved_nodes import SemanticInfo
 
 from tests.conftest import make_module
+
+CLASS_HEADER_SLOT_COUNT = 2
+FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
+SECOND_INSTANCE_STORAGE_INDEX = FIRST_INSTANCE_STORAGE_INDEX + 1
+THIRD_INSTANCE_STORAGE_INDEX = SECOND_INSTANCE_STORAGE_INDEX + 1
+FOURTH_INSTANCE_STORAGE_INDEX = THIRD_INSTANCE_STORAGE_INDEX + 1
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -411,3 +424,125 @@ def test_analyze_rejects_inconsistent_c3_mro() -> None:
 
     with pytest.raises(SemanticError, match="has no consistent MRO"):
         analyze(make_module("app.main", x, y, a, b, child))
+
+
+def test_analyze_builds_pointer_layout_and_static_storage_metadata() -> None:
+    """
+    title: Classes expose stable object-layout and static-storage metadata.
+    """
+    node = astx.ClassDefStmt(
+        name="Vector",
+        attributes=[
+            _attribute("x", astx.Int32()),
+            _attribute(
+                "shared",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(7),
+            ),
+        ],
+    )
+
+    analyze(make_module("pkg.tools", node))
+
+    resolved = _semantic(node).resolved_class
+
+    assert resolved is not None
+    assert resolved.layout is not None
+    assert resolved.layout.object_representation is (
+        ClassObjectRepresentationKind.POINTER
+    )
+    assert resolved.layout.llvm_name == mangle_class_name(
+        "pkg.tools",
+        "Vector",
+    )
+    assert resolved.layout.dispatch_global_name == mangle_class_dispatch_name(
+        "pkg.tools",
+        "Vector",
+    )
+    assert [header.kind for header in resolved.layout.header_fields] == [
+        ClassHeaderFieldKind.TYPE_DESCRIPTOR,
+        ClassHeaderFieldKind.DISPATCH_TABLE,
+    ]
+    assert [
+        header.storage_index for header in resolved.layout.header_fields
+    ] == [
+        0,
+        1,
+    ]
+    assert [
+        field.member.name for field in resolved.layout.instance_fields
+    ] == [
+        "x",
+    ]
+    assert (
+        resolved.layout.visible_field_slots["x"].storage_index
+        == FIRST_INSTANCE_STORAGE_INDEX
+    )
+    assert [
+        storage.member.name for storage in resolved.layout.static_fields
+    ] == [
+        "shared",
+    ]
+    assert resolved.layout.static_fields[0].global_name == (
+        mangle_class_static_name("pkg.tools", "Vector", "shared")
+    )
+
+
+def test_analyze_flattens_inherited_layout_in_canonical_storage_order() -> (
+    None
+):
+    """
+    title: Canonical class storage orders ancestors before derived fields.
+    """
+    root = astx.ClassDefStmt(
+        name="Root",
+        attributes=[_attribute("root", astx.Int32())],
+    )
+    left = astx.ClassDefStmt(
+        name="Left",
+        bases=[_class_type("Root")],
+        attributes=[_attribute("left", astx.Boolean())],
+    )
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+        attributes=[_attribute("right", astx.Float64())],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+        attributes=[_attribute("child", astx.Int8())],
+    )
+
+    analyze(make_module("app.main", root, left, right, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert resolved.layout is not None
+    assert [
+        (field.owner_name, field.member.name)
+        for field in resolved.layout.instance_fields
+    ] == [
+        ("Root", "root"),
+        ("Left", "left"),
+        ("Right", "right"),
+        ("Child", "child"),
+    ]
+    assert (
+        resolved.layout.visible_field_slots["root"].storage_index
+        == FIRST_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["left"].storage_index
+        == SECOND_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["right"].storage_index
+        == THIRD_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["child"].storage_index
+        == FOURTH_INSTANCE_STORAGE_INDEX
+    )

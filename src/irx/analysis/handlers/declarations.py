@@ -16,14 +16,26 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.module_symbols import qualified_local_name
+from irx.analysis.module_symbols import (
+    mangle_class_descriptor_name,
+    mangle_class_dispatch_name,
+    mangle_class_name,
+    mangle_class_static_name,
+    qualified_local_name,
+)
 from irx.analysis.resolved_nodes import (
+    ClassHeaderFieldKind,
     ClassMemberKind,
     ClassMemberResolutionKind,
+    ClassObjectRepresentationKind,
     FunctionSignature,
     SemanticClass,
+    SemanticClassHeaderField,
+    SemanticClassLayout,
+    SemanticClassLayoutField,
     SemanticClassMember,
     SemanticClassMemberResolution,
+    SemanticClassStaticStorage,
     SemanticFunction,
     SemanticStruct,
     SemanticStructField,
@@ -35,6 +47,10 @@ from irx.typecheck import typechecked
 
 DIRECT_STRUCT_CYCLE_LENGTH = 2
 MIN_SHARED_ANCESTOR_BASE_COUNT = 2
+_CLASS_HEADER_LAYOUT: tuple[tuple[str, ClassHeaderFieldKind], ...] = (
+    ("descriptor", ClassHeaderFieldKind.TYPE_DESCRIPTOR),
+    ("dispatch", ClassHeaderFieldKind.DISPATCH_TABLE),
+)
 
 
 @typechecked
@@ -445,6 +461,166 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             ancestor
             for ancestor in mro[1:]
             if counts.get(ancestor.qualified_name, 0) > 1
+        )
+
+    def _class_storage_ancestors(
+        self,
+        bases: tuple[SemanticClass, ...],
+    ) -> tuple[SemanticClass, ...]:
+        """
+        title: Return the canonical ancestor storage order for one class.
+        parameters:
+          bases:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: tuple[SemanticClass, Ellipsis]
+        """
+        ordered: list[SemanticClass] = []
+        seen: set[str] = set()
+
+        def visit(base: SemanticClass) -> None:
+            """
+            title: Visit one base lineage for canonical storage ordering.
+            parameters:
+              base:
+                type: SemanticClass
+            """
+            for ancestor in base.bases:
+                visit(ancestor)
+            if base.qualified_name in seen:
+                return
+            seen.add(base.qualified_name)
+            ordered.append(base)
+
+        for base in bases:
+            visit(base)
+        return tuple(ordered)
+
+    def _build_class_layout(
+        self,
+        class_: SemanticClass,
+        bases: tuple[SemanticClass, ...],
+        declared_members: tuple[SemanticClassMember, ...],
+        effective_members: tuple[SemanticClassMember, ...],
+    ) -> SemanticClassLayout:
+        """
+        title: Build one canonical low-level class layout.
+        parameters:
+          class_:
+            type: SemanticClass
+          bases:
+            type: tuple[SemanticClass, Ellipsis]
+          declared_members:
+            type: tuple[SemanticClassMember, Ellipsis]
+          effective_members:
+            type: tuple[SemanticClassMember, Ellipsis]
+        returns:
+          type: SemanticClassLayout
+        """
+        header_fields = tuple(
+            SemanticClassHeaderField(
+                name=name,
+                kind=kind,
+                storage_index=index,
+            )
+            for index, (name, kind) in enumerate(_CLASS_HEADER_LAYOUT)
+        )
+        storage_ancestors = self._class_storage_ancestors(bases)
+        instance_fields: list[SemanticClassLayoutField] = []
+        field_slots: dict[str, SemanticClassLayoutField] = {}
+
+        for storage_owner, owner_members in (
+            *tuple(
+                (
+                    ancestor,
+                    tuple(
+                        member
+                        for member in ancestor.declared_members
+                        if member.kind is ClassMemberKind.ATTRIBUTE
+                        and not member.is_static
+                    ),
+                )
+                for ancestor in storage_ancestors
+            ),
+            (
+                class_,
+                tuple(
+                    member
+                    for member in declared_members
+                    if member.kind is ClassMemberKind.ATTRIBUTE
+                    and not member.is_static
+                ),
+            ),
+        ):
+            for member in owner_members:
+                logical_index = len(instance_fields)
+                slot = SemanticClassLayoutField(
+                    member=member,
+                    logical_index=logical_index,
+                    storage_index=len(header_fields) + logical_index,
+                    owner_name=storage_owner.name,
+                    owner_qualified_name=storage_owner.qualified_name,
+                )
+                instance_fields.append(slot)
+                field_slots[member.qualified_name] = slot
+
+        static_fields = tuple(
+            SemanticClassStaticStorage(
+                member=member,
+                global_name=mangle_class_static_name(
+                    class_.module_key,
+                    class_.name,
+                    member.name,
+                ),
+                owner_name=class_.name,
+                owner_qualified_name=class_.qualified_name,
+            )
+            for member in declared_members
+            if member.kind is ClassMemberKind.ATTRIBUTE and member.is_static
+        )
+        static_storage = {
+            storage.member.qualified_name: storage for storage in static_fields
+        }
+        inherited_static_storage: dict[str, SemanticClassStaticStorage] = {}
+        for ancestor in storage_ancestors:
+            layout = ancestor.layout
+            if layout is None:
+                continue
+            inherited_static_storage.update(layout.static_storage)
+        inherited_static_storage.update(static_storage)
+
+        visible_field_slots: dict[str, SemanticClassLayoutField] = {}
+        visible_static_storage: dict[str, SemanticClassStaticStorage] = {}
+        for member in effective_members:
+            if member.kind is not ClassMemberKind.ATTRIBUTE:
+                continue
+            if member.is_static:
+                storage = inherited_static_storage.get(member.qualified_name)
+                if storage is not None:
+                    visible_static_storage[member.name] = storage
+                continue
+            visible_slot = field_slots.get(member.qualified_name)
+            if visible_slot is not None:
+                visible_field_slots[member.name] = visible_slot
+
+        return SemanticClassLayout(
+            llvm_name=mangle_class_name(class_.module_key, class_.name),
+            object_representation=ClassObjectRepresentationKind.POINTER,
+            descriptor_global_name=mangle_class_descriptor_name(
+                class_.module_key,
+                class_.name,
+            ),
+            dispatch_global_name=mangle_class_dispatch_name(
+                class_.module_key,
+                class_.name,
+            ),
+            header_fields=header_fields,
+            instance_fields=tuple(instance_fields),
+            field_slots=field_slots,
+            visible_field_slots=visible_field_slots,
+            static_fields=static_fields,
+            static_storage=static_storage,
+            visible_static_storage=visible_static_storage,
         )
 
     def _ancestor_declared_members(
@@ -870,6 +1046,12 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             )
             effective_members = tuple(member_table.values())
             shared_ancestors = self._shared_class_ancestors(bases, mro)
+            layout = self._build_class_layout(
+                current,
+                bases,
+                declared_members,
+                effective_members,
+            )
             updated = replace(
                 current,
                 bases=bases,
@@ -905,6 +1087,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     ancestor.qualified_name for ancestor in mro[1:]
                 ),
                 shared_ancestors=shared_ancestors,
+                layout=layout,
                 mro=(
                     current,
                     *tuple(

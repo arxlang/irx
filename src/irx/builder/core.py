@@ -25,8 +25,10 @@ except ImportError:  # pragma: no cover - optional
 from irx.analysis import analyze, analyze_modules
 from irx.analysis.module_interfaces import ImportResolver, ParsedModule
 from irx.analysis.module_symbols import (
+    mangle_class_name,
     mangle_function_name,
     mangle_struct_name,
+    qualified_class_name,
     qualified_struct_name,
 )
 from irx.analysis.resolved_nodes import FunctionSignature
@@ -237,6 +239,53 @@ def semantic_struct_name(node: astx.AST, fallback: str) -> str:
     name = getattr(struct, "name", None)
     if module_key is not None and name is not None:
         return mangle_struct_name(module_key, name)
+    return fallback
+
+
+@private
+@typechecked
+def semantic_class_key(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic class key.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    class_ = getattr(semantic, "resolved_class", None)
+    qualified_name = getattr(class_, "qualified_name", None)
+    if qualified_name is not None:
+        return cast(str, qualified_name)
+    return fallback
+
+
+@private
+@typechecked
+def semantic_class_name(node: astx.AST, fallback: str) -> str:
+    """
+    title: Semantic LLVM class-object name.
+    parameters:
+      node:
+        type: astx.AST
+      fallback:
+        type: str
+    returns:
+      type: str
+    """
+    semantic = getattr(node, "semantic", None)
+    class_ = getattr(semantic, "resolved_class", None)
+    layout = getattr(class_, "layout", None)
+    llvm_name = getattr(layout, "llvm_name", None)
+    if isinstance(llvm_name, str) and llvm_name:
+        return llvm_name
+    module_key = getattr(class_, "module_key", None)
+    name = getattr(class_, "name", None)
+    if module_key is not None and name is not None:
+        return mangle_class_name(module_key, name)
     return fallback
 
 
@@ -463,7 +512,7 @@ class VisitorCore(BuilderVisitor):
         """
         for module in modules:
             for node in module.nodes:
-                if isinstance(node, astx.StructDefStmt):
+                if isinstance(node, (astx.StructDefStmt, astx.ClassDefStmt)):
                     self.visit(node)
 
         for module in modules:
@@ -861,6 +910,19 @@ class VisitorCore(BuilderVisitor):
             if struct_key is None:
                 return None
             return self.struct_types.get(struct_key)
+        if isinstance(type_, astx.ClassType):
+            class_key = type_.qualified_name
+            if class_key is None and type_.module_key is not None:
+                class_key = qualified_class_name(
+                    type_.module_key,
+                    type_.resolved_name or type_.name,
+                )
+            if class_key is None:
+                return None
+            class_type = self.struct_types.get(class_key)
+            if class_type is None:
+                return None
+            return class_type.as_pointer()
         type_name = type_.__class__.__name__.lower()
         return self._llvm.get_data_type(type_name)
 

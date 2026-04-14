@@ -207,6 +207,26 @@ Class semantics are also part of IRx's stable semantic boundary.
 - private members do not participate in inherited lookup; non-private inherited
   members are normalized before lowering in `SemanticClass.member_table`
 
+## Class Layout Contract
+
+IRx now records a deterministic low-level object layout for every analyzed class
+before lowering.
+
+- class values lower as pointers to identified object structs, not by-value
+  composites
+- every class object reserves two hidden header slots first: one type-descriptor
+  pointer slot and one dispatch-table pointer slot
+- instance storage is flattened in one canonical ancestor-first order with
+  shared ancestors stored once per logical base class
+- `SemanticClass.layout.instance_fields` records stable storage indices for all
+  declared instance attributes, including inherited storage that is not visible
+  for lookup
+- declared static attributes lower to internal module globals named in
+  `SemanticClass.layout.static_fields`
+- `SemanticClass.layout.visible_field_slots` and
+  `SemanticClass.layout.visible_static_storage` let later lowering phases reuse
+  semantic member resolution instead of recomputing layout lookups from syntax
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

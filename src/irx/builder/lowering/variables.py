@@ -168,6 +168,9 @@ class VariableVisitorMixin(VisitorMixinBase):
             elif isinstance(node.type_, astx.StructType):
                 init_val = ir.Constant(llvm_type, None)
                 alloca = self.create_entry_block_alloca(node.name, llvm_type)
+            elif isinstance(node.type_, astx.ClassType):
+                init_val = ir.Constant(llvm_type, None)
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
             elif "float" in type_str:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
                 alloca = self.create_entry_block_alloca(node.name, llvm_type)
@@ -211,6 +214,8 @@ class VariableVisitorMixin(VisitorMixinBase):
                 target_type=node.type_,
             )
         elif isinstance(node.type_, astx.StructType):
+            init_val = ir.Constant(llvm_type, None)
+        elif isinstance(node.type_, astx.ClassType):
             init_val = ir.Constant(llvm_type, None)
         elif "float" in type_str:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)

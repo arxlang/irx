@@ -454,7 +454,7 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             type: astx.Block
         """
         for node in block.nodes:
-            if isinstance(node, astx.StructDefStmt):
+            if isinstance(node, (astx.StructDefStmt, astx.ClassDefStmt)):
                 self.visit_child(node)
 
         result = None

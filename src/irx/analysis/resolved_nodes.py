@@ -426,6 +426,166 @@ class SemanticClassMemberResolution:
 
 @public
 @typechecked
+class ClassObjectRepresentationKind(str, Enum):
+    """
+    title: Stable class object-representation categories.
+    summary: >-
+      Distinguish whether class values are modeled as pointers or values.
+    """
+
+    POINTER = "pointer"
+
+
+@public
+@typechecked
+class ClassHeaderFieldKind(str, Enum):
+    """
+    title: Stable class-header field categories.
+    summary: >-
+      Name the reserved object-header slots that later lowering and dispatch
+      phases can populate without changing the class object layout.
+    """
+
+    TYPE_DESCRIPTOR = "type_descriptor"
+    DISPATCH_TABLE = "dispatch_table"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassHeaderField:
+    """
+    title: One reserved class-object header slot.
+    summary: >-
+      Describe one hidden header entry that occupies a stable index in every
+      class object representation.
+    attributes:
+      name:
+        type: str
+      kind:
+        type: ClassHeaderFieldKind
+      storage_index:
+        type: int
+    """
+
+    name: str
+    kind: ClassHeaderFieldKind
+    storage_index: int
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassLayoutField:
+    """
+    title: One resolved instance-field storage slot.
+    summary: >-
+      Record the stable storage position for one declared instance attribute in
+      the flattened class-object layout.
+    attributes:
+      member:
+        type: SemanticClassMember
+      logical_index:
+        type: int
+      storage_index:
+        type: int
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+    """
+
+    member: SemanticClassMember
+    logical_index: int
+    storage_index: int
+    owner_name: str
+    owner_qualified_name: str
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassStaticStorage:
+    """
+    title: One resolved static-member storage record.
+    summary: >-
+      Describe the module-global storage backing one declared static class
+      attribute.
+    attributes:
+      member:
+        type: SemanticClassMember
+      global_name:
+        type: str
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+    """
+
+    member: SemanticClassMember
+    global_name: str
+    owner_name: str
+    owner_qualified_name: str
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassLayout:
+    """
+    title: Canonical class-object layout metadata.
+    summary: >-
+      Normalize the low-level object representation, hidden header slots,
+      flattened instance-field storage, and static-global storage names for one
+      class.
+    attributes:
+      llvm_name:
+        type: str
+      object_representation:
+        type: ClassObjectRepresentationKind
+      descriptor_global_name:
+        type: str
+      dispatch_global_name:
+        type: str
+      header_fields:
+        type: tuple[SemanticClassHeaderField, Ellipsis]
+      instance_fields:
+        type: tuple[SemanticClassLayoutField, Ellipsis]
+      field_slots:
+        type: dict[str, SemanticClassLayoutField]
+      visible_field_slots:
+        type: dict[str, SemanticClassLayoutField]
+      static_fields:
+        type: tuple[SemanticClassStaticStorage, Ellipsis]
+      static_storage:
+        type: dict[str, SemanticClassStaticStorage]
+      visible_static_storage:
+        type: dict[str, SemanticClassStaticStorage]
+    """
+
+    llvm_name: str
+    object_representation: ClassObjectRepresentationKind
+    descriptor_global_name: str
+    dispatch_global_name: str
+    header_fields: tuple[SemanticClassHeaderField, ...] = ()
+    instance_fields: tuple[SemanticClassLayoutField, ...] = ()
+    field_slots: dict[str, SemanticClassLayoutField] = field(
+        default_factory=dict
+    )
+    visible_field_slots: dict[str, SemanticClassLayoutField] = field(
+        default_factory=dict
+    )
+    static_fields: tuple[SemanticClassStaticStorage, ...] = ()
+    static_storage: dict[str, SemanticClassStaticStorage] = field(
+        default_factory=dict
+    )
+    visible_static_storage: dict[str, SemanticClassStaticStorage] = field(
+        default_factory=dict
+    )
+
+
+@public
+@typechecked
 @dataclass(frozen=True)
 class SemanticClass:
     """
@@ -466,6 +626,8 @@ class SemanticClass:
         type: tuple[str, Ellipsis]
       shared_ancestors:
         type: tuple[SemanticClass, Ellipsis]
+      layout:
+        type: SemanticClassLayout | None
       mro:
         type: tuple[SemanticClass, Ellipsis]
       is_resolved:
@@ -492,6 +654,7 @@ class SemanticClass:
     static_methods: tuple[SemanticClassMember, ...] = ()
     inheritance_graph: tuple[str, ...] = ()
     shared_ancestors: tuple["SemanticClass", ...] = ()
+    layout: SemanticClassLayout | None = None
     mro: tuple["SemanticClass", ...] = ()
     is_resolved: bool = False
 
