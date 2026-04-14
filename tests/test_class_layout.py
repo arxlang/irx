@@ -4,6 +4,7 @@ title: Stable class layout and storage lowering tests.
 
 from __future__ import annotations
 
+import ctypes
 import re
 
 import pytest
@@ -15,8 +16,11 @@ from irx.analysis.module_symbols import (
 )
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
+from llvmlite import binding as llvm
 
 from tests.conftest import assert_ir_parses, make_module
+
+GLOBAL_ADDRESS_MISSING = 0
 
 
 def _class_type(name: str) -> astx.ClassType:
@@ -115,6 +119,43 @@ def _main_int32(*body_nodes: astx.AST) -> astx.FunctionDef:
         ),
         body=body,
     )
+
+
+def _jit_int32_globals(
+    ir_text: str,
+    *global_names: str,
+) -> dict[str, int]:
+    """
+    title: Read Int32 class-static globals from one JIT-compiled module.
+    parameters:
+      ir_text:
+        type: str
+      global_names:
+        type: str
+        variadic: positional
+    returns:
+      type: dict[str, int]
+    """
+    llvm_module = llvm.parse_assembly(ir_text)
+    llvm_module.verify()
+
+    target = llvm.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_module = llvm.parse_assembly("")
+    engine = llvm.create_mcjit_compiler(backing_module, target_machine)
+
+    engine.add_module(llvm_module)
+    engine.finalize_object()
+    engine.run_static_constructors()
+
+    values: dict[str, int] = {}
+    for global_name in global_names:
+        address = engine.get_global_value_address(global_name)
+        assert address != GLOBAL_ADDRESS_MISSING, (
+            f"Expected JIT-visible global '{global_name}'"
+        )
+        values[global_name] = int(ctypes.c_int32.from_address(address).value)
+    return values
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])
@@ -232,3 +273,96 @@ def test_class_values_lower_as_pointers_and_static_members_as_globals(
         "= internal constant i32 99"
     ) in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_class_static_globals_keep_literal_and_default_values(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Static class globals preserve literal and default init values.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(7),
+            ),
+            _attribute(
+                "pending",
+                astx.Int32(),
+                is_static=True,
+            ),
+        ],
+    )
+    module = make_module("main", node, _main_int32())
+
+    ir_text = builder.translate(module)
+    literal_name = mangle_class_static_name(
+        "main",
+        "Counter",
+        "instances",
+    )
+    default_name = mangle_class_static_name(
+        "main",
+        "Counter",
+        "pending",
+    )
+
+    assert f'@"{literal_name}" = internal global i32 7' in ir_text
+    assert f'@"{default_name}" = internal global i32 0' in ir_text
+    assert _jit_int32_globals(
+        ir_text,
+        literal_name,
+        default_name,
+    ) == {
+        literal_name: 7,
+        default_name: 0,
+    }
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_class_type_bodies_do_not_leak_across_translations(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Reused class names keep per-translation LLVM layouts isolated.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    first = make_module(
+        "main",
+        astx.ClassDefStmt(
+            name="Widget",
+            attributes=[_attribute("x", astx.Int32())],
+        ),
+        _main_int32(),
+    )
+    second = make_module(
+        "main",
+        astx.ClassDefStmt(
+            name="Widget",
+            attributes=[
+                _attribute("x", astx.Int32()),
+                _attribute("ready", astx.Boolean()),
+            ],
+        ),
+        _main_int32(),
+    )
+
+    first_ir = builder.translate(first)
+    second_ir = builder.translate(second)
+    llvm_name = mangle_class_name("main", "Widget")
+
+    assert f'%"{llvm_name}" = type {{i8*, i8*, i32}}' in first_ir
+    assert f'%"{llvm_name}" = type {{i8*, i8*, i32, i1}}' in second_ir
+    assert_ir_parses(second_ir)

@@ -591,6 +591,8 @@ class VisitorCore(BuilderVisitor):
         title: Initialize.
         """
         self._llvm = VariablesLLVM()
+        # Keep identified class/struct types isolated per translation so
+        # reused semantic names never retain stale LLVM bodies.
         llvm_context = ir.Context()
         self._llvm.module = ir.module.Module(
             "Arx",
