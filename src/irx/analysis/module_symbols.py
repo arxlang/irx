@@ -154,6 +154,7 @@ def qualified_class_member_name(
     module_key: ModuleKey,
     class_name: str,
     member_name: str,
+    overload_key: str | None = None,
 ) -> str:
     """
     title: Return a qualified semantic class-member name.
@@ -164,10 +165,17 @@ def qualified_class_member_name(
         type: str
       member_name:
         type: str
+      overload_key:
+        type: str | None
     returns:
       type: str
     """
-    return f"{module_key}::class::{class_name}::member::{member_name}"
+    qualified_name = (
+        f"{module_key}::class::{class_name}::member::{member_name}"
+    )
+    if overload_key is None:
+        return qualified_name
+    return f"{qualified_name}::overload::{overload_key}"
 
 
 @public
@@ -176,6 +184,7 @@ def qualified_class_method_name(
     module_key: ModuleKey,
     class_name: str,
     method_name: str,
+    overload_key: str | None = None,
 ) -> str:
     """
     title: Return a qualified semantic class-method function name.
@@ -186,14 +195,25 @@ def qualified_class_method_name(
         type: str
       method_name:
         type: str
+      overload_key:
+        type: str | None
     returns:
       type: str
     """
-    return f"{module_key}::class::{class_name}::method::{method_name}"
+    qualified_name = (
+        f"{module_key}::class::{class_name}::method::{method_name}"
+    )
+    if overload_key is None:
+        return qualified_name
+    return f"{qualified_name}::overload::{overload_key}"
 
 
 @typechecked
-def _class_method_symbol_basename(class_name: str, method_name: str) -> str:
+def _class_method_symbol_basename(
+    class_name: str,
+    method_name: str,
+    overload_key: str | None = None,
+) -> str:
     """
     title: Return a deterministic method-symbol basename.
     parameters:
@@ -201,10 +221,20 @@ def _class_method_symbol_basename(class_name: str, method_name: str) -> str:
         type: str
       method_name:
         type: str
+      overload_key:
+        type: str | None
     returns:
       type: str
     """
-    return _mangle_parts(class_name, "method", method_name)
+    if overload_key is None:
+        return _mangle_parts(class_name, "method", method_name)
+    return _mangle_parts(
+        class_name,
+        "method",
+        method_name,
+        "overload",
+        overload_key,
+    )
 
 
 @public
@@ -285,6 +315,7 @@ def mangle_class_name(module_key: ModuleKey, class_name: str) -> str:
 def class_method_symbol_basename(
     class_name: str,
     method_name: str,
+    overload_key: str | None = None,
 ) -> str:
     """
     title: Return a deterministic class-method symbol basename.
@@ -293,10 +324,16 @@ def class_method_symbol_basename(
         type: str
       method_name:
         type: str
+      overload_key:
+        type: str | None
     returns:
       type: str
     """
-    return _class_method_symbol_basename(class_name, method_name)
+    return _class_method_symbol_basename(
+        class_name,
+        method_name,
+        overload_key,
+    )
 
 
 @public
@@ -305,6 +342,7 @@ def mangle_class_method_name(
     module_key: ModuleKey,
     class_name: str,
     method_name: str,
+    overload_key: str | None = None,
 ) -> str:
     """
     title: Return a deterministic LLVM class-method symbol name.
@@ -315,12 +353,18 @@ def mangle_class_method_name(
         type: str
       method_name:
         type: str
+      overload_key:
+        type: str | None
     returns:
       type: str
     """
     return _mangle_parts(
         str(module_key),
-        _class_method_symbol_basename(class_name, method_name),
+        _class_method_symbol_basename(
+            class_name,
+            method_name,
+            overload_key,
+        ),
     )
 
 

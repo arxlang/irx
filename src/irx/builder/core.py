@@ -1183,6 +1183,12 @@ class VisitorCore(BuilderVisitor):
                 return builder.fpext(value, target_llvm_type, "fpext")
             return builder.fptrunc(value, target_llvm_type, "fptrunc")
 
+        if isinstance(source_type, astx.ClassType) and isinstance(
+            target_type,
+            astx.ClassType,
+        ):
+            return builder.bitcast(value, target_llvm_type, "classcast")
+
         raise Exception(
             f"Unsupported scalar cast from {source_type!r} to {target_type!r}"
         )

@@ -81,6 +81,7 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             resolved_name=type_.resolved_name,
             module_key=type_.module_key,
             qualified_name=type_.qualified_name,
+            ancestor_qualified_names=type_.ancestor_qualified_names,
         )
     if isinstance(type_, astx.PointerType):
         pointee_type = (
@@ -558,6 +559,14 @@ def is_assignable(
         return True
     if same_type(target, value):
         return True
+    if isinstance(target, astx.ClassType) and isinstance(
+        value, astx.ClassType
+    ):
+        target_identity = target.qualified_name or target.name
+        value_identity = value.qualified_name or value.name
+        if value_identity == target_identity:
+            return True
+        return target_identity in value.ancestor_qualified_names
     if is_integer_type(target) and is_integer_type(value):
         return _is_safe_integer_assignment(target, value)
     if is_float_type(target) and is_numeric_type(value):

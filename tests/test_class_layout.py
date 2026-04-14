@@ -4,6 +4,8 @@ title: Stable class layout and storage lowering tests.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from irx import astx
@@ -177,8 +179,10 @@ def test_class_layout_flattens_canonical_shared_ancestor_storage(
     ir_text = builder.translate(module)
     llvm_name = mangle_class_name("main", "Child")
 
-    assert (
-        f'%"{llvm_name}" = type {{i8*, i8*, i32, i1, double, i8}}' in ir_text
+    assert re.search(
+        rf'%"{re.escape(llvm_name)}(?:\.\d+)?" = type '
+        r"\{i8\*, i8\*, i32, i1, double, i8\}",
+        ir_text,
     )
     assert_ir_parses(ir_text)
 

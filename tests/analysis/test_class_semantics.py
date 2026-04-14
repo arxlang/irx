@@ -200,12 +200,12 @@ def test_analyze_resolves_class_bases_and_c3_mro() -> None:
     left = astx.ClassDefStmt(
         name="Left",
         bases=[_class_type("Root")],
-        methods=[_method("select")],
+        methods=[_method("left_only")],
     )
     right = astx.ClassDefStmt(
         name="Right",
         bases=[_class_type("Root")],
-        methods=[_method("select")],
+        methods=[_method("right_only")],
     )
     child = astx.ClassDefStmt(
         name="Child",
@@ -223,14 +223,37 @@ def test_analyze_resolves_class_bases_and_c3_mro() -> None:
         "Right",
         "Root",
     ]
-    assert resolved.member_table["select"].owner_name == "Left"
-    assert resolved.member_resolution["select"].kind is (
-        ClassMemberResolutionKind.INHERITED
+    assert resolved.member_table["left_only"].owner_name == "Left"
+    assert resolved.member_table["right_only"].owner_name == "Right"
+
+
+def test_analyze_rejects_conflicting_inherited_methods_without_override() -> (
+    None
+):
+    """
+    title: Sibling methods with one exact signature require an override.
+    """
+    root = astx.ClassDefStmt(name="Root")
+    left = astx.ClassDefStmt(
+        name="Left",
+        bases=[_class_type("Root")],
+        methods=[_method("select")],
     )
-    assert [
-        member.owner_name
-        for member in resolved.member_resolution["select"].candidates
-    ] == ["Left", "Right"]
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+        methods=[_method("select")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="inherits conflicting methods named 'select'",
+    ):
+        analyze(make_module("app.main", root, left, right, child))
 
 
 def test_analyze_rejects_unknown_base_class() -> None:
@@ -341,7 +364,7 @@ def test_analyze_tracks_method_override_metadata() -> None:
     assert resolved is not None
     member = resolved.declared_member_table["render"]
     assert member.overrides is not None
-    assert member.overrides.endswith("::member::render")
+    assert "::member::render::overload::" in member.overrides
     assert resolved.member_table["render"].owner_name == "Child"
     assert resolved.member_resolution["render"].kind is (
         ClassMemberResolutionKind.OVERRIDE
@@ -352,9 +375,9 @@ def test_analyze_tracks_method_override_metadata() -> None:
     ] == ["Child", "Base"]
 
 
-def test_analyze_rejects_method_override_signature_changes() -> None:
+def test_analyze_merges_inherited_method_overloads() -> None:
     """
-    title: Overrides must match inherited signatures exactly.
+    title: Same-name methods with distinct signatures remain overloads.
     """
     base = astx.ClassDefStmt(
         name="Base",
@@ -366,10 +389,21 @@ def test_analyze_rejects_method_override_signature_changes() -> None:
         methods=[_method("render", astx.Argument("value", astx.Float64()))],
     )
 
-    with pytest.raises(
-        SemanticError, match="must match inherited signature exactly"
-    ):
-        analyze(make_module("app.main", base, child))
+    analyze(make_module("app.main", base, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert "render" not in resolved.member_table
+    assert [
+        member.owner_name for member in resolved.method_groups["render"]
+    ] == ["Child", "Base"]
+    assert [
+        resolution.kind for resolution in resolved.method_resolution["render"]
+    ] == [
+        ClassMemberResolutionKind.DECLARED,
+        ClassMemberResolutionKind.INHERITED,
+    ]
 
 
 def test_analyze_rejects_ambiguous_inherited_attribute() -> None:
@@ -513,6 +547,50 @@ def test_analyze_builds_pointer_layout_and_static_storage_metadata() -> None:
     assert resolved.layout.static_fields[0].global_name == (
         mangle_class_static_name("pkg.tools", "Vector", "shared")
     )
+
+
+def test_analyze_reuses_dispatch_slots_with_unrelated_hierarchies() -> None:
+    """
+    title: Unrelated families do not shift dispatch slots in another family.
+    """
+    base = astx.ClassDefStmt(name="Base", methods=[_method("area")])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_method("paint")],
+    )
+
+    analyze(make_module("app.one", base, child))
+    resolved_base = _semantic(base).resolved_class
+    resolved_child = _semantic(child).resolved_class
+    assert resolved_base is not None
+    assert resolved_child is not None
+    baseline_slots = {
+        member.name: member.dispatch_slot
+        for member in resolved_child.instance_methods
+    }
+
+    other = astx.ClassDefStmt(name="Other", methods=[_method("ping")])
+    extra = astx.ClassDefStmt(
+        name="Extra",
+        bases=[_class_type("Other")],
+        methods=[_method("pong")],
+    )
+    base_again = astx.ClassDefStmt(name="Base", methods=[_method("area")])
+    child_again = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_method("paint")],
+    )
+
+    analyze(make_module("app.two", other, extra, base_again, child_again))
+    resolved_again = _semantic(child_again).resolved_class
+
+    assert resolved_again is not None
+    assert {
+        member.name: member.dispatch_slot
+        for member in resolved_again.instance_methods
+    } == baseline_slots
 
 
 def test_analyze_flattens_inherited_layout_in_canonical_storage_order() -> (

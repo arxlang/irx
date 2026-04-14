@@ -16,6 +16,7 @@ from tests.conftest import make_module
 
 CLASS_HEADER_SLOT_COUNT = 2
 FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
+RENDER_OVERLOAD_COUNT = 2
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -224,6 +225,184 @@ def test_analyze_self_field_access_uses_class_layout_slot() -> None:
     assert resolved_field is not None
     assert resolved_field.field.storage_index == FIRST_INSTANCE_STORAGE_INDEX
     assert resolved_field.member.name == "value"
+
+
+def test_analyze_resolves_exact_method_overloads() -> None:
+    """
+    title: Method calls choose one exact overload from inherited groups.
+    """
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(1),
+                astx.Argument("value", astx.Int32()),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(2),
+                astx.Argument("value", astx.Float64()),
+            )
+        ],
+    )
+    render_int = astx.MethodCall(
+        astx.Identifier("value"),
+        "render",
+        [astx.LiteralInt32(4)],
+    )
+    render_float = astx.MethodCall(
+        astx.Identifier("value"),
+        "render",
+        [astx.LiteralFloat64(4.0)],
+    )
+    probe_int = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe_int",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(render_int),
+    )
+    probe_float = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe_float",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(render_float),
+    )
+
+    analyze(make_module("app.main", base, child, probe_int, probe_float))
+
+    resolved_class = _semantic(child).resolved_class
+    assert resolved_class is not None
+    assert len(resolved_class.method_groups["render"]) == RENDER_OVERLOAD_COUNT
+
+    int_call = _semantic(render_int).resolved_method_call
+    float_call = _semantic(render_float).resolved_method_call
+    assert int_call is not None
+    assert float_call is not None
+    assert int_call.member.owner_name == "Base"
+    assert float_call.member.owner_name == "Child"
+    assert int_call.overload_key != float_call.overload_key
+
+
+def test_analyze_rejects_conversion_ranked_method_overloads() -> None:
+    """
+    title: Overload selection requires one exact explicit argument match.
+    """
+    number = astx.ClassDefStmt(
+        name="Number",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(1),
+                astx.Argument("value", astx.Int32()),
+            ),
+            _returning_method(
+                "render",
+                astx.LiteralInt32(2),
+                astx.Argument("value", astx.Float64()),
+            ),
+        ],
+    )
+    call = astx.MethodCall(
+        astx.Identifier("value"),
+        "render",
+        [astx.LiteralInt8(1)],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("value", _class_type("Number"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(call),
+    )
+
+    with pytest.raises(SemanticError, match="no exact overload"):
+        analyze(make_module("app.main", number, probe))
+
+
+def test_analyze_supports_base_typed_method_polymorphism() -> None:
+    """
+    title: Base-typed receivers keep one shared override dispatch slot.
+    """
+    base_method = _returning_method("area", astx.LiteralInt32(1))
+    child_method = _returning_method("area", astx.LiteralInt32(2))
+    base = astx.ClassDefStmt(name="Base", methods=[base_method])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[child_method],
+    )
+    area_call = astx.MethodCall(astx.Identifier("shape"), "area", [])
+    measure = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Base"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(area_call),
+    )
+    wrap = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="wrap",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(
+            astx.FunctionCall("measure", [astx.Identifier("shape")])
+        ),
+    )
+
+    analyze(make_module("app.main", base, child, measure, wrap))
+
+    resolved_base = _semantic(base).resolved_class
+    resolved_child = _semantic(child).resolved_class
+    resolved_call = _semantic(area_call).resolved_method_call
+
+    assert resolved_base is not None
+    assert resolved_child is not None
+    assert resolved_call is not None
+    assert resolved_call.member.owner_name == "Base"
+    assert resolved_call.dispatch_kind is MethodDispatchKind.INDIRECT
+    assert (
+        resolved_call.slot_index
+        == resolved_base.member_table["area"].dispatch_slot
+    )
+    assert (
+        resolved_call.slot_index
+        == resolved_child.member_table["area"].dispatch_slot
+    )
+
+
+def test_analyze_accepts_derived_returns_for_base_result_types() -> None:
+    """
+    title: Derived class values are valid returns where a base is expected.
+    """
+    base = astx.ClassDefStmt(name="Base")
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    upcast = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="upcast",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=_class_type("Base"),
+        ),
+        body=_method_body(astx.Identifier("value")),
+    )
+
+    analyze(make_module("app.main", base, child, upcast))
 
 
 def test_analyze_rejects_private_method_access_outside_declaring_class() -> (

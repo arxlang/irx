@@ -36,6 +36,7 @@ from irx.analysis.types import (
     is_integer_type,
     is_numeric_type,
     is_string_type,
+    same_type,
 )
 from irx.analysis.typing import binary_result_type, unary_result_type
 from irx.analysis.validation import (
@@ -258,6 +259,217 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             module_key=class_.module_key,
             qualified_name=member.qualified_name,
         )
+
+    def _format_method_signature(self, member: SemanticClassMember) -> str:
+        """
+        title: Return one human-facing method signature string.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        if member.signature is None:
+            return member.name
+        parameters = ", ".join(
+            display_type_name(parameter.type_)
+            for parameter in member.signature.parameters
+        )
+        suffix = " static" if member.is_static else ""
+        return (
+            f"{member.name}({parameters}) -> "
+            f"{display_type_name(member.signature.return_type)}{suffix}"
+        )
+
+    def _format_requested_method_signature(
+        self,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+    ) -> str:
+        """
+        title: Return one human-facing requested method signature.
+        parameters:
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+        returns:
+          type: str
+        """
+        parameters = ", ".join(display_type_name(arg) for arg in arg_types)
+        suffix = " static" if is_static else ""
+        return f"{method_name}({parameters}){suffix}"
+
+    def _method_arguments_exactly_match(
+        self,
+        member: SemanticClassMember,
+        arg_types: list[astx.DataType | None],
+    ) -> bool:
+        """
+        title: Return whether one method exactly matches explicit arg types.
+        parameters:
+          member:
+            type: SemanticClassMember
+          arg_types:
+            type: list[astx.DataType | None]
+        returns:
+          type: bool
+        """
+        if member.signature is None:
+            return False
+        if len(member.signature.parameters) != len(arg_types):
+            return False
+        return all(
+            same_type(parameter.type_, arg_type)
+            for parameter, arg_type in zip(
+                member.signature.parameters,
+                arg_types,
+            )
+        )
+
+    def _resolve_method_overload(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+        node: astx.AST,
+    ) -> tuple[SemanticClassMember, tuple[SemanticClassMember, ...]] | None:
+        """
+        title: Resolve one class-method overload from the effective group.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+          node:
+            type: astx.AST
+        returns:
+          type: >-
+            tuple[SemanticClassMember, tuple[SemanticClassMember, Ellipsis]] |
+            None
+        """
+        member = class_.member_table.get(method_name)
+        group = class_.method_groups.get(method_name, ())
+        if not group:
+            if (
+                member is not None
+                and member.kind is not ClassMemberKind.METHOD
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"class member '{class_.name}.{method_name}' "
+                        "is not a method"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            else:
+                missing_label = "static method" if is_static else "method"
+                self.context.diagnostics.add(
+                    (
+                        f"class '{class_.name}' has no {missing_label} "
+                        f"'{method_name}'"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            return None
+
+        kind_candidates = tuple(
+            candidate
+            for candidate in group
+            if candidate.is_static == is_static
+        )
+        if not kind_candidates:
+            if is_static:
+                self.context.diagnostics.add(
+                    (
+                        f"instance method '{class_.name}.{method_name}' "
+                        "requires a receiver"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            else:
+                self.context.diagnostics.add(
+                    (
+                        f"static method '{class_.name}.{method_name}' "
+                        "must be called through the class"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            return None
+
+        accessible_candidates = tuple(
+            candidate
+            for candidate in kind_candidates
+            if self._member_is_accessible(candidate, owner=class_)
+        )
+        if not accessible_candidates:
+            self.context.diagnostics.add(
+                (
+                    f"class method '{class_.name}.{method_name}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        if len(accessible_candidates) == 1:
+            return accessible_candidates[0], accessible_candidates
+
+        exact_matches = tuple(
+            candidate
+            for candidate in accessible_candidates
+            if self._method_arguments_exactly_match(candidate, arg_types)
+        )
+        if len(exact_matches) == 1:
+            return exact_matches[0], accessible_candidates
+        if len(exact_matches) > 1:
+            available = ", ".join(
+                self._format_method_signature(candidate)
+                for candidate in accessible_candidates
+            )
+            self.context.diagnostics.add(
+                (
+                    f"call to '{class_.name}.{method_name}' is ambiguous; "
+                    f"available overloads: {available}"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        requested = self._format_requested_method_signature(
+            method_name,
+            arg_types,
+            is_static=is_static,
+        )
+        available = ", ".join(
+            self._format_method_signature(candidate)
+            for candidate in accessible_candidates
+        )
+        self.context.diagnostics.add(
+            (
+                f"class '{class_.name}' has no exact overload for "
+                f"'{requested}'; available overloads: {available}"
+            ),
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+        )
+        return None
 
     def _static_integer_literal_value(self, node: astx.AST) -> int | None:
         """
@@ -780,48 +992,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 )
             self._set_type(node, None)
             return
-        member = class_.member_table.get(node.method_name)
-        if member is None:
-            self.context.diagnostics.add(
-                f"class '{class_.name}' has no method '{node.method_name}'",
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
+        resolved_overload = self._resolve_method_overload(
+            class_,
+            node.method_name,
+            arg_types,
+            is_static=False,
+            node=node,
+        )
+        if resolved_overload is None:
             self._set_type(node, None)
             return
-        if member.kind is not ClassMemberKind.METHOD:
-            self.context.diagnostics.add(
-                (
-                    f"class member '{class_.name}.{node.method_name}' "
-                    "is not a method"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
-        if member.is_static:
-            self.context.diagnostics.add(
-                (
-                    f"static method '{class_.name}.{node.method_name}' "
-                    "must be called through the class"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
-        if not self._member_is_accessible(member, owner=class_):
-            self.context.diagnostics.add(
-                (
-                    f"class method '{class_.name}.{node.method_name}' "
-                    "is not accessible from this context"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
+        member, candidates = resolved_overload
         function = member.lowered_function
         if function is None:
             raise TypeError("instance method must have a lowered function")
@@ -842,8 +1023,10 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 class_=class_,
                 member=member,
                 function=function,
+                overload_key=(member.signature_key or member.qualified_name),
                 dispatch_kind=dispatch_kind,
                 call=call_resolution,
+                candidates=candidates,
                 receiver_type=receiver_type,
                 receiver_class=class_,
                 slot_index=member.dispatch_slot,
@@ -867,51 +1050,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if class_ is None:
             self._set_type(node, None)
             return
-        member = class_.member_table.get(node.method_name)
-        if member is None:
-            self.context.diagnostics.add(
-                (
-                    f"class '{class_.name}' has no static method "
-                    f"'{node.method_name}'"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
+        resolved_overload = self._resolve_method_overload(
+            class_,
+            node.method_name,
+            arg_types,
+            is_static=True,
+            node=node,
+        )
+        if resolved_overload is None:
             self._set_type(node, None)
             return
-        if member.kind is not ClassMemberKind.METHOD:
-            self.context.diagnostics.add(
-                (
-                    f"class member '{class_.name}.{node.method_name}' "
-                    "is not a method"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
-        if not member.is_static:
-            self.context.diagnostics.add(
-                (
-                    f"instance method '{class_.name}.{node.method_name}' "
-                    "requires a receiver"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
-        if not self._member_is_accessible(member, owner=class_):
-            self.context.diagnostics.add(
-                (
-                    f"class method '{class_.name}.{node.method_name}' "
-                    "is not accessible from this context"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
-            self._set_type(node, None)
-            return
+        member, candidates = resolved_overload
         function = member.lowered_function
         if function is None:
             raise TypeError("static method must have a lowered function")
@@ -929,8 +1078,10 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 class_=class_,
                 member=member,
                 function=function,
+                overload_key=(member.signature_key or member.qualified_name),
                 dispatch_kind=MethodDispatchKind.DIRECT,
                 call=call_resolution,
+                candidates=candidates,
             ),
         )
         self._set_type(node, call_resolution.result_type)

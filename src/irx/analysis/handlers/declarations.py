@@ -45,7 +45,7 @@ from irx.analysis.resolved_nodes import (
     SemanticStructField,
     SemanticSymbol,
 )
-from irx.analysis.types import clone_type
+from irx.analysis.types import clone_type, display_type_name
 from irx.analysis.validation import validate_assignment
 from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
@@ -321,6 +321,186 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             return raw_value
         return False
 
+    def _method_signature_key(
+        self,
+        method_name: str,
+        signature: FunctionSignature,
+        *,
+        is_static: bool,
+    ) -> str:
+        """
+        title: Return one canonical visible method signature key.
+        parameters:
+          method_name:
+            type: str
+          signature:
+            type: FunctionSignature
+          is_static:
+            type: bool
+        returns:
+          type: str
+        """
+        dispatch_kind = "static" if is_static else "instance"
+        parameters = ",".join(
+            display_type_name(parameter.type_)
+            for parameter in signature.parameters
+        )
+        variadic = "variadic" if signature.is_variadic else "fixed"
+        return (
+            f"{dispatch_kind}|{method_name}|"
+            f"{signature.calling_convention.value}|{variadic}|"
+            f"({parameters})->{display_type_name(signature.return_type)}"
+        )
+
+    def _method_call_key_from_signature(
+        self,
+        method_name: str,
+        signature: FunctionSignature,
+        *,
+        is_static: bool,
+    ) -> str:
+        """
+        title: Return one overload-selection key without the return type.
+        parameters:
+          method_name:
+            type: str
+          signature:
+            type: FunctionSignature
+          is_static:
+            type: bool
+        returns:
+          type: str
+        """
+        dispatch_kind = "static" if is_static else "instance"
+        parameters = ",".join(
+            display_type_name(parameter.type_)
+            for parameter in signature.parameters
+        )
+        variadic = "variadic" if signature.is_variadic else "fixed"
+        return (
+            f"{dispatch_kind}|{method_name}|"
+            f"{signature.calling_convention.value}|{variadic}|"
+            f"({parameters})"
+        )
+
+    def _member_call_key(self, member: SemanticClassMember) -> str:
+        """
+        title: Return one overload-selection key for a class method member.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        if member.signature is None:
+            raise TypeError("class method must carry a visible signature")
+        return self._method_call_key_from_signature(
+            member.name,
+            member.signature,
+            is_static=member.is_static,
+        )
+
+    def _format_method_signature(self, member: SemanticClassMember) -> str:
+        """
+        title: Return one human-facing method signature string.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        if member.signature is None:
+            return member.name
+        parameters = ", ".join(
+            display_type_name(parameter.type_)
+            for parameter in member.signature.parameters
+        )
+        suffix = " static" if member.is_static else ""
+        return (
+            f"{member.name}({parameters}) -> "
+            f"{display_type_name(member.signature.return_type)}{suffix}"
+        )
+
+    def _declared_member_tables(
+        self,
+        declared_members: tuple[SemanticClassMember, ...],
+    ) -> tuple[
+        dict[str, SemanticClassMember],
+        dict[str, tuple[SemanticClassMember, ...]],
+    ]:
+        """
+        title: Build the declared member tables for one class.
+        parameters:
+          declared_members:
+            type: tuple[SemanticClassMember, Ellipsis]
+        returns:
+          type: >-
+            tuple[dict[str, SemanticClassMember], dict[str,
+            tuple[SemanticClassMember, Ellipsis]]]
+        """
+        declared_member_table: dict[str, SemanticClassMember] = {}
+        declared_method_groups: dict[str, list[SemanticClassMember]] = {}
+
+        for member in declared_members:
+            if member.kind is ClassMemberKind.ATTRIBUTE:
+                declared_member_table[member.name] = member
+                continue
+            declared_method_groups.setdefault(member.name, []).append(member)
+
+        normalized_method_groups = {
+            name: tuple(group)
+            for name, group in declared_method_groups.items()
+        }
+        for name, group in normalized_method_groups.items():
+            if len(group) == 1:
+                declared_member_table[name] = group[0]
+
+        return declared_member_table, normalized_method_groups
+
+    def _ancestor_declared_attributes(
+        self,
+        mro: tuple[SemanticClass, ...],
+    ) -> dict[str, tuple[SemanticClassMember, ...]]:
+        """
+        title: Collect visible ancestor attributes in MRO order.
+        parameters:
+          mro:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: dict[str, tuple[SemanticClassMember, Ellipsis]]
+        """
+        members: dict[str, list[SemanticClassMember]] = {}
+        for ancestor in mro[1:]:
+            for member in ancestor.declared_members:
+                if member.visibility is astx.VisibilityKind.private:
+                    continue
+                if member.kind is not ClassMemberKind.ATTRIBUTE:
+                    continue
+                members.setdefault(member.name, []).append(member)
+        return {name: tuple(group) for name, group in members.items()}
+
+    def _ancestor_declared_method_groups(
+        self,
+        mro: tuple[SemanticClass, ...],
+    ) -> dict[str, tuple[SemanticClassMember, ...]]:
+        """
+        title: Collect visible ancestor method overload groups in MRO order.
+        parameters:
+          mro:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: dict[str, tuple[SemanticClassMember, Ellipsis]]
+        """
+        groups: dict[str, list[SemanticClassMember]] = {}
+        for ancestor in mro[1:]:
+            for member in ancestor.declared_members:
+                if member.visibility is astx.VisibilityKind.private:
+                    continue
+                if member.kind is not ClassMemberKind.METHOD:
+                    continue
+                groups.setdefault(member.name, []).append(member)
+        return {name: tuple(group) for name, group in groups.items()}
+
     def _resolve_class_bases(
         self,
         class_: SemanticClass,
@@ -371,7 +551,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 )
                 continue
             seen.add(base.qualified_name)
-            resolved.append(self._resolve_class_definition(base))
+            resolved.append(self._resolve_class_structure(base))
 
         return tuple(resolved)
 
@@ -502,12 +682,81 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             visit(base)
         return tuple(ordered)
 
+    def _member_owner_module_key(
+        self,
+        member: SemanticClassMember,
+    ) -> str:
+        """
+        title: Return the module key for one declaring class member.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        return member.owner_qualified_name.partition("::class::")[0]
+
+    def _member_dominates(
+        self,
+        dominant: SemanticClass,
+        other: SemanticClass,
+    ) -> bool:
+        """
+        title: Return whether one owner dominates another in inheritance.
+        parameters:
+          dominant:
+            type: SemanticClass
+          other:
+            type: SemanticClass
+        returns:
+          type: bool
+        """
+        if dominant.qualified_name == other.qualified_name:
+            return True
+        return any(
+            ancestor.qualified_name == other.qualified_name
+            for ancestor in dominant.mro[1:]
+        )
+
+    def _dominant_inherited_method(
+        self,
+        candidates: tuple[SemanticClassMember, ...],
+    ) -> SemanticClassMember | None:
+        """
+        title: Return the unique dominant inherited method, if any.
+        parameters:
+          candidates:
+            type: tuple[SemanticClassMember, Ellipsis]
+        returns:
+          type: SemanticClassMember | None
+        """
+        if not candidates:
+            return None
+        selected = candidates[0]
+        selected_owner = self.context.get_class(
+            self._member_owner_module_key(selected),
+            selected.owner_name,
+        )
+        if selected_owner is None:
+            return None
+        for candidate in candidates[1:]:
+            owner = self.context.get_class(
+                self._member_owner_module_key(candidate),
+                candidate.owner_name,
+            )
+            if owner is None:
+                return None
+            if not self._member_dominates(selected_owner, owner):
+                return None
+        return selected
+
     def _build_class_layout(
         self,
         class_: SemanticClass,
         bases: tuple[SemanticClass, ...],
         declared_members: tuple[SemanticClassMember, ...],
-        effective_members: tuple[SemanticClassMember, ...],
+        member_table: dict[str, SemanticClassMember],
+        method_groups: dict[str, tuple[SemanticClassMember, ...]],
     ) -> SemanticClassLayout:
         """
         title: Build one canonical low-level class layout.
@@ -518,8 +767,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             type: tuple[SemanticClass, Ellipsis]
           declared_members:
             type: tuple[SemanticClassMember, Ellipsis]
-          effective_members:
-            type: tuple[SemanticClassMember, Ellipsis]
+          member_table:
+            type: dict[str, SemanticClassMember]
+          method_groups:
+            type: dict[str, tuple[SemanticClassMember, Ellipsis]]
         returns:
           type: SemanticClassLayout
         """
@@ -597,27 +848,29 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
 
         visible_field_slots: dict[str, SemanticClassLayoutField] = {}
         visible_static_storage: dict[str, SemanticClassStaticStorage] = {}
+        for name, member in member_table.items():
+            if member.kind is not ClassMemberKind.ATTRIBUTE:
+                continue
+            if member.is_static:
+                storage = inherited_static_storage.get(member.qualified_name)
+                if storage is not None:
+                    visible_static_storage[name] = storage
+                continue
+            visible_slot = field_slots.get(member.qualified_name)
+            if visible_slot is not None:
+                visible_field_slots[name] = visible_slot
+
         dispatch_slots: dict[int, SemanticClassMethodDispatch] = {}
         visible_method_slots: dict[str, SemanticClassMethodDispatch] = {}
-        for member in effective_members:
-            if member.kind is ClassMemberKind.ATTRIBUTE:
-                if member.is_static:
-                    storage = inherited_static_storage.get(
-                        member.qualified_name
-                    )
-                    if storage is not None:
-                        visible_static_storage[member.name] = storage
+        for group in method_groups.values():
+            for member in group:
+                if (
+                    member.is_static
+                    or member.dispatch_slot is None
+                    or member.lowered_function is None
+                    or member.signature_key is None
+                ):
                     continue
-                visible_slot = field_slots.get(member.qualified_name)
-                if visible_slot is not None:
-                    visible_field_slots[member.name] = visible_slot
-                continue
-            if (
-                member.kind is ClassMemberKind.METHOD
-                and not member.is_static
-                and member.dispatch_slot is not None
-                and member.lowered_function is not None
-            ):
                 dispatch_entry = SemanticClassMethodDispatch(
                     member=member,
                     function=member.lowered_function,
@@ -626,14 +879,12 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     owner_qualified_name=member.owner_qualified_name,
                 )
                 dispatch_slots[dispatch_entry.slot_index] = dispatch_entry
-                visible_method_slots[member.name] = dispatch_entry
+                visible_method_slots[member.signature_key] = dispatch_entry
 
         dispatch_entries = tuple(
             dispatch_slots[index] for index in sorted(dispatch_slots)
         )
-        dispatch_table_size = 0
-        if dispatch_entries:
-            dispatch_table_size = dispatch_entries[-1].slot_index + 1
+        dispatch_table_size = len(dispatch_entries)
 
         return SemanticClassLayout(
             llvm_name=mangle_class_name(class_.module_key, class_.name),
@@ -658,26 +909,6 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             static_storage=static_storage,
             visible_static_storage=visible_static_storage,
         )
-
-    def _ancestor_declared_members(
-        self,
-        mro: tuple[SemanticClass, ...],
-    ) -> dict[str, list[SemanticClassMember]]:
-        """
-        title: Collect visible ancestor member declarations in MRO order.
-        parameters:
-          mro:
-            type: tuple[SemanticClass, Ellipsis]
-        returns:
-          type: dict[str, list[SemanticClassMember]]
-        """
-        members: dict[str, list[SemanticClassMember]] = {}
-        for ancestor in mro[1:]:
-            for name, member in ancestor.declared_member_table.items():
-                if member.visibility is astx.VisibilityKind.private:
-                    continue
-                members.setdefault(name, []).append(member)
-        return members
 
     def _normalize_class_method_signature(
         self,
@@ -737,6 +968,9 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             resolved_name=class_.name,
             module_key=class_.module_key,
             qualified_name=class_.qualified_name,
+            ancestor_qualified_names=tuple(
+                ancestor.qualified_name for ancestor in class_.mro[1:]
+            ),
         )
 
     def _make_visible_method_function(
@@ -774,6 +1008,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 class_.module_key,
                 class_.name,
                 member.name,
+                member.signature_key,
             ),
         )
 
@@ -784,6 +1019,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         signature: FunctionSignature,
         *,
         is_static: bool,
+        signature_key: str,
     ) -> SemanticFunction:
         """
         title: Build one lowered semantic function for a class method.
@@ -796,6 +1032,8 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             type: FunctionSignature
           is_static:
             type: bool
+          signature_key:
+            type: str
         returns:
           type: SemanticFunction
         """
@@ -825,6 +1063,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 symbol_name=class_method_symbol_basename(
                     class_.name,
                     declaration.name,
+                    signature_key,
                 ),
                 metadata={
                     **signature.metadata,
@@ -840,6 +1079,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 symbol_name=class_method_symbol_basename(
                     class_.name,
                     declaration.name,
+                    signature_key,
                 ),
                 metadata={
                     **signature.metadata,
@@ -862,6 +1102,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 class_.module_key,
                 class_.name,
                 declaration.name,
+                signature_key,
             ),
         )
 
@@ -922,12 +1163,17 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         returns:
           type: tuple[SemanticClassMember, Ellipsis]
         """
-        seen_names: set[str] = set()
+        attribute_names: set[str] = set()
+        method_groups: dict[str, list[SemanticClassMember]] = {}
         members: list[SemanticClassMember] = []
-        ancestors = self._ancestor_declared_members(mro)
+        ancestor_attributes = self._ancestor_declared_attributes(mro)
+        ancestor_methods = self._ancestor_declared_method_groups(mro)
 
         for attribute in class_.declaration.attributes:
-            if attribute.name in seen_names:
+            if (
+                attribute.name in attribute_names
+                or attribute.name in method_groups
+            ):
                 self.context.diagnostics.add(
                     (
                         f"Class member '{attribute.name}' already defined "
@@ -937,7 +1183,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
-            seen_names.add(attribute.name)
+            attribute_names.add(attribute.name)
             self._resolve_declared_type(
                 attribute.type_,
                 node=attribute,
@@ -975,7 +1221,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     node=attribute,
                     code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
                 )
-            if attribute.name in ancestors:
+            if (
+                attribute.name in ancestor_attributes
+                or attribute.name in ancestor_methods
+            ):
                 self.context.diagnostics.add(
                     (
                         f"Class '{class_.name}' cannot redeclare inherited "
@@ -984,21 +1233,23 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     node=attribute,
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
-            member = self.factory.make_class_member(
-                class_,
-                name=attribute.name,
-                kind=ClassMemberKind.ATTRIBUTE,
-                declaration=attribute,
-                visibility=attribute.visibility,
-                is_static=self._attribute_is_static(attribute),
-                is_constant=is_constant,
-                is_mutable=not is_constant,
-                type_=attribute.type_,
+                continue
+            members.append(
+                self.factory.make_class_member(
+                    class_,
+                    name=attribute.name,
+                    kind=ClassMemberKind.ATTRIBUTE,
+                    declaration=attribute,
+                    visibility=attribute.visibility,
+                    is_static=self._attribute_is_static(attribute),
+                    is_constant=is_constant,
+                    is_mutable=not is_constant,
+                    type_=attribute.type_,
+                )
             )
-            members.append(member)
 
         for method in class_.declaration.methods:
-            if method.name in seen_names:
+            if method.name in attribute_names:
                 self.context.diagnostics.add(
                     (
                         f"Class member '{method.name}' already defined in "
@@ -1008,18 +1259,24 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
-            seen_names.add(method.name)
             for argument in method.prototype.args.nodes:
                 self._resolve_declared_type(argument.type_, node=argument)
             self._resolve_declared_type(
                 method.prototype.return_type,
                 node=method,
             )
-            signature = self._normalize_class_method_signature(
-                class_,
-                method,
-            )
+            signature = self._normalize_class_method_signature(class_, method)
             is_static = self._method_is_static(method)
+            signature_key = self._method_signature_key(
+                method.name,
+                signature,
+                is_static=is_static,
+            )
+            call_key = self._method_call_key_from_signature(
+                method.name,
+                signature,
+                is_static=is_static,
+            )
             if not is_static and any(
                 argument.name == IMPLICIT_METHOD_RECEIVER_NAME
                 for argument in method.prototype.args.nodes
@@ -1033,86 +1290,114 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     node=method,
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
-            overrides: str | None = None
-            inherited_members = ancestors.get(method.name, [])
-            override_is_valid = True
-            for inherited in inherited_members:
-                if inherited.kind is not ClassMemberKind.METHOD:
-                    self.context.diagnostics.add(
-                        (
-                            f"Class method '{class_.name}.{method.name}' "
-                            "cannot override inherited attribute "
-                            f"'{inherited.name}'"
-                        ),
-                        node=method,
-                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
-                    )
-                    override_is_valid = False
-                    continue
-                if inherited.is_static != is_static:
-                    self.context.diagnostics.add(
-                        (
-                            f"Class method '{class_.name}.{method.name}' "
-                            "changes static/instance status across "
-                            "inheritance"
-                        ),
-                        node=method,
-                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
-                    )
-                    override_is_valid = False
-                    continue
-                if (
-                    inherited.signature is None
-                    or not self.registry.signatures_match(
-                        inherited.signature,
-                        signature,
-                    )
-                ):
-                    self.context.diagnostics.add(
-                        (
-                            f"Class method '{class_.name}.{method.name}' "
-                            "must match inherited signature exactly"
-                        ),
-                        node=method,
-                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
-                    )
-                    override_is_valid = False
-                    continue
-                if self._visibility_rank(
-                    method.prototype.visibility
-                ) < self._visibility_rank(
-                    inherited.visibility,
-                ):
-                    self.context.diagnostics.add(
-                        (
-                            f"Class method '{class_.name}.{method.name}' "
-                            "cannot reduce visibility when overriding "
-                            f"'{inherited.name}'"
-                        ),
-                        node=method,
-                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
-                    )
-                    override_is_valid = False
-            if override_is_valid and inherited_members:
-                overrides = inherited_members[0].qualified_name
-            dispatch_slot: int | None = None
-            if (
-                not is_static
-                and method.prototype.visibility
-                is not astx.VisibilityKind.private
+                continue
+            local_group = method_groups.setdefault(method.name, [])
+            if any(
+                existing.is_static != is_static for existing in local_group
             ):
-                if (
-                    inherited_members
-                    and inherited_members[0].dispatch_slot is not None
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot mix static and instance overloads"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
+            if any(
+                self._member_call_key(existing) == call_key
+                for existing in local_group
+            ):
+                if any(
+                    existing.signature_key == signature_key
+                    for existing in local_group
                 ):
-                    dispatch_slot = inherited_members[0].dispatch_slot
+                    self.context.diagnostics.add(
+                        (
+                            f"Class method '{class_.name}.{method.name}' "
+                            "already defines this exact signature"
+                        ),
+                        node=method,
+                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    )
                 else:
-                    dispatch_slot = self.context.next_method_slot()
+                    self.context.diagnostics.add(
+                        (
+                            f"Class method '{class_.name}.{method.name}' "
+                            "cannot overload only by return type"
+                        ),
+                        node=method,
+                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    )
+                continue
+            if method.name in ancestor_attributes:
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot override inherited attribute "
+                        f"'{method.name}'"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
+            inherited_methods = ancestor_methods.get(method.name, ())
+            if any(
+                inherited.is_static != is_static
+                for inherited in inherited_methods
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "changes static/instance status across "
+                        "inheritance"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
+            inherited_same_call = tuple(
+                inherited
+                for inherited in inherited_methods
+                if self._member_call_key(inherited) == call_key
+            )
+            inherited_same_signature = tuple(
+                inherited
+                for inherited in inherited_same_call
+                if inherited.signature_key == signature_key
+            )
+            if inherited_same_call and not inherited_same_signature:
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot overload inherited methods only by "
+                        "return type"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
+            if any(
+                self._visibility_rank(method.prototype.visibility)
+                < self._visibility_rank(inherited.visibility)
+                for inherited in inherited_same_signature
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot reduce visibility when overriding "
+                        f"'{method.name}'"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
             lowered_function = self._make_lowered_method_function(
                 class_,
                 method,
                 signature,
                 is_static=is_static,
+                signature_key=signature_key,
             )
             member = self.factory.make_class_member(
                 class_,
@@ -1124,8 +1409,12 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 is_constant=True,
                 is_mutable=False,
                 signature=signature,
-                overrides=overrides,
-                dispatch_slot=dispatch_slot,
+                signature_key=signature_key,
+                overrides=(
+                    inherited_same_signature[0].qualified_name
+                    if inherited_same_signature
+                    else None
+                ),
                 lowered_function=lowered_function,
             )
             self._set_class(method.prototype, class_)
@@ -1134,6 +1423,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             self._set_function(method, lowered_function)
             self._set_type(method.prototype, None)
             self._set_type(method, None)
+            local_group.append(member)
             members.append(member)
 
         return tuple(members)
@@ -1143,12 +1433,15 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         class_: SemanticClass,
         mro: tuple[SemanticClass, ...],
         declared_member_table: dict[str, SemanticClassMember],
+        declared_method_groups: dict[str, tuple[SemanticClassMember, ...]],
     ) -> tuple[
         dict[str, SemanticClassMember],
+        dict[str, tuple[SemanticClassMember, ...]],
         dict[str, SemanticClassMemberResolution],
+        dict[str, tuple[SemanticClassMemberResolution, ...]],
     ]:
         """
-        title: Resolve the effective member table for one class.
+        title: Resolve the effective class members for one class.
         parameters:
           class_:
             type: SemanticClass
@@ -1156,48 +1449,49 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             type: tuple[SemanticClass, Ellipsis]
           declared_member_table:
             type: dict[str, SemanticClassMember]
+          declared_method_groups:
+            type: dict[str, tuple[SemanticClassMember, Ellipsis]]
         returns:
           type: >-
             tuple[dict[str, SemanticClassMember], dict[str,
-            SemanticClassMemberResolution]]
+            tuple[SemanticClassMember, Ellipsis]], dict[str,
+            SemanticClassMemberResolution], dict[str,
+            tuple[SemanticClassMemberResolution, Ellipsis]]]
         """
-        effective_members = dict(declared_member_table)
-        ancestor_members = self._ancestor_declared_members(mro)
+        ancestor_attributes = self._ancestor_declared_attributes(mro)
+        ancestor_methods = self._ancestor_declared_method_groups(mro)
+        effective_member_table: dict[str, SemanticClassMember] = {}
+        effective_method_groups: dict[
+            str, tuple[SemanticClassMember, ...]
+        ] = {}
         member_resolution: dict[str, SemanticClassMemberResolution] = {}
+        method_resolution: dict[
+            str, tuple[SemanticClassMemberResolution, ...]
+        ] = {}
 
         for name, member in declared_member_table.items():
-            inherited_candidates = tuple(ancestor_members.get(name, ()))
-            resolution_kind = (
-                ClassMemberResolutionKind.OVERRIDE
-                if inherited_candidates
-                else ClassMemberResolutionKind.DECLARED
-            )
+            if member.kind is not ClassMemberKind.ATTRIBUTE:
+                continue
+            inherited_candidates = ancestor_attributes.get(name, ())
             member_resolution[name] = SemanticClassMemberResolution(
                 name=name,
-                kind=resolution_kind,
+                kind=ClassMemberResolutionKind.DECLARED,
                 selected=member,
                 candidates=(member, *inherited_candidates),
             )
+            effective_member_table[name] = member
 
-        for name, candidates in ancestor_members.items():
-            if name in effective_members:
-                continue
-            primary = candidates[0]
-            if len(candidates) == 1:
-                effective_members[name] = primary
-                member_resolution[name] = SemanticClassMemberResolution(
-                    name=name,
-                    kind=ClassMemberResolutionKind.INHERITED,
-                    selected=primary,
-                    candidates=tuple(candidates),
-                )
-                continue
-            owner_names = ", ".join(member.owner_name for member in candidates)
-            if any(
-                member.kind is not primary.kind
-                or member.is_static != primary.is_static
-                for member in candidates[1:]
+        for name, candidates in ancestor_attributes.items():
+            if (
+                name in effective_member_table
+                or name in declared_method_groups
             ):
+                continue
+            if name in ancestor_methods:
+                owner_names = ", ".join(
+                    member.owner_name
+                    for member in (*candidates, *ancestor_methods[name])
+                )
                 self.context.diagnostics.add(
                     (
                         f"Class '{class_.name}' inherits conflicting "
@@ -1207,7 +1501,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
-            if primary.kind is ClassMemberKind.ATTRIBUTE:
+            if len(candidates) != 1:
+                owner_names = ", ".join(
+                    member.owner_name for member in candidates
+                )
                 self.context.diagnostics.add(
                     (
                         f"Class '{class_.name}' inherits ambiguous "
@@ -1217,39 +1514,441 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
-            if primary.signature is None or any(
-                candidate.signature is None
-                or not self.registry.signatures_match(
-                    primary.signature,
-                    candidate.signature,
+            effective_member_table[name] = candidates[0]
+            member_resolution[name] = SemanticClassMemberResolution(
+                name=name,
+                kind=ClassMemberResolutionKind.INHERITED,
+                selected=candidates[0],
+                candidates=candidates,
+            )
+
+        method_name_order = list(declared_method_groups)
+        for name in ancestor_methods:
+            if name not in method_name_order:
+                method_name_order.append(name)
+
+        for name in method_name_order:
+            local_group = declared_method_groups.get(name, ())
+            inherited_candidates = ancestor_methods.get(name, ())
+            if not local_group and not inherited_candidates:
+                continue
+            if name in ancestor_attributes and not local_group:
+                owner_names = ", ".join(
+                    member.owner_name
+                    for member in (
+                        *ancestor_attributes[name],
+                        *inherited_candidates,
+                    )
                 )
-                for candidate in candidates[1:]
-            ):
                 self.context.diagnostics.add(
                     (
                         f"Class '{class_.name}' inherits conflicting "
-                        f"methods named '{name}' from {owner_names}"
+                        f"members named '{name}' from {owner_names}"
                     ),
                     node=class_.declaration,
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
-            effective_members[name] = primary
-            member_resolution[name] = SemanticClassMemberResolution(
-                name=name,
-                kind=ClassMemberResolutionKind.INHERITED,
-                selected=primary,
-                candidates=tuple(candidates),
+            staticness = {
+                member.is_static
+                for member in (*local_group, *inherited_candidates)
+            }
+            if len(staticness) > 1:
+                self.context.diagnostics.add(
+                    (
+                        f"Class '{class_.name}' inherits incompatible "
+                        f"static and instance methods named '{name}'"
+                    ),
+                    node=class_.declaration,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
+                continue
+
+            inherited_by_call: dict[str, list[SemanticClassMember]] = {}
+            inherited_call_order: list[str] = []
+            for member in inherited_candidates:
+                call_key = self._member_call_key(member)
+                if call_key not in inherited_by_call:
+                    inherited_call_order.append(call_key)
+                    inherited_by_call[call_key] = []
+                inherited_by_call[call_key].append(member)
+
+            selected_group: list[SemanticClassMember] = []
+            resolutions: list[SemanticClassMemberResolution] = []
+            local_call_keys: set[str] = set()
+            for member in local_group:
+                call_key = self._member_call_key(member)
+                local_call_keys.add(call_key)
+                inherited_same_call = tuple(
+                    inherited_by_call.get(call_key, ())
+                )
+                if inherited_same_call and any(
+                    candidate.signature_key != member.signature_key
+                    for candidate in inherited_same_call
+                ):
+                    self.context.diagnostics.add(
+                        (
+                            f"Class method '{class_.name}.{member.name}' "
+                            "conflicts with inherited call signatures"
+                        ),
+                        node=member.declaration,
+                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    )
+                    continue
+                resolution_kind = (
+                    ClassMemberResolutionKind.OVERRIDE
+                    if inherited_same_call
+                    else ClassMemberResolutionKind.DECLARED
+                )
+                resolutions.append(
+                    SemanticClassMemberResolution(
+                        name=name,
+                        kind=resolution_kind,
+                        selected=member,
+                        candidates=(member, *inherited_same_call),
+                        signature_key=member.signature_key,
+                    )
+                )
+                selected_group.append(member)
+
+            for call_key in inherited_call_order:
+                if call_key in local_call_keys:
+                    continue
+                candidates = tuple(inherited_by_call[call_key])
+                if (
+                    len({candidate.signature_key for candidate in candidates})
+                    > 1
+                ):
+                    owner_names = ", ".join(
+                        candidate.owner_name for candidate in candidates
+                    )
+                    self.context.diagnostics.add(
+                        (
+                            f"Class '{class_.name}' inherits conflicting "
+                            f"methods named '{name}' from {owner_names}"
+                        ),
+                        node=class_.declaration,
+                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    )
+                    continue
+                dominant = self._dominant_inherited_method(candidates)
+                if dominant is None:
+                    owner_names = ", ".join(
+                        candidate.owner_name for candidate in candidates
+                    )
+                    self.context.diagnostics.add(
+                        (
+                            f"Class '{class_.name}' inherits conflicting "
+                            f"methods named '{name}' from {owner_names}"
+                        ),
+                        node=class_.declaration,
+                        code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                    )
+                    continue
+                resolutions.append(
+                    SemanticClassMemberResolution(
+                        name=name,
+                        kind=ClassMemberResolutionKind.INHERITED,
+                        selected=dominant,
+                        candidates=candidates,
+                        signature_key=dominant.signature_key,
+                    )
+                )
+                selected_group.append(dominant)
+
+            if not selected_group:
+                continue
+            effective_method_groups[name] = tuple(selected_group)
+            method_resolution[name] = tuple(resolutions)
+            if len(selected_group) == 1:
+                effective_member_table[name] = selected_group[0]
+                member_resolution[name] = resolutions[0]
+
+        return (
+            effective_member_table,
+            effective_method_groups,
+            member_resolution,
+            method_resolution,
+        )
+
+    def _family_classes(
+        self,
+    ) -> tuple[SemanticClass, ...]:
+        """
+        title: Return all structurally resolved classes in the context.
+        returns:
+          type: tuple[SemanticClass, Ellipsis]
+        """
+        return tuple(
+            class_
+            for class_ in self.context.classes.values()
+            if class_.is_structurally_resolved
+        )
+
+    def _class_family_components(
+        self,
+        classes: tuple[SemanticClass, ...],
+    ) -> tuple[tuple[SemanticClass, ...], ...]:
+        """
+        title: Partition classes into weakly connected inheritance families.
+        parameters:
+          classes:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: tuple[tuple[SemanticClass, Ellipsis], Ellipsis]
+        """
+        classes_by_name = {class_.qualified_name: class_ for class_ in classes}
+        adjacency: dict[str, set[str]] = {
+            class_.qualified_name: set() for class_ in classes
+        }
+        for class_ in classes:
+            for base in class_.bases:
+                if base.qualified_name not in classes_by_name:
+                    continue
+                adjacency[class_.qualified_name].add(base.qualified_name)
+                adjacency[base.qualified_name].add(class_.qualified_name)
+
+        seen: set[str] = set()
+        components: list[tuple[SemanticClass, ...]] = []
+        for class_ in sorted(classes, key=lambda item: item.qualified_name):
+            if class_.qualified_name in seen:
+                continue
+            queue = [class_.qualified_name]
+            component_names: list[str] = []
+            seen.add(class_.qualified_name)
+            while queue:
+                current = queue.pop()
+                component_names.append(current)
+                for neighbor in sorted(adjacency[current]):
+                    if neighbor in seen:
+                        continue
+                    seen.add(neighbor)
+                    queue.append(neighbor)
+            components.append(
+                tuple(
+                    classes_by_name[name] for name in sorted(component_names)
+                )
             )
+        return tuple(components)
 
-        return effective_members, member_resolution
+    def _topologically_sorted_class_family(
+        self,
+        family: tuple[SemanticClass, ...],
+    ) -> tuple[SemanticClass, ...]:
+        """
+        title: >-
+          Return one deterministic ancestor-before-descendant family order.
+        parameters:
+          family:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: tuple[SemanticClass, Ellipsis]
+        """
+        family_names = {class_.qualified_name for class_ in family}
+        indegree = {class_.qualified_name: 0 for class_ in family}
+        children: dict[str, list[SemanticClass]] = {
+            class_.qualified_name: [] for class_ in family
+        }
 
-    def _resolve_class_definition(
+        for class_ in family:
+            for base in class_.bases:
+                if base.qualified_name not in family_names:
+                    continue
+                indegree[class_.qualified_name] += 1
+                children[base.qualified_name].append(class_)
+
+        available = sorted(
+            (
+                class_
+                for class_ in family
+                if indegree[class_.qualified_name] == 0
+            ),
+            key=lambda item: item.qualified_name,
+        )
+        ordered: list[SemanticClass] = []
+        while available:
+            current = available.pop(0)
+            ordered.append(current)
+            for child in sorted(
+                children[current.qualified_name],
+                key=lambda item: item.qualified_name,
+            ):
+                indegree[child.qualified_name] -= 1
+                if indegree[child.qualified_name] == 0:
+                    available.append(child)
+                    available.sort(key=lambda item: item.qualified_name)
+
+        if len(ordered) != len(family):
+            return tuple(sorted(family, key=lambda item: item.qualified_name))
+        return tuple(ordered)
+
+    def _assign_family_dispatch_slots(
+        self,
+        family: tuple[SemanticClass, ...],
+    ) -> dict[str, int]:
+        """
+        title: Assign hierarchy-local dispatch slots for one class family.
+        parameters:
+          family:
+            type: tuple[SemanticClass, Ellipsis]
+        returns:
+          type: dict[str, int]
+        """
+        slot_by_signature: dict[str, int] = {}
+        member_slots: dict[str, int] = {}
+        next_slot = 0
+
+        for class_ in self._topologically_sorted_class_family(family):
+            for member in class_.declared_members:
+                if (
+                    member.kind is not ClassMemberKind.METHOD
+                    or member.is_static
+                    or member.visibility is astx.VisibilityKind.private
+                    or member.signature_key is None
+                ):
+                    continue
+                slot_index = slot_by_signature.get(member.signature_key)
+                if slot_index is None:
+                    slot_index = next_slot
+                    slot_by_signature[member.signature_key] = slot_index
+                    next_slot += 1
+                member_slots[member.qualified_name] = slot_index
+
+        return member_slots
+
+    def _finalize_class_family(
+        self,
+        family: tuple[SemanticClass, ...],
+    ) -> None:
+        """
+        title: Compute effective members and layouts for one class family.
+        parameters:
+          family:
+            type: tuple[SemanticClass, Ellipsis]
+        """
+        member_slots = self._assign_family_dispatch_slots(family)
+        ordered_family = self._topologically_sorted_class_family(family)
+
+        for structural_class in ordered_family:
+            bases = tuple(
+                self.context.get_class(base.module_key, base.name) or base
+                for base in structural_class.bases
+            )
+            mro_ancestors = tuple(
+                self.context.get_class(ancestor.module_key, ancestor.name)
+                or ancestor
+                for ancestor in structural_class.mro[1:]
+            )
+            declared_members = tuple(
+                replace(
+                    member,
+                    dispatch_slot=member_slots.get(member.qualified_name),
+                )
+                if (
+                    member.kind is ClassMemberKind.METHOD
+                    and not member.is_static
+                    and member.visibility is not astx.VisibilityKind.private
+                )
+                else replace(member, dispatch_slot=None)
+                if member.kind is ClassMemberKind.METHOD
+                else member
+                for member in structural_class.declared_members
+            )
+            declared_member_table, declared_method_groups = (
+                self._declared_member_tables(declared_members)
+            )
+            class_stub = replace(
+                structural_class,
+                bases=bases,
+                declared_members=declared_members,
+                declared_member_table=declared_member_table,
+                declared_method_groups=declared_method_groups,
+                mro=(structural_class, *mro_ancestors),
+            )
+            (
+                member_table,
+                method_groups,
+                member_resolution,
+                method_resolution,
+            ) = self._resolve_effective_class_members(
+                class_stub,
+                class_stub.mro,
+                declared_member_table,
+                declared_method_groups,
+            )
+            layout = self._build_class_layout(
+                class_stub,
+                bases,
+                declared_members,
+                member_table,
+                method_groups,
+            )
+            visible_methods = tuple(
+                member for group in method_groups.values() for member in group
+            )
+            updated = replace(
+                class_stub,
+                member_table=member_table,
+                method_groups=method_groups,
+                member_resolution=member_resolution,
+                method_resolution=method_resolution,
+                instance_attributes=tuple(
+                    member
+                    for member in member_table.values()
+                    if member.kind is ClassMemberKind.ATTRIBUTE
+                    and not member.is_static
+                ),
+                static_attributes=tuple(
+                    member
+                    for member in member_table.values()
+                    if member.kind is ClassMemberKind.ATTRIBUTE
+                    and member.is_static
+                ),
+                instance_methods=tuple(
+                    member
+                    for member in visible_methods
+                    if not member.is_static
+                ),
+                static_methods=tuple(
+                    member for member in visible_methods if member.is_static
+                ),
+                inheritance_graph=tuple(
+                    ancestor.qualified_name for ancestor in mro_ancestors
+                ),
+                shared_ancestors=structural_class.shared_ancestors,
+                layout=layout,
+                mro=(structural_class, *mro_ancestors),
+                is_resolved=True,
+            )
+            updated = replace(updated, mro=(updated, *mro_ancestors))
+            self.context.register_class(updated)
+            self.bindings.bind_class(
+                updated.name,
+                updated,
+                node=updated.declaration,
+            )
+            self._set_class(updated.declaration, updated)
+
+    def _finalize_registered_class_layouts(self) -> None:
+        """
+        title: Finalize all currently registered class families.
+        """
+        if self._class_resolution_stack():
+            return
+        for class_ in tuple(self.context.classes.values()):
+            if class_.is_structurally_resolved:
+                continue
+            self._resolve_class_structure(class_)
+        families = self._class_family_components(self._family_classes())
+        for family in families:
+            self._finalize_class_family(family)
+
+    def _resolve_class_structure(
         self,
         class_: SemanticClass,
     ) -> SemanticClass:
         """
-        title: Resolve one class declaration into normalized semantic metadata.
+        title: Resolve one class declaration up to structural metadata.
         parameters:
           class_:
             type: SemanticClass
@@ -1260,7 +1959,7 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         if current is None:
             current = class_
             self.context.register_class(current)
-        if current.is_resolved:
+        if current.is_structurally_resolved:
             return current
 
         active_stack = self._class_resolution_stack()
@@ -1293,81 +1992,58 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 current,
                 mro,
             )
-            declared_member_table = {
-                member.name: member for member in declared_members
-            }
-            member_table, member_resolution = (
-                self._resolve_effective_class_members(
-                    current,
-                    mro,
-                    declared_member_table,
-                )
-            )
-            effective_members = tuple(member_table.values())
-            shared_ancestors = self._shared_class_ancestors(bases, mro)
-            layout = self._build_class_layout(
-                current,
-                bases,
-                declared_members,
-                effective_members,
+            declared_member_table, declared_method_groups = (
+                self._declared_member_tables(declared_members)
             )
             updated = replace(
                 current,
                 bases=bases,
                 declared_members=declared_members,
                 declared_member_table=declared_member_table,
-                member_table=member_table,
-                member_resolution=member_resolution,
-                instance_attributes=tuple(
-                    member
-                    for member in effective_members
-                    if member.kind is ClassMemberKind.ATTRIBUTE
-                    and not member.is_static
-                ),
-                static_attributes=tuple(
-                    member
-                    for member in effective_members
-                    if member.kind is ClassMemberKind.ATTRIBUTE
-                    and member.is_static
-                ),
-                instance_methods=tuple(
-                    member
-                    for member in effective_members
-                    if member.kind is ClassMemberKind.METHOD
-                    and not member.is_static
-                ),
-                static_methods=tuple(
-                    member
-                    for member in effective_members
-                    if member.kind is ClassMemberKind.METHOD
-                    and member.is_static
-                ),
+                declared_method_groups=declared_method_groups,
                 inheritance_graph=tuple(
                     ancestor.qualified_name for ancestor in mro[1:]
                 ),
-                shared_ancestors=shared_ancestors,
-                layout=layout,
-                mro=(
-                    current,
-                    *tuple(
-                        self.context.get_class(
-                            ancestor.module_key, ancestor.name
-                        )
-                        or ancestor
-                        for ancestor in mro[1:]
-                    ),
-                ),
-                is_resolved=True,
+                shared_ancestors=self._shared_class_ancestors(bases, mro),
+                mro=(current, *mro[1:]),
+                is_structurally_resolved=True,
             )
             updated = replace(updated, mro=(updated, *updated.mro[1:]))
             self.context.register_class(updated)
             self.bindings.bind_class(
-                updated.name, updated, node=updated.declaration
+                updated.name,
+                updated,
+                node=updated.declaration,
             )
             self._set_class(updated.declaration, updated)
             return updated
         finally:
             active_stack.pop()
+
+    def _resolve_class_definition(
+        self,
+        class_: SemanticClass,
+    ) -> SemanticClass:
+        """
+        title: Resolve one class declaration into normalized semantic metadata.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: SemanticClass
+        """
+        current = self.context.get_class(class_.module_key, class_.name)
+        if current is None:
+            current = class_
+            self.context.register_class(current)
+        if current.is_resolved:
+            return current
+
+        current = self._resolve_class_structure(current)
+        self._finalize_registered_class_layouts()
+        return (
+            self.context.get_class(current.module_key, current.name) or current
+        )
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, module: astx.Module) -> None:

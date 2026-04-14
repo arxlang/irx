@@ -30,12 +30,15 @@ class ClassType(AnyType):
         type: str | None
       qualified_name:
         type: str | None
+      ancestor_qualified_names:
+        type: tuple[str, Ellipsis]
     """
 
     name: str
     resolved_name: str | None
     module_key: str | None
     qualified_name: str | None
+    ancestor_qualified_names: tuple[str, ...]
 
     def __init__(
         self,
@@ -44,6 +47,7 @@ class ClassType(AnyType):
         resolved_name: str | None = None,
         module_key: str | None = None,
         qualified_name: str | None = None,
+        ancestor_qualified_names: tuple[str, ...] = (),
     ) -> None:
         """
         title: Initialize one named class type reference.
@@ -56,12 +60,15 @@ class ClassType(AnyType):
             type: str | None
           qualified_name:
             type: str | None
+          ancestor_qualified_names:
+            type: tuple[str, Ellipsis]
         """
         super().__init__()
         self.name = name
         self.resolved_name = resolved_name
         self.module_key = module_key
         self.qualified_name = qualified_name
+        self.ancestor_qualified_names = ancestor_qualified_names
 
     def __str__(self) -> str:
         """

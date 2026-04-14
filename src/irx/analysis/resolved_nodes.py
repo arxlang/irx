@@ -378,6 +378,8 @@ class SemanticClassMember:
         type: astx.DataType | None
       signature:
         type: FunctionSignature | None
+      signature_key:
+        type: str | None
       overrides:
         type: str | None
       dispatch_slot:
@@ -399,6 +401,7 @@ class SemanticClassMember:
     declaration: astx.AST
     type_: astx.DataType | None = None
     signature: FunctionSignature | None = None
+    signature_key: str | None = None
     overrides: str | None = None
     dispatch_slot: int | None = None
     lowered_function: "SemanticFunction" | None = None
@@ -422,12 +425,15 @@ class SemanticClassMemberResolution:
         type: SemanticClassMember
       candidates:
         type: tuple[SemanticClassMember, Ellipsis]
+      signature_key:
+        type: str | None
     """
 
     name: str
     kind: ClassMemberResolutionKind
     selected: SemanticClassMember
     candidates: tuple[SemanticClassMember, ...] = ()
+    signature_key: str | None = None
 
 
 @public
@@ -675,10 +681,16 @@ class SemanticClass:
         type: tuple[SemanticClassMember, Ellipsis]
       declared_member_table:
         type: dict[str, SemanticClassMember]
+      declared_method_groups:
+        type: dict[str, tuple[SemanticClassMember, Ellipsis]]
       member_table:
         type: dict[str, SemanticClassMember]
+      method_groups:
+        type: dict[str, tuple[SemanticClassMember, Ellipsis]]
       member_resolution:
         type: dict[str, SemanticClassMemberResolution]
+      method_resolution:
+        type: dict[str, tuple[SemanticClassMemberResolution, Ellipsis]]
       instance_attributes:
         type: tuple[SemanticClassMember, Ellipsis]
       static_attributes:
@@ -695,6 +707,8 @@ class SemanticClass:
         type: SemanticClassLayout | None
       mro:
         type: tuple[SemanticClass, Ellipsis]
+      is_structurally_resolved:
+        type: bool
       is_resolved:
         type: bool
     """
@@ -709,9 +723,18 @@ class SemanticClass:
     declared_member_table: dict[str, SemanticClassMember] = field(
         default_factory=dict
     )
+    declared_method_groups: dict[str, tuple[SemanticClassMember, ...]] = field(
+        default_factory=dict
+    )
     member_table: dict[str, SemanticClassMember] = field(default_factory=dict)
+    method_groups: dict[str, tuple[SemanticClassMember, ...]] = field(
+        default_factory=dict
+    )
     member_resolution: dict[str, SemanticClassMemberResolution] = field(
         default_factory=dict
+    )
+    method_resolution: dict[str, tuple[SemanticClassMemberResolution, ...]] = (
+        field(default_factory=dict)
     )
     instance_attributes: tuple[SemanticClassMember, ...] = ()
     static_attributes: tuple[SemanticClassMember, ...] = ()
@@ -721,6 +744,7 @@ class SemanticClass:
     shared_ancestors: tuple["SemanticClass", ...] = ()
     layout: SemanticClassLayout | None = None
     mro: tuple["SemanticClass", ...] = ()
+    is_structurally_resolved: bool = False
     is_resolved: bool = False
 
 
@@ -1075,10 +1099,14 @@ class ResolvedMethodCall:
         type: SemanticClassMember
       function:
         type: SemanticFunction
+      overload_key:
+        type: str
       dispatch_kind:
         type: MethodDispatchKind
       call:
         type: CallResolution
+      candidates:
+        type: tuple[SemanticClassMember, Ellipsis]
       receiver_type:
         type: astx.DataType | None
       receiver_class:
@@ -1090,8 +1118,10 @@ class ResolvedMethodCall:
     class_: SemanticClass
     member: SemanticClassMember
     function: SemanticFunction
+    overload_key: str
     dispatch_kind: MethodDispatchKind
     call: CallResolution
+    candidates: tuple[SemanticClassMember, ...] = ()
     receiver_type: astx.DataType | None = None
     receiver_class: SemanticClass | None = None
     slot_index: int | None = None

@@ -4,13 +4,17 @@ title: Stable class method lowering tests.
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from irx import astx
+from irx.analysis import analyze
 from irx.analysis.module_symbols import (
     mangle_class_dispatch_name,
     mangle_class_method_name,
 )
+from irx.analysis.resolved_nodes import SemanticInfo
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
 
@@ -19,6 +23,48 @@ from tests.conftest import assert_ir_parses, make_module
 SINGLE_DISPATCH_ENTRY_COUNT = 1
 CLASS_HEADER_SLOT_COUNT = 2
 FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
+
+
+def _semantic(node: astx.AST) -> SemanticInfo:
+    """
+    title: Return semantic sidecar information for a node.
+    parameters:
+      node:
+        type: astx.AST
+    returns:
+      type: SemanticInfo
+    """
+    return cast(SemanticInfo, getattr(node, "semantic"))
+
+
+def _mangled_method_name(
+    module: astx.Module,
+    class_node: astx.ClassDefStmt,
+    method_name: str,
+) -> str:
+    """
+    title: Return the overload-aware LLVM symbol for one class method.
+    parameters:
+      module:
+        type: astx.Module
+      class_node:
+        type: astx.ClassDefStmt
+      method_name:
+        type: str
+    returns:
+      type: str
+    """
+    analyze(module)
+    resolved = _semantic(class_node).resolved_class
+    assert resolved is not None
+    member = resolved.declared_member_table[method_name]
+    assert member.signature_key is not None
+    return mangle_class_method_name(
+        module.name,
+        class_node.name,
+        method_name,
+        member.signature_key,
+    )
 
 
 def _class_type(name: str) -> astx.ClassType:
@@ -142,7 +188,7 @@ def test_instance_method_definition_emits_hidden_receiver_and_dispatch_table(
     module = make_module("main", shape, _main_int32())
 
     ir_text = builder.translate(module)
-    method_name = mangle_class_method_name("main", "Shape", "area")
+    method_name = _mangled_method_name(module, shape, "area")
     dispatch_name = mangle_class_dispatch_name("main", "Shape")
 
     assert f'define i32 @"{method_name}"(%"main__Shape"* %"self")' in ir_text
@@ -223,10 +269,60 @@ def test_static_method_call_lowers_to_direct_call_without_receiver(
     )
 
     ir_text = builder.translate(module)
-    method_name = mangle_class_method_name("main", "Math", "identity")
+    method_name = _mangled_method_name(module, math, "identity")
 
     assert f'define i32 @"{method_name}"(i32 %"value")' in ir_text
     assert f'call i32 @"{method_name}"(i32 4)' in ir_text
+    assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_base_typed_method_dispatch_uses_upcast_and_shared_slot(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Base-typed calls bitcast derived values and dispatch indirectly.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[_returning_method("area", astx.LiteralInt32(1))],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_returning_method("area", astx.LiteralInt32(2))],
+    )
+    measure = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Base"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.Identifier("shape"), "area", [])
+        ),
+    )
+    wrap = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="wrap",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.FunctionCall("measure", [astx.Identifier("shape")])
+        ),
+    )
+    module = make_module("poly", base, child, measure, wrap, _main_int32())
+
+    ir_text = builder.translate(module)
+
+    assert 'bitcast %"poly__Child"*' in ir_text
+    assert 'to %"poly__Base"*' in ir_text
+    assert "area_slot" in ir_text
     assert_ir_parses(ir_text)
 
 
