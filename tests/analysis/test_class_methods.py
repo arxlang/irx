@@ -429,3 +429,155 @@ def test_analyze_rejects_private_method_access_outside_declaring_class() -> (
 
     with pytest.raises(SemanticError, match="is not accessible"):
         analyze(make_module("app.main", secret, probe))
+
+
+def test_analyze_allows_protected_access_from_sibling_subclass() -> None:
+    """
+    title: Protected members are accessible from sibling subclasses.
+    """
+    reveal = _returning_method(
+        "reveal",
+        astx.LiteralInt32(1),
+        visibility=astx.VisibilityKind.protected,
+    )
+    base = astx.ClassDefStmt(name="Base", methods=[reveal])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    sibling_call = astx.MethodCall(astx.Identifier("value"), "reveal", [])
+    sibling = astx.ClassDefStmt(
+        name="Sibling",
+        bases=[_class_type("Base")],
+        methods=[
+            astx.FunctionDef(
+                prototype=astx.FunctionPrototype(
+                    name="probe",
+                    args=astx.Arguments(
+                        astx.Argument("value", _class_type("Child"))
+                    ),
+                    return_type=astx.Int32(),
+                ),
+                body=_method_body(sibling_call),
+            )
+        ],
+    )
+
+    analyze(make_module("app.main", base, child, sibling))
+
+    resolved_call = _semantic(sibling_call).resolved_method_call
+    assert resolved_call is not None
+    assert resolved_call.member.owner_name == "Base"
+
+
+def test_analyze_rejects_protected_access_outside_subclass_context() -> None:
+    """
+    title: Protected members stay inaccessible from non-subclass scopes.
+    """
+    reveal = _returning_method(
+        "reveal",
+        astx.LiteralInt32(1),
+        visibility=astx.VisibilityKind.protected,
+    )
+    base = astx.ClassDefStmt(name="Base", methods=[reveal])
+    call = astx.MethodCall(astx.Identifier("value"), "reveal", [])
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("value", _class_type("Base"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(call),
+    )
+
+    with pytest.raises(SemanticError, match="is not accessible"):
+        analyze(make_module("app.main", base, probe))
+
+
+def test_analyze_allows_private_static_base_method_on_derived_class() -> None:
+    """
+    title: Declaring classes may call private static members on child names.
+    """
+    hidden = _returning_method(
+        "hidden",
+        astx.LiteralInt32(1),
+        visibility=astx.VisibilityKind.private,
+        is_static=True,
+    )
+    probe_call = astx.StaticMethodCall("Child", "hidden", [])
+    probe = _returning_method(
+        "probe",
+        probe_call,
+        is_static=True,
+    )
+    base = astx.ClassDefStmt(name="Base", methods=[hidden, probe])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+
+    analyze(make_module("app.main", base, child))
+
+    resolved_call = _semantic(probe_call).resolved_method_call
+    assert resolved_call is not None
+    assert resolved_call.member.owner_name == "Base"
+    assert resolved_call.dispatch_kind is MethodDispatchKind.DIRECT
+
+
+def test_analyze_rejects_private_base_method_access_from_subclass() -> None:
+    """
+    title: Subclasses cannot call inherited private base methods.
+    """
+    hidden = _returning_method(
+        "hidden",
+        astx.LiteralInt32(1),
+        visibility=astx.VisibilityKind.private,
+    )
+    child_call = astx.MethodCall(astx.Identifier("self"), "hidden", [])
+    child_probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(child_call),
+    )
+    base = astx.ClassDefStmt(name="Base", methods=[hidden])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[child_probe],
+    )
+
+    with pytest.raises(SemanticError, match="is not accessible"):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_private_base_field_access_from_subclass() -> None:
+    """
+    title: Subclasses cannot read inherited private base fields.
+    """
+    secret = astx.VariableDeclaration(
+        name="secret",
+        type_=astx.Int32(),
+        mutability=astx.MutabilityKind.mutable,
+        visibility=astx.VisibilityKind.private,
+    )
+    read_secret = astx.FieldAccess(astx.Identifier("self"), "secret")
+    child_probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(read_secret),
+    )
+    base = astx.ClassDefStmt(name="Base", attributes=[secret])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[child_probe],
+    )
+
+    with pytest.raises(SemanticError, match="is not accessible"):
+        analyze(make_module("app.main", base, child))
