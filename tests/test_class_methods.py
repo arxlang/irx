@@ -18,7 +18,11 @@ from irx.analysis.resolved_nodes import SemanticInfo
 from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
 
-from tests.conftest import assert_ir_parses, make_module
+from tests.conftest import (
+    assert_ir_parses,
+    assert_jit_int_main_result,
+    make_module,
+)
 
 SINGLE_DISPATCH_ENTRY_COUNT = 1
 CLASS_HEADER_SLOT_COUNT = 2
@@ -79,7 +83,12 @@ def _class_type(name: str) -> astx.ClassType:
     return astx.ClassType(name)
 
 
-def _attribute(name: str, type_: astx.DataType) -> astx.VariableDeclaration:
+def _attribute(
+    name: str,
+    type_: astx.DataType,
+    *,
+    value: astx.AST | None = None,
+) -> astx.VariableDeclaration:
     """
     title: Build one instance attribute declaration.
     parameters:
@@ -87,6 +96,8 @@ def _attribute(name: str, type_: astx.DataType) -> astx.VariableDeclaration:
         type: str
       type_:
         type: astx.DataType
+      value:
+        type: astx.AST | None
     returns:
       type: astx.VariableDeclaration
     """
@@ -94,6 +105,7 @@ def _attribute(name: str, type_: astx.DataType) -> astx.VariableDeclaration:
         name=name,
         type_=type_,
         mutability=astx.MutabilityKind.mutable,
+        value=value if value is not None else astx.Undefined(),
     )
 
 
@@ -392,3 +404,40 @@ def test_inherited_base_method_call_on_derived_receiver_uses_upcast(
     assert 'to %"main__Base"*' in ir_text
     assert "area_callee" in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_default_class_construction_initializes_fields_and_dispatch(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Default construction allocates, initializes, and dispatches.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    read = _returning_method(
+        "read",
+        astx.FieldAccess(astx.Identifier("self"), "value"),
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute("value", astx.Int32(), value=astx.LiteralInt32(7))
+        ],
+        methods=[read],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.ClassConstruct("Counter"), "read", [])
+        ),
+    )
+    module = make_module("main", counter, main_fn)
+
+    assert_jit_int_main_result(builder, module, 7)

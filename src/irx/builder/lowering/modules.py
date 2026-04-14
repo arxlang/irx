@@ -83,7 +83,7 @@ class ModuleVisitorMixin(VisitorMixinBase):
             return ir.Constant(llvm_type, None)
         raise Exception(
             "codegen: static class attribute initializers must be literal "
-            "constants in stage 3"
+            "constants in phase 6"
         )
 
     def _dispatch_table_initializer(
@@ -200,8 +200,11 @@ class ModuleVisitorMixin(VisitorMixinBase):
         semantic = getattr(node, "semantic", None)
         resolved_class = getattr(semantic, "resolved_class", None)
         layout = getattr(resolved_class, "layout", None)
+        initialization = getattr(resolved_class, "initialization", None)
         if layout is None:
             raise Exception("codegen: unresolved class layout.")
+        if initialization is None:
+            raise Exception("codegen: unresolved class initialization.")
 
         field_types: list[ir.Type] = [
             self._llvm.OPAQUE_POINTER_TYPE for _ in layout.header_fields
@@ -221,7 +224,8 @@ class ModuleVisitorMixin(VisitorMixinBase):
             field_types,
         )
 
-        for storage in layout.static_fields:
+        for static_initializer in initialization.static_initializers:
+            storage = static_initializer.storage
             llvm_type = self._llvm_type_for_ast_type(storage.member.type_)
             if llvm_type is None:
                 raise Exception(
@@ -229,7 +233,7 @@ class ModuleVisitorMixin(VisitorMixinBase):
                     f"'{storage.member.name}'."
                 )
             initializer = self._literal_global_initializer(
-                getattr(storage.member.declaration, "value", None),
+                static_initializer.value,
                 llvm_type,
             )
             existing = self._llvm.module.globals.get(storage.global_name)

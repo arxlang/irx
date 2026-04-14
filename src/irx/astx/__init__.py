@@ -77,6 +77,7 @@ from irx.astx.buffer import BufferViewRetain as BufferViewRetain
 from irx.astx.buffer import BufferViewStore as BufferViewStore
 from irx.astx.buffer import BufferViewType as BufferViewType
 from irx.astx.buffer import BufferViewWrite as BufferViewWrite
+from irx.astx.classes import ClassConstruct as ClassConstruct
 from irx.astx.classes import ClassDefStmt as ClassDefStmt
 from irx.astx.classes import ClassType as ClassType
 from irx.astx.classes import MethodCall as MethodCall
@@ -106,6 +107,7 @@ __all__ = (
     "BufferViewType",
     "BufferViewWrite",
     "Cast",
+    "ClassConstruct",
     "ClassDefStmt",
     "ClassType",
     "DivBinOp",

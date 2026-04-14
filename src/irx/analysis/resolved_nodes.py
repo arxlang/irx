@@ -585,6 +585,98 @@ class SemanticClassMethodDispatch:
 
 @public
 @typechecked
+class ClassInitializationSourceKind(str, Enum):
+    """
+    title: Stable class-initialization source categories.
+    summary: >-
+      Distinguish declaration-provided field initializers from implicit default
+      construction values.
+    """
+
+    DECLARATION = "declaration"
+    DEFAULT = "default"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassFieldInitializer:
+    """
+    title: One resolved instance-field initialization step.
+    summary: >-
+      Record the ordered value source for one instance field during default
+      class construction.
+    attributes:
+      field:
+        type: SemanticClassLayoutField
+      source_kind:
+        type: ClassInitializationSourceKind
+      value:
+        type: astx.AST | None
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+    """
+
+    field: SemanticClassLayoutField
+    source_kind: ClassInitializationSourceKind
+    value: astx.AST | None
+    owner_name: str
+    owner_qualified_name: str
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassStaticInitializer:
+    """
+    title: One resolved static-field initialization step.
+    summary: >-
+      Record the deterministic module-global initializer source for one static
+      class attribute.
+    attributes:
+      storage:
+        type: SemanticClassStaticStorage
+      source_kind:
+        type: ClassInitializationSourceKind
+      value:
+        type: astx.AST | None
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+    """
+
+    storage: SemanticClassStaticStorage
+    source_kind: ClassInitializationSourceKind
+    value: astx.AST | None
+    owner_name: str
+    owner_qualified_name: str
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class SemanticClassInitialization:
+    """
+    title: Canonical class construction and initialization plan.
+    summary: >-
+      Normalize the ordered instance-field and static-field initialization plan
+      that semantic analysis resolves for one class.
+    attributes:
+      instance_initializers:
+        type: tuple[SemanticClassFieldInitializer, Ellipsis]
+      static_initializers:
+        type: tuple[SemanticClassStaticInitializer, Ellipsis]
+    """
+
+    instance_initializers: tuple[SemanticClassFieldInitializer, ...] = ()
+    static_initializers: tuple[SemanticClassStaticInitializer, ...] = ()
+
+
+@public
+@typechecked
 @dataclass(frozen=True)
 class SemanticClassLayout:
     """
@@ -705,6 +797,8 @@ class SemanticClass:
         type: tuple[SemanticClass, Ellipsis]
       layout:
         type: SemanticClassLayout | None
+      initialization:
+        type: SemanticClassInitialization | None
       mro:
         type: tuple[SemanticClass, Ellipsis]
       is_structurally_resolved:
@@ -743,6 +837,7 @@ class SemanticClass:
     inheritance_graph: tuple[str, ...] = ()
     shared_ancestors: tuple["SemanticClass", ...] = ()
     layout: SemanticClassLayout | None = None
+    initialization: SemanticClassInitialization | None = None
     mro: tuple["SemanticClass", ...] = ()
     is_structurally_resolved: bool = False
     is_resolved: bool = False
@@ -1086,6 +1181,26 @@ class ResolvedClassFieldAccess:
 @public
 @typechecked
 @dataclass(frozen=True)
+class ResolvedClassConstruction:
+    """
+    title: Resolved class construction metadata.
+    summary: >-
+      Capture the analyzed class identity and ordered initialization plan for
+      one default class construction expression.
+    attributes:
+      class_:
+        type: SemanticClass
+      initialization:
+        type: SemanticClassInitialization
+    """
+
+    class_: SemanticClass
+    initialization: SemanticClassInitialization
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class ResolvedMethodCall:
     """
     title: Resolved class method call metadata.
@@ -1165,6 +1280,8 @@ class SemanticInfo:
         type: ResolvedClassFieldAccess | None
       resolved_method_call:
         type: ResolvedMethodCall | None
+      resolved_class_construction:
+        type: ResolvedClassConstruction | None
       resolved_return:
         type: ReturnResolution | None
       semantic_flags:
@@ -1187,6 +1304,7 @@ class SemanticInfo:
     resolved_field_access: ResolvedFieldAccess | None = None
     resolved_class_field_access: ResolvedClassFieldAccess | None = None
     resolved_method_call: ResolvedMethodCall | None = None
+    resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)
