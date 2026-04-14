@@ -380,6 +380,10 @@ class SemanticClassMember:
         type: FunctionSignature | None
       overrides:
         type: str | None
+      dispatch_slot:
+        type: int | None
+      lowered_function:
+        type: SemanticFunction | None
     """
 
     symbol_id: str
@@ -396,6 +400,8 @@ class SemanticClassMember:
     type_: astx.DataType | None = None
     signature: FunctionSignature | None = None
     overrides: str | None = None
+    dispatch_slot: int | None = None
+    lowered_function: "SemanticFunction" | None = None
 
 
 @public
@@ -434,6 +440,20 @@ class ClassObjectRepresentationKind(str, Enum):
     """
 
     POINTER = "pointer"
+
+
+@public
+@typechecked
+class MethodDispatchKind(str, Enum):
+    """
+    title: Stable method-dispatch categories.
+    summary: >-
+      Distinguish direct method calls from dispatch-table-driven instance
+      calls.
+    """
+
+    DIRECT = "direct"
+    INDIRECT = "indirect"
 
 
 @public
@@ -531,6 +551,35 @@ class SemanticClassStaticStorage:
 @public
 @typechecked
 @dataclass(frozen=True)
+class SemanticClassMethodDispatch:
+    """
+    title: One resolved class-method dispatch entry.
+    summary: >-
+      Record the stable dispatch slot and lowered function implementation for
+      one visible instance method.
+    attributes:
+      member:
+        type: SemanticClassMember
+      function:
+        type: SemanticFunction
+      slot_index:
+        type: int
+      owner_name:
+        type: str
+      owner_qualified_name:
+        type: str
+    """
+
+    member: SemanticClassMember
+    function: "SemanticFunction"
+    slot_index: int
+    owner_name: str
+    owner_qualified_name: str
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class SemanticClassLayout:
     """
     title: Canonical class-object layout metadata.
@@ -555,6 +604,14 @@ class SemanticClassLayout:
         type: dict[str, SemanticClassLayoutField]
       visible_field_slots:
         type: dict[str, SemanticClassLayoutField]
+      dispatch_entries:
+        type: tuple[SemanticClassMethodDispatch, Ellipsis]
+      dispatch_slots:
+        type: dict[int, SemanticClassMethodDispatch]
+      visible_method_slots:
+        type: dict[str, SemanticClassMethodDispatch]
+      dispatch_table_size:
+        type: int
       static_fields:
         type: tuple[SemanticClassStaticStorage, Ellipsis]
       static_storage:
@@ -575,6 +632,14 @@ class SemanticClassLayout:
     visible_field_slots: dict[str, SemanticClassLayoutField] = field(
         default_factory=dict
     )
+    dispatch_entries: tuple[SemanticClassMethodDispatch, ...] = ()
+    dispatch_slots: dict[int, SemanticClassMethodDispatch] = field(
+        default_factory=dict
+    )
+    visible_method_slots: dict[str, SemanticClassMethodDispatch] = field(
+        default_factory=dict
+    )
+    dispatch_table_size: int = 0
     static_fields: tuple[SemanticClassStaticStorage, ...] = ()
     static_storage: dict[str, SemanticClassStaticStorage] = field(
         default_factory=dict
@@ -973,6 +1038,67 @@ class ResolvedFieldAccess:
 
 @public
 @typechecked
+@dataclass(frozen=True)
+class ResolvedClassFieldAccess:
+    """
+    title: Resolved class-field access metadata.
+    summary: >-
+      Point from a class-attribute access node to the owning class member and
+      stable flattened layout slot.
+    attributes:
+      class_:
+        type: SemanticClass
+      member:
+        type: SemanticClassMember
+      field:
+        type: SemanticClassLayoutField
+    """
+
+    class_: SemanticClass
+    member: SemanticClassMember
+    field: SemanticClassLayoutField
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedMethodCall:
+    """
+    title: Resolved class method call metadata.
+    summary: >-
+      Capture the resolved class member, lowered implementation, dispatch mode,
+      and validated argument conversions for one method call site.
+    attributes:
+      class_:
+        type: SemanticClass
+      member:
+        type: SemanticClassMember
+      function:
+        type: SemanticFunction
+      dispatch_kind:
+        type: MethodDispatchKind
+      call:
+        type: CallResolution
+      receiver_type:
+        type: astx.DataType | None
+      receiver_class:
+        type: SemanticClass | None
+      slot_index:
+        type: int | None
+    """
+
+    class_: SemanticClass
+    member: SemanticClassMember
+    function: SemanticFunction
+    dispatch_kind: MethodDispatchKind
+    call: CallResolution
+    receiver_type: astx.DataType | None = None
+    receiver_class: SemanticClass | None = None
+    slot_index: int | None = None
+
+
+@public
+@typechecked
 @dataclass
 class SemanticInfo:
     """
@@ -1005,6 +1131,10 @@ class SemanticInfo:
         type: ResolvedAssignment | None
       resolved_field_access:
         type: ResolvedFieldAccess | None
+      resolved_class_field_access:
+        type: ResolvedClassFieldAccess | None
+      resolved_method_call:
+        type: ResolvedMethodCall | None
       resolved_return:
         type: ReturnResolution | None
       semantic_flags:
@@ -1025,6 +1155,8 @@ class SemanticInfo:
     resolved_operator: ResolvedOperator | None = None
     resolved_assignment: ResolvedAssignment | None = None
     resolved_field_access: ResolvedFieldAccess | None = None
+    resolved_class_field_access: ResolvedClassFieldAccess | None = None
+    resolved_method_call: ResolvedMethodCall | None = None
     resolved_return: ReturnResolution | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)

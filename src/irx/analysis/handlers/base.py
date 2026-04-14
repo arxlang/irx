@@ -20,8 +20,10 @@ from irx.analysis.registry import SemanticRegistry
 from irx.analysis.resolved_nodes import (
     CallResolution,
     ResolvedAssignment,
+    ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedImportBinding,
+    ResolvedMethodCall,
     ResolvedOperator,
     ReturnResolution,
     SemanticClass,
@@ -287,6 +289,36 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           field_access:
             type: ResolvedFieldAccess | None
+        """
+        raise NotImplementedError
+
+    def _set_class_field_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedClassFieldAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved class-field access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedClassFieldAccess | None
+        """
+        raise NotImplementedError
+
+    def _set_method_call(
+        self,
+        node: astx.AST,
+        method_call: ResolvedMethodCall | None,
+    ) -> None:
+        """
+        title: Attach resolved method-call metadata.
+        parameters:
+          node:
+            type: astx.AST
+          method_call:
+            type: ResolvedMethodCall | None
         """
         raise NotImplementedError
 
@@ -806,6 +838,36 @@ class SemanticAnalyzerCore(BaseVisitor):
             type: ResolvedFieldAccess | None
         """
         self._semantic(node).resolved_field_access = field_access
+
+    def _set_class_field_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedClassFieldAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved class-field access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedClassFieldAccess | None
+        """
+        self._semantic(node).resolved_class_field_access = field_access
+
+    def _set_method_call(
+        self,
+        node: astx.AST,
+        method_call: ResolvedMethodCall | None,
+    ) -> None:
+        """
+        title: Attach resolved method-call metadata.
+        parameters:
+          node:
+            type: astx.AST
+          method_call:
+            type: ResolvedMethodCall | None
+        """
+        self._semantic(node).resolved_method_call = method_call
 
     def _resolve_struct_from_type(
         self,

@@ -86,6 +86,39 @@ class ModuleVisitorMixin(VisitorMixinBase):
             "constants in stage 3"
         )
 
+    def _dispatch_table_initializer(
+        self,
+        node: astx.ClassDefStmt,
+    ) -> tuple[ir.ArrayType, ir.Constant] | None:
+        """
+        title: Return one constant dispatch-table initializer when needed.
+        parameters:
+          node:
+            type: astx.ClassDefStmt
+        returns:
+          type: tuple[ir.ArrayType, ir.Constant] | None
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_class = getattr(semantic, "resolved_class", None)
+        layout = getattr(resolved_class, "layout", None)
+        if layout is None or layout.dispatch_table_size == 0:
+            return None
+        dispatch_type = ir.ArrayType(
+            self._llvm.OPAQUE_POINTER_TYPE,
+            layout.dispatch_table_size,
+        )
+        entries: list[ir.Constant] = []
+        for slot_index in range(layout.dispatch_table_size):
+            entry = layout.dispatch_slots.get(slot_index)
+            if entry is None:
+                entries.append(
+                    ir.Constant(self._llvm.OPAQUE_POINTER_TYPE, None)
+                )
+                continue
+            function = self._declare_semantic_function(entry.function)
+            entries.append(function.bitcast(self._llvm.OPAQUE_POINTER_TYPE))
+        return dispatch_type, ir.Constant(dispatch_type, entries)
+
     def _ensure_identified_type(
         self,
         type_key: str,
@@ -211,3 +244,22 @@ class ModuleVisitorMixin(VisitorMixinBase):
             global_var.linkage = "internal"
             global_var.global_constant = storage.member.is_constant
             global_var.initializer = initializer
+
+        dispatch_table = self._dispatch_table_initializer(node)
+        if dispatch_table is not None:
+            dispatch_type, dispatch_initializer = dispatch_table
+            dispatch_global = self._llvm.module.globals.get(
+                layout.dispatch_global_name
+            )
+            if dispatch_global is None:
+                dispatch_global = ir.GlobalVariable(
+                    self._llvm.module,
+                    dispatch_type,
+                    name=layout.dispatch_global_name,
+                )
+            dispatch_global.linkage = "internal"
+            dispatch_global.global_constant = True
+            dispatch_global.initializer = dispatch_initializer
+
+        for method in node.methods:
+            self.visit(method)

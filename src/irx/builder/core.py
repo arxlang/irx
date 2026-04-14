@@ -42,6 +42,7 @@ from irx.analysis.types import (
     is_unsigned_type,
 )
 from irx.builder.base import BuilderVisitor
+from irx.builder.protocols import VisitorProtocol
 from irx.builder.runtime import safe_pop
 from irx.builder.runtime.registry import (
     RuntimeFeatureState,
@@ -400,7 +401,7 @@ class VisitorCore(BuilderVisitor):
 
         self._add_builtins()
         self.runtime_features = RuntimeFeatureState(
-            owner=self,
+            owner=cast(VisitorProtocol, self),
             registry=get_default_runtime_feature_registry(),
             active_features=active_runtime_features,
         )
@@ -936,6 +937,42 @@ class VisitorCore(BuilderVisitor):
           type: ir.Value
         """
         semantic = getattr(node, "semantic", None)
+        resolved_class_field_access = getattr(
+            semantic,
+            "resolved_class_field_access",
+            None,
+        )
+        if resolved_class_field_access is not None:
+            self.visit(node.value)
+            base_value = safe_pop(self.result_stack)
+            if base_value is None:
+                raise Exception("codegen: invalid class field access base.")
+            base_type = self._resolved_ast_type(node.value)
+            llvm_base_type = self._llvm_type_for_ast_type(base_type)
+            if (
+                llvm_base_type is not None
+                and base_value.type != llvm_base_type
+            ):
+                base_value = self._llvm.ir_builder.bitcast(
+                    base_value,
+                    llvm_base_type,
+                    name=(
+                        f"{resolved_class_field_access.member.name}_class_base"
+                    ),
+                )
+            return self._llvm.ir_builder.gep(
+                base_value,
+                [
+                    ir.Constant(self._llvm.INT32_TYPE, 0),
+                    ir.Constant(
+                        self._llvm.INT32_TYPE,
+                        resolved_class_field_access.field.storage_index,
+                    ),
+                ],
+                inbounds=True,
+                name=(f"{resolved_class_field_access.member.name}_addr"),
+            )
+
         resolved_field_access = getattr(
             semantic,
             "resolved_field_access",

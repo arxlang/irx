@@ -227,6 +227,33 @@ before lowering.
   `SemanticClass.layout.visible_static_storage` let later lowering phases reuse
   semantic member resolution instead of recomputing layout lookups from syntax
 
+## Class Method Contract
+
+IRx class methods now lower as explicit functions with analysis-owned dispatch
+metadata rather than as implicit runtime behavior.
+
+- every analyzed class method records a normalized source signature plus a
+  lowered callable form in `SemanticClassMember.lowered_function`
+- instance methods gain one hidden leading `self` parameter whose type is the
+  declaring class pointer representation
+- static methods keep their declared parameter list and do not receive an
+  implicit receiver
+- non-private instance methods that participate in overriding receive stable
+  dispatch slots in `SemanticClassMember.dispatch_slot`; valid overrides reuse
+  the inherited slot
+- `SemanticClass.layout.dispatch_entries` and
+  `SemanticClass.layout.visible_method_slots` provide the lowering-facing view
+  of one class dispatch table after MRO resolution
+- `MethodCall` analysis records one `ResolvedMethodCall` with the chosen member,
+  validated argument conversions, dispatch mode, receiver class, and dispatch
+  slot when indirect dispatch is required
+- `StaticMethodCall` analysis always resolves to direct calls because static
+  methods never consume a hidden receiver and do not participate in instance
+  dispatch
+- lowering emits one internal dispatch table global per class when at least one
+  visible instance method has a dispatch slot, and instance call sites load the
+  callee through that table instead of re-resolving semantics from syntax
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

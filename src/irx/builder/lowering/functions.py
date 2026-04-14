@@ -4,7 +4,7 @@
 title: Function visitor mixins for llvmliteir.
 """
 
-from typing import cast
+from typing import Sequence, cast
 
 from llvmlite import ir
 
@@ -12,7 +12,10 @@ from irx import astx
 from irx.analysis.resolved_nodes import (
     CallingConvention,
     CallResolution,
+    ClassHeaderFieldKind,
     FunctionSignature,
+    MethodDispatchKind,
+    ResolvedMethodCall,
     ReturnResolution,
     SemanticFunction,
 )
@@ -98,6 +101,156 @@ class FunctionVisitorMixin(VisitorMixinBase):
             node=node,
             metadata="resolved_call",
             context=f"call to '{node.fn}'",
+        )
+
+    def _semantic_method_call(
+        self,
+        node: astx.MethodCall | astx.StaticMethodCall,
+    ) -> ResolvedMethodCall:
+        """
+        title: Return the resolved semantic method-call metadata for one call.
+        parameters:
+          node:
+            type: astx.MethodCall | astx.StaticMethodCall
+        returns:
+          type: ResolvedMethodCall
+        """
+        semantic = getattr(node, "semantic", None)
+        resolution = getattr(semantic, "resolved_method_call", None)
+        return require_semantic_metadata(
+            cast(ResolvedMethodCall | None, resolution),
+            node=node,
+            metadata="resolved_method_call",
+            context="method call lowering",
+        )
+
+    def _lower_explicit_call_arguments(
+        self,
+        *,
+        args: Sequence[astx.AST],
+        resolution: CallResolution,
+        label: str,
+    ) -> list[ir.Value]:
+        """
+        title: Lower one semantically validated explicit call argument list.
+        parameters:
+          args:
+            type: Sequence[astx.AST]
+          resolution:
+            type: CallResolution
+          label:
+            type: str
+        returns:
+          type: list[ir.Value]
+        """
+        llvm_args: list[ir.Value] = []
+        for index, arg in enumerate(args):
+            self.visit_child(arg)
+            llvm_arg = require_lowered_value(
+                safe_pop(self.result_stack),
+                node=arg,
+                context=f"argument {index + 1} of {label}",
+            )
+            target_type = (
+                resolution.resolved_argument_types[index]
+                if index < len(resolution.resolved_argument_types)
+                else None
+            )
+            llvm_args.append(
+                self._cast_ast_value(
+                    llvm_arg,
+                    source_type=self._resolved_ast_type(arg),
+                    target_type=target_type,
+                )
+            )
+        return llvm_args
+
+    def _indirect_method_callee(
+        self,
+        *,
+        node: astx.MethodCall,
+        method_resolution: ResolvedMethodCall,
+        receiver_value: ir.Value,
+    ) -> ir.Value:
+        """
+        title: Lower one dispatch-table lookup for an instance method.
+        parameters:
+          node:
+            type: astx.MethodCall
+          method_resolution:
+            type: ResolvedMethodCall
+          receiver_value:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
+        receiver_class = method_resolution.receiver_class
+        if receiver_class is None or receiver_class.layout is None:
+            raise_lowering_internal_error(
+                "method call is missing receiver class layout metadata",
+                node=node,
+            )
+        dispatch_header = next(
+            (
+                field
+                for field in receiver_class.layout.header_fields
+                if field.kind is ClassHeaderFieldKind.DISPATCH_TABLE
+            ),
+            None,
+        )
+        if dispatch_header is None or method_resolution.slot_index is None:
+            raise_lowering_internal_error(
+                "method call is missing dispatch slot metadata",
+                node=node,
+            )
+        dispatch_addr = self._llvm.ir_builder.gep(
+            receiver_value,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(
+                    self._llvm.INT32_TYPE,
+                    dispatch_header.storage_index,
+                ),
+            ],
+            inbounds=True,
+            name=f"{method_resolution.member.name}_dispatch_addr",
+        )
+        dispatch_raw = self._llvm.ir_builder.load(
+            dispatch_addr,
+            f"{method_resolution.member.name}_dispatch",
+        )
+        dispatch_type = ir.ArrayType(
+            self._llvm.OPAQUE_POINTER_TYPE,
+            receiver_class.layout.dispatch_table_size,
+        )
+        dispatch_ptr = self._llvm.ir_builder.bitcast(
+            dispatch_raw,
+            dispatch_type.as_pointer(),
+            name=f"{method_resolution.member.name}_dispatch_ptr",
+        )
+        callee_addr = self._llvm.ir_builder.gep(
+            dispatch_ptr,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(
+                    self._llvm.INT32_TYPE,
+                    method_resolution.slot_index,
+                ),
+            ],
+            inbounds=True,
+            name=f"{method_resolution.member.name}_slot",
+        )
+        callee_raw = self._llvm.ir_builder.load(
+            callee_addr,
+            f"{method_resolution.member.name}_raw",
+        )
+        function_ptr_type = self._llvm_function_type_for_signature(
+            method_resolution.function.signature
+        ).as_pointer()
+        return self._llvm.ir_builder.bitcast(
+            callee_raw,
+            function_ptr_type,
+            name=f"{method_resolution.member.name}_callee",
         )
 
     def _semantic_return_resolution(
@@ -274,27 +427,11 @@ class FunctionVisitorMixin(VisitorMixinBase):
         returns:
           type: list[ir.Value]
         """
-        llvm_args: list[ir.Value] = []
-        for index, arg in enumerate(node.args):
-            self.visit_child(arg)
-            llvm_arg = require_lowered_value(
-                safe_pop(self.result_stack),
-                node=arg,
-                context=(f"argument {index + 1} of call to '{node.fn}'"),
-            )
-            target_type = (
-                resolution.resolved_argument_types[index]
-                if index < len(resolution.resolved_argument_types)
-                else None
-            )
-            llvm_args.append(
-                self._cast_ast_value(
-                    llvm_arg,
-                    source_type=self._resolved_ast_type(arg),
-                    target_type=target_type,
-                )
-            )
-        return llvm_args
+        return self._lower_explicit_call_arguments(
+            args=list(node.args),
+            resolution=resolution,
+            label=f"call to '{node.fn}'",
+        )
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.FunctionCall) -> None:
@@ -312,6 +449,73 @@ class FunctionVisitorMixin(VisitorMixinBase):
             self._llvm.ir_builder.call(callee_f, llvm_args)
             return
         result = self._llvm.ir_builder.call(callee_f, llvm_args, "calltmp")
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.MethodCall) -> None:
+        """
+        title: Visit MethodCall nodes.
+        parameters:
+          node:
+            type: astx.MethodCall
+        """
+        method_resolution = self._semantic_method_call(node)
+        llvm_args = self._lower_explicit_call_arguments(
+            args=list(node.args),
+            resolution=method_resolution.call,
+            label=f"method call '{method_resolution.member.name}'",
+        )
+        self.visit_child(node.receiver)
+        receiver_value = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.receiver,
+            context=f"receiver for '{method_resolution.member.name}'",
+        )
+        lowered_args = [receiver_value, *llvm_args]
+        callee: ir.Value
+        if method_resolution.dispatch_kind is MethodDispatchKind.INDIRECT:
+            callee = self._indirect_method_callee(
+                node=node,
+                method_resolution=method_resolution,
+                receiver_value=receiver_value,
+            )
+        else:
+            callee = self._declare_semantic_function(
+                method_resolution.function
+            )
+        self._apply_calling_convention(method_resolution.function.signature)
+        if isinstance(
+            method_resolution.function.signature.return_type,
+            astx.NoneType,
+        ):
+            self._llvm.ir_builder.call(callee, lowered_args)
+            return
+        result = self._llvm.ir_builder.call(callee, lowered_args, "calltmp")
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.StaticMethodCall) -> None:
+        """
+        title: Visit StaticMethodCall nodes.
+        parameters:
+          node:
+            type: astx.StaticMethodCall
+        """
+        method_resolution = self._semantic_method_call(node)
+        callee = self._declare_semantic_function(method_resolution.function)
+        llvm_args = self._lower_explicit_call_arguments(
+            args=list(node.args),
+            resolution=method_resolution.call,
+            label=(
+                f"static method call '{method_resolution.class_.name}."
+                f"{method_resolution.member.name}'"
+            ),
+        )
+        self._apply_calling_convention(method_resolution.function.signature)
+        if isinstance(callee.function_type.return_type, ir.VoidType):
+            self._llvm.ir_builder.call(callee, llvm_args)
+            return
+        result = self._llvm.ir_builder.call(callee, llvm_args, "calltmp")
         self.result_stack.append(result)
 
     @VisitorCore.visit.dispatch
@@ -341,6 +545,9 @@ class FunctionVisitorMixin(VisitorMixinBase):
         self._current_function_signature = signature
 
         try:
+            hidden_parameter_count = len(function.args) - len(
+                function.prototype.args.nodes
+            )
             for idx, llvm_arg in enumerate(fn.args):
                 arg_symbol = function.args[idx]
                 arg_type = self._llvm_type_for_ast_type(
@@ -350,22 +557,34 @@ class FunctionVisitorMixin(VisitorMixinBase):
                     parameter_type_name = display_type_name(
                         signature.parameters[idx].type_
                     )
+                    parameter_node = (
+                        function.prototype.args.nodes[
+                            idx - hidden_parameter_count
+                        ]
+                        if idx >= hidden_parameter_count
+                        else function.prototype
+                    )
                     raise_lowering_error(
                         "cannot lower parameter "
                         f"'{arg_symbol.name}' of '{function.name}' with "
                         f"type {parameter_type_name}",
                         code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
-                        node=function.prototype.args.nodes[idx],
+                        node=parameter_node,
                     )
                 alloca = self._llvm.ir_builder.alloca(
                     arg_type,
                     name=arg_symbol.name,
                 )
                 self._llvm.ir_builder.store(llvm_arg, alloca)
-                symbol_key = semantic_symbol_key(
-                    function.prototype.args.nodes[idx],
-                    arg_symbol.symbol_id,
-                )
+                if idx < hidden_parameter_count:
+                    symbol_key = arg_symbol.symbol_id
+                else:
+                    symbol_key = semantic_symbol_key(
+                        function.prototype.args.nodes[
+                            idx - hidden_parameter_count
+                        ],
+                        arg_symbol.symbol_id,
+                    )
                 self.named_values[symbol_key] = alloca
 
             self.visit_child(node.body)

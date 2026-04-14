@@ -57,6 +57,28 @@ def _class_type(name: str) -> astx.ClassType:
     return astx.ClassType(name)
 
 
+def _default_return_value(type_: astx.DataType) -> astx.AST | None:
+    """
+    title: Build one minimal default return value for a method test helper.
+    parameters:
+      type_:
+        type: astx.DataType
+    returns:
+      type: astx.AST | None
+    """
+    if isinstance(type_, astx.NoneType):
+        return None
+    if isinstance(type_, astx.Boolean):
+        return astx.LiteralBoolean(False)
+    if isinstance(type_, astx.Float64):
+        return astx.LiteralFloat64(0.0)
+    if isinstance(type_, astx.Float32):
+        return astx.LiteralFloat32(0.0)
+    if isinstance(type_, astx.Int8):
+        return astx.LiteralInt8(0)
+    return astx.LiteralInt32(0)
+
+
 def _method(
     name: str,
     *args: astx.Argument,
@@ -81,15 +103,19 @@ def _method(
     returns:
       type: astx.FunctionDef
     """
+    resolved_return_type = return_type or astx.Int32()
     prototype = astx.FunctionPrototype(
         name,
         args=astx.Arguments(*args),
-        return_type=return_type or astx.Int32(),
+        return_type=resolved_return_type,
         visibility=visibility,
     )
     if is_static:
         prototype.is_static = True
-    return astx.FunctionDef(prototype=prototype, body=astx.Block())
+    body = astx.Block()
+    default_value = _default_return_value(resolved_return_type)
+    body.append(astx.FunctionReturn(default_value))
+    return astx.FunctionDef(prototype=prototype, body=body)
 
 
 def _attribute(

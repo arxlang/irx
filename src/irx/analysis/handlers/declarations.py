@@ -17,10 +17,12 @@ from irx.analysis.handlers.base import (
     SemanticVisitorMixinBase,
 )
 from irx.analysis.module_symbols import (
+    class_method_symbol_basename,
     mangle_class_descriptor_name,
     mangle_class_dispatch_name,
     mangle_class_name,
     mangle_class_static_name,
+    qualified_class_method_name,
     qualified_local_name,
 )
 from irx.analysis.resolved_nodes import (
@@ -29,16 +31,19 @@ from irx.analysis.resolved_nodes import (
     ClassMemberResolutionKind,
     ClassObjectRepresentationKind,
     FunctionSignature,
+    ParameterSpec,
     SemanticClass,
     SemanticClassHeaderField,
     SemanticClassLayout,
     SemanticClassLayoutField,
     SemanticClassMember,
     SemanticClassMemberResolution,
+    SemanticClassMethodDispatch,
     SemanticClassStaticStorage,
     SemanticFunction,
     SemanticStruct,
     SemanticStructField,
+    SemanticSymbol,
 )
 from irx.analysis.types import clone_type
 from irx.analysis.validation import validate_assignment
@@ -47,6 +52,7 @@ from irx.typecheck import typechecked
 
 DIRECT_STRUCT_CYCLE_LENGTH = 2
 MIN_SHARED_ANCESTOR_BASE_COUNT = 2
+IMPLICIT_METHOD_RECEIVER_NAME = "self"
 _CLASS_HEADER_LAYOUT: tuple[tuple[str, ClassHeaderFieldKind], ...] = (
     ("descriptor", ClassHeaderFieldKind.TYPE_DESCRIPTOR),
     ("dispatch", ClassHeaderFieldKind.DISPATCH_TABLE),
@@ -591,17 +597,43 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
 
         visible_field_slots: dict[str, SemanticClassLayoutField] = {}
         visible_static_storage: dict[str, SemanticClassStaticStorage] = {}
+        dispatch_slots: dict[int, SemanticClassMethodDispatch] = {}
+        visible_method_slots: dict[str, SemanticClassMethodDispatch] = {}
         for member in effective_members:
-            if member.kind is not ClassMemberKind.ATTRIBUTE:
+            if member.kind is ClassMemberKind.ATTRIBUTE:
+                if member.is_static:
+                    storage = inherited_static_storage.get(
+                        member.qualified_name
+                    )
+                    if storage is not None:
+                        visible_static_storage[member.name] = storage
+                    continue
+                visible_slot = field_slots.get(member.qualified_name)
+                if visible_slot is not None:
+                    visible_field_slots[member.name] = visible_slot
                 continue
-            if member.is_static:
-                storage = inherited_static_storage.get(member.qualified_name)
-                if storage is not None:
-                    visible_static_storage[member.name] = storage
-                continue
-            visible_slot = field_slots.get(member.qualified_name)
-            if visible_slot is not None:
-                visible_field_slots[member.name] = visible_slot
+            if (
+                member.kind is ClassMemberKind.METHOD
+                and not member.is_static
+                and member.dispatch_slot is not None
+                and member.lowered_function is not None
+            ):
+                dispatch_entry = SemanticClassMethodDispatch(
+                    member=member,
+                    function=member.lowered_function,
+                    slot_index=member.dispatch_slot,
+                    owner_name=member.owner_name,
+                    owner_qualified_name=member.owner_qualified_name,
+                )
+                dispatch_slots[dispatch_entry.slot_index] = dispatch_entry
+                visible_method_slots[member.name] = dispatch_entry
+
+        dispatch_entries = tuple(
+            dispatch_slots[index] for index in sorted(dispatch_slots)
+        )
+        dispatch_table_size = 0
+        if dispatch_entries:
+            dispatch_table_size = dispatch_entries[-1].slot_index + 1
 
         return SemanticClassLayout(
             llvm_name=mangle_class_name(class_.module_key, class_.name),
@@ -618,6 +650,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             instance_fields=tuple(instance_fields),
             field_slots=field_slots,
             visible_field_slots=visible_field_slots,
+            dispatch_entries=dispatch_entries,
+            dispatch_slots=dispatch_slots,
+            visible_method_slots=visible_method_slots,
+            dispatch_table_size=dispatch_table_size,
             static_fields=static_fields,
             static_storage=static_storage,
             visible_static_storage=visible_static_storage,
@@ -683,6 +719,193 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
             )
         return signature
+
+    def _make_method_receiver_type(
+        self,
+        class_: SemanticClass,
+    ) -> astx.ClassType:
+        """
+        title: Return the canonical implicit receiver type for one class.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: astx.ClassType
+        """
+        return astx.ClassType(
+            class_.name,
+            resolved_name=class_.name,
+            module_key=class_.module_key,
+            qualified_name=class_.qualified_name,
+        )
+
+    def _make_visible_method_function(
+        self,
+        class_: SemanticClass,
+        member: SemanticClassMember,
+    ) -> SemanticFunction:
+        """
+        title: Build one visible-signature callable wrapper for a class method.
+        parameters:
+          class_:
+            type: SemanticClass
+          member:
+            type: SemanticClassMember
+        returns:
+          type: SemanticFunction
+        """
+        declaration = member.declaration
+        if (
+            member.signature is None
+            or member.lowered_function is None
+            or not isinstance(declaration, astx.FunctionDef)
+        ):
+            raise TypeError("class method must have a lowered function")
+        return SemanticFunction(
+            symbol_id=member.lowered_function.symbol_id,
+            name=f"{class_.name}.{member.name}",
+            return_type=clone_type(member.signature.return_type),
+            args=(),
+            signature=member.signature,
+            prototype=declaration.prototype,
+            definition=declaration,
+            module_key=class_.module_key,
+            qualified_name=qualified_class_method_name(
+                class_.module_key,
+                class_.name,
+                member.name,
+            ),
+        )
+
+    def _make_lowered_method_function(
+        self,
+        class_: SemanticClass,
+        declaration: astx.FunctionDef,
+        signature: FunctionSignature,
+        *,
+        is_static: bool,
+    ) -> SemanticFunction:
+        """
+        title: Build one lowered semantic function for a class method.
+        parameters:
+          class_:
+            type: SemanticClass
+          declaration:
+            type: astx.FunctionDef
+          signature:
+            type: FunctionSignature
+          is_static:
+            type: bool
+        returns:
+          type: SemanticFunction
+        """
+        lowered_signature = signature
+        user_args = tuple(
+            self.factory.make_parameter_symbol(class_.module_key, argument)
+            for argument in declaration.prototype.args.nodes
+        )
+        receiver_args: tuple[SemanticSymbol, ...] = ()
+        if not is_static:
+            receiver_type = self._make_method_receiver_type(class_)
+            receiver_symbol = self.factory.make_variable_symbol(
+                class_.module_key,
+                IMPLICIT_METHOD_RECEIVER_NAME,
+                receiver_type,
+                is_mutable=False,
+                declaration=declaration,
+                kind="method_receiver",
+            )
+            receiver_spec = ParameterSpec(
+                name=IMPLICIT_METHOD_RECEIVER_NAME,
+                type_=clone_type(receiver_type),
+            )
+            lowered_signature = replace(
+                signature,
+                parameters=(receiver_spec, *signature.parameters),
+                symbol_name=class_method_symbol_basename(
+                    class_.name,
+                    declaration.name,
+                ),
+                metadata={
+                    **signature.metadata,
+                    "class_name": class_.name,
+                    "method_name": declaration.name,
+                    "has_hidden_receiver": True,
+                },
+            )
+            receiver_args = (receiver_symbol,)
+        else:
+            lowered_signature = replace(
+                signature,
+                symbol_name=class_method_symbol_basename(
+                    class_.name,
+                    declaration.name,
+                ),
+                metadata={
+                    **signature.metadata,
+                    "class_name": class_.name,
+                    "method_name": declaration.name,
+                    "has_hidden_receiver": False,
+                },
+            )
+        semantic_args = (*receiver_args, *user_args)
+        lowered_function = self.factory.make_function(
+            class_.module_key,
+            declaration.prototype,
+            signature=lowered_signature,
+            definition=declaration,
+            args=semantic_args,
+        )
+        return replace(
+            lowered_function,
+            qualified_name=qualified_class_method_name(
+                class_.module_key,
+                class_.name,
+                declaration.name,
+            ),
+        )
+
+    def _analyze_class_method_body(
+        self,
+        class_: SemanticClass,
+        member: SemanticClassMember,
+    ) -> None:
+        """
+        title: Analyze one lowered class method body.
+        parameters:
+          class_:
+            type: SemanticClass
+          member:
+            type: SemanticClassMember
+        """
+        declaration = member.declaration
+        function = member.lowered_function
+        if not isinstance(declaration, astx.FunctionDef) or function is None:
+            return
+
+        hidden_parameter_count = len(function.args) - len(
+            declaration.prototype.args.nodes
+        )
+        with self.context.in_function(function):
+            with self.context.scope("method"):
+                for idx, arg_symbol in enumerate(function.args):
+                    self.context.scopes.declare(arg_symbol)
+                    if idx < hidden_parameter_count:
+                        continue
+                    arg_node = declaration.prototype.args.nodes[
+                        idx - hidden_parameter_count
+                    ]
+                    self._set_symbol(arg_node, arg_symbol)
+                    self._set_type(arg_node, arg_symbol.type_)
+                self.visit(declaration.body)
+        if not isinstance(function.return_type, astx.NoneType) and not (
+            self._guarantees_return(declaration.body)
+        ):
+            self.context.diagnostics.add(
+                f"Function '{class_.name}.{member.name}' with return type "
+                f"'{function.return_type}' is missing a return statement",
+                node=declaration,
+            )
 
     def _resolve_declared_class_members(
         self,
@@ -797,6 +1020,19 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 method,
             )
             is_static = self._method_is_static(method)
+            if not is_static and any(
+                argument.name == IMPLICIT_METHOD_RECEIVER_NAME
+                for argument in method.prototype.args.nodes
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot declare parameter '"
+                        f"{IMPLICIT_METHOD_RECEIVER_NAME}'"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
+                )
             overrides: str | None = None
             inherited_members = ancestors.get(method.name, [])
             override_is_valid = True
@@ -859,6 +1095,25 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     override_is_valid = False
             if override_is_valid and inherited_members:
                 overrides = inherited_members[0].qualified_name
+            dispatch_slot: int | None = None
+            if (
+                not is_static
+                and method.prototype.visibility
+                is not astx.VisibilityKind.private
+            ):
+                if (
+                    inherited_members
+                    and inherited_members[0].dispatch_slot is not None
+                ):
+                    dispatch_slot = inherited_members[0].dispatch_slot
+                else:
+                    dispatch_slot = self.context.next_method_slot()
+            lowered_function = self._make_lowered_method_function(
+                class_,
+                method,
+                signature,
+                is_static=is_static,
+            )
             member = self.factory.make_class_member(
                 class_,
                 name=method.name,
@@ -870,9 +1125,13 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                 is_mutable=False,
                 signature=signature,
                 overrides=overrides,
+                dispatch_slot=dispatch_slot,
+                lowered_function=lowered_function,
             )
             self._set_class(method.prototype, class_)
             self._set_class(method, class_)
+            self._set_function(method.prototype, lowered_function)
+            self._set_function(method, lowered_function)
             self._set_type(method.prototype, None)
             self._set_type(method, None)
             members.append(member)
@@ -1272,6 +1531,11 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         self.bindings.bind_class(node.name, class_, node=node)
         with self.context.in_class(class_):
             class_ = self._resolve_class_definition(class_)
+        with self.context.in_class(class_):
+            for member in class_.declared_members:
+                if member.kind is not ClassMemberKind.METHOD:
+                    continue
+                self._analyze_class_method_body(class_, member)
         self._set_class(node, class_)
         self._set_type(node, None)
 

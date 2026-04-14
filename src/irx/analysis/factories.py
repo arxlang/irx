@@ -310,6 +310,8 @@ class SemanticEntityFactory:
         type_: astx.DataType | None = None,
         signature: FunctionSignature | None = None,
         overrides: str | None = None,
+        dispatch_slot: int | None = None,
+        lowered_function: SemanticFunction | None = None,
     ) -> SemanticClassMember:
         """
         title: Create one semantic class-member record.
@@ -336,6 +338,10 @@ class SemanticEntityFactory:
             type: FunctionSignature | None
           overrides:
             type: str | None
+          dispatch_slot:
+            type: int | None
+          lowered_function:
+            type: SemanticFunction | None
         returns:
           type: SemanticClassMember
         """
@@ -363,6 +369,8 @@ class SemanticEntityFactory:
             type_=clone_type(type_) if type_ is not None else None,
             signature=signature,
             overrides=overrides,
+            dispatch_slot=dispatch_slot,
+            lowered_function=lowered_function,
         )
 
     def make_module(

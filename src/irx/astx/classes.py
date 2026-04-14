@@ -224,4 +224,151 @@ class ClassDefStmt(astx.StructDeclStmt):
         )
 
 
-__all__ = ["ClassDefStmt", "ClassType"]
+@typechecked
+class MethodCall(astx.DataType):
+    """
+    title: Instance method call expression.
+    attributes:
+      receiver:
+        type: astx.AST
+      method_name:
+        type: str
+      args:
+        type: tuple[astx.DataType, Ellipsis]
+      type_:
+        type: AnyType
+    """
+
+    receiver: astx.AST
+    method_name: str
+    args: tuple[astx.DataType, ...]
+    type_: AnyType
+
+    def __init__(
+        self,
+        receiver: astx.AST,
+        method_name: str,
+        args: Iterable[astx.DataType],
+    ) -> None:
+        """
+        title: Initialize one instance method call expression.
+        parameters:
+          receiver:
+            type: astx.AST
+          method_name:
+            type: str
+          args:
+            type: Iterable[astx.DataType]
+        """
+        super().__init__()
+        self.receiver = receiver
+        self.method_name = method_name
+        self.args = tuple(args)
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one instance method call expression as text.
+        returns:
+          type: str
+        """
+        return f"MethodCall[{self.method_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for an instance method call.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"METHOD-CALL[{self.method_name}]"
+        arg_nodes = astx.ASTNodes[astx.DataType]("args")
+        for arg in self.args:
+            arg_nodes.append(arg)
+        value = {
+            "receiver": self.receiver.get_struct(simplified),
+            "args": arg_nodes.get_struct(simplified),
+        }
+        return self._prepare_struct(
+            key,
+            cast(astx.base.ReprStruct, value),
+            simplified,
+        )
+
+
+@typechecked
+class StaticMethodCall(astx.DataType):
+    """
+    title: Class-scoped static method call expression.
+    attributes:
+      class_name:
+        type: str
+      method_name:
+        type: str
+      args:
+        type: tuple[astx.DataType, Ellipsis]
+      type_:
+        type: AnyType
+    """
+
+    class_name: str
+    method_name: str
+    args: tuple[astx.DataType, ...]
+    type_: AnyType
+
+    def __init__(
+        self,
+        class_name: str,
+        method_name: str,
+        args: Iterable[astx.DataType],
+    ) -> None:
+        """
+        title: Initialize one static method call expression.
+        parameters:
+          class_name:
+            type: str
+          method_name:
+            type: str
+          args:
+            type: Iterable[astx.DataType]
+        """
+        super().__init__()
+        self.class_name = class_name
+        self.method_name = method_name
+        self.args = tuple(args)
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one static method call expression as text.
+        returns:
+          type: str
+        """
+        return f"StaticMethodCall[{self.class_name}.{self.method_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for a static method call.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"STATIC-METHOD-CALL[{self.class_name}.{self.method_name}]"
+        arg_nodes = astx.ASTNodes[astx.DataType]("args")
+        for arg in self.args:
+            arg_nodes.append(arg)
+        value = {
+            "args": arg_nodes.get_struct(simplified),
+        }
+        return self._prepare_struct(
+            key,
+            cast(astx.base.ReprStruct, value),
+            simplified,
+        )
+
+
+__all__ = ["ClassDefStmt", "ClassType", "MethodCall", "StaticMethodCall"]

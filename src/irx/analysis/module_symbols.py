@@ -172,6 +172,43 @@ def qualified_class_member_name(
 
 @public
 @typechecked
+def qualified_class_method_name(
+    module_key: ModuleKey,
+    class_name: str,
+    method_name: str,
+) -> str:
+    """
+    title: Return a qualified semantic class-method function name.
+    parameters:
+      module_key:
+        type: ModuleKey
+      class_name:
+        type: str
+      method_name:
+        type: str
+    returns:
+      type: str
+    """
+    return f"{module_key}::class::{class_name}::method::{method_name}"
+
+
+@typechecked
+def _class_method_symbol_basename(class_name: str, method_name: str) -> str:
+    """
+    title: Return a deterministic method-symbol basename.
+    parameters:
+      class_name:
+        type: str
+      method_name:
+        type: str
+    returns:
+      type: str
+    """
+    return _mangle_parts(class_name, "method", method_name)
+
+
+@public
+@typechecked
 def qualified_local_name(
     module_key: ModuleKey,
     kind: str,
@@ -241,6 +278,50 @@ def mangle_class_name(module_key: ModuleKey, class_name: str) -> str:
       type: str
     """
     return _mangle_parts(str(module_key), class_name)
+
+
+@public
+@typechecked
+def class_method_symbol_basename(
+    class_name: str,
+    method_name: str,
+) -> str:
+    """
+    title: Return a deterministic class-method symbol basename.
+    parameters:
+      class_name:
+        type: str
+      method_name:
+        type: str
+    returns:
+      type: str
+    """
+    return _class_method_symbol_basename(class_name, method_name)
+
+
+@public
+@typechecked
+def mangle_class_method_name(
+    module_key: ModuleKey,
+    class_name: str,
+    method_name: str,
+) -> str:
+    """
+    title: Return a deterministic LLVM class-method symbol name.
+    parameters:
+      module_key:
+        type: ModuleKey
+      class_name:
+        type: str
+      method_name:
+        type: str
+    returns:
+      type: str
+    """
+    return _mangle_parts(
+        str(module_key),
+        _class_method_symbol_basename(class_name, method_name),
+    )
 
 
 @public
