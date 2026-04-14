@@ -276,6 +276,24 @@ metadata rather than as implicit runtime behavior.
   visible instance method has a dispatch slot, and instance call sites load the
   callee through that table instead of re-resolving semantics from syntax
 
+## Class Access Control Contract
+
+IRx enforces class visibility during semantic analysis instead of deferring it
+to lowering or runtime behavior.
+
+- `public` members are accessible from any context that can already resolve the
+  containing class value
+- `private` members are accessible only while analyzing methods of their
+  declaring class
+- `protected` members are accessible only within the declaring class and its
+  subclasses; IRx does not add same-module or friend-style access
+- private members still stay out of inherited lookup tables, but access sites
+  diagnose hidden base members as inaccessible rather than pretending they do
+  not exist
+- when the declaring class accesses one of its private members through a
+  derived-typed receiver, analysis resolves the originating base member and
+  lowering reuses the existing class-pointer upcast path
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

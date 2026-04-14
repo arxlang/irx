@@ -471,7 +471,17 @@ class FunctionVisitorMixin(VisitorMixinBase):
             node=node.receiver,
             context=f"receiver for '{method_resolution.member.name}'",
         )
-        lowered_args = [receiver_value, *llvm_args]
+        receiver_parameter_type = (
+            method_resolution.function.signature.parameters[0].type_
+            if method_resolution.function.signature.parameters
+            else None
+        )
+        lowered_receiver = self._cast_ast_value(
+            receiver_value,
+            source_type=self._resolved_ast_type(node.receiver),
+            target_type=receiver_parameter_type,
+        )
+        lowered_args = [lowered_receiver, *llvm_args]
         callee: ir.Value
         if method_resolution.dispatch_kind is MethodDispatchKind.INDIRECT:
             callee = self._indirect_method_callee(

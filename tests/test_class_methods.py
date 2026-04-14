@@ -353,3 +353,42 @@ def test_instance_method_body_reads_class_field_slot(
     assert '"value_addr" = getelementptr inbounds %"main__Counter"' in ir_text
     assert f"i32 0, i32 {FIRST_INSTANCE_STORAGE_INDEX}" in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_inherited_base_method_call_on_derived_receiver_uses_upcast(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Inherited base-method calls upcast derived receivers.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[_returning_method("area", astx.LiteralInt32(1))],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.Identifier("value"), "area", [])
+        ),
+    )
+    module = make_module("main", base, child, probe, _main_int32())
+
+    ir_text = builder.translate(module)
+
+    assert '%"classcast" = bitcast %"main__Child"*' in ir_text
+    assert 'to %"main__Base"*' in ir_text
+    assert "area_callee" in ir_text
+    assert_ir_parses(ir_text)

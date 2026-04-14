@@ -64,6 +64,7 @@ from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 RAW_BUFFER_BYTE_BITS = 8
+CLASS_QUALIFIED_NAME_SEPARATOR = "::class::"
 
 
 @typechecked
@@ -168,34 +169,158 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             for item in class_.mro
         )
 
+    def _member_owner_module_key(
+        self,
+        member: SemanticClassMember,
+    ) -> str:
+        """
+        title: Return the module key for one declaring class member.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        return member.owner_qualified_name.partition(
+            CLASS_QUALIFIED_NAME_SEPARATOR
+        )[0]
+
+    def _member_declaring_class(
+        self,
+        member: SemanticClassMember,
+    ) -> SemanticClass | None:
+        """
+        title: Return the declaring class for one resolved class member.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: SemanticClass | None
+        """
+        return self.context.get_class(
+            self._member_owner_module_key(member),
+            member.owner_name,
+        )
+
+    def _member_display_name(
+        self,
+        member: SemanticClassMember,
+    ) -> str:
+        """
+        title: Return one class member name with its declaring owner.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        return f"{member.owner_name}.{member.name}"
+
+    def _declared_members_named(
+        self,
+        class_: SemanticClass,
+        name: str,
+    ) -> tuple[SemanticClassMember, ...]:
+        """
+        title: Return declared class members with one source name.
+        parameters:
+          class_:
+            type: SemanticClass
+          name:
+            type: str
+        returns:
+          type: tuple[SemanticClassMember, Ellipsis]
+        """
+        matches: list[SemanticClassMember] = []
+        for owner in class_.mro:
+            matches.extend(
+                member
+                for member in owner.declared_members
+                if member.name == name
+            )
+        return tuple(matches)
+
+    def _hidden_method_candidates(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        *,
+        is_static: bool,
+    ) -> tuple[SemanticClassMember, ...]:
+        """
+        title: Return declared methods hidden from the effective lookup group.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          is_static:
+            type: bool
+        returns:
+          type: tuple[SemanticClassMember, Ellipsis]
+        """
+        visible_members = class_.method_groups.get(method_name, ())
+        visible_names = {member.qualified_name for member in visible_members}
+        return tuple(
+            member
+            for member in self._declared_members_named(class_, method_name)
+            if member.kind is ClassMemberKind.METHOD
+            and member.is_static == is_static
+            and member.qualified_name not in visible_names
+        )
+
+    def _hidden_attribute_candidates(
+        self,
+        class_: SemanticClass,
+        field_name: str,
+    ) -> tuple[SemanticClassMember, ...]:
+        """
+        title: Return declared attributes hidden from effective lookup.
+        parameters:
+          class_:
+            type: SemanticClass
+          field_name:
+            type: str
+        returns:
+          type: tuple[SemanticClassMember, Ellipsis]
+        """
+        visible_member = class_.member_table.get(field_name)
+        visible_name = (
+            visible_member.qualified_name
+            if visible_member is not None
+            else None
+        )
+        return tuple(
+            member
+            for member in self._declared_members_named(class_, field_name)
+            if member.kind is ClassMemberKind.ATTRIBUTE
+            and not member.is_static
+            and member.qualified_name != visible_name
+        )
+
     def _member_is_accessible(
         self,
         member: SemanticClassMember,
-        *,
-        owner: SemanticClass,
     ) -> bool:
         """
         title: Return whether the current analysis context may access a member.
         parameters:
           member:
             type: SemanticClassMember
-          owner:
-            type: SemanticClass
         returns:
           type: bool
         """
         if member.visibility is astx.VisibilityKind.public:
             return True
         current_class = self.context.current_class
+        declaring_class = self._member_declaring_class(member)
+        if current_class is None or declaring_class is None:
+            return False
         if member.visibility is astx.VisibilityKind.private:
             return (
-                current_class is not None
-                and current_class.qualified_name == owner.qualified_name
+                current_class.qualified_name == declaring_class.qualified_name
             )
-        return current_class is not None and self._is_subclass_of(
-            current_class,
-            owner,
-        )
+        return self._is_subclass_of(current_class, declaring_class)
 
     def _resolve_named_class(
         self,
@@ -373,6 +498,14 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
                 )
+                return None
+            hidden_group = self._hidden_method_candidates(
+                class_,
+                method_name,
+                is_static=is_static,
+            )
+            if hidden_group:
+                group = hidden_group
             else:
                 missing_label = "static method" if is_static else "method"
                 self.context.diagnostics.add(
@@ -383,7 +516,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
                 )
-            return None
+                return None
 
         kind_candidates = tuple(
             candidate
@@ -414,12 +547,13 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         accessible_candidates = tuple(
             candidate
             for candidate in kind_candidates
-            if self._member_is_accessible(candidate, owner=class_)
+            if self._member_is_accessible(candidate)
         )
         if not accessible_candidates:
             self.context.diagnostics.add(
                 (
-                    f"class method '{class_.name}.{method_name}' "
+                    "class method "
+                    f"'{self._member_display_name(kind_candidates[0])}' "
                     "is not accessible from this context"
                 ),
                 node=node,
@@ -1141,13 +1275,40 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
 
         member = class_.member_table.get(node.field_name)
         if member is None:
-            self.context.diagnostics.add(
-                f"class '{class_.name}' has no attribute '{node.field_name}'",
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            hidden_members = self._hidden_attribute_candidates(
+                class_,
+                node.field_name,
             )
-            self._set_type(node, None)
-            return
+            accessible_hidden = tuple(
+                candidate
+                for candidate in hidden_members
+                if self._member_is_accessible(candidate)
+            )
+            if accessible_hidden:
+                member = accessible_hidden[0]
+            elif hidden_members:
+                self.context.diagnostics.add(
+                    (
+                        "class attribute "
+                        f"'{self._member_display_name(hidden_members[0])}' "
+                        "is not accessible from this context"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+                self._set_type(node, None)
+                return
+            else:
+                self.context.diagnostics.add(
+                    (
+                        f"class '{class_.name}' has no attribute "
+                        f"'{node.field_name}'"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+                self._set_type(node, None)
+                return
         if member.kind is not ClassMemberKind.ATTRIBUTE:
             self.context.diagnostics.add(
                 (
@@ -1170,10 +1331,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             self._set_type(node, None)
             return
-        if not self._member_is_accessible(member, owner=class_):
+        if not self._member_is_accessible(member):
             self.context.diagnostics.add(
                 (
-                    f"class attribute '{class_.name}.{node.field_name}' "
+                    "class attribute "
+                    f"'{self._member_display_name(member)}' "
                     "is not accessible from this context"
                 ),
                 node=node,
@@ -1185,16 +1347,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             raise TypeError("class field access requires a resolved layout")
         field = class_.layout.visible_field_slots.get(node.field_name)
         if field is None:
-            self.context.diagnostics.add(
-                (
-                    f"class '{class_.name}' has no visible attribute "
-                    f"'{node.field_name}'"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            field = class_.layout.field_slots.get(member.qualified_name)
+        if field is None:
+            raise TypeError(
+                "class field access requires a resolved storage slot"
             )
-            self._set_type(node, None)
-            return
         self._set_class(node, class_)
         self._set_class_field_access(
             node,
