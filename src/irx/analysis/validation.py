@@ -186,7 +186,7 @@ def validate_call(
     *,
     function: SemanticFunction,
     arg_types: list[astx.DataType | None],
-    node: astx.FunctionCall,
+    node: astx.FunctionCall | astx.MethodCall | astx.StaticMethodCall,
 ) -> CallResolution:
     """
     title: Validate a function call.
@@ -198,7 +198,7 @@ def validate_call(
       arg_types:
         type: list[astx.DataType | None]
       node:
-        type: astx.FunctionCall
+        type: astx.FunctionCall | astx.MethodCall | astx.StaticMethodCall
     returns:
       type: CallResolution
     """
@@ -223,6 +223,7 @@ def validate_call(
 
     resolved_argument_types: list[astx.DataType | None] = []
     implicit_conversions: list[ImplicitConversion | None] = []
+    call_args = list(node.args)
 
     for idx, (param, arg_type) in enumerate(
         zip(signature.parameters, arg_types)
@@ -232,7 +233,7 @@ def validate_call(
                 f"argument {idx + 1} of call to '{function.name}' expects "
                 f"{display_type_name(param.type_)} but got "
                 f"{display_type_name(arg_type)}",
-                node=node.args[idx],
+                node=call_args[idx],
                 code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
                 notes=_implicit_conversion_note(arg_type, param.type_),
             )
@@ -265,7 +266,7 @@ def validate_call(
             diagnostics.add(
                 f"variadic argument {idx + 1} of call to '{function.name}' "
                 f"uses unsupported type {display_type_name(arg_type)}",
-                node=node.args[idx],
+                node=call_args[idx],
                 code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
         resolved_argument_types.append(arg_type)

@@ -189,6 +189,93 @@ Current declaration metadata is intentionally narrow. When present on
 - `runtime_feature`
 - `runtime_features`
 
+## Class Inheritance Contract
+
+Class semantics are also part of IRx's stable semantic boundary.
+
+- every analyzed class records a deterministic C3 linearization in
+  `SemanticClass.mro`
+- multiple inheritance is allowed when C3 can produce a consistent order; if it
+  cannot, semantic analysis raises a diagnostic before lowering
+- method lookup follows MRO order for inherited candidates, but class methods
+  now normalize into exact-signature overload groups in
+  `SemanticClass.method_groups` and `SemanticClass.method_resolution`
+- `SemanticClass.member_table` remains the single-name lookup surface for
+  attributes and method names with exactly one visible overload; overloaded
+  method families live only in the overload-group metadata
+- same-name inherited attributes from distinct ancestors are rejected as
+  ambiguous unless they collapse to one logical shared ancestor in the MRO
+- same-call-signature inherited methods from sibling bases are rejected unless
+  one candidate dominates unambiguously through inheritance or the subclass
+  supplies an exact-signature override
+- diamond inheritance is allowed semantically; `SemanticClass.shared_ancestors`
+  records ancestors reached through more than one direct-base lineage so later
+  layout/lowering phases can reuse that metadata instead of re-deriving it
+- private members do not participate in inherited lookup; non-private inherited
+  members are normalized before lowering in `SemanticClass.member_table` and
+  `SemanticClass.method_groups`
+
+## Class Layout Contract
+
+IRx now records a deterministic low-level object layout for every analyzed class
+before lowering.
+
+- class values lower as pointers to identified object structs, not by-value
+  composites
+- every class object reserves two hidden header slots first: one type-descriptor
+  pointer slot and one dispatch-table pointer slot
+- the type-descriptor header slot is reserved in semantic layout metadata now,
+  but codegen does not populate a descriptor global yet; that slot is kept
+  stable for later construction/runtime work
+- instance storage is flattened in one canonical ancestor-first order with
+  shared ancestors stored once per logical base class
+- `SemanticClass.layout.instance_fields` records stable storage indices for all
+  declared instance attributes, including inherited storage that is not visible
+  for lookup
+- declared static attributes lower to internal module globals named in
+  `SemanticClass.layout.static_fields`
+- `SemanticClass.layout.visible_field_slots` and
+  `SemanticClass.layout.visible_static_storage` let later lowering phases reuse
+  semantic member resolution instead of recomputing layout lookups from syntax
+
+## Class Method Contract
+
+IRx class methods now lower as explicit functions with analysis-owned dispatch
+metadata rather than as implicit runtime behavior.
+
+- every analyzed class method records a normalized source signature plus a
+  lowered callable form in `SemanticClassMember.lowered_function`
+- instance methods gain one hidden leading `self` parameter whose type is the
+  declaring class pointer representation
+- static methods keep their declared parameter list and do not receive an
+  implicit receiver
+- class methods support exact-signature multidispatch by method name and
+  explicit argument types; overload selection does not rank implicit numeric or
+  class-hierarchy conversions when more than one overload is visible
+- non-private instance methods receive hierarchy-family-local dispatch slots in
+  `SemanticClassMember.dispatch_slot`; valid exact-signature overrides reuse the
+  inherited slot, and unrelated class families do not affect those slot numbers
+- `SemanticClass.layout.dispatch_entries` and
+  `SemanticClass.layout.visible_method_slots` provide the lowering-facing view
+  of one class dispatch table after MRO resolution, keyed by exact signature
+- `MethodCall` analysis records one `ResolvedMethodCall` with the chosen member,
+  overload key, candidate set, validated argument conversions, dispatch mode,
+  receiver class, and dispatch slot when indirect dispatch is required
+- implicit `Derived -> Base` upcasts participate in assignment, call, and return
+  compatibility, which makes overridden instance methods usable through
+  base-typed receivers
+- full multiple-inheritance ancestor field views are still deferred; the current
+  upcast guarantee is specifically for class pointer compatibility and method
+  dispatch
+- conversion-ranked overload selection is intentionally deferred; callers that
+  want a non-exact overload must spell the conversion explicitly with `Cast`
+- `StaticMethodCall` analysis always resolves to direct calls because static
+  methods never consume a hidden receiver and do not participate in instance
+  dispatch
+- lowering emits one internal dispatch table global per class when at least one
+  visible instance method has a dispatch slot, and instance call sites load the
+  callee through that table instead of re-resolving semantics from syntax
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

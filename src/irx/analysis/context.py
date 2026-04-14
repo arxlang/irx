@@ -54,6 +54,8 @@ class SemanticContext:
         type: int
       _symbol_counter:
         type: int
+      _method_slot_counter:
+        type: int
     """
 
     scopes: ScopeStack = field(default_factory=ScopeStack)
@@ -72,6 +74,7 @@ class SemanticContext:
     current_module_key: ModuleKey | None = None
     loop_depth: int = 0
     _symbol_counter: int = 0
+    _method_slot_counter: int = 0
 
     def next_symbol_id(self, prefix: str) -> str:
         """
@@ -87,6 +90,19 @@ class SemanticContext:
         """
         self._symbol_counter += 1
         return f"{prefix}:{self._symbol_counter}"
+
+    def next_method_slot(self) -> int:
+        """
+        title: Return a fresh class-method dispatch slot.
+        summary: >-
+          Generate a deterministic dispatch-table slot index for one newly
+          introduced overridable instance method.
+        returns:
+          type: int
+        """
+        slot = self._method_slot_counter
+        self._method_slot_counter += 1
+        return slot
 
     def register_function(self, function: SemanticFunction) -> None:
         """

@@ -79,6 +79,8 @@ from irx.astx.buffer import BufferViewType as BufferViewType
 from irx.astx.buffer import BufferViewWrite as BufferViewWrite
 from irx.astx.classes import ClassDefStmt as ClassDefStmt
 from irx.astx.classes import ClassType as ClassType
+from irx.astx.classes import MethodCall as MethodCall
+from irx.astx.classes import StaticMethodCall as StaticMethodCall
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
 from irx.astx.structs import FieldAccess as FieldAccess
@@ -115,12 +117,14 @@ __all__ = (
     "LogicalAndBinOp",
     "LogicalOrBinOp",
     "LtBinOp",
+    "MethodCall",
     "ModBinOp",
     "MulBinOp",
     "NeBinOp",
     "OpaqueHandleType",
     "PointerType",
     "PrintExpr",
+    "StaticMethodCall",
     "StructType",
     "SubBinOp",
     "binary_op_type_for_opcode",

@@ -132,6 +132,34 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _llvm_function_type_for_signature(
+        self,
+        _signature: FunctionSignature,
+    ) -> ir.FunctionType:
+        """
+        title: Return one LLVM function type for semantic signature metadata.
+        parameters:
+          _signature:
+            type: FunctionSignature
+        returns:
+          type: ir.FunctionType
+        """
+        ...
+
+    def _declare_semantic_function(
+        self,
+        _function: Any,
+    ) -> ir.Function:
+        """
+        title: Declare or reuse one semantic function.
+        parameters:
+          _function:
+            type: Any
+        returns:
+          type: ir.Function
+        """
+        ...
+
     def require_runtime_symbol(
         self, _feature_name: str, _symbol_name: str
     ) -> ir.Function:
@@ -538,6 +566,34 @@ class VisitorMixinTypingBase:
           type: ir.Value
         """
         return cast(ir.Value, None)
+
+    def _llvm_function_type_for_signature(
+        self,
+        _signature: FunctionSignature,
+    ) -> ir.FunctionType:
+        """
+        title: Return one LLVM function type for semantic signature metadata.
+        parameters:
+          _signature:
+            type: FunctionSignature
+        returns:
+          type: ir.FunctionType
+        """
+        return cast(ir.FunctionType, None)
+
+    def _declare_semantic_function(
+        self,
+        _function: Any,
+    ) -> ir.Function:
+        """
+        title: Declare or reuse one semantic function.
+        parameters:
+          _function:
+            type: Any
+        returns:
+          type: ir.Function
+        """
+        return cast(ir.Function, None)
 
     def require_runtime_symbol(
         self, _feature_name: str, _symbol_name: str

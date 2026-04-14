@@ -17,7 +17,17 @@ from irx.analysis.handlers.base import (
     SemanticVisitorMixinBase,
 )
 from irx.analysis.normalization import normalize_flags, normalize_operator
-from irx.analysis.resolved_nodes import ResolvedFieldAccess, SemanticInfo
+from irx.analysis.resolved_nodes import (
+    ClassMemberKind,
+    MethodDispatchKind,
+    ResolvedClassFieldAccess,
+    ResolvedFieldAccess,
+    ResolvedMethodCall,
+    SemanticClass,
+    SemanticClassMember,
+    SemanticFunction,
+    SemanticInfo,
+)
 from irx.analysis.types import (
     bit_width,
     display_type_name,
@@ -26,6 +36,7 @@ from irx.analysis.types import (
     is_integer_type,
     is_numeric_type,
     is_string_type,
+    same_type,
 )
 from irx.analysis.typing import binary_result_type, unary_result_type
 from irx.analysis.validation import (
@@ -133,6 +144,331 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             and initializer_type.element_type is not None
         ):
             return initializer_type.element_type
+        return None
+
+    def _is_subclass_of(
+        self,
+        class_: SemanticClass | None,
+        ancestor: SemanticClass,
+    ) -> bool:
+        """
+        title: Return whether one class is derived from another.
+        parameters:
+          class_:
+            type: SemanticClass | None
+          ancestor:
+            type: SemanticClass
+        returns:
+          type: bool
+        """
+        if class_ is None:
+            return False
+        return any(
+            item.qualified_name == ancestor.qualified_name
+            for item in class_.mro
+        )
+
+    def _member_is_accessible(
+        self,
+        member: SemanticClassMember,
+        *,
+        owner: SemanticClass,
+    ) -> bool:
+        """
+        title: Return whether the current analysis context may access a member.
+        parameters:
+          member:
+            type: SemanticClassMember
+          owner:
+            type: SemanticClass
+        returns:
+          type: bool
+        """
+        if member.visibility is astx.VisibilityKind.public:
+            return True
+        current_class = self.context.current_class
+        if member.visibility is astx.VisibilityKind.private:
+            return (
+                current_class is not None
+                and current_class.qualified_name == owner.qualified_name
+            )
+        return current_class is not None and self._is_subclass_of(
+            current_class,
+            owner,
+        )
+
+    def _resolve_named_class(
+        self,
+        name: str,
+        *,
+        node: astx.AST,
+    ) -> SemanticClass | None:
+        """
+        title: Resolve one class name from visible bindings.
+        parameters:
+          name:
+            type: str
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticClass | None
+        """
+        binding = self.bindings.resolve(name)
+        if (
+            binding is None
+            or binding.kind != "class"
+            or binding.class_ is None
+        ):
+            self.context.diagnostics.add(
+                f"cannot resolve class '{name}'",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
+            )
+            return None
+        return binding.class_
+
+    def _visible_method_function(
+        self,
+        class_: SemanticClass,
+        member: SemanticClassMember,
+    ) -> SemanticFunction:
+        """
+        title: >-
+          Return one visible-signature callable wrapper for a class method.
+        parameters:
+          class_:
+            type: SemanticClass
+          member:
+            type: SemanticClassMember
+        returns:
+          type: SemanticFunction
+        """
+        declaration = member.declaration
+        if member.signature is None or not isinstance(
+            declaration, astx.FunctionDef
+        ):
+            raise TypeError("class method must carry a callable signature")
+        return SemanticFunction(
+            symbol_id=member.symbol_id,
+            name=f"{class_.name}.{member.name}",
+            return_type=member.signature.return_type,
+            args=(),
+            signature=member.signature,
+            prototype=declaration.prototype,
+            definition=declaration,
+            module_key=class_.module_key,
+            qualified_name=member.qualified_name,
+        )
+
+    def _format_method_signature(self, member: SemanticClassMember) -> str:
+        """
+        title: Return one human-facing method signature string.
+        parameters:
+          member:
+            type: SemanticClassMember
+        returns:
+          type: str
+        """
+        if member.signature is None:
+            return member.name
+        parameters = ", ".join(
+            display_type_name(parameter.type_)
+            for parameter in member.signature.parameters
+        )
+        suffix = " static" if member.is_static else ""
+        return (
+            f"{member.name}({parameters}) -> "
+            f"{display_type_name(member.signature.return_type)}{suffix}"
+        )
+
+    def _format_requested_method_signature(
+        self,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+    ) -> str:
+        """
+        title: Return one human-facing requested method signature.
+        parameters:
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+        returns:
+          type: str
+        """
+        parameters = ", ".join(display_type_name(arg) for arg in arg_types)
+        suffix = " static" if is_static else ""
+        return f"{method_name}({parameters}){suffix}"
+
+    def _method_arguments_exactly_match(
+        self,
+        member: SemanticClassMember,
+        arg_types: list[astx.DataType | None],
+    ) -> bool:
+        """
+        title: Return whether one method exactly matches explicit arg types.
+        parameters:
+          member:
+            type: SemanticClassMember
+          arg_types:
+            type: list[astx.DataType | None]
+        returns:
+          type: bool
+        """
+        if member.signature is None:
+            return False
+        if len(member.signature.parameters) != len(arg_types):
+            return False
+        return all(
+            same_type(parameter.type_, arg_type)
+            for parameter, arg_type in zip(
+                member.signature.parameters,
+                arg_types,
+            )
+        )
+
+    def _resolve_method_overload(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+        node: astx.AST,
+    ) -> tuple[SemanticClassMember, tuple[SemanticClassMember, ...]] | None:
+        """
+        title: Resolve one class-method overload from the effective group.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+          node:
+            type: astx.AST
+        returns:
+          type: >-
+            tuple[SemanticClassMember, tuple[SemanticClassMember, Ellipsis]] |
+            None
+        """
+        member = class_.member_table.get(method_name)
+        group = class_.method_groups.get(method_name, ())
+        if not group:
+            if (
+                member is not None
+                and member.kind is not ClassMemberKind.METHOD
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"class member '{class_.name}.{method_name}' "
+                        "is not a method"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            else:
+                missing_label = "static method" if is_static else "method"
+                self.context.diagnostics.add(
+                    (
+                        f"class '{class_.name}' has no {missing_label} "
+                        f"'{method_name}'"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            return None
+
+        kind_candidates = tuple(
+            candidate
+            for candidate in group
+            if candidate.is_static == is_static
+        )
+        if not kind_candidates:
+            if is_static:
+                self.context.diagnostics.add(
+                    (
+                        f"instance method '{class_.name}.{method_name}' "
+                        "requires a receiver"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            else:
+                self.context.diagnostics.add(
+                    (
+                        f"static method '{class_.name}.{method_name}' "
+                        "must be called through the class"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            return None
+
+        accessible_candidates = tuple(
+            candidate
+            for candidate in kind_candidates
+            if self._member_is_accessible(candidate, owner=class_)
+        )
+        if not accessible_candidates:
+            self.context.diagnostics.add(
+                (
+                    f"class method '{class_.name}.{method_name}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        if len(accessible_candidates) == 1:
+            return accessible_candidates[0], accessible_candidates
+
+        exact_matches = tuple(
+            candidate
+            for candidate in accessible_candidates
+            if self._method_arguments_exactly_match(candidate, arg_types)
+        )
+        if len(exact_matches) == 1:
+            return exact_matches[0], accessible_candidates
+        if len(exact_matches) > 1:
+            available = ", ".join(
+                self._format_method_signature(candidate)
+                for candidate in accessible_candidates
+            )
+            self.context.diagnostics.add(
+                (
+                    f"call to '{class_.name}.{method_name}' is ambiguous; "
+                    f"available overloads: {available}"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        requested = self._format_requested_method_signature(
+            method_name,
+            arg_types,
+            is_static=is_static,
+        )
+        available = ", ".join(
+            self._format_method_signature(candidate)
+            for candidate in accessible_candidates
+        )
+        self.context.diagnostics.add(
+            (
+                f"class '{class_.name}' has no exact overload for "
+                f"'{requested}'; available overloads: {available}"
+            ),
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+        )
         return None
 
     def _static_integer_literal_value(self, node: astx.AST) -> int | None:
@@ -436,26 +772,55 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
                 )
                 return
-            symbol = self._root_assignment_symbol(node.lhs)
-            if symbol is None:
-                self.context.diagnostics.add(
-                    "assignment target must be a variable or field",
-                    node=node,
-                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
-                )
-                return
-            if not symbol.is_mutable:
-                self.context.diagnostics.add(
-                    f"Cannot assign to '{symbol.name}': declared as constant",
-                    node=node,
-                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
-                )
+            assignment_symbol = self._root_assignment_symbol(node.lhs)
             target_name = (
                 node.lhs.name
                 if isinstance(node.lhs, astx.Identifier)
                 else node.lhs.field_name
             )
             target_type = self._expr_type(node.lhs)
+            class_field_access = getattr(
+                getattr(node.lhs, "semantic", None),
+                "resolved_class_field_access",
+                None,
+            )
+            if class_field_access is not None:
+                assignment_symbol = self.factory.make_variable_symbol(
+                    class_field_access.class_.module_key,
+                    class_field_access.member.name,
+                    class_field_access.member.type_
+                    or cast(astx.DataType, target_type),
+                    is_mutable=class_field_access.member.is_mutable,
+                    declaration=node.lhs,
+                    kind="class_field",
+                )
+                if not class_field_access.member.is_mutable:
+                    self.context.diagnostics.add(
+                        (
+                            f"Cannot assign to '{target_name}': "
+                            "declared as constant"
+                        ),
+                        node=node,
+                        code=(
+                            DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET
+                        ),
+                    )
+            elif assignment_symbol is None:
+                self.context.diagnostics.add(
+                    "assignment target must be a variable or field",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
+                )
+                return
+            elif not assignment_symbol.is_mutable:
+                self.context.diagnostics.add(
+                    (
+                        f"Cannot assign to '{assignment_symbol.name}': "
+                        "declared as constant"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_ASSIGNMENT_TARGET,
+                )
             if self._require_value_expression(
                 node.rhs,
                 context=f"Assignment to '{target_name}'",
@@ -467,9 +832,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     value_type=rhs_type,
                     node=node,
                 )
-            self._set_assignment(node, symbol)
-            if isinstance(node.lhs, astx.Identifier):
-                self._set_symbol(node.lhs, symbol)
+            self._set_assignment(node, assignment_symbol)
+            if (
+                isinstance(node.lhs, astx.Identifier)
+                and assignment_symbol is not None
+            ):
+                self._set_symbol(node.lhs, assignment_symbol)
             self._set_type(node, target_type)
             self._set_operator(
                 node,
@@ -590,6 +958,135 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, call_resolution.result_type)
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.MethodCall) -> None:
+        """
+        title: Visit MethodCall nodes.
+        parameters:
+          node:
+            type: astx.MethodCall
+        """
+        self.visit(node.receiver)
+        arg_types: list[astx.DataType | None] = []
+        for arg in node.args:
+            self.visit(arg)
+            arg_types.append(self._expr_type(arg))
+        if not self._require_value_expression(
+            node.receiver,
+            context="Method call receiver",
+        ):
+            self._set_type(node, None)
+            return
+        receiver_type = self._expr_type(node.receiver)
+        class_ = self._resolve_class_from_type(
+            receiver_type,
+            node=node,
+            unknown_message="method call requires a class value",
+        )
+        if class_ is None:
+            if not isinstance(receiver_type, astx.ClassType):
+                self.context.diagnostics.add(
+                    "method call requires a class value, got "
+                    f"{display_type_name(receiver_type)}",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            self._set_type(node, None)
+            return
+        resolved_overload = self._resolve_method_overload(
+            class_,
+            node.method_name,
+            arg_types,
+            is_static=False,
+            node=node,
+        )
+        if resolved_overload is None:
+            self._set_type(node, None)
+            return
+        member, candidates = resolved_overload
+        function = member.lowered_function
+        if function is None:
+            raise TypeError("instance method must have a lowered function")
+        visible_function = self._visible_method_function(class_, member)
+        call_resolution = validate_call(
+            self.context.diagnostics,
+            function=visible_function,
+            arg_types=arg_types,
+            node=node,
+        )
+        dispatch_kind = MethodDispatchKind.DIRECT
+        if member.dispatch_slot is not None:
+            dispatch_kind = MethodDispatchKind.INDIRECT
+        self._set_call(node, call_resolution)
+        self._set_method_call(
+            node,
+            ResolvedMethodCall(
+                class_=class_,
+                member=member,
+                function=function,
+                overload_key=(member.signature_key or member.qualified_name),
+                dispatch_kind=dispatch_kind,
+                call=call_resolution,
+                candidates=candidates,
+                receiver_type=receiver_type,
+                receiver_class=class_,
+                slot_index=member.dispatch_slot,
+            ),
+        )
+        self._set_type(node, call_resolution.result_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.StaticMethodCall) -> None:
+        """
+        title: Visit StaticMethodCall nodes.
+        parameters:
+          node:
+            type: astx.StaticMethodCall
+        """
+        arg_types: list[astx.DataType | None] = []
+        for arg in node.args:
+            self.visit(arg)
+            arg_types.append(self._expr_type(arg))
+        class_ = self._resolve_named_class(node.class_name, node=node)
+        if class_ is None:
+            self._set_type(node, None)
+            return
+        resolved_overload = self._resolve_method_overload(
+            class_,
+            node.method_name,
+            arg_types,
+            is_static=True,
+            node=node,
+        )
+        if resolved_overload is None:
+            self._set_type(node, None)
+            return
+        member, candidates = resolved_overload
+        function = member.lowered_function
+        if function is None:
+            raise TypeError("static method must have a lowered function")
+        visible_function = self._visible_method_function(class_, member)
+        call_resolution = validate_call(
+            self.context.diagnostics,
+            function=visible_function,
+            arg_types=arg_types,
+            node=node,
+        )
+        self._set_call(node, call_resolution)
+        self._set_method_call(
+            node,
+            ResolvedMethodCall(
+                class_=class_,
+                member=member,
+                function=function,
+                overload_key=(member.signature_key or member.qualified_name),
+                dispatch_kind=MethodDispatchKind.DIRECT,
+                call=call_resolution,
+                candidates=candidates,
+            ),
+        )
+        self._set_type(node, call_resolution.result_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FieldAccess) -> None:
         """
         title: Visit FieldAccess nodes.
@@ -608,12 +1105,33 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         struct = self._resolve_struct_from_type(
             base_type,
             node=node,
-            unknown_message="field access requires a struct value",
+            unknown_message="field access requires a struct or class value",
         )
-        if struct is None:
-            if not isinstance(base_type, astx.StructType):
+        if struct is not None:
+            field_index = struct.field_indices.get(node.field_name)
+            if field_index is None or field_index >= len(struct.fields):
                 self.context.diagnostics.add(
-                    "field access requires a struct value, got "
+                    f"struct '{struct.name}' has no field '{node.field_name}'",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+                self._set_type(node, None)
+                return
+            field = struct.fields[field_index]
+            self._set_struct(node, struct)
+            self._set_field_access(node, ResolvedFieldAccess(struct, field))
+            self._set_type(node, field.type_)
+            return
+
+        class_ = self._resolve_class_from_type(
+            base_type,
+            node=node,
+            unknown_message="field access requires a struct or class value",
+        )
+        if class_ is None:
+            if not isinstance(base_type, astx.StructType | astx.ClassType):
+                self.context.diagnostics.add(
+                    "field access requires a struct or class value, got "
                     f"{display_type_name(base_type)}",
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
@@ -621,20 +1139,68 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self._set_type(node, None)
             return
 
-        field_index = struct.field_indices.get(node.field_name)
-        if field_index is None or field_index >= len(struct.fields):
+        member = class_.member_table.get(node.field_name)
+        if member is None:
             self.context.diagnostics.add(
-                f"struct '{struct.name}' has no field '{node.field_name}'",
+                f"class '{class_.name}' has no attribute '{node.field_name}'",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
             )
             self._set_type(node, None)
             return
-
-        field = struct.fields[field_index]
-        self._set_struct(node, struct)
-        self._set_field_access(node, ResolvedFieldAccess(struct, field))
-        self._set_type(node, field.type_)
+        if member.kind is not ClassMemberKind.ATTRIBUTE:
+            self.context.diagnostics.add(
+                (
+                    f"class member '{class_.name}.{node.field_name}' "
+                    "is not an attribute"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        if member.is_static:
+            self.context.diagnostics.add(
+                (
+                    f"static attribute '{class_.name}.{node.field_name}' "
+                    "must be accessed through the class"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        if not self._member_is_accessible(member, owner=class_):
+            self.context.diagnostics.add(
+                (
+                    f"class attribute '{class_.name}.{node.field_name}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        if class_.layout is None:
+            raise TypeError("class field access requires a resolved layout")
+        field = class_.layout.visible_field_slots.get(node.field_name)
+        if field is None:
+            self.context.diagnostics.add(
+                (
+                    f"class '{class_.name}' has no visible attribute "
+                    f"'{node.field_name}'"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        self._set_class(node, class_)
+        self._set_class_field_access(
+            node,
+            ResolvedClassFieldAccess(class_, member, field),
+        )
+        self._set_type(node, member.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.Cast) -> None:

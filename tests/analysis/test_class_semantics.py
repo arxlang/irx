@@ -9,11 +9,28 @@ from typing import cast
 import pytest
 
 from irx import astx
-from irx.analysis import SemanticError, analyze
-from irx.analysis.module_symbols import qualified_class_name
+from irx.analysis import (
+    ClassHeaderFieldKind,
+    ClassMemberResolutionKind,
+    ClassObjectRepresentationKind,
+    SemanticError,
+    analyze,
+)
+from irx.analysis.module_symbols import (
+    mangle_class_dispatch_name,
+    mangle_class_name,
+    mangle_class_static_name,
+    qualified_class_name,
+)
 from irx.analysis.resolved_nodes import SemanticInfo
 
 from tests.conftest import make_module
+
+CLASS_HEADER_SLOT_COUNT = 2
+FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
+SECOND_INSTANCE_STORAGE_INDEX = FIRST_INSTANCE_STORAGE_INDEX + 1
+THIRD_INSTANCE_STORAGE_INDEX = SECOND_INSTANCE_STORAGE_INDEX + 1
+FOURTH_INSTANCE_STORAGE_INDEX = THIRD_INSTANCE_STORAGE_INDEX + 1
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -40,6 +57,28 @@ def _class_type(name: str) -> astx.ClassType:
     return astx.ClassType(name)
 
 
+def _default_return_value(type_: astx.DataType) -> astx.AST | None:
+    """
+    title: Build one minimal default return value for a method test helper.
+    parameters:
+      type_:
+        type: astx.DataType
+    returns:
+      type: astx.AST | None
+    """
+    if isinstance(type_, astx.NoneType):
+        return None
+    if isinstance(type_, astx.Boolean):
+        return astx.LiteralBoolean(False)
+    if isinstance(type_, astx.Float64):
+        return astx.LiteralFloat64(0.0)
+    if isinstance(type_, astx.Float32):
+        return astx.LiteralFloat32(0.0)
+    if isinstance(type_, astx.Int8):
+        return astx.LiteralInt8(0)
+    return astx.LiteralInt32(0)
+
+
 def _method(
     name: str,
     *args: astx.Argument,
@@ -64,15 +103,19 @@ def _method(
     returns:
       type: astx.FunctionDef
     """
+    resolved_return_type = return_type or astx.Int32()
     prototype = astx.FunctionPrototype(
         name,
         args=astx.Arguments(*args),
-        return_type=return_type or astx.Int32(),
+        return_type=resolved_return_type,
         visibility=visibility,
     )
     if is_static:
         prototype.is_static = True
-    return astx.FunctionDef(prototype=prototype, body=astx.Block())
+    body = astx.Block()
+    default_value = _default_return_value(resolved_return_type)
+    body.append(astx.FunctionReturn(default_value))
+    return astx.FunctionDef(prototype=prototype, body=body)
 
 
 def _attribute(
@@ -157,12 +200,12 @@ def test_analyze_resolves_class_bases_and_c3_mro() -> None:
     left = astx.ClassDefStmt(
         name="Left",
         bases=[_class_type("Root")],
-        methods=[_method("select")],
+        methods=[_method("left_only")],
     )
     right = astx.ClassDefStmt(
         name="Right",
         bases=[_class_type("Root")],
-        methods=[_method("select")],
+        methods=[_method("right_only")],
     )
     child = astx.ClassDefStmt(
         name="Child",
@@ -180,7 +223,37 @@ def test_analyze_resolves_class_bases_and_c3_mro() -> None:
         "Right",
         "Root",
     ]
-    assert resolved.member_table["select"].owner_name == "Left"
+    assert resolved.member_table["left_only"].owner_name == "Left"
+    assert resolved.member_table["right_only"].owner_name == "Right"
+
+
+def test_analyze_rejects_conflicting_inherited_methods_without_override() -> (
+    None
+):
+    """
+    title: Sibling methods with one exact signature require an override.
+    """
+    root = astx.ClassDefStmt(name="Root")
+    left = astx.ClassDefStmt(
+        name="Left",
+        bases=[_class_type("Root")],
+        methods=[_method("select")],
+    )
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+        methods=[_method("select")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="inherits conflicting methods named 'select'",
+    ):
+        analyze(make_module("app.main", root, left, right, child))
 
 
 def test_analyze_rejects_unknown_base_class() -> None:
@@ -291,13 +364,20 @@ def test_analyze_tracks_method_override_metadata() -> None:
     assert resolved is not None
     member = resolved.declared_member_table["render"]
     assert member.overrides is not None
-    assert member.overrides.endswith("::member::render")
+    assert "::member::render::overload::" in member.overrides
     assert resolved.member_table["render"].owner_name == "Child"
+    assert resolved.member_resolution["render"].kind is (
+        ClassMemberResolutionKind.OVERRIDE
+    )
+    assert [
+        candidate.owner_name
+        for candidate in resolved.member_resolution["render"].candidates
+    ] == ["Child", "Base"]
 
 
-def test_analyze_rejects_method_override_signature_changes() -> None:
+def test_analyze_merges_inherited_method_overloads() -> None:
     """
-    title: Overrides must match inherited signatures exactly.
+    title: Same-name methods with distinct signatures remain overloads.
     """
     base = astx.ClassDefStmt(
         name="Base",
@@ -309,10 +389,21 @@ def test_analyze_rejects_method_override_signature_changes() -> None:
         methods=[_method("render", astx.Argument("value", astx.Float64()))],
     )
 
-    with pytest.raises(
-        SemanticError, match="must match inherited signature exactly"
-    ):
-        analyze(make_module("app.main", base, child))
+    analyze(make_module("app.main", base, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert "render" not in resolved.member_table
+    assert [
+        member.owner_name for member in resolved.method_groups["render"]
+    ] == ["Child", "Base"]
+    assert [
+        resolution.kind for resolution in resolved.method_resolution["render"]
+    ] == [
+        ClassMemberResolutionKind.DECLARED,
+        ClassMemberResolutionKind.INHERITED,
+    ]
 
 
 def test_analyze_rejects_ambiguous_inherited_attribute() -> None:
@@ -336,3 +427,226 @@ def test_analyze_rejects_ambiguous_inherited_attribute() -> None:
         SemanticError, match="inherits ambiguous attribute 'value'"
     ):
         analyze(make_module("app.main", left, right, child))
+
+
+def test_analyze_tracks_shared_ancestors_in_diamond_mro() -> None:
+    """
+    title: Diamond inheritance keeps one shared ancestor in the linearization.
+    """
+    root = astx.ClassDefStmt(
+        name="Root",
+        attributes=[_attribute("value", astx.Int32())],
+    )
+    left = astx.ClassDefStmt(name="Left", bases=[_class_type("Root")])
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+    )
+
+    analyze(make_module("app.main", root, left, right, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert [item.name for item in resolved.shared_ancestors] == ["Root"]
+    assert resolved.member_table["value"].owner_name == "Root"
+    assert resolved.member_resolution["value"].kind is (
+        ClassMemberResolutionKind.INHERITED
+    )
+    assert [
+        candidate.owner_name
+        for candidate in resolved.member_resolution["value"].candidates
+    ] == ["Root"]
+
+
+def test_analyze_rejects_inconsistent_c3_mro() -> None:
+    """
+    title: Inconsistent multiple-inheritance orderings are rejected.
+    """
+    x = astx.ClassDefStmt(name="X")
+    y = astx.ClassDefStmt(name="Y")
+    a = astx.ClassDefStmt(
+        name="A",
+        bases=[_class_type("X"), _class_type("Y")],
+    )
+    b = astx.ClassDefStmt(
+        name="B",
+        bases=[_class_type("Y"), _class_type("X")],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("A"), _class_type("B")],
+    )
+
+    with pytest.raises(SemanticError, match="has no consistent MRO"):
+        analyze(make_module("app.main", x, y, a, b, child))
+
+
+def test_analyze_builds_pointer_layout_and_static_storage_metadata() -> None:
+    """
+    title: Classes expose stable object-layout and static-storage metadata.
+    """
+    node = astx.ClassDefStmt(
+        name="Vector",
+        attributes=[
+            _attribute("x", astx.Int32()),
+            _attribute(
+                "shared",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(7),
+            ),
+        ],
+    )
+
+    analyze(make_module("pkg.tools", node))
+
+    resolved = _semantic(node).resolved_class
+
+    assert resolved is not None
+    assert resolved.layout is not None
+    assert resolved.layout.object_representation is (
+        ClassObjectRepresentationKind.POINTER
+    )
+    assert resolved.layout.llvm_name == mangle_class_name(
+        "pkg.tools",
+        "Vector",
+    )
+    assert resolved.layout.dispatch_global_name == mangle_class_dispatch_name(
+        "pkg.tools",
+        "Vector",
+    )
+    assert [header.kind for header in resolved.layout.header_fields] == [
+        ClassHeaderFieldKind.TYPE_DESCRIPTOR,
+        ClassHeaderFieldKind.DISPATCH_TABLE,
+    ]
+    assert [
+        header.storage_index for header in resolved.layout.header_fields
+    ] == [
+        0,
+        1,
+    ]
+    assert [
+        field.member.name for field in resolved.layout.instance_fields
+    ] == [
+        "x",
+    ]
+    assert (
+        resolved.layout.visible_field_slots["x"].storage_index
+        == FIRST_INSTANCE_STORAGE_INDEX
+    )
+    assert [
+        storage.member.name for storage in resolved.layout.static_fields
+    ] == [
+        "shared",
+    ]
+    assert resolved.layout.static_fields[0].global_name == (
+        mangle_class_static_name("pkg.tools", "Vector", "shared")
+    )
+
+
+def test_analyze_reuses_dispatch_slots_with_unrelated_hierarchies() -> None:
+    """
+    title: Unrelated families do not shift dispatch slots in another family.
+    """
+    base = astx.ClassDefStmt(name="Base", methods=[_method("area")])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_method("paint")],
+    )
+
+    analyze(make_module("app.one", base, child))
+    resolved_base = _semantic(base).resolved_class
+    resolved_child = _semantic(child).resolved_class
+    assert resolved_base is not None
+    assert resolved_child is not None
+    baseline_slots = {
+        member.name: member.dispatch_slot
+        for member in resolved_child.instance_methods
+    }
+
+    other = astx.ClassDefStmt(name="Other", methods=[_method("ping")])
+    extra = astx.ClassDefStmt(
+        name="Extra",
+        bases=[_class_type("Other")],
+        methods=[_method("pong")],
+    )
+    base_again = astx.ClassDefStmt(name="Base", methods=[_method("area")])
+    child_again = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_method("paint")],
+    )
+
+    analyze(make_module("app.two", other, extra, base_again, child_again))
+    resolved_again = _semantic(child_again).resolved_class
+
+    assert resolved_again is not None
+    assert {
+        member.name: member.dispatch_slot
+        for member in resolved_again.instance_methods
+    } == baseline_slots
+
+
+def test_analyze_flattens_inherited_layout_in_canonical_storage_order() -> (
+    None
+):
+    """
+    title: Canonical class storage orders ancestors before derived fields.
+    """
+    root = astx.ClassDefStmt(
+        name="Root",
+        attributes=[_attribute("root", astx.Int32())],
+    )
+    left = astx.ClassDefStmt(
+        name="Left",
+        bases=[_class_type("Root")],
+        attributes=[_attribute("left", astx.Boolean())],
+    )
+    right = astx.ClassDefStmt(
+        name="Right",
+        bases=[_class_type("Root")],
+        attributes=[_attribute("right", astx.Float64())],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Left"), _class_type("Right")],
+        attributes=[_attribute("child", astx.Int8())],
+    )
+
+    analyze(make_module("app.main", root, left, right, child))
+
+    resolved = _semantic(child).resolved_class
+
+    assert resolved is not None
+    assert resolved.layout is not None
+    assert [
+        (field.owner_name, field.member.name)
+        for field in resolved.layout.instance_fields
+    ] == [
+        ("Root", "root"),
+        ("Left", "left"),
+        ("Right", "right"),
+        ("Child", "child"),
+    ]
+    assert (
+        resolved.layout.visible_field_slots["root"].storage_index
+        == FIRST_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["left"].storage_index
+        == SECOND_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["right"].storage_index
+        == THIRD_INSTANCE_STORAGE_INDEX
+    )
+    assert (
+        resolved.layout.visible_field_slots["child"].storage_index
+        == FOURTH_INSTANCE_STORAGE_INDEX
+    )
