@@ -270,6 +270,62 @@ def test_analyze_rejects_pointer_to_unsupported_ffi_type() -> None:
         analyze(module)
 
 
+def test_analyze_rejects_class_type_in_extern_parameter() -> None:
+    """
+    title: Public FFI does not expose class parameters as a stable ABI.
+    """
+    widget = astx.ClassDefStmt(name="Widget")
+    prototype = _extern_prototype(
+        "consume_widget",
+        astx.Argument("value", astx.ClassType("Widget")),
+        return_type=astx.Int32(),
+    )
+    module = astx.Module()
+    module.block.append(widget)
+    module.block.append(prototype)
+
+    with pytest.raises(SemanticError, match="class ABI is internal to IRx"):
+        analyze(module)
+
+
+def test_analyze_rejects_class_type_in_extern_return() -> None:
+    """
+    title: Public FFI does not expose class return values as a stable ABI.
+    """
+    widget = astx.ClassDefStmt(name="Widget")
+    prototype = _extern_prototype(
+        "make_widget",
+        return_type=astx.ClassType("Widget"),
+    )
+    module = astx.Module()
+    module.block.append(widget)
+    module.block.append(prototype)
+
+    with pytest.raises(SemanticError, match="class ABI is internal to IRx"):
+        analyze(module)
+
+
+def test_analyze_rejects_pointer_to_class_type_in_extern_signature() -> None:
+    """
+    title: Pointer pointees must not smuggle internal class ABIs across FFI.
+    """
+    widget = astx.ClassDefStmt(name="Widget")
+    prototype = _extern_prototype(
+        "consume_widget_ptr",
+        astx.Argument(
+            "value",
+            astx.PointerType(astx.ClassType("Widget")),
+        ),
+        return_type=astx.Int32(),
+    )
+    module = astx.Module()
+    module.block.append(widget)
+    module.block.append(prototype)
+
+    with pytest.raises(SemanticError, match="class ABI is internal to IRx"):
+        analyze(module)
+
+
 def test_analyze_rejects_struct_with_non_ffi_field_in_extern_signature() -> (
     None
 ):

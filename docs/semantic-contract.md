@@ -366,6 +366,28 @@ introducing high-level constructor syntax yet.
 - non-literal static field initializers are rejected during semantic analysis in
   this phase so codegen never has to invent runtime initialization order
 
+## Class ABI And Interop Contract
+
+IRx now makes the internal class ABI explicit without treating it as a stable
+foreign object ABI.
+
+- source-level `ClassType` parameters and return types inside IRx-defined
+  functions lower through the same pointer ABI as method receivers; they are not
+  copied by value
+- class method bodies lower to internal LLVM symbols named with
+  `mangle_class_method_name(module_key, class_name, method_name, overload_key)`
+  so the module, declaring class, method name, and exact overload signature all
+  participate in the symbol name
+- class static attributes lower to internal globals named with
+  `mangle_class_static_name(module_key, class_name, member_name)`
+- dispatch tables and reserved descriptor metadata remain internal globals and
+  should be treated as opaque implementation details rather than a public ABI
+- IRx does not promise a stable foreign ABI for general classes in this phase;
+  explicit extern declarations reject `ClassType` directly and through pointer
+  pointees
+- ABI-oriented interop should continue to use plain structs, plain extern
+  functions, typed pointers, and opaque handles at foreign boundaries
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer
@@ -407,6 +429,7 @@ Accepted in extern signatures:
 Rejected in extern signatures:
 
 - unresolved or unsized types
+- `ClassType(...)` values and pointers to class pointees
 - non-ABI-stable internal-only composite forms
 - temporal and other IRx-only types without an explicit public FFI ABI contract
 - pointers to unsupported pointee types
