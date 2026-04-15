@@ -276,6 +276,31 @@ metadata rather than as implicit runtime behavior.
   visible instance method has a dispatch slot, and instance call sites load the
   callee through that table instead of re-resolving semantics from syntax
 
+## Class Member Access Contract
+
+IRx now distinguishes instance and class-qualified member access forms
+explicitly instead of inferring them from generic field syntax.
+
+- `FieldAccess` remains the low-level read form for `obj.attr` on structs and
+  class instances
+- `StaticFieldAccess` is the low-level read form for `ClassName.static_attr`
+- `MethodCall` remains the low-level call form for `obj.method(...)` and uses
+  direct or indirect dispatch from analyzed method metadata
+- `StaticMethodCall` remains the low-level call form for
+  `ClassName.static_method(...)` and always lowers as a direct call
+- static field reads resolve through
+  `SemanticClass.layout.visible_static_storage` first and only fall back to
+  qualified-name storage metadata for the selected inherited member when needed
+- instance field reads resolve through
+  `SemanticClass.layout.visible_field_slots` and the canonical flattened storage
+  layout recorded during class analysis
+- lowering consumes the resolved storage and dispatch metadata attached during
+  semantic analysis and does not re-run class member lookup from syntax
+- static field writes are intentionally deferred to phase 8 together with full
+  mutability and constant-assignment enforcement for class statics
+- full base-qualified multiple-inheritance ancestor field views remain deferred
+  in this phase
+
 ## Class Access Control Contract
 
 IRx enforces class visibility during semantic analysis instead of deferring it

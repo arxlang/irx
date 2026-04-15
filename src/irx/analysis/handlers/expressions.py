@@ -24,8 +24,11 @@ from irx.analysis.resolved_nodes import (
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedMethodCall,
+    ResolvedStaticClassFieldAccess,
     SemanticClass,
+    SemanticClassLayoutField,
     SemanticClassMember,
+    SemanticClassStaticStorage,
     SemanticFunction,
     SemanticInfo,
 )
@@ -295,9 +298,139 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             member
             for member in self._declared_members_named(class_, field_name)
             if member.kind is ClassMemberKind.ATTRIBUTE
-            and not member.is_static
             and member.qualified_name != visible_name
         )
+
+    def _resolve_class_attribute_member(
+        self,
+        class_: SemanticClass,
+        field_name: str,
+        *,
+        node: astx.AST,
+    ) -> SemanticClassMember | None:
+        """
+        title: Resolve one visible class attribute candidate by source name.
+        parameters:
+          class_:
+            type: SemanticClass
+          field_name:
+            type: str
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticClassMember | None
+        """
+        member = class_.member_table.get(field_name)
+        if member is not None:
+            if member.kind is not ClassMemberKind.ATTRIBUTE:
+                self.context.diagnostics.add(
+                    (
+                        f"class member '{class_.name}.{field_name}' "
+                        "is not an attribute"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+                return None
+            return member
+
+        if field_name in class_.method_groups:
+            self.context.diagnostics.add(
+                (
+                    f"class member '{class_.name}.{field_name}' "
+                    "is not an attribute"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        hidden_members = self._hidden_attribute_candidates(class_, field_name)
+        accessible_hidden = tuple(
+            candidate
+            for candidate in hidden_members
+            if self._member_is_accessible(candidate)
+        )
+        if accessible_hidden:
+            return accessible_hidden[0]
+        if hidden_members:
+            self.context.diagnostics.add(
+                (
+                    "class attribute "
+                    f"'{self._member_display_name(hidden_members[0])}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        self.context.diagnostics.add(
+            (f"class '{class_.name}' has no attribute '{field_name}'"),
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+        )
+        return None
+
+    def _resolve_class_field_slot(
+        self,
+        class_: SemanticClass,
+        member: SemanticClassMember,
+        field_name: str,
+    ) -> SemanticClassLayoutField:
+        """
+        title: Return one resolved class-instance storage slot.
+        parameters:
+          class_:
+            type: SemanticClass
+          member:
+            type: SemanticClassMember
+          field_name:
+            type: str
+        returns:
+          type: SemanticClassLayoutField
+        """
+        if class_.layout is None:
+            raise TypeError("class field access requires a resolved layout")
+        field = class_.layout.visible_field_slots.get(field_name)
+        if field is None:
+            field = class_.layout.field_slots.get(member.qualified_name)
+        if field is None:
+            raise TypeError(
+                "class field access requires a resolved storage slot"
+            )
+        return field
+
+    def _resolve_static_class_storage(
+        self,
+        class_: SemanticClass,
+        member: SemanticClassMember,
+        field_name: str,
+    ) -> SemanticClassStaticStorage:
+        """
+        title: Return one resolved class-static storage binding.
+        parameters:
+          class_:
+            type: SemanticClass
+          member:
+            type: SemanticClassMember
+          field_name:
+            type: str
+        returns:
+          type: SemanticClassStaticStorage
+        """
+        if class_.layout is None:
+            raise TypeError(
+                "static class field access requires a resolved layout"
+            )
+        storage = class_.layout.visible_static_storage.get(field_name)
+        if storage is None:
+            storage = class_.layout.static_storage.get(member.qualified_name)
+        if storage is None:
+            raise TypeError(
+                "static class field access requires resolved storage"
+            )
+        return storage
 
     def _member_is_accessible(
         self,
@@ -1260,6 +1393,61 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, call_resolution.result_type)
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.StaticFieldAccess) -> None:
+        """
+        title: Visit StaticFieldAccess nodes.
+        parameters:
+          node:
+            type: astx.StaticFieldAccess
+        """
+        class_ = self._resolve_named_class(node.class_name, node=node)
+        if class_ is None:
+            self._set_type(node, None)
+            return
+        member = self._resolve_class_attribute_member(
+            class_,
+            node.field_name,
+            node=node,
+        )
+        if member is None:
+            self._set_type(node, None)
+            return
+        if not member.is_static:
+            self.context.diagnostics.add(
+                (
+                    f"instance attribute '{class_.name}.{node.field_name}' "
+                    "requires a receiver"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        if not self._member_is_accessible(member):
+            self.context.diagnostics.add(
+                (
+                    "class attribute "
+                    f"'{self._member_display_name(member)}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        storage = self._resolve_static_class_storage(
+            class_,
+            member,
+            node.field_name,
+        )
+        self._set_class(node, class_)
+        self._set_static_class_field_access(
+            node,
+            ResolvedStaticClassFieldAccess(class_, member, storage),
+        )
+        self._set_type(node, member.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FieldAccess) -> None:
         """
         title: Visit FieldAccess nodes.
@@ -1312,51 +1500,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self._set_type(node, None)
             return
 
-        member = class_.member_table.get(node.field_name)
+        member = self._resolve_class_attribute_member(
+            class_,
+            node.field_name,
+            node=node,
+        )
         if member is None:
-            hidden_members = self._hidden_attribute_candidates(
-                class_,
-                node.field_name,
-            )
-            accessible_hidden = tuple(
-                candidate
-                for candidate in hidden_members
-                if self._member_is_accessible(candidate)
-            )
-            if accessible_hidden:
-                member = accessible_hidden[0]
-            elif hidden_members:
-                self.context.diagnostics.add(
-                    (
-                        "class attribute "
-                        f"'{self._member_display_name(hidden_members[0])}' "
-                        "is not accessible from this context"
-                    ),
-                    node=node,
-                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-                )
-                self._set_type(node, None)
-                return
-            else:
-                self.context.diagnostics.add(
-                    (
-                        f"class '{class_.name}' has no attribute "
-                        f"'{node.field_name}'"
-                    ),
-                    node=node,
-                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-                )
-                self._set_type(node, None)
-                return
-        if member.kind is not ClassMemberKind.ATTRIBUTE:
-            self.context.diagnostics.add(
-                (
-                    f"class member '{class_.name}.{node.field_name}' "
-                    "is not an attribute"
-                ),
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
-            )
             self._set_type(node, None)
             return
         if member.is_static:
@@ -1382,15 +1531,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             self._set_type(node, None)
             return
-        if class_.layout is None:
-            raise TypeError("class field access requires a resolved layout")
-        field = class_.layout.visible_field_slots.get(node.field_name)
-        if field is None:
-            field = class_.layout.field_slots.get(member.qualified_name)
-        if field is None:
-            raise TypeError(
-                "class field access requires a resolved storage slot"
-            )
+        field = self._resolve_class_field_slot(
+            class_,
+            member,
+            node.field_name,
+        )
         self._set_class(node, class_)
         self._set_class_field_access(
             node,

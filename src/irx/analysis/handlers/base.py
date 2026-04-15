@@ -26,6 +26,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedImportBinding,
     ResolvedMethodCall,
     ResolvedOperator,
+    ResolvedStaticClassFieldAccess,
     ReturnResolution,
     SemanticClass,
     SemanticFlags,
@@ -305,6 +306,21 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           field_access:
             type: ResolvedClassFieldAccess | None
+        """
+        raise NotImplementedError
+
+    def _set_static_class_field_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedStaticClassFieldAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved static class-field access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedStaticClassFieldAccess | None
         """
         raise NotImplementedError
 
@@ -869,6 +885,21 @@ class SemanticAnalyzerCore(BaseVisitor):
             type: ResolvedClassFieldAccess | None
         """
         self._semantic(node).resolved_class_field_access = field_access
+
+    def _set_static_class_field_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedStaticClassFieldAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved static class-field access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedStaticClassFieldAccess | None
+        """
+        self._semantic(node).resolved_static_class_field_access = field_access
 
     def _set_method_call(
         self,

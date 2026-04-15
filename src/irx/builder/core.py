@@ -1042,6 +1042,34 @@ class VisitorCore(BuilderVisitor):
             name=f"{resolved_field_access.field.name}_addr",
         )
 
+    def _static_class_field_address(
+        self,
+        node: astx.StaticFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one static class field access to a global address.
+        parameters:
+          node:
+            type: astx.StaticFieldAccess
+        returns:
+          type: ir.Value
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_static_field_access = getattr(
+            semantic,
+            "resolved_static_class_field_access",
+            None,
+        )
+        if resolved_static_field_access is None:
+            raise Exception("codegen: unresolved static class field access")
+        global_name = resolved_static_field_access.storage.global_name
+        global_value = self._llvm.module.globals.get(global_name)
+        if global_value is None:
+            raise Exception(
+                f"codegen: missing static class field global '{global_name}'"
+            )
+        return cast(ir.Value, global_value)
+
     def _bool_value_from_numeric(
         self,
         value: ir.Value,

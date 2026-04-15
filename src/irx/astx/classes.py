@@ -427,10 +427,71 @@ class StaticMethodCall(astx.DataType):
         )
 
 
+@typechecked
+class StaticFieldAccess(astx.DataType):
+    """
+    title: Class-scoped static field access expression.
+    attributes:
+      class_name:
+        type: str
+      field_name:
+        type: str
+      type_:
+        type: AnyType
+    """
+
+    class_name: str
+    field_name: str
+    type_: AnyType
+
+    def __init__(
+        self,
+        class_name: str,
+        field_name: str,
+    ) -> None:
+        """
+        title: Initialize one static field access expression.
+        parameters:
+          class_name:
+            type: str
+          field_name:
+            type: str
+        """
+        super().__init__()
+        self.class_name = class_name
+        self.field_name = field_name
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one static field access expression as text.
+        returns:
+          type: str
+        """
+        return f"StaticFieldAccess[{self.class_name}.{self.field_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for a static field access.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"STATIC-FIELD-ACCESS[{self.class_name}.{self.field_name}]"
+        return self._prepare_struct(
+            key,
+            f"{self.class_name}.{self.field_name}",
+            simplified,
+        )
+
+
 __all__ = [
     "ClassConstruct",
     "ClassDefStmt",
     "ClassType",
     "MethodCall",
+    "StaticFieldAccess",
     "StaticMethodCall",
 ]

@@ -17,6 +17,9 @@ from tests.conftest import make_module
 CLASS_HEADER_SLOT_COUNT = 2
 FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
 RENDER_OVERLOAD_COUNT = 2
+STATIC_LITERAL_VALUE = 7
+INHERITED_STATIC_VALUE = 11
+PROTECTED_STATIC_VALUE = 5
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -43,22 +46,41 @@ def _class_type(name: str) -> astx.ClassType:
     return astx.ClassType(name)
 
 
-def _attribute(name: str, type_: astx.DataType) -> astx.VariableDeclaration:
+def _attribute(
+    name: str,
+    type_: astx.DataType,
+    *,
+    visibility: astx.VisibilityKind = astx.VisibilityKind.public,
+    is_static: bool = False,
+    value: astx.AST | None = None,
+) -> astx.VariableDeclaration:
     """
-    title: Build one instance attribute declaration.
+    title: Build one class attribute declaration.
     parameters:
       name:
         type: str
       type_:
         type: astx.DataType
+      visibility:
+        type: astx.VisibilityKind
+      is_static:
+        type: bool
+      value:
+        type: astx.AST | None
     returns:
       type: astx.VariableDeclaration
     """
-    return astx.VariableDeclaration(
+    declaration = astx.VariableDeclaration(
         name=name,
         type_=type_,
         mutability=astx.MutabilityKind.mutable,
+        visibility=visibility,
+        scope=(astx.ScopeKind.global_ if is_static else astx.ScopeKind.local),
+        value=value if value is not None else astx.Undefined(),
     )
+    if is_static:
+        declaration.is_static = True
+    return declaration
 
 
 def _returning_method(
@@ -225,6 +247,200 @@ def test_analyze_self_field_access_uses_class_layout_slot() -> None:
     assert resolved_field is not None
     assert resolved_field.field.storage_index == FIRST_INSTANCE_STORAGE_INDEX
     assert resolved_field.member.name == "value"
+
+
+def test_analyze_static_field_access_uses_visible_static_storage() -> None:
+    """
+    title: Static field access resolves to analyzed static storage metadata.
+    """
+    access = astx.StaticFieldAccess("Counter", "instances")
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+
+    analyze(make_module("app.main", counter, _main_returning(access)))
+
+    resolved_class = _semantic(counter).resolved_class
+    resolved_access = _semantic(access).resolved_static_class_field_access
+    assert resolved_class is not None
+    assert resolved_class.layout is not None
+    assert resolved_access is not None
+    assert resolved_access.class_.name == "Counter"
+    assert (
+        resolved_access.storage.global_name
+        == resolved_class.layout.visible_static_storage[
+            "instances"
+        ].global_name
+    )
+    assert isinstance(_semantic(access).resolved_type, astx.Int32)
+
+
+def test_analyze_inherited_static_field_access_uses_selected_storage() -> None:
+    """
+    title: Inherited static field access reuses resolved ancestor storage.
+    """
+    access = astx.StaticFieldAccess("Child", "instances")
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(INHERITED_STATIC_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+
+    analyze(make_module("app.main", base, child, _main_returning(access)))
+
+    resolved_access = _semantic(access).resolved_static_class_field_access
+    assert resolved_access is not None
+    assert resolved_access.class_.name == "Child"
+    assert resolved_access.storage.owner_name == "Base"
+    assert resolved_access.member.owner_name == "Base"
+
+
+def test_analyze_allows_protected_static_field_access_from_subclass() -> None:
+    """
+    title: Protected static fields stay visible within subclass methods.
+    """
+    probe_access = astx.StaticFieldAccess("Child", "shared")
+    probe = _returning_method(
+        "probe",
+        probe_access,
+        is_static=True,
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "shared",
+                astx.Int32(),
+                visibility=astx.VisibilityKind.protected,
+                is_static=True,
+                value=astx.LiteralInt32(PROTECTED_STATIC_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[probe],
+    )
+
+    analyze(make_module("app.main", base, child))
+
+    resolved_access = cast(
+        SemanticInfo,
+        getattr(probe_access, "semantic"),
+    ).resolved_static_class_field_access
+    assert resolved_access is not None
+    assert resolved_access.member.owner_name == "Base"
+
+
+def test_analyze_rejects_private_static_base_field_access_from_subclass() -> (
+    None
+):
+    """
+    title: Subclasses cannot read inherited private static base fields.
+    """
+    probe_access = astx.StaticFieldAccess("Child", "secret")
+    probe = _returning_method(
+        "probe",
+        probe_access,
+        is_static=True,
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "secret",
+                astx.Int32(),
+                visibility=astx.VisibilityKind.private,
+                is_static=True,
+                value=astx.LiteralInt32(PROTECTED_STATIC_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[probe],
+    )
+
+    with pytest.raises(SemanticError, match="is not accessible"):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_instance_field_access_through_class_name() -> None:
+    """
+    title: Class-qualified instance attribute reads require a receiver.
+    """
+    access = astx.StaticFieldAccess("Counter", "value")
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[_attribute("value", astx.Int32())],
+    )
+
+    with pytest.raises(SemanticError, match="requires a receiver"):
+        analyze(make_module("app.main", counter, _main_returning(access)))
+
+
+def test_analyze_rejects_static_field_access_on_method_name() -> None:
+    """
+    title: Static field access rejects method members by attribute contract.
+    """
+    identity = _returning_method(
+        "identity",
+        astx.LiteralInt32(1),
+        is_static=True,
+    )
+    math = astx.ClassDefStmt(name="Math", methods=[identity])
+    access = astx.StaticFieldAccess("Math", "identity")
+
+    with pytest.raises(SemanticError, match="is not an attribute"):
+        analyze(make_module("app.main", math, _main_returning(access)))
+
+
+def test_analyze_rejects_static_field_access_through_instance_receiver() -> (
+    None
+):
+    """
+    title: Instance field syntax still rejects static attributes on receivers.
+    """
+    read_instances = astx.FieldAccess(astx.Identifier("self"), "instances")
+    read = _returning_method("read", read_instances)
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+        methods=[read],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="must be accessed through the class",
+    ):
+        analyze(make_module("app.main", counter))
 
 
 def test_analyze_resolves_exact_method_overloads() -> None:
