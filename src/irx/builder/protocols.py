@@ -160,6 +160,20 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _lvalue_address(
+        self,
+        _node: astx.AST,
+    ) -> ir.Value:
+        """
+        title: Lower one mutable lvalue target to an address.
+        parameters:
+          _node:
+            type: astx.AST
+        returns:
+          type: ir.Value
+        """
+        ...
+
     def _llvm_function_type_for_signature(
         self,
         _signature: FunctionSignature,
@@ -604,6 +618,20 @@ class VisitorMixinTypingBase:
         parameters:
           _node:
             type: astx.StaticFieldAccess
+        returns:
+          type: ir.Value
+        """
+        return cast(ir.Value, None)
+
+    def _lvalue_address(
+        self,
+        _node: astx.AST,
+    ) -> ir.Value:
+        """
+        title: Lower one mutable lvalue target to an address.
+        parameters:
+          _node:
+            type: astx.AST
         returns:
           type: ir.Value
         """

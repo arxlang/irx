@@ -13,6 +13,7 @@ from irx.analysis import analyze
 from irx.analysis.module_symbols import (
     mangle_class_dispatch_name,
     mangle_class_method_name,
+    mangle_class_static_name,
 )
 from irx.analysis.resolved_nodes import SemanticInfo
 from irx.builder import Builder as LLVMBuilder
@@ -30,6 +31,11 @@ FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
 BASE_METHOD_RESULT = 21
 CHILD_METHOD_RESULT = 34
 BASE_FIELD_VALUE = 13
+STATIC_LITERAL_VALUE = 7
+STATIC_ASSIGNED_VALUE = 19
+INSTANCE_ASSIGNED_VALUE = 23
+BASE_ASSIGNED_VALUE = 29
+INCREMENTED_STATIC_VALUE = 8
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -90,6 +96,8 @@ def _attribute(
     name: str,
     type_: astx.DataType,
     *,
+    mutability: astx.MutabilityKind = astx.MutabilityKind.mutable,
+    is_static: bool = False,
     value: astx.AST | None = None,
 ) -> astx.VariableDeclaration:
     """
@@ -99,17 +107,25 @@ def _attribute(
         type: str
       type_:
         type: astx.DataType
+      mutability:
+        type: astx.MutabilityKind
+      is_static:
+        type: bool
       value:
         type: astx.AST | None
     returns:
       type: astx.VariableDeclaration
     """
-    return astx.VariableDeclaration(
+    declaration = astx.VariableDeclaration(
         name=name,
         type_=type_,
-        mutability=astx.MutabilityKind.mutable,
+        mutability=mutability,
+        scope=(astx.ScopeKind.global_ if is_static else astx.ScopeKind.local),
         value=value if value is not None else astx.Undefined(),
     )
+    if is_static:
+        declaration.is_static = True
+    return declaration
 
 
 def _returning_method(
@@ -502,6 +518,241 @@ def test_base_field_access_reads_inherited_storage_from_receiver(
 
     assert '"value_addr" = getelementptr inbounds %"main__Child"' in ir_text
     assert_jit_int_main_result(builder, module, BASE_FIELD_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_static_field_assignment_updates_global_and_reads_back(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Static field assignment stores through the emitted global.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(BASE_FIELD_VALUE),
+            )
+        ],
+    )
+    static_name = mangle_class_static_name("main", "Counter", "instances")
+    main_fn = _main_int32(
+        astx.BinaryOp(
+            "=",
+            astx.StaticFieldAccess("Counter", "instances"),
+            astx.LiteralInt32(STATIC_ASSIGNED_VALUE),
+        ),
+        astx.FunctionReturn(astx.StaticFieldAccess("Counter", "instances")),
+    )
+    module = make_module("main", counter, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert (
+        f'store i32 {STATIC_ASSIGNED_VALUE}, i32* @"{static_name}"' in ir_text
+    )
+    assert_jit_int_main_result(builder, module, STATIC_ASSIGNED_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_inherited_static_field_assignment_reuses_base_global(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Derived static writes store through inherited base globals.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(BASE_FIELD_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    base_name = mangle_class_static_name("main", "Base", "instances")
+    child_name = mangle_class_static_name("main", "Child", "instances")
+    main_fn = _main_int32(
+        astx.BinaryOp(
+            "=",
+            astx.StaticFieldAccess("Child", "instances"),
+            astx.LiteralInt32(STATIC_ASSIGNED_VALUE),
+        ),
+        astx.FunctionReturn(astx.StaticFieldAccess("Child", "instances")),
+    )
+    module = make_module("main", base, child, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert child_name not in ir_text
+    assert f'store i32 {STATIC_ASSIGNED_VALUE}, i32* @"{base_name}"' in ir_text
+    assert_jit_int_main_result(builder, module, STATIC_ASSIGNED_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_instance_field_assignment_updates_value(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Instance field assignment stores through the receiver layout slot.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    body = astx.Block()
+    body.append(
+        astx.BinaryOp(
+            "=",
+            astx.FieldAccess(astx.Identifier("self"), "value"),
+            astx.LiteralInt32(INSTANCE_ASSIGNED_VALUE),
+        )
+    )
+    body.append(
+        astx.FunctionReturn(astx.FieldAccess(astx.Identifier("self"), "value"))
+    )
+    write = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="write",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=body,
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[_attribute("value", astx.Int32())],
+        methods=[write],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.ClassConstruct("Counter"), "write", [])
+        ),
+    )
+    module = make_module("main", counter, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert (
+        f'store i32 {INSTANCE_ASSIGNED_VALUE}, i32* %"value_addr"' in ir_text
+    )
+    assert_jit_int_main_result(builder, module, INSTANCE_ASSIGNED_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_base_field_assignment_updates_shared_receiver_storage(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Base-qualified writes update the receiver's flattened storage.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    body = astx.Block()
+    body.append(
+        astx.BinaryOp(
+            "=",
+            astx.BaseFieldAccess(astx.Identifier("self"), "Base", "value"),
+            astx.LiteralInt32(BASE_ASSIGNED_VALUE),
+        )
+    )
+    body.append(
+        astx.FunctionReturn(astx.FieldAccess(astx.Identifier("self"), "value"))
+    )
+    write = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="write",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=body,
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[_attribute("value", astx.Int32())],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[write],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.ClassConstruct("Child"), "write", [])
+        ),
+    )
+    module = make_module("main", base, child, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert f'store i32 {BASE_ASSIGNED_VALUE}, i32* %"value_addr"' in ir_text
+    assert_jit_int_main_result(builder, module, BASE_ASSIGNED_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_static_field_increment_updates_global(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Unary mutation stores the updated value back to static globals.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+    main_fn = _main_int32(
+        astx.UnaryOp(
+            op_code="++",
+            operand=astx.StaticFieldAccess("Counter", "instances"),
+        ),
+        astx.FunctionReturn(astx.StaticFieldAccess("Counter", "instances")),
+    )
+    module = make_module("main", counter, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert "add i32" in ir_text
+    assert_jit_int_main_result(builder, module, INCREMENTED_STATIC_VALUE)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])

@@ -1113,6 +1113,32 @@ class VisitorCore(BuilderVisitor):
             )
         return cast(ir.Value, global_value)
 
+    def _lvalue_address(
+        self,
+        node: astx.AST,
+    ) -> ir.Value:
+        """
+        title: Lower one mutable lvalue target to an address.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ir.Value
+        """
+        if isinstance(node, astx.Identifier):
+            symbol_key = semantic_symbol_key(node, node.name)
+            address = self.named_values.get(symbol_key)
+            if address is None:
+                raise Exception(f"Unknown variable name: {node.name}")
+            return address
+        if isinstance(node, astx.FieldAccess):
+            return self._field_address(node)
+        if isinstance(node, astx.BaseFieldAccess):
+            return self._base_class_field_address(node)
+        if isinstance(node, astx.StaticFieldAccess):
+            return self._static_class_field_address(node)
+        raise Exception("codegen: invalid mutable target")
+
     def _bool_value_from_numeric(
         self,
         value: ir.Value,
