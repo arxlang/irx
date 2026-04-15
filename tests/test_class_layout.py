@@ -11,6 +11,7 @@ import pytest
 
 from irx import astx
 from irx.analysis.module_symbols import (
+    mangle_class_descriptor_name,
     mangle_class_name,
     mangle_class_static_name,
 )
@@ -189,6 +190,37 @@ def test_class_definition_emits_header_and_instance_layout(
     llvm_name = mangle_class_name("main", "Vector")
 
     assert f'%"{llvm_name}" = type {{i8*, i8*, i32, i1}}' in ir_text
+    assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_class_construction_initializes_descriptor_header(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Class construction stores the per-class descriptor pointer.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    node = astx.ClassDefStmt(name="Vector")
+    main_fn = _main_int32(
+        _mutable_var(
+            "value",
+            _class_type("Vector"),
+            astx.ClassConstruct("Vector"),
+        ),
+    )
+    module = make_module("main", node, main_fn)
+
+    ir_text = builder.translate(module)
+    descriptor_name = mangle_class_descriptor_name("main", "Vector")
+
+    assert f'@"{descriptor_name}" = internal constant i8 0' in ir_text
+    assert (
+        f'store i8* @"{descriptor_name}", i8** %"Vector_descriptor_addr"'
+    ) in ir_text
     assert_ir_parses(ir_text)
 
 

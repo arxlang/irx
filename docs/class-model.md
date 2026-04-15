@@ -53,6 +53,26 @@ IRx supports multiple inheritance with deterministic C3 linearization.
 - non-private overridable instance methods use stable dispatch slots
 - static methods lower to direct calls with no hidden receiver
 
+## Multidispatch Status
+
+IRx now supports class-method multidispatch in two layers.
+
+- overload families are still grouped by method name plus exact parameter types
+- semantic analysis still requires one exact visible anchor overload from the
+  statically known receiver and explicit argument types
+- when a reachable overload family varies only by class-typed explicit
+  parameters and keeps one shared return type, IRx emits runtime multimethod
+  dispatchers that refine the final choice from dynamic receiver and argument
+  descriptors
+- runtime multimethod dispatch applies to `MethodCall`, `BaseMethodCall`, and
+  `StaticMethodCall`
+- incomparable runtime candidates whose dynamic class domains overlap are
+  rejected semantically as ambiguous
+- IRx still does not rank implicit numeric promotions or class-hierarchy
+  conversions to pick a best compile-time overload
+- the multidispatch layer still applies only to class methods; plain free
+  functions do not yet expose the same overload-family model
+
 ## Static Members, Constants, And Mutability
 
 - `StaticFieldAccess("Name", "field")` is the class-qualified read/write form

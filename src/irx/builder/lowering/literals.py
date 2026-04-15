@@ -179,7 +179,21 @@ class LiteralVisitorMixin(VisitorMixinBase):
                 self._llvm.OPAQUE_POINTER_TYPE,
                 None,
             )
-            if (
+            if header.kind is ClassHeaderFieldKind.TYPE_DESCRIPTOR:
+                descriptor_global = self._llvm.module.globals.get(
+                    layout.descriptor_global_name
+                )
+                if descriptor_global is None:
+                    raise_lowering_internal_error(
+                        "class construction is missing descriptor metadata",
+                        node=node,
+                    )
+                header_value = self._llvm.ir_builder.bitcast(
+                    descriptor_global,
+                    self._llvm.OPAQUE_POINTER_TYPE,
+                    name=f"{class_.name}_{header.name}_init",
+                )
+            elif (
                 header.kind is ClassHeaderFieldKind.DISPATCH_TABLE
                 and layout.dispatch_table_size > 0
             ):

@@ -36,6 +36,9 @@ STATIC_ASSIGNED_VALUE = 19
 INSTANCE_ASSIGNED_VALUE = 23
 BASE_ASSIGNED_VALUE = 29
 INCREMENTED_STATIC_VALUE = 8
+RUNTIME_BASE_OVERLOAD_RESULT = 41
+RUNTIME_CHILD_OVERLOAD_RESULT = 52
+RUNTIME_RECEIVER_OVERLOAD_RESULT = 63
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -305,6 +308,237 @@ def test_static_method_call_lowers_to_direct_call_without_receiver(
     assert f'define i32 @"{method_name}"(i32 %"value")' in ir_text
     assert f'call i32 @"{method_name}"(i32 4)' in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_runtime_multimethod_dispatch_uses_dynamic_argument_class(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Base-typed arguments dispatch to the most specific runtime overload.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    value_base = astx.ClassDefStmt(name="Value")
+    value_child = astx.ClassDefStmt(
+        name="ChildValue",
+        bases=[_class_type("Value")],
+    )
+    renderer = astx.ClassDefStmt(
+        name="Renderer",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_BASE_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("Value")),
+            ),
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_CHILD_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("ChildValue")),
+            ),
+        ],
+    )
+    dispatch = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="dispatch",
+            args=astx.Arguments(astx.Argument("value", _class_type("Value"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(
+                astx.ClassConstruct("Renderer"),
+                "render",
+                [astx.Identifier("value")],
+            )
+        ),
+    )
+    module = make_module(
+        "main",
+        value_base,
+        value_child,
+        renderer,
+        dispatch,
+        _main_int32(
+            astx.FunctionReturn(
+                astx.FunctionCall(
+                    "dispatch",
+                    [astx.ClassConstruct("ChildValue")],
+                )
+            )
+        ),
+    )
+
+    ir_text = builder.translate(module)
+
+    assert "multimethod" in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(
+        builder,
+        module,
+        RUNTIME_CHILD_OVERLOAD_RESULT,
+    )
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_runtime_multimethod_dispatch_uses_dynamic_receiver_and_arg(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Receiver branches can refine overload choice at runtime too.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    value_base = astx.ClassDefStmt(name="Value")
+    value_child = astx.ClassDefStmt(
+        name="ChildValue",
+        bases=[_class_type("Value")],
+    )
+    base_renderer = astx.ClassDefStmt(
+        name="BaseRenderer",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_BASE_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("Value")),
+            )
+        ],
+    )
+    child_renderer = astx.ClassDefStmt(
+        name="ChildRenderer",
+        bases=[_class_type("BaseRenderer")],
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_RECEIVER_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("ChildValue")),
+            )
+        ],
+    )
+    measure = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(
+                astx.Argument("renderer", _class_type("BaseRenderer")),
+                astx.Argument("value", _class_type("Value")),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(
+                astx.Identifier("renderer"),
+                "render",
+                [astx.Identifier("value")],
+            )
+        ),
+    )
+    module = make_module(
+        "main",
+        value_base,
+        value_child,
+        base_renderer,
+        child_renderer,
+        measure,
+        _main_int32(
+            astx.FunctionReturn(
+                astx.FunctionCall(
+                    "measure",
+                    [
+                        astx.ClassConstruct("ChildRenderer"),
+                        astx.ClassConstruct("ChildValue"),
+                    ],
+                )
+            )
+        ),
+    )
+
+    ir_text = builder.translate(module)
+
+    assert "receiver_case_" in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(
+        builder,
+        module,
+        RUNTIME_RECEIVER_OVERLOAD_RESULT,
+    )
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_runtime_multimethod_dispatch_uses_dynamic_static_args(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Static method overload families dispatch on runtime class args.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    value_base = astx.ClassDefStmt(name="Value")
+    value_child = astx.ClassDefStmt(
+        name="ChildValue",
+        bases=[_class_type("Value")],
+    )
+    renderer = astx.ClassDefStmt(
+        name="Renderer",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_BASE_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("Value")),
+                is_static=True,
+            ),
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_CHILD_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("ChildValue")),
+                is_static=True,
+            ),
+        ],
+    )
+    dispatch = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="dispatch",
+            args=astx.Arguments(astx.Argument("value", _class_type("Value"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.StaticMethodCall(
+                "Renderer",
+                "render",
+                [astx.Identifier("value")],
+            )
+        ),
+    )
+    module = make_module(
+        "main",
+        value_base,
+        value_child,
+        renderer,
+        dispatch,
+        _main_int32(
+            astx.FunctionReturn(
+                astx.FunctionCall(
+                    "dispatch",
+                    [astx.ClassConstruct("ChildValue")],
+                )
+            )
+        ),
+    )
+
+    ir_text = builder.translate(module)
+
+    assert "multimethod" in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(
+        builder,
+        module,
+        RUNTIME_CHILD_OVERLOAD_RESULT,
+    )
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])

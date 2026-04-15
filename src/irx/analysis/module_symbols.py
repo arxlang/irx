@@ -370,6 +370,37 @@ def mangle_class_method_name(
 
 @public
 @typechecked
+def mangle_class_multimethod_name(
+    module_key: ModuleKey,
+    class_name: str,
+    method_name: str,
+    dispatch_key: str,
+) -> str:
+    """
+    title: Return a deterministic LLVM multimethod dispatcher name.
+    parameters:
+      module_key:
+        type: ModuleKey
+      class_name:
+        type: str
+      method_name:
+        type: str
+      dispatch_key:
+        type: str
+    returns:
+      type: str
+    """
+    return _mangle_parts(
+        str(module_key),
+        class_name,
+        method_name,
+        "multimethod",
+        dispatch_key,
+    )
+
+
+@public
+@typechecked
 def mangle_class_descriptor_name(
     module_key: ModuleKey,
     class_name: str,

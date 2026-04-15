@@ -53,6 +53,8 @@ structs.
 - `public` / `protected` / `private`
 - `static` / `constant` / `mutable`
 - deterministic flattened object layout and dispatch metadata
+- exact-signature class-method overload families, plus runtime multimethod
+  dispatch for compatible class-typed argument families
 - explicit `ClassConstruct`, `StaticFieldAccess`, `BaseFieldAccess`, and
   `BaseMethodCall` forms
 

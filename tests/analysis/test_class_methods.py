@@ -27,6 +27,9 @@ STATIC_ASSIGNED_VALUE = 19
 INSTANCE_ASSIGNED_VALUE = 23
 BASE_ASSIGNED_VALUE = 29
 INCREMENTED_STATIC_VALUE = 8
+RUNTIME_BASE_OVERLOAD_RESULT = 41
+RUNTIME_CHILD_OVERLOAD_RESULT = 52
+RUNTIME_RECEIVER_OVERLOAD_RESULT = 63
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -893,6 +896,150 @@ def test_analyze_resolves_exact_method_overloads() -> None:
     assert int_call.member.owner_name == "Base"
     assert float_call.member.owner_name == "Child"
     assert int_call.overload_key != float_call.overload_key
+
+
+def test_analyze_marks_runtime_multimethod_dispatch_for_class_args() -> None:
+    """
+    title: Base-typed class arguments can trigger runtime multimethod dispatch.
+    """
+    value_base = astx.ClassDefStmt(name="Value")
+    value_child = astx.ClassDefStmt(
+        name="ChildValue",
+        bases=[_class_type("Value")],
+    )
+    renderer = astx.ClassDefStmt(
+        name="Renderer",
+        methods=[
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_BASE_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("Value")),
+            ),
+            _returning_method(
+                "render",
+                astx.LiteralInt32(RUNTIME_CHILD_OVERLOAD_RESULT),
+                astx.Argument("value", _class_type("ChildValue")),
+            ),
+        ],
+    )
+    call = astx.MethodCall(
+        astx.Identifier("renderer"),
+        "render",
+        [astx.Identifier("value")],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(
+                astx.Argument("renderer", _class_type("Renderer")),
+                astx.Argument("value", _class_type("Value")),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(call),
+    )
+
+    analyze(
+        make_module(
+            "app.main",
+            value_base,
+            value_child,
+            renderer,
+            probe,
+        )
+    )
+
+    resolved_call = _semantic(call).resolved_method_call
+    assert resolved_call is not None
+    assert resolved_call.dispatch_kind is MethodDispatchKind.MULTIMETHOD
+    assert len(resolved_call.runtime_cases) == 1
+    case = resolved_call.runtime_cases[0]
+    assert case.receiver_class is not None
+    assert case.receiver_class.name == "Renderer"
+    assert [candidate.member.owner_name for candidate in case.candidates] == [
+        "Renderer",
+        "Renderer",
+    ]
+    assert case.candidates[0].member.signature is not None
+    assert case.candidates[1].member.signature is not None
+    first_type = case.candidates[0].member.signature.parameters[0].type_
+    second_type = case.candidates[1].member.signature.parameters[0].type_
+    assert isinstance(first_type, astx.ClassType)
+    assert isinstance(second_type, astx.ClassType)
+    assert first_type.name == "ChildValue"
+    assert second_type.name == "Value"
+
+
+def test_analyze_rejects_ambiguous_runtime_multimethod_dispatch() -> None:
+    """
+    title: Incomparable runtime multimethod candidates are rejected.
+    """
+    value_base = astx.ClassDefStmt(name="Value")
+    left = astx.ClassDefStmt(
+        name="LeftValue",
+        bases=[_class_type("Value")],
+    )
+    right = astx.ClassDefStmt(
+        name="RightValue",
+        bases=[_class_type("Value")],
+    )
+    both = astx.ClassDefStmt(
+        name="BothValue",
+        bases=[_class_type("LeftValue"), _class_type("RightValue")],
+    )
+    dispatcher = astx.ClassDefStmt(
+        name="Dispatcher",
+        methods=[
+            _returning_method(
+                "merge",
+                astx.LiteralInt32(0),
+                astx.Argument("lhs", _class_type("Value")),
+                astx.Argument("rhs", _class_type("Value")),
+            ),
+            _returning_method(
+                "merge",
+                astx.LiteralInt32(1),
+                astx.Argument("lhs", _class_type("LeftValue")),
+                astx.Argument("rhs", _class_type("RightValue")),
+            ),
+            _returning_method(
+                "merge",
+                astx.LiteralInt32(2),
+                astx.Argument("lhs", _class_type("RightValue")),
+                astx.Argument("rhs", _class_type("LeftValue")),
+            ),
+        ],
+    )
+    call = astx.MethodCall(
+        astx.Identifier("dispatch"),
+        "merge",
+        [astx.Identifier("lhs"), astx.Identifier("rhs")],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(
+                astx.Argument("dispatch", _class_type("Dispatcher")),
+                astx.Argument("lhs", _class_type("Value")),
+                astx.Argument("rhs", _class_type("Value")),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(call),
+    )
+
+    with pytest.raises(SemanticError, match="runtime multimethod dispatch"):
+        analyze(
+            make_module(
+                "app.main",
+                value_base,
+                left,
+                right,
+                both,
+                dispatcher,
+                probe,
+            )
+        )
 
 
 def test_analyze_rejects_conversion_ranked_method_overloads() -> None:

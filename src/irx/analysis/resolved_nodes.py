@@ -454,12 +454,13 @@ class MethodDispatchKind(str, Enum):
     """
     title: Stable method-dispatch categories.
     summary: >-
-      Distinguish direct method calls from dispatch-table-driven instance
-      calls.
+      Distinguish direct method calls, receiver-slot dispatch, and runtime
+      multimethod dispatch that also considers dynamic class arguments.
     """
 
     DIRECT = "direct"
     INDIRECT = "indirect"
+    MULTIMETHOD = "multimethod"
 
 
 @public
@@ -1250,12 +1251,60 @@ class ResolvedClassConstruction:
 @public
 @typechecked
 @dataclass(frozen=True)
+class ResolvedMethodRuntimeCandidate:
+    """
+    title: One ordered runtime multimethod candidate.
+    summary: >-
+      Record one lowered method implementation together with the dynamic class
+      descriptors that make it applicable at one multimethod call site.
+    attributes:
+      member:
+        type: SemanticClassMember
+      function:
+        type: SemanticFunction
+      allowed_argument_classes:
+        type: tuple[tuple[SemanticClass, Ellipsis] | None, Ellipsis]
+    """
+
+    member: SemanticClassMember
+    function: SemanticFunction
+    allowed_argument_classes: tuple[
+        tuple[SemanticClass, ...] | None,
+        ...,
+    ] = ()
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedMethodRuntimeCase:
+    """
+    title: One runtime multimethod receiver case.
+    summary: >-
+      Group the ordered overload candidates that apply when one method call
+      sees a particular dynamic receiver class, or no dynamic receiver class
+      for static/base-qualified dispatch.
+    attributes:
+      receiver_class:
+        type: SemanticClass | None
+      candidates:
+        type: tuple[ResolvedMethodRuntimeCandidate, Ellipsis]
+    """
+
+    receiver_class: SemanticClass | None
+    candidates: tuple[ResolvedMethodRuntimeCandidate, ...] = ()
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class ResolvedMethodCall:
     """
     title: Resolved class method call metadata.
     summary: >-
       Capture the resolved class member, lowered implementation, dispatch mode,
-      and validated argument conversions for one method call site.
+      validated argument conversions, and any runtime multimethod cases for one
+      method call site.
     attributes:
       class_:
         type: SemanticClass
@@ -1277,6 +1326,10 @@ class ResolvedMethodCall:
         type: SemanticClass | None
       slot_index:
         type: int | None
+      runtime_cases:
+        type: tuple[ResolvedMethodRuntimeCase, Ellipsis]
+      dispatcher_symbol_name:
+        type: str | None
     """
 
     class_: SemanticClass
@@ -1289,6 +1342,8 @@ class ResolvedMethodCall:
     receiver_type: astx.DataType | None = None
     receiver_class: SemanticClass | None = None
     slot_index: int | None = None
+    runtime_cases: tuple[ResolvedMethodRuntimeCase, ...] = ()
+    dispatcher_symbol_name: str | None = None
 
 
 @public

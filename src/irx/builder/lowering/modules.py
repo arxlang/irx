@@ -249,6 +249,22 @@ class ModuleVisitorMixin(VisitorMixinBase):
             global_var.global_constant = storage.member.is_constant
             global_var.initializer = initializer
 
+        descriptor_global = self._llvm.module.globals.get(
+            layout.descriptor_global_name
+        )
+        if descriptor_global is None:
+            descriptor_global = ir.GlobalVariable(
+                self._llvm.module,
+                self._llvm.INT8_TYPE,
+                name=layout.descriptor_global_name,
+            )
+        descriptor_global.linkage = "internal"
+        descriptor_global.global_constant = True
+        descriptor_global.initializer = ir.Constant(
+            self._llvm.INT8_TYPE,
+            0,
+        )
+
         dispatch_table = self._dispatch_table_initializer(node)
         if dispatch_table is not None:
             dispatch_type, dispatch_initializer = dispatch_table

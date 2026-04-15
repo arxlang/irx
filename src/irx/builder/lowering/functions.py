@@ -16,6 +16,8 @@ from irx.analysis.resolved_nodes import (
     FunctionSignature,
     MethodDispatchKind,
     ResolvedMethodCall,
+    ResolvedMethodRuntimeCandidate,
+    ResolvedMethodRuntimeCase,
     ReturnResolution,
     SemanticFunction,
 )
@@ -253,6 +255,365 @@ class FunctionVisitorMixin(VisitorMixinBase):
             name=f"{method_resolution.member.name}_callee",
         )
 
+    def _multimethod_dispatcher_name(
+        self,
+        method_resolution: ResolvedMethodCall,
+    ) -> str:
+        """
+        title: Return one emitted multimethod dispatcher name.
+        parameters:
+          method_resolution:
+            type: ResolvedMethodCall
+        returns:
+          type: str
+        """
+        if method_resolution.dispatcher_symbol_name is None:
+            raise_lowering_internal_error(
+                "multimethod call is missing dispatcher metadata",
+                node=None,
+            )
+        return method_resolution.dispatcher_symbol_name
+
+    def _multimethod_signature_source_types(
+        self,
+        node: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall,
+        method_resolution: ResolvedMethodCall,
+    ) -> tuple[astx.DataType | None, list[astx.DataType | None]]:
+        """
+        title: Return dispatcher source types for one multimethod call.
+        parameters:
+          node:
+            type: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall
+          method_resolution:
+            type: ResolvedMethodCall
+        returns:
+          type: tuple[astx.DataType | None, list[astx.DataType | None]]
+        """
+        parameters = list(method_resolution.function.signature.parameters)
+        if isinstance(node, astx.StaticMethodCall):
+            return None, [parameter.type_ for parameter in parameters]
+        if not parameters:
+            raise_lowering_internal_error(
+                "multimethod receiver signature metadata is missing",
+                node=node,
+            )
+        return parameters[0].type_, [
+            parameter.type_ for parameter in parameters[1:]
+        ]
+
+    def _emit_multimethod_candidate_return(
+        self,
+        *,
+        node: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall,
+        candidate: ResolvedMethodRuntimeCandidate,
+        receiver_value: ir.Value | None,
+        receiver_source_type: astx.DataType | None,
+        explicit_args: list[ir.Value],
+        explicit_source_types: list[astx.DataType | None],
+    ) -> None:
+        """
+        title: Emit one runtime multimethod candidate call and return.
+        parameters:
+          node:
+            type: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall
+          candidate:
+            type: ResolvedMethodRuntimeCandidate
+          receiver_value:
+            type: ir.Value | None
+          receiver_source_type:
+            type: astx.DataType | None
+          explicit_args:
+            type: list[ir.Value]
+          explicit_source_types:
+            type: list[astx.DataType | None]
+        """
+        callee = self._declare_semantic_function(candidate.function)
+        signature = candidate.function.signature
+        llvm_args: list[ir.Value] = []
+        parameter_offset = 0
+        if receiver_value is not None:
+            if not signature.parameters:
+                raise_lowering_internal_error(
+                    "runtime multimethod candidate is missing self metadata",
+                    node=node,
+                )
+            llvm_args.append(
+                self._cast_ast_value(
+                    receiver_value,
+                    source_type=receiver_source_type,
+                    target_type=signature.parameters[0].type_,
+                )
+            )
+            parameter_offset = 1
+        for index, explicit_arg in enumerate(explicit_args):
+            parameter_index = parameter_offset + index
+            if parameter_index >= len(signature.parameters):
+                raise_lowering_internal_error(
+                    "runtime multimethod candidate arity is invalid",
+                    node=node,
+                )
+            llvm_args.append(
+                self._cast_ast_value(
+                    explicit_arg,
+                    source_type=explicit_source_types[index],
+                    target_type=signature.parameters[parameter_index].type_,
+                )
+            )
+        self._apply_calling_convention(signature)
+        if isinstance(signature.return_type, astx.NoneType):
+            self._llvm.ir_builder.call(callee, llvm_args)
+            self._llvm.ir_builder.ret_void()
+            return
+        result = self._llvm.ir_builder.call(callee, llvm_args, "calltmp")
+        self._llvm.ir_builder.ret(result)
+
+    def _emit_multimethod_candidate_chain(
+        self,
+        *,
+        node: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall,
+        dispatcher: ir.Function,
+        case: ResolvedMethodRuntimeCase,
+        receiver_value: ir.Value | None,
+        receiver_source_type: astx.DataType | None,
+        explicit_args: list[ir.Value],
+        explicit_source_types: list[astx.DataType | None],
+        label_prefix: str,
+    ) -> None:
+        """
+        title: Emit one ordered runtime multimethod candidate chain.
+        parameters:
+          node:
+            type: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall
+          dispatcher:
+            type: ir.Function
+          case:
+            type: ResolvedMethodRuntimeCase
+          receiver_value:
+            type: ir.Value | None
+          receiver_source_type:
+            type: astx.DataType | None
+          explicit_args:
+            type: list[ir.Value]
+          explicit_source_types:
+            type: list[astx.DataType | None]
+          label_prefix:
+            type: str
+        """
+        argument_descriptors: list[ir.Value | None] = []
+        for index, source_type in enumerate(explicit_source_types):
+            if isinstance(source_type, astx.ClassType):
+                argument_descriptors.append(
+                    self._class_descriptor_from_value(
+                        explicit_args[index],
+                        value_type=source_type,
+                        name_hint=f"{label_prefix}_arg{index}",
+                    )
+                )
+            else:
+                argument_descriptors.append(None)
+
+        for index, candidate in enumerate(case.candidates):
+            next_block = dispatcher.append_basic_block(
+                f"{label_prefix}_next_{index}"
+            )
+            match_block = dispatcher.append_basic_block(
+                f"{label_prefix}_match_{index}"
+            )
+            condition: ir.Value | None = None
+            for arg_index, allowed_classes in enumerate(
+                candidate.allowed_argument_classes
+            ):
+                if allowed_classes is None:
+                    continue
+                descriptor = argument_descriptors[arg_index]
+                if descriptor is None:
+                    raise_lowering_internal_error(
+                        (
+                            "runtime multimethod is missing argument "
+                            "descriptor metadata"
+                        ),
+                        node=node,
+                    )
+                allowed_condition: ir.Value | None = None
+                for allowed_class in allowed_classes:
+                    equality = self._llvm.ir_builder.icmp_unsigned(
+                        "==",
+                        descriptor,
+                        self._class_descriptor_global(allowed_class),
+                        name=(
+                            f"{label_prefix}_{candidate.member.name}"
+                            f"_arg{arg_index}_{allowed_class.name}"
+                        ),
+                    )
+                    if allowed_condition is None:
+                        allowed_condition = equality
+                    else:
+                        allowed_condition = self._llvm.ir_builder.or_(
+                            allowed_condition,
+                            equality,
+                            name=(
+                                f"{label_prefix}_{candidate.member.name}"
+                                f"_arg{arg_index}_allowed"
+                            ),
+                        )
+                if allowed_condition is None:
+                    raise_lowering_internal_error(
+                        (
+                            "runtime multimethod candidate produced "
+                            "no descriptor checks"
+                        ),
+                        node=node,
+                    )
+                if condition is None:
+                    condition = allowed_condition
+                else:
+                    condition = self._llvm.ir_builder.and_(
+                        condition,
+                        allowed_condition,
+                        name=(f"{label_prefix}_{candidate.member.name}_match"),
+                    )
+            if condition is None:
+                self._emit_multimethod_candidate_return(
+                    node=node,
+                    candidate=candidate,
+                    receiver_value=receiver_value,
+                    receiver_source_type=receiver_source_type,
+                    explicit_args=explicit_args,
+                    explicit_source_types=explicit_source_types,
+                )
+                return
+            self._llvm.ir_builder.cbranch(condition, match_block, next_block)
+            self._llvm.ir_builder = ir.IRBuilder(match_block)
+            self._emit_multimethod_candidate_return(
+                node=node,
+                candidate=candidate,
+                receiver_value=receiver_value,
+                receiver_source_type=receiver_source_type,
+                explicit_args=explicit_args,
+                explicit_source_types=explicit_source_types,
+            )
+            self._llvm.ir_builder = ir.IRBuilder(next_block)
+        self._llvm.ir_builder.unreachable()
+
+    def _declare_multimethod_dispatcher(
+        self,
+        *,
+        node: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall,
+        method_resolution: ResolvedMethodCall,
+    ) -> ir.Function:
+        """
+        title: Declare or emit one runtime multimethod dispatcher.
+        parameters:
+          node:
+            type: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall
+          method_resolution:
+            type: ResolvedMethodCall
+        returns:
+          type: ir.Function
+        """
+        dispatcher_name = self._multimethod_dispatcher_name(method_resolution)
+        existing = self._llvm.module.globals.get(dispatcher_name)
+        if existing is not None:
+            return cast(ir.Function, existing)
+        dispatcher_type = self._llvm_function_type_for_signature(
+            method_resolution.function.signature
+        )
+        dispatcher = ir.Function(
+            self._llvm.module,
+            dispatcher_type,
+            name=dispatcher_name,
+        )
+        dispatcher.linkage = "internal"
+        entry = dispatcher.append_basic_block("entry")
+        previous_builder = self._llvm.ir_builder
+        self._llvm.ir_builder = ir.IRBuilder(entry)
+        try:
+            receiver_source_type, explicit_source_types = (
+                self._multimethod_signature_source_types(
+                    node,
+                    method_resolution,
+                )
+            )
+            receiver_value: ir.Value | None = None
+            explicit_args: list[ir.Value] = []
+            if isinstance(node, astx.StaticMethodCall):
+                explicit_args = list(dispatcher.args)
+            else:
+                receiver_value = dispatcher.args[0]
+                explicit_args = list(dispatcher.args[1:])
+            runtime_cases = method_resolution.runtime_cases
+            if not runtime_cases:
+                raise_lowering_internal_error(
+                    "multimethod call is missing runtime cases",
+                    node=node,
+                )
+            if isinstance(node, astx.MethodCall):
+                receiver_descriptor = self._class_descriptor_from_value(
+                    receiver_value,
+                    value_type=receiver_source_type,
+                    name_hint=f"{method_resolution.member.name}_receiver",
+                )
+                fallthrough = dispatcher.append_basic_block("receiver_fail")
+                for index, case in enumerate(runtime_cases):
+                    if case.receiver_class is None:
+                        raise_lowering_internal_error(
+                            (
+                                "instance multimethod is missing "
+                                "receiver case metadata"
+                            ),
+                            node=node,
+                        )
+                    match_block = dispatcher.append_basic_block(
+                        f"receiver_case_{index}"
+                    )
+                    next_block = (
+                        fallthrough
+                        if index == len(runtime_cases) - 1
+                        else dispatcher.append_basic_block(
+                            f"receiver_case_next_{index}"
+                        )
+                    )
+                    matches_receiver = self._llvm.ir_builder.icmp_unsigned(
+                        "==",
+                        receiver_descriptor,
+                        self._class_descriptor_global(case.receiver_class),
+                        name=f"receiver_case_{index}_match",
+                    )
+                    self._llvm.ir_builder.cbranch(
+                        matches_receiver,
+                        match_block,
+                        next_block,
+                    )
+                    self._llvm.ir_builder = ir.IRBuilder(match_block)
+                    self._emit_multimethod_candidate_chain(
+                        node=node,
+                        dispatcher=dispatcher,
+                        case=case,
+                        receiver_value=receiver_value,
+                        receiver_source_type=receiver_source_type,
+                        explicit_args=explicit_args,
+                        explicit_source_types=explicit_source_types,
+                        label_prefix=f"receiver_case_{index}",
+                    )
+                    if next_block is not fallthrough:
+                        self._llvm.ir_builder = ir.IRBuilder(next_block)
+                self._llvm.ir_builder = ir.IRBuilder(fallthrough)
+                self._llvm.ir_builder.unreachable()
+            else:
+                self._emit_multimethod_candidate_chain(
+                    node=node,
+                    dispatcher=dispatcher,
+                    case=runtime_cases[0],
+                    receiver_value=receiver_value,
+                    receiver_source_type=receiver_source_type,
+                    explicit_args=explicit_args,
+                    explicit_source_types=explicit_source_types,
+                    label_prefix=f"{method_resolution.member.name}_dispatch",
+                )
+        finally:
+            self._llvm.ir_builder = previous_builder
+        return dispatcher
+
     def _semantic_return_resolution(
         self,
         node: astx.FunctionReturn,
@@ -483,7 +844,12 @@ class FunctionVisitorMixin(VisitorMixinBase):
         )
         lowered_args = [lowered_receiver, *llvm_args]
         callee: ir.Value
-        if method_resolution.dispatch_kind is MethodDispatchKind.INDIRECT:
+        if method_resolution.dispatch_kind is MethodDispatchKind.MULTIMETHOD:
+            callee = self._declare_multimethod_dispatcher(
+                node=node,
+                method_resolution=method_resolution,
+            )
+        elif method_resolution.dispatch_kind is MethodDispatchKind.INDIRECT:
             callee = self._indirect_method_callee(
                 node=node,
                 method_resolution=method_resolution,
@@ -540,7 +906,15 @@ class FunctionVisitorMixin(VisitorMixinBase):
             target_type=receiver_parameter_type,
         )
         lowered_args = [lowered_receiver, *llvm_args]
-        callee = self._declare_semantic_function(method_resolution.function)
+        if method_resolution.dispatch_kind is MethodDispatchKind.MULTIMETHOD:
+            callee = self._declare_multimethod_dispatcher(
+                node=node,
+                method_resolution=method_resolution,
+            )
+        else:
+            callee = self._declare_semantic_function(
+                method_resolution.function
+            )
         self._apply_calling_convention(method_resolution.function.signature)
         if isinstance(
             method_resolution.function.signature.return_type,
@@ -560,7 +934,15 @@ class FunctionVisitorMixin(VisitorMixinBase):
             type: astx.StaticMethodCall
         """
         method_resolution = self._semantic_method_call(node)
-        callee = self._declare_semantic_function(method_resolution.function)
+        if method_resolution.dispatch_kind is MethodDispatchKind.MULTIMETHOD:
+            callee = self._declare_multimethod_dispatcher(
+                node=node,
+                method_resolution=method_resolution,
+            )
+        else:
+            callee = self._declare_semantic_function(
+                method_resolution.function
+            )
         llvm_args = self._lower_explicit_call_arguments(
             args=list(node.args),
             resolution=method_resolution.call,

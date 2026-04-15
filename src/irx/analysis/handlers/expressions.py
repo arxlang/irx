@@ -16,6 +16,7 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.analysis.module_symbols import mangle_class_multimethod_name
 from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
     ClassMemberKind,
@@ -25,6 +26,8 @@ from irx.analysis.resolved_nodes import (
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedMethodCall,
+    ResolvedMethodRuntimeCandidate,
+    ResolvedMethodRuntimeCase,
     ResolvedStaticClassFieldAccess,
     SemanticClass,
     SemanticClassLayoutField,
@@ -851,6 +854,460 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
         )
 
+    def _runtime_class_identity(
+        self,
+        type_: astx.DataType | None,
+    ) -> SemanticClass | None:
+        """
+        title: Return the resolved class identity for one class-valued type.
+        parameters:
+          type_:
+            type: astx.DataType | None
+        returns:
+          type: SemanticClass | None
+        """
+        if not isinstance(type_, astx.ClassType):
+            return None
+        if type_.module_key is not None:
+            resolved = self.context.get_class(
+                type_.module_key,
+                type_.resolved_name or type_.name,
+            )
+            if resolved is not None:
+                return resolved
+        binding = self.bindings.resolve(type_.name)
+        if (
+            binding is not None
+            and binding.kind == "class"
+            and binding.class_ is not None
+        ):
+            return binding.class_
+        return None
+
+    def _runtime_descendants(
+        self,
+        class_: SemanticClass,
+    ) -> tuple[SemanticClass, ...]:
+        """
+        title: Return known runtime descendants for one class.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: tuple[SemanticClass, Ellipsis]
+        """
+        descendants = [
+            candidate
+            for candidate in self.context.classes.values()
+            if candidate.is_resolved
+            and self._is_subclass_of(candidate, class_)
+        ]
+        descendants.sort(
+            key=lambda item: (
+                len(item.mro),
+                item.qualified_name,
+            )
+        )
+        return tuple(descendants)
+
+    def _runtime_candidate_allowed_classes(
+        self,
+        member: SemanticClassMember,
+        arg_types: list[astx.DataType | None],
+    ) -> tuple[tuple[SemanticClass, ...] | None, ...] | None:
+        """
+        title: Return one runtime multimethod applicability shape.
+        parameters:
+          member:
+            type: SemanticClassMember
+          arg_types:
+            type: list[astx.DataType | None]
+        returns:
+          type: tuple[tuple[SemanticClass, Ellipsis] | None, Ellipsis] | None
+        """
+        signature = member.signature
+        if signature is None or len(signature.parameters) != len(arg_types):
+            return None
+        allowed: list[tuple[SemanticClass, ...] | None] = []
+        has_class_dispatch = False
+        for parameter, arg_type in zip(signature.parameters, arg_types):
+            parameter_class = self._runtime_class_identity(parameter.type_)
+            argument_class = self._runtime_class_identity(arg_type)
+            if parameter_class is None and argument_class is None:
+                if not same_type(parameter.type_, arg_type):
+                    return None
+                allowed.append(None)
+                continue
+            if parameter_class is None or argument_class is None:
+                return None
+            dynamic_classes = tuple(
+                candidate
+                for candidate in self._runtime_descendants(argument_class)
+                if self._is_subclass_of(candidate, parameter_class)
+            )
+            if not dynamic_classes:
+                return None
+            allowed.append(dynamic_classes)
+            has_class_dispatch = True
+        if not has_class_dispatch:
+            return None
+        return tuple(allowed)
+
+    def _runtime_candidate_is_more_specific(
+        self,
+        left: ResolvedMethodRuntimeCandidate,
+        right: ResolvedMethodRuntimeCandidate,
+    ) -> bool:
+        """
+        title: Return whether one runtime candidate dominates another.
+        parameters:
+          left:
+            type: ResolvedMethodRuntimeCandidate
+          right:
+            type: ResolvedMethodRuntimeCandidate
+        returns:
+          type: bool
+        """
+        left_signature = left.member.signature
+        right_signature = right.member.signature
+        if left_signature is None or right_signature is None:
+            return False
+        saw_strict = False
+        for index, allowed in enumerate(left.allowed_argument_classes):
+            if allowed is None:
+                continue
+            left_class = self._runtime_class_identity(
+                left_signature.parameters[index].type_
+            )
+            right_class = self._runtime_class_identity(
+                right_signature.parameters[index].type_
+            )
+            if left_class is None or right_class is None:
+                continue
+            if left_class.qualified_name == right_class.qualified_name:
+                continue
+            if not self._is_subclass_of(left_class, right_class):
+                return False
+            saw_strict = True
+        return saw_strict
+
+    def _runtime_candidates_overlap(
+        self,
+        left: ResolvedMethodRuntimeCandidate,
+        right: ResolvedMethodRuntimeCandidate,
+    ) -> bool:
+        """
+        title: Return whether two runtime candidates may match one call.
+        parameters:
+          left:
+            type: ResolvedMethodRuntimeCandidate
+          right:
+            type: ResolvedMethodRuntimeCandidate
+        returns:
+          type: bool
+        """
+        for left_allowed, right_allowed in zip(
+            left.allowed_argument_classes,
+            right.allowed_argument_classes,
+        ):
+            if left_allowed is None or right_allowed is None:
+                continue
+            left_names = {item.qualified_name for item in left_allowed}
+            right_names = {item.qualified_name for item in right_allowed}
+            if not left_names.intersection(right_names):
+                return False
+        return True
+
+    def _ordered_runtime_candidates(
+        self,
+        candidates: tuple[ResolvedMethodRuntimeCandidate, ...],
+    ) -> tuple[ResolvedMethodRuntimeCandidate, ...]:
+        """
+        title: Return runtime candidates from most specific to least.
+        parameters:
+          candidates:
+            type: tuple[ResolvedMethodRuntimeCandidate, Ellipsis]
+        returns:
+          type: tuple[ResolvedMethodRuntimeCandidate, Ellipsis]
+        """
+        remaining = list(candidates)
+        ordered: list[ResolvedMethodRuntimeCandidate] = []
+        while remaining:
+            frontier = [
+                candidate
+                for candidate in remaining
+                if not any(
+                    self._runtime_candidate_is_more_specific(other, candidate)
+                    for other in remaining
+                    if other is not candidate
+                )
+            ]
+            frontier.sort(key=lambda item: item.member.qualified_name)
+            ordered.extend(frontier)
+            remaining = [
+                candidate
+                for candidate in remaining
+                if candidate not in frontier
+            ]
+        return tuple(ordered)
+
+    def _runtime_multimethod_candidates(
+        self,
+        group: tuple[SemanticClassMember, ...],
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+        class_name: str,
+        method_name: str,
+        node: astx.AST,
+    ) -> tuple[ResolvedMethodRuntimeCandidate, ...] | None:
+        """
+        title: Return one ordered runtime multimethod candidate set.
+        parameters:
+          group:
+            type: tuple[SemanticClassMember, Ellipsis]
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+          class_name:
+            type: str
+          method_name:
+            type: str
+          node:
+            type: astx.AST
+        returns:
+          type: tuple[ResolvedMethodRuntimeCandidate, Ellipsis] | None
+        """
+        raw: list[ResolvedMethodRuntimeCandidate] = []
+        for member in group:
+            if member.is_static != is_static or not self._member_is_accessible(
+                member
+            ):
+                continue
+            function = member.lowered_function
+            if function is None:
+                continue
+            allowed = self._runtime_candidate_allowed_classes(
+                member,
+                arg_types,
+            )
+            if allowed is None:
+                continue
+            raw.append(
+                ResolvedMethodRuntimeCandidate(
+                    member=member,
+                    function=function,
+                    allowed_argument_classes=allowed,
+                )
+            )
+        if not raw:
+            return ()
+        return_type = (
+            raw[0].member.signature.return_type
+            if raw[0].member.signature is not None
+            else None
+        )
+        if return_type is None:
+            return ()
+        for candidate in raw[1:]:
+            signature = candidate.member.signature
+            if signature is None or not same_type(
+                signature.return_type, return_type
+            ):
+                return ()
+        for index, left in enumerate(raw):
+            for right in raw[index + 1 :]:
+                if not self._runtime_candidates_overlap(left, right):
+                    continue
+                if self._runtime_candidate_is_more_specific(left, right):
+                    continue
+                if self._runtime_candidate_is_more_specific(right, left):
+                    continue
+                conflicting = ", ".join(
+                    (
+                        self._format_method_signature(left.member),
+                        self._format_method_signature(right.member),
+                    )
+                )
+                self.context.diagnostics.add(
+                    (
+                        "runtime multimethod dispatch for "
+                        f"'{class_name}.{method_name}' "
+                        f"is ambiguous; conflicting overloads: {conflicting}"
+                    ),
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+                return None
+        return self._ordered_runtime_candidates(tuple(raw))
+
+    def _runtime_instance_multimethod_cases(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        node: astx.AST,
+    ) -> tuple[ResolvedMethodRuntimeCase, ...] | None:
+        """
+        title: Return runtime multimethod cases for one instance call.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          node:
+            type: astx.AST
+        returns:
+          type: tuple[ResolvedMethodRuntimeCase, Ellipsis] | None
+        """
+        cases: list[ResolvedMethodRuntimeCase] = []
+        for receiver_class in self._runtime_descendants(class_):
+            group = receiver_class.method_groups.get(method_name, ())
+            candidates = self._runtime_multimethod_candidates(
+                group,
+                arg_types,
+                is_static=False,
+                class_name=receiver_class.name,
+                method_name=method_name,
+                node=node,
+            )
+            if candidates is None:
+                return None
+            if not candidates:
+                continue
+            cases.append(
+                ResolvedMethodRuntimeCase(
+                    receiver_class=receiver_class,
+                    candidates=candidates,
+                )
+            )
+        return tuple(cases)
+
+    def _runtime_fixed_multimethod_cases(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        *,
+        is_static: bool,
+        node: astx.AST,
+    ) -> tuple[ResolvedMethodRuntimeCase, ...] | None:
+        """
+        title: Return runtime multimethod cases for one fixed receiver scope.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          is_static:
+            type: bool
+          node:
+            type: astx.AST
+        returns:
+          type: tuple[ResolvedMethodRuntimeCase, Ellipsis] | None
+        """
+        candidates = self._runtime_multimethod_candidates(
+            class_.method_groups.get(method_name, ()),
+            arg_types,
+            is_static=is_static,
+            class_name=class_.name,
+            method_name=method_name,
+            node=node,
+        )
+        if candidates is None:
+            return None
+        if not candidates:
+            return ()
+        return (
+            ResolvedMethodRuntimeCase(
+                receiver_class=None,
+                candidates=candidates,
+            ),
+        )
+
+    def _runtime_multimethod_required(
+        self,
+        exact_member: SemanticClassMember,
+        runtime_cases: tuple[ResolvedMethodRuntimeCase, ...],
+    ) -> bool:
+        """
+        title: Return whether one call requires runtime multimethod dispatch.
+        parameters:
+          exact_member:
+            type: SemanticClassMember
+          runtime_cases:
+            type: tuple[ResolvedMethodRuntimeCase, Ellipsis]
+        returns:
+          type: bool
+        """
+        if not runtime_cases:
+            return False
+        for case in runtime_cases:
+            if len(case.candidates) != 1:
+                return True
+            if (
+                case.candidates[0].member.qualified_name
+                != exact_member.qualified_name
+            ):
+                return True
+        return False
+
+    def _multimethod_dispatcher_name(
+        self,
+        class_: SemanticClass,
+        method_name: str,
+        arg_types: list[astx.DataType | None],
+        runtime_cases: tuple[ResolvedMethodRuntimeCase, ...],
+        *,
+        call_kind: str,
+    ) -> str:
+        """
+        title: Return one deterministic runtime multimethod dispatcher name.
+        parameters:
+          class_:
+            type: SemanticClass
+          method_name:
+            type: str
+          arg_types:
+            type: list[astx.DataType | None]
+          runtime_cases:
+            type: tuple[ResolvedMethodRuntimeCase, Ellipsis]
+          call_kind:
+            type: str
+        returns:
+          type: str
+        """
+        arg_key = ",".join(display_type_name(arg) for arg in arg_types)
+        case_key = "|".join(
+            (
+                f"{
+                    (
+                        case.receiver_class.qualified_name
+                        if case.receiver_class is not None
+                        else call_kind
+                    )
+                }:"
+                + ",".join(
+                    candidate.member.qualified_name
+                    for candidate in case.candidates
+                )
+            )
+            for case in runtime_cases
+        )
+        dispatch_key = f"{call_kind}|{arg_key}|{case_key}"
+        return mangle_class_multimethod_name(
+            class_.module_key,
+            class_.name,
+            method_name,
+            dispatch_key,
+        )
+
     def _resolve_method_overload(
         self,
         class_: SemanticClass,
@@ -1532,8 +1989,27 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             arg_types=arg_types,
             node=node,
         )
+        runtime_cases = self._runtime_instance_multimethod_cases(
+            class_,
+            node.method_name,
+            arg_types,
+            node=node,
+        )
+        if runtime_cases is None:
+            self._set_type(node, None)
+            return
         dispatch_kind = MethodDispatchKind.DIRECT
-        if member.dispatch_slot is not None:
+        dispatcher_symbol_name = None
+        if self._runtime_multimethod_required(member, runtime_cases):
+            dispatch_kind = MethodDispatchKind.MULTIMETHOD
+            dispatcher_symbol_name = self._multimethod_dispatcher_name(
+                class_,
+                node.method_name,
+                arg_types,
+                runtime_cases,
+                call_kind="instance",
+            )
+        elif member.dispatch_slot is not None:
             dispatch_kind = MethodDispatchKind.INDIRECT
         self._set_call(node, call_resolution)
         self._set_method_call(
@@ -1549,6 +2025,8 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 receiver_type=receiver_type,
                 receiver_class=class_,
                 slot_index=member.dispatch_slot,
+                runtime_cases=runtime_cases,
+                dispatcher_symbol_name=dispatcher_symbol_name,
             ),
         )
         self._set_type(node, call_resolution.result_type)
@@ -1604,6 +2082,27 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             arg_types=arg_types,
             node=node,
         )
+        runtime_cases = self._runtime_fixed_multimethod_cases(
+            base_class,
+            node.method_name,
+            arg_types,
+            is_static=False,
+            node=node,
+        )
+        if runtime_cases is None:
+            self._set_type(node, None)
+            return
+        dispatch_kind = MethodDispatchKind.DIRECT
+        dispatcher_symbol_name = None
+        if self._runtime_multimethod_required(member, runtime_cases):
+            dispatch_kind = MethodDispatchKind.MULTIMETHOD
+            dispatcher_symbol_name = self._multimethod_dispatcher_name(
+                base_class,
+                node.method_name,
+                arg_types,
+                runtime_cases,
+                call_kind="base",
+            )
         self._set_call(node, call_resolution)
         self._set_method_call(
             node,
@@ -1612,11 +2111,13 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 member=member,
                 function=function,
                 overload_key=(member.signature_key or member.qualified_name),
-                dispatch_kind=MethodDispatchKind.DIRECT,
+                dispatch_kind=dispatch_kind,
                 call=call_resolution,
                 candidates=candidates,
                 receiver_type=receiver_type,
                 receiver_class=receiver_class,
+                runtime_cases=runtime_cases,
+                dispatcher_symbol_name=dispatcher_symbol_name,
             ),
         )
         self._set_type(node, call_resolution.result_type)
@@ -1658,6 +2159,27 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             arg_types=arg_types,
             node=node,
         )
+        runtime_cases = self._runtime_fixed_multimethod_cases(
+            class_,
+            node.method_name,
+            arg_types,
+            is_static=True,
+            node=node,
+        )
+        if runtime_cases is None:
+            self._set_type(node, None)
+            return
+        dispatch_kind = MethodDispatchKind.DIRECT
+        dispatcher_symbol_name = None
+        if self._runtime_multimethod_required(member, runtime_cases):
+            dispatch_kind = MethodDispatchKind.MULTIMETHOD
+            dispatcher_symbol_name = self._multimethod_dispatcher_name(
+                class_,
+                node.method_name,
+                arg_types,
+                runtime_cases,
+                call_kind="static",
+            )
         self._set_call(node, call_resolution)
         self._set_method_call(
             node,
@@ -1666,9 +2188,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 member=member,
                 function=function,
                 overload_key=(member.signature_key or member.qualified_name),
-                dispatch_kind=MethodDispatchKind.DIRECT,
+                dispatch_kind=dispatch_kind,
                 call=call_resolution,
                 candidates=candidates,
+                runtime_cases=runtime_cases,
+                dispatcher_symbol_name=dispatcher_symbol_name,
             ),
         )
         self._set_type(node, call_resolution.result_type)

@@ -31,7 +31,7 @@ from irx.analysis.module_symbols import (
     qualified_class_name,
     qualified_struct_name,
 )
-from irx.analysis.resolved_nodes import FunctionSignature
+from irx.analysis.resolved_nodes import FunctionSignature, SemanticClass
 from irx.analysis.types import (
     bit_width,
     common_numeric_type,
@@ -932,6 +932,78 @@ class VisitorCore(BuilderVisitor):
             return class_type.as_pointer()
         type_name = type_.__class__.__name__.lower()
         return self._llvm.get_data_type(type_name)
+
+    def _class_descriptor_global(
+        self,
+        class_: SemanticClass,
+    ) -> ir.GlobalVariable:
+        """
+        title: Return one emitted class-descriptor global.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: ir.GlobalVariable
+        """
+        layout = class_.layout
+        if layout is None:
+            raise Exception(
+                "codegen: class descriptor requires layout metadata"
+            )
+        descriptor = self._llvm.module.globals.get(
+            layout.descriptor_global_name
+        )
+        if descriptor is None:
+            raise Exception(
+                "codegen: class descriptor global is missing from the module"
+            )
+        return cast(ir.GlobalVariable, descriptor)
+
+    def _class_descriptor_from_value(
+        self,
+        value: ir.Value,
+        *,
+        value_type: astx.DataType | None,
+        name_hint: str,
+    ) -> ir.Value:
+        """
+        title: Load one runtime class-descriptor pointer from an object value.
+        parameters:
+          value:
+            type: ir.Value
+          value_type:
+            type: astx.DataType | None
+          name_hint:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        if not isinstance(value_type, astx.ClassType):
+            raise Exception("codegen: class descriptor requires a class value")
+        llvm_value_type = self._llvm_type_for_ast_type(value_type)
+        if llvm_value_type is None:
+            raise Exception(
+                "codegen: class descriptor requires a lowered type"
+            )
+        if value.type != llvm_value_type:
+            value = self._llvm.ir_builder.bitcast(
+                value,
+                llvm_value_type,
+                name=f"{name_hint}_class_value",
+            )
+        descriptor_addr = self._llvm.ir_builder.gep(
+            value,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+            ],
+            inbounds=True,
+            name=f"{name_hint}_descriptor_addr",
+        )
+        return self._llvm.ir_builder.load(
+            descriptor_addr,
+            f"{name_hint}_descriptor",
+        )
 
     def _resolved_class_receiver_field_address(
         self,

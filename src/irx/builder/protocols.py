@@ -132,6 +132,38 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _class_descriptor_global(self, _class: Any) -> ir.GlobalVariable:
+        """
+        title: Return one class-descriptor global.
+        parameters:
+          _class:
+            type: Any
+        returns:
+          type: ir.GlobalVariable
+        """
+        ...
+
+    def _class_descriptor_from_value(
+        self,
+        _value: ir.Value,
+        *,
+        value_type: astx.DataType | None,
+        name_hint: str,
+    ) -> ir.Value:
+        """
+        title: Load one class descriptor from an object value.
+        parameters:
+          _value:
+            type: ir.Value
+          value_type:
+            type: astx.DataType | None
+          name_hint:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        ...
+
     def _base_class_field_address(
         self,
         _node: astx.BaseFieldAccess,
@@ -607,6 +639,40 @@ class VisitorMixinTypingBase:
         returns:
           type: ir.Value
         """
+        return cast(ir.Value, None)
+
+    def _class_descriptor_global(self, _class: Any) -> ir.GlobalVariable:
+        """
+        title: Return one class-descriptor global.
+        parameters:
+          _class:
+            type: Any
+        returns:
+          type: ir.GlobalVariable
+        """
+        return cast(ir.GlobalVariable, None)
+
+    def _class_descriptor_from_value(
+        self,
+        _value: ir.Value,
+        *,
+        value_type: astx.DataType | None,
+        name_hint: str,
+    ) -> ir.Value:
+        """
+        title: Load one class descriptor from an object value.
+        parameters:
+          _value:
+            type: ir.Value
+          value_type:
+            type: astx.DataType | None
+          name_hint:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        _ = value_type
+        _ = name_hint
         return cast(ir.Value, None)
 
     def _static_class_field_address(

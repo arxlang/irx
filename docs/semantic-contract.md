@@ -230,9 +230,9 @@ before lowering.
   composites
 - every class object reserves two hidden header slots first: one type-descriptor
   pointer slot and one dispatch-table pointer slot
-- the type-descriptor header slot is reserved in semantic layout metadata now,
-  but codegen does not populate a descriptor global yet; that slot is kept
-  stable for later construction/runtime work
+- lowering emits one internal descriptor global per class and stores that
+  pointer in the type-descriptor header slot during construction so runtime
+  dispatch can identify dynamic class values without reinterpreting LLVM types
 - instance storage is flattened in one canonical ancestor-first order with
   shared ancestors stored once per logical base class
 - `SemanticClass.layout.instance_fields` records stable storage indices for all
@@ -255,18 +255,20 @@ metadata rather than as implicit runtime behavior.
   declaring class pointer representation
 - static methods keep their declared parameter list and do not receive an
   implicit receiver
-- class methods support exact-signature multidispatch by method name and
-  explicit argument types; overload selection does not rank implicit numeric or
-  class-hierarchy conversions when more than one overload is visible
+- class methods support exact-signature overload families by method name and
+  explicit argument types; compile-time overload selection still does not rank
+  implicit numeric or class-hierarchy conversions when more than one overload is
+  visible
 - non-private instance methods receive hierarchy-family-local dispatch slots in
   `SemanticClassMember.dispatch_slot`; valid exact-signature overrides reuse the
   inherited slot, and unrelated class families do not affect those slot numbers
 - `SemanticClass.layout.dispatch_entries` and
   `SemanticClass.layout.visible_method_slots` provide the lowering-facing view
   of one class dispatch table after MRO resolution, keyed by exact signature
-- `MethodCall` analysis records one `ResolvedMethodCall` with the chosen member,
-  overload key, candidate set, validated argument conversions, dispatch mode,
-  receiver class, and dispatch slot when indirect dispatch is required
+- `MethodCall` analysis records one `ResolvedMethodCall` with the chosen exact
+  anchor member, overload key, candidate set, validated argument conversions,
+  and either one receiver-slot dispatch plan or one runtime multimethod case
+  plan when dynamic class arguments can refine the final choice
 - implicit `Derived -> Base` upcasts participate in assignment, call, and return
   compatibility, which makes overridden instance methods usable through
   base-typed receivers
@@ -275,12 +277,19 @@ metadata rather than as implicit runtime behavior.
   dispatch
 - conversion-ranked overload selection is intentionally deferred; callers that
   want a non-exact overload must spell the conversion explicitly with `Cast`
-- `StaticMethodCall` analysis always resolves to direct calls because static
-  methods never consume a hidden receiver and do not participate in instance
-  dispatch
+- `StaticMethodCall` and `BaseMethodCall` stay direct when one exact overload is
+  sufficient, but they may lower through internal multimethod dispatcher thunks
+  when class-typed explicit arguments require one second runtime choice
 - lowering emits one internal dispatch table global per class when at least one
-  visible instance method has a dispatch slot, and instance call sites load the
-  callee through that table instead of re-resolving semantics from syntax
+  visible instance method has a dispatch slot, and instance call sites either
+  load a callee through that table or call one analyzed multimethod dispatcher
+  thunk instead of re-resolving semantics from syntax
+- runtime multimethod dispatch compares descriptor globals for the receiver and
+  every class-typed explicit argument against the ordered applicability sets
+  recorded in `ResolvedMethodCall.runtime_cases`
+- runtime multimethod families currently require one exact compile-time anchor
+  overload, one shared return type, and one identical non-class parameter shape
+  across the runtime-refined candidates
 
 ## Class Member Access Contract
 
@@ -354,7 +363,8 @@ introducing high-level constructor syntax yet.
 - construction initializes object headers first, then instance fields in the
   same canonical flattened storage order recorded in
   `SemanticClass.layout.instance_fields`
-- the reserved type-descriptor header slot is initialized to null for now
+- the type-descriptor header slot is initialized to the class descriptor global
+  for the constructed class
 - the dispatch-table header slot is initialized to the class dispatch global
   when one exists, otherwise null
 - instance fields use their declaration initializer when present; otherwise they
