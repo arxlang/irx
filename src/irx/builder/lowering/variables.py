@@ -104,6 +104,30 @@ class VariableVisitorMixin(VisitorMixinBase):
         self.result_stack.append(result)
 
     @VisitorCore.visit.dispatch
+    def visit(self, node: astx.BaseFieldAccess) -> None:
+        """
+        title: Visit BaseFieldAccess nodes.
+        parameters:
+          node:
+            type: astx.BaseFieldAccess
+        """
+        field_ptr = self._base_class_field_address(node)
+        result = self._llvm.ir_builder.load(field_ptr, node.field_name)
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.StaticFieldAccess) -> None:
+        """
+        title: Visit StaticFieldAccess nodes.
+        parameters:
+          node:
+            type: astx.StaticFieldAccess
+        """
+        field_ptr = self._static_class_field_address(node)
+        result = self._llvm.ir_builder.load(field_ptr, node.field_name)
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
     def visit(self, node: astx.VariableDeclaration) -> None:
         """
         title: Visit VariableDeclaration nodes.

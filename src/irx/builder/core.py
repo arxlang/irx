@@ -933,6 +933,47 @@ class VisitorCore(BuilderVisitor):
         type_name = type_.__class__.__name__.lower()
         return self._llvm.get_data_type(type_name)
 
+    def _resolved_class_receiver_field_address(
+        self,
+        *,
+        receiver: astx.AST,
+        member_name: str,
+        storage_index: int,
+    ) -> ir.Value:
+        """
+        title: Lower one resolved class-instance field slot to an address.
+        parameters:
+          receiver:
+            type: astx.AST
+          member_name:
+            type: str
+          storage_index:
+            type: int
+        returns:
+          type: ir.Value
+        """
+        self.visit(receiver)
+        base_value = safe_pop(self.result_stack)
+        if base_value is None:
+            raise Exception("codegen: invalid class field access base.")
+        base_type = self._resolved_ast_type(receiver)
+        llvm_base_type = self._llvm_type_for_ast_type(base_type)
+        if llvm_base_type is not None and base_value.type != llvm_base_type:
+            base_value = self._llvm.ir_builder.bitcast(
+                base_value,
+                llvm_base_type,
+                name=f"{member_name}_class_base",
+            )
+        return self._llvm.ir_builder.gep(
+            base_value,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, storage_index),
+            ],
+            inbounds=True,
+            name=f"{member_name}_addr",
+        )
+
     def _field_address(self, node: astx.FieldAccess) -> ir.Value:
         """
         title: Lower one field-access expression to an address.
@@ -949,34 +990,10 @@ class VisitorCore(BuilderVisitor):
             None,
         )
         if resolved_class_field_access is not None:
-            self.visit(node.value)
-            base_value = safe_pop(self.result_stack)
-            if base_value is None:
-                raise Exception("codegen: invalid class field access base.")
-            base_type = self._resolved_ast_type(node.value)
-            llvm_base_type = self._llvm_type_for_ast_type(base_type)
-            if (
-                llvm_base_type is not None
-                and base_value.type != llvm_base_type
-            ):
-                base_value = self._llvm.ir_builder.bitcast(
-                    base_value,
-                    llvm_base_type,
-                    name=(
-                        f"{resolved_class_field_access.member.name}_class_base"
-                    ),
-                )
-            return self._llvm.ir_builder.gep(
-                base_value,
-                [
-                    ir.Constant(self._llvm.INT32_TYPE, 0),
-                    ir.Constant(
-                        self._llvm.INT32_TYPE,
-                        resolved_class_field_access.field.storage_index,
-                    ),
-                ],
-                inbounds=True,
-                name=(f"{resolved_class_field_access.member.name}_addr"),
+            return self._resolved_class_receiver_field_address(
+                receiver=node.value,
+                member_name=resolved_class_field_access.member.name,
+                storage_index=resolved_class_field_access.field.storage_index,
             )
 
         resolved_field_access = getattr(
@@ -1041,6 +1058,60 @@ class VisitorCore(BuilderVisitor):
             inbounds=True,
             name=f"{resolved_field_access.field.name}_addr",
         )
+
+    def _base_class_field_address(
+        self,
+        node: astx.BaseFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one base-qualified class field access to an address.
+        parameters:
+          node:
+            type: astx.BaseFieldAccess
+        returns:
+          type: ir.Value
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_base_field_access = getattr(
+            semantic,
+            "resolved_base_class_field_access",
+            None,
+        )
+        if resolved_base_field_access is None:
+            raise Exception("codegen: unresolved base class field access")
+        return self._resolved_class_receiver_field_address(
+            receiver=node.receiver,
+            member_name=resolved_base_field_access.member.name,
+            storage_index=resolved_base_field_access.field.storage_index,
+        )
+
+    def _static_class_field_address(
+        self,
+        node: astx.StaticFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one static class field access to a global address.
+        parameters:
+          node:
+            type: astx.StaticFieldAccess
+        returns:
+          type: ir.Value
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_static_field_access = getattr(
+            semantic,
+            "resolved_static_class_field_access",
+            None,
+        )
+        if resolved_static_field_access is None:
+            raise Exception("codegen: unresolved static class field access")
+        global_name = resolved_static_field_access.storage.global_name
+        global_value = self._llvm.module.globals.get(global_name)
+        if global_value is None:
+            raise Exception(
+                f"codegen: missing static class field global '{global_name}'"
+            )
+        return cast(ir.Value, global_value)
 
     def _bool_value_from_numeric(
         self,

@@ -1181,6 +1181,55 @@ class ResolvedClassFieldAccess:
 @public
 @typechecked
 @dataclass(frozen=True)
+class ResolvedBaseClassFieldAccess:
+    """
+    title: Resolved explicit base-class field access metadata.
+    summary: >-
+      Point from a base-qualified instance attribute read to the selected base
+      view, concrete receiver class, and stable flattened layout slot.
+    attributes:
+      receiver_class:
+        type: SemanticClass
+      base_class:
+        type: SemanticClass
+      member:
+        type: SemanticClassMember
+      field:
+        type: SemanticClassLayoutField
+    """
+
+    receiver_class: SemanticClass
+    base_class: SemanticClass
+    member: SemanticClassMember
+    field: SemanticClassLayoutField
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedStaticClassFieldAccess:
+    """
+    title: Resolved static class-field access metadata.
+    summary: >-
+      Point from a class-qualified static attribute read to the selected class
+      member and stable emitted storage metadata.
+    attributes:
+      class_:
+        type: SemanticClass
+      member:
+        type: SemanticClassMember
+      storage:
+        type: SemanticClassStaticStorage
+    """
+
+    class_: SemanticClass
+    member: SemanticClassMember
+    storage: SemanticClassStaticStorage
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class ResolvedClassConstruction:
     """
     title: Resolved class construction metadata.
@@ -1278,6 +1327,10 @@ class SemanticInfo:
         type: ResolvedFieldAccess | None
       resolved_class_field_access:
         type: ResolvedClassFieldAccess | None
+      resolved_base_class_field_access:
+        type: ResolvedBaseClassFieldAccess | None
+      resolved_static_class_field_access:
+        type: ResolvedStaticClassFieldAccess | None
       resolved_method_call:
         type: ResolvedMethodCall | None
       resolved_class_construction:
@@ -1303,6 +1356,12 @@ class SemanticInfo:
     resolved_assignment: ResolvedAssignment | None = None
     resolved_field_access: ResolvedFieldAccess | None = None
     resolved_class_field_access: ResolvedClassFieldAccess | None = None
+    resolved_base_class_field_access: ResolvedBaseClassFieldAccess | None = (
+        None
+    )
+    resolved_static_class_field_access: (
+        ResolvedStaticClassFieldAccess | None
+    ) = None
     resolved_method_call: ResolvedMethodCall | None = None
     resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None

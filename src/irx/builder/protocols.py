@@ -132,6 +132,34 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _base_class_field_address(
+        self,
+        _node: astx.BaseFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one base-qualified class field access to an address.
+        parameters:
+          _node:
+            type: astx.BaseFieldAccess
+        returns:
+          type: ir.Value
+        """
+        ...
+
+    def _static_class_field_address(
+        self,
+        _node: astx.StaticFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one static class field access to a global address.
+        parameters:
+          _node:
+            type: astx.StaticFieldAccess
+        returns:
+          type: ir.Value
+        """
+        ...
+
     def _llvm_function_type_for_signature(
         self,
         _signature: FunctionSignature,
@@ -562,6 +590,20 @@ class VisitorMixinTypingBase:
         parameters:
           _node:
             type: astx.FieldAccess
+        returns:
+          type: ir.Value
+        """
+        return cast(ir.Value, None)
+
+    def _static_class_field_address(
+        self,
+        _node: astx.StaticFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one static class field access to a global address.
+        parameters:
+          _node:
+            type: astx.StaticFieldAccess
         returns:
           type: ir.Value
         """

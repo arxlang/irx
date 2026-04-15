@@ -427,10 +427,224 @@ class StaticMethodCall(astx.DataType):
         )
 
 
+@typechecked
+class StaticFieldAccess(astx.DataType):
+    """
+    title: Class-scoped static field access expression.
+    attributes:
+      class_name:
+        type: str
+      field_name:
+        type: str
+      type_:
+        type: AnyType
+    """
+
+    class_name: str
+    field_name: str
+    type_: AnyType
+
+    def __init__(
+        self,
+        class_name: str,
+        field_name: str,
+    ) -> None:
+        """
+        title: Initialize one static field access expression.
+        parameters:
+          class_name:
+            type: str
+          field_name:
+            type: str
+        """
+        super().__init__()
+        self.class_name = class_name
+        self.field_name = field_name
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one static field access expression as text.
+        returns:
+          type: str
+        """
+        return f"StaticFieldAccess[{self.class_name}.{self.field_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for a static field access.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"STATIC-FIELD-ACCESS[{self.class_name}.{self.field_name}]"
+        return self._prepare_struct(
+            key,
+            f"{self.class_name}.{self.field_name}",
+            simplified,
+        )
+
+
+@typechecked
+class BaseFieldAccess(astx.DataType):
+    """
+    title: Explicit base-qualified instance field access expression.
+    attributes:
+      receiver:
+        type: astx.AST
+      base_class_name:
+        type: str
+      field_name:
+        type: str
+      type_:
+        type: AnyType
+    """
+
+    receiver: astx.AST
+    base_class_name: str
+    field_name: str
+    type_: AnyType
+
+    def __init__(
+        self,
+        receiver: astx.AST,
+        base_class_name: str,
+        field_name: str,
+    ) -> None:
+        """
+        title: Initialize one base-qualified field access expression.
+        parameters:
+          receiver:
+            type: astx.AST
+          base_class_name:
+            type: str
+          field_name:
+            type: str
+        """
+        super().__init__()
+        self.receiver = receiver
+        self.base_class_name = base_class_name
+        self.field_name = field_name
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one base-qualified field access expression as text.
+        returns:
+          type: str
+        """
+        return f"BaseFieldAccess[{self.base_class_name}.{self.field_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for a base-qualified field access.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"BASE-FIELD-ACCESS[{self.base_class_name}.{self.field_name}]"
+        value = {
+            "receiver": self.receiver.get_struct(simplified),
+        }
+        return self._prepare_struct(
+            key,
+            cast(astx.base.ReprStruct, value),
+            simplified,
+        )
+
+
+@typechecked
+class BaseMethodCall(astx.DataType):
+    """
+    title: Explicit base-qualified instance method call expression.
+    attributes:
+      receiver:
+        type: astx.AST
+      base_class_name:
+        type: str
+      method_name:
+        type: str
+      args:
+        type: tuple[astx.DataType, Ellipsis]
+      type_:
+        type: AnyType
+    """
+
+    receiver: astx.AST
+    base_class_name: str
+    method_name: str
+    args: tuple[astx.DataType, ...]
+    type_: AnyType
+
+    def __init__(
+        self,
+        receiver: astx.AST,
+        base_class_name: str,
+        method_name: str,
+        args: Iterable[astx.DataType],
+    ) -> None:
+        """
+        title: Initialize one base-qualified method call expression.
+        parameters:
+          receiver:
+            type: astx.AST
+          base_class_name:
+            type: str
+          method_name:
+            type: str
+          args:
+            type: Iterable[astx.DataType]
+        """
+        super().__init__()
+        self.receiver = receiver
+        self.base_class_name = base_class_name
+        self.method_name = method_name
+        self.args = tuple(args)
+        self.type_ = AnyType()
+
+    def __str__(self) -> str:
+        """
+        title: Render one base-qualified method call expression as text.
+        returns:
+          type: str
+        """
+        return f"BaseMethodCall[{self.base_class_name}.{self.method_name}]"
+
+    def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
+        """
+        title: Build one repr structure for a base-qualified method call.
+        parameters:
+          simplified:
+            type: bool
+        returns:
+          type: astx.base.ReprStruct
+        """
+        key = f"BASE-METHOD-CALL[{self.base_class_name}.{self.method_name}]"
+        arg_nodes = astx.ASTNodes[astx.DataType]("args")
+        for arg in self.args:
+            arg_nodes.append(arg)
+        value = {
+            "receiver": self.receiver.get_struct(simplified),
+            "args": arg_nodes.get_struct(simplified),
+        }
+        return self._prepare_struct(
+            key,
+            cast(astx.base.ReprStruct, value),
+            simplified,
+        )
+
+
 __all__ = [
+    "BaseFieldAccess",
+    "BaseMethodCall",
     "ClassConstruct",
     "ClassDefStmt",
     "ClassType",
     "MethodCall",
+    "StaticFieldAccess",
     "StaticMethodCall",
 ]

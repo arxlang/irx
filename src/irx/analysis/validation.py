@@ -186,7 +186,12 @@ def validate_call(
     *,
     function: SemanticFunction,
     arg_types: list[astx.DataType | None],
-    node: astx.FunctionCall | astx.MethodCall | astx.StaticMethodCall,
+    node: (
+        astx.BaseMethodCall
+        | astx.FunctionCall
+        | astx.MethodCall
+        | astx.StaticMethodCall
+    ),
 ) -> CallResolution:
     """
     title: Validate a function call.
@@ -198,7 +203,9 @@ def validate_call(
       arg_types:
         type: list[astx.DataType | None]
       node:
-        type: astx.FunctionCall | astx.MethodCall | astx.StaticMethodCall
+        type: >-
+          astx.BaseMethodCall | astx.FunctionCall | astx.MethodCall |
+          astx.StaticMethodCall
     returns:
       type: CallResolution
     """

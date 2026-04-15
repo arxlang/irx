@@ -18,9 +18,16 @@ from irx.builder import Builder as LLVMBuilder
 from irx.builder.base import Builder
 from llvmlite import binding as llvm
 
-from tests.conftest import assert_ir_parses, make_module
+from tests.conftest import (
+    assert_ir_parses,
+    assert_jit_int_main_result,
+    make_module,
+)
 
 GLOBAL_ADDRESS_MISSING = 0
+STATIC_LITERAL_VALUE = 7
+STATIC_DEFAULT_VALUE = 0
+INHERITED_STATIC_VALUE = 9
 
 
 def _class_type(name: str) -> astx.ClassType:
@@ -326,6 +333,132 @@ def test_class_static_globals_keep_literal_and_default_values(
         literal_name: 7,
         default_name: 0,
     }
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_static_field_access_reads_class_global_storage(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Static field reads lower to loads from analyzed class globals.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+    main_fn = _main_int32(
+        astx.FunctionReturn(astx.StaticFieldAccess("Counter", "instances"))
+    )
+    module = make_module("main", node, main_fn)
+
+    ir_text = builder.translate(module)
+    global_name = mangle_class_static_name(
+        "main",
+        "Counter",
+        "instances",
+    )
+
+    assert f'load i32, i32* @"{global_name}"' in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(builder, module, STATIC_LITERAL_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_static_field_access_reads_default_initialized_class_global(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Static field reads preserve zero/default-initialized globals.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "pending",
+                astx.Int32(),
+                is_static=True,
+            )
+        ],
+    )
+    main_fn = _main_int32(
+        astx.FunctionReturn(astx.StaticFieldAccess("Counter", "pending"))
+    )
+    module = make_module("main", node, main_fn)
+
+    ir_text = builder.translate(module)
+    global_name = mangle_class_static_name(
+        "main",
+        "Counter",
+        "pending",
+    )
+
+    assert f'load i32, i32* @"{global_name}"' in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(builder, module, STATIC_DEFAULT_VALUE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_inherited_static_field_access_reuses_ancestor_storage(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Inherited static field reads do not duplicate ancestor globals.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(INHERITED_STATIC_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    main_fn = _main_int32(
+        astx.FunctionReturn(astx.StaticFieldAccess("Child", "instances"))
+    )
+    module = make_module("main", base, child, main_fn)
+
+    ir_text = builder.translate(module)
+    base_global_name = mangle_class_static_name(
+        "main",
+        "Base",
+        "instances",
+    )
+    child_global_name = mangle_class_static_name(
+        "main",
+        "Child",
+        "instances",
+    )
+
+    assert f'load i32, i32* @"{base_global_name}"' in ir_text
+    assert f'@"{child_global_name}"' not in ir_text
+    assert_ir_parses(ir_text)
+    assert_jit_int_main_result(builder, module, INHERITED_STATIC_VALUE)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])
