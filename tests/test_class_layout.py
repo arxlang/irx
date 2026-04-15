@@ -283,6 +283,41 @@ def test_class_values_lower_as_pointers_and_static_members_as_globals(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_ir_defined_functions_use_pointer_abi_for_class_values(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: >-
+      IR-defined function signatures pass and return class values by pointer.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    widget = astx.ClassDefStmt(name="Widget")
+    identity_body = astx.Block()
+    identity_body.append(astx.FunctionReturn(astx.Identifier("value")))
+    identity = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="identity",
+            args=astx.Arguments(
+                astx.Argument("value", _class_type("Widget")),
+            ),
+            return_type=_class_type("Widget"),
+        ),
+        body=identity_body,
+    )
+    module = make_module("main", widget, identity, _main_int32())
+
+    ir_text = builder.translate(module)
+
+    assert (
+        'define %"main__Widget"* @"main__identity"(%"main__Widget"* %"value")'
+    ) in ir_text
+    assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_class_static_globals_keep_literal_and_default_values(
     builder_class: type[Builder],
 ) -> None:

@@ -299,6 +299,17 @@ def _classify_ffi_type(
             _display_type_name(type_),
             metadata={"pointee": pointee_info.display_name},
         )
+    if isinstance(type_, astx.ClassType):
+        context.diagnostics.add(
+            (
+                f"extern '{prototype.name}' is not FFI-safe: {position} "
+                f"uses class type '{_display_type_name(type_)}'; class "
+                "ABI is internal to IRx in this phase"
+            ),
+            node=prototype,
+            code=DiagnosticCodes.FFI_INVALID_SIGNATURE,
+        )
+        return None
     if isinstance(type_, astx.BufferViewType):
         return FFITypeInfo(
             FFITypeClass.STRUCT,
