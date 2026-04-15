@@ -1,0 +1,5129 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://irx.arxlang.org/semantic-contract/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../buffer-view-model/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../images/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+    
+    
+      
+        <title>Semantic Contract - IRx</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="lime">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#semantic-contract" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="IRx" class="md-header__button md-logo" aria-label="IRx" data-md-component="logo">
+      
+  <img src="../images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            IRx
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Semantic Contract
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="lime"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="white" data-md-color-accent="lime"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/arxlang/irx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="IRx" class="md-nav__button md-logo" aria-label="IRx" data-md-component="logo">
+      
+  <img src="../images/logo.png" alt="logo">
+
+    </a>
+    IRx
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/arxlang/irx" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IRx
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Contract
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#stable-semantic-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stable Semantic Phases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-required-before-codegen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Required Before Codegen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostic Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-locations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Locations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagnostic-codes-and-prefixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic Codes And Prefixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#function-signature-and-calling-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Signature And Calling Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-inheritance-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Inheritance Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-layout-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Layout Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-method-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Method Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-member-access-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Member Access Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-access-control-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Access Control Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-construction-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Construction Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-abi-and-interop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class ABI And Interop Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-diagnostics-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Diagnostics Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-ffi-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public FFI Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Public FFI Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-qualifies-as-a-public-ffi-callable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Qualifies As A Public FFI Callable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-ffi-type-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public FFI Type Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abi-compatible-structs-for-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ABI-Compatible Structs For FFI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointers-and-opaque-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointers And Opaque Handles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symbol-resolution-and-runtime-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symbol Resolution And Runtime Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intentionally-unsupported-for-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intentionally Unsupported For Now
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-and-return-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call And Return Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        main Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-numeric-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Numeric Foundation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boolean-and-comparison-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boolean And Comparison Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loop Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#struct-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Struct Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bufferview-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buffer/View Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arrow-runtime-interop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arrow Runtime Interop Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arrow Runtime Interop Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#canonical-cast-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical Cast Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-arx-may-hand-to-irx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Arx May Hand to IRx
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../buffer-view-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Buffer/View Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> irx
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> irx
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/analysis/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> analysis
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_2" id="__nav_8_1_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> analyzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> api
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/bindings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> bindings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/factories/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> factories
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/ffi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/analysis/handlers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> handlers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_2_9" id="__nav_8_1_2_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> handlers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/control_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> control_flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/declarations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> declarations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/expressions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> expressions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/imports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/module_interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/module_symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/normalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/resolved_nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> resolved_nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/scopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> scopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> session
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/typing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/astx/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_3" id="__nav_8_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/arrow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/binary_op/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> binary_op
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/buffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/ffi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/structs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> structs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/symbol_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbol_table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/base/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_4" id="__nav_8_1_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_4_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/base/visitors/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> visitors
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_4_2" id="__nav_8_1_4_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> visitors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/base/visitors/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/base/visitors/protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> protocols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/buffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> builder
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6" id="__nav_8_1_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> builder
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/casting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> casting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/diagnostics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/lowering/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> lowering
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_7" id="__nav_8_1_6_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> lowering
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/arrow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/binary_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> binary_ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/buffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/control_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> control_flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/literals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> literals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/temporal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> temporal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/unary_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> unary_ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/lowering/variables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> protocols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/runtime/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> runtime
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_9" id="__nav_8_1_6_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_6_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> runtime
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/runtime/arrow/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_9_2" id="__nav_8_1_6_9_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/arrow/feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/runtime/buffer/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_9_3" id="__nav_8_1_6_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/buffer/feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/feature_libc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature_libc
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/feature_libm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature_libm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/linking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> linking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/strings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> strings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/vector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> vector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/diagnostics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/symbol_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbol_table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/typecheck/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typecheck
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/get-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IRx
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#stable-semantic-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stable Semantic Phases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-required-before-codegen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Required Before Codegen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostic Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-locations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Locations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagnostic-codes-and-prefixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic Codes And Prefixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formatting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#function-signature-and-calling-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Signature And Calling Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-inheritance-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Inheritance Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-layout-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Layout Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-method-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Method Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-member-access-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Member Access Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-access-control-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Access Control Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-construction-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Construction Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-abi-and-interop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class ABI And Interop Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-diagnostics-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Diagnostics Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-ffi-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public FFI Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Public FFI Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-qualifies-as-a-public-ffi-callable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Qualifies As A Public FFI Callable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-ffi-type-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public FFI Type Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abi-compatible-structs-for-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ABI-Compatible Structs For FFI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointers-and-opaque-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointers And Opaque Handles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#symbol-resolution-and-runtime-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Symbol Resolution And Runtime Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intentionally-unsupported-for-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intentionally Unsupported For Now
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-and-return-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call And Return Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        main Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-numeric-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Numeric Foundation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#boolean-and-comparison-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boolean And Comparison Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loop Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#struct-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Struct Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bufferview-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buffer/View Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arrow-runtime-interop-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arrow Runtime Interop Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arrow Runtime Interop Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#canonical-cast-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical Cast Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-arx-may-hand-to-irx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Arx May Hand to IRx
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="semantic-contract">Semantic Contract<a class="headerlink" href="#semantic-contract" title="Permanent link">&para;</a></h1>
+<p>IRx exposes a small but explicit semantic boundary between host parsing and
+backend lowering. That boundary is defined in code by
+<code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">get_semantic_contract</span><span class="p">()</span></code> and is enforced by the public analysis
+entrypoints in <code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">analysis</span><span class="o">.</span><span class="n">api</span></code>.</p>
+<h2 id="stable-semantic-phases">Stable Semantic Phases<a class="headerlink" href="#stable-semantic-phases" title="Permanent link">&para;</a></h2>
+<p>IRx currently treats these phases as stable:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">module_graph_expansion</span></code>: <code class="language-python highlight"><span class="n">analyze_modules</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> asks the host
+  <code class="language-python highlight"><span class="n">ImportResolver</span></code> for every reachable <code class="language-python highlight"><span class="n">ParsedModule</span></code>, records import edges, and
+  produces a stable dependency order in <code class="language-python highlight"><span class="n">CompilationSession</span><span class="o">.</span><span class="n">load_order</span></code>.</li>
+<li><code class="language-python highlight"><span class="n">top_level_predeclaration</span></code>: <code class="language-python highlight"><span class="n">analyze_modules</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> registers top-level
+  functions and structs for every reachable module before body validation.</li>
+<li><code class="language-python highlight"><span class="n">top_level_import_resolution</span></code>: <code class="language-python highlight"><span class="n">analyze_modules</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> resolves module-top-
+  level imports into module-visible bindings and rejects unsupported import
+  forms.</li>
+<li><code class="language-python highlight"><span class="n">semantic_validation</span></code>: <code class="language-python highlight"><span class="n">analyze</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code>, <code class="language-python highlight"><span class="n">analyze_module</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code>, and
+  <code class="language-python highlight"><span class="n">analyze_modules</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> attach semantic sidecars, normalize resolved meaning,
+  and raise <code class="language-python highlight"><span class="n">SemanticError</span></code> if diagnostics exist.</li>
+</ul>
+<h2 id="metadata-required-before-codegen">Metadata Required Before Codegen<a class="headerlink" href="#metadata-required-before-codegen" title="Permanent link">&para;</a></h2>
+<p>Before lowering starts, IRx guarantees that analyzed nodes may carry
+<code class="language-python highlight"><span class="n">node</span><span class="o">.</span><span class="n">semantic</span><span class="p">:</span> <span class="n">SemanticInfo</span></code> with these stable fields:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">resolved_type</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_symbol</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_function</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_callable</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_call</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_return</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_struct</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_class</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_module</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_imports</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_operator</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_assignment</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_field_access</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_class_field_access</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_base_class_field_access</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_static_class_field_access</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_method_call</span></code></li>
+<li><code class="language-python highlight"><span class="n">resolved_class_construction</span></code></li>
+<li><code class="language-python highlight"><span class="n">semantic_flags</span></code></li>
+<li><code class="language-python highlight"><span class="n">extras</span></code></li>
+</ul>
+<p>For multi-module compilation, IRx also guarantees the following
+<code class="language-python highlight"><span class="n">CompilationSession</span></code> state before lowering:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">root</span></code></li>
+<li><code class="language-python highlight"><span class="n">modules</span></code></li>
+<li><code class="language-python highlight"><span class="n">graph</span></code></li>
+<li><code class="language-python highlight"><span class="n">load_order</span></code></li>
+<li><code class="language-python highlight"><span class="n">visible_bindings</span></code></li>
+</ul>
+<p>Lowering should consume this semantic metadata instead of re-deriving meaning
+from raw syntax.</p>
+<p>When lowering or build layers discover that this contract has been violated,
+they now raise structured diagnostics instead of flattening the failure to a
+plain Python exception string. In other words:</p>
+<ul>
+<li>semantic failures continue to aggregate in <code class="language-python highlight"><span class="n">SemanticError</span></code></li>
+<li>lowering failures surface as <code class="language-python highlight"><span class="n">LoweringError</span></code></li>
+<li>native runtime-artifact compilation failures surface as <code class="language-python highlight"><span class="n">NativeCompileError</span></code></li>
+<li>final executable link failures surface as <code class="language-python highlight"><span class="n">LinkingError</span></code></li>
+<li>runtime feature activation and symbol-resolution failures surface as
+  <code class="language-python highlight"><span class="n">RuntimeFeatureError</span></code></li>
+</ul>
+<p>Each of those exception types carries one <code class="language-python highlight"><span class="n">Diagnostic</span></code> record with stable code,
+phase, and best-effort source attribution when IRx can recover it.</p>
+<h2 id="diagnostic-contract">Diagnostic Contract<a class="headerlink" href="#diagnostic-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now uses one shared diagnostics model across semantic analysis, lowering,
+native artifact compilation, final linking, and runtime feature resolution.</p>
+<p>Every diagnostic may include:</p>
+<ul>
+<li>phase</li>
+<li>message</li>
+<li>logical code such as <code class="language-python highlight"><span class="n">S010</span></code> or <code class="language-python highlight"><span class="n">K001</span></code></li>
+<li>module attribution when known</li>
+<li>best-effort source location derived from <code class="language-python highlight"><span class="n">node</span><span class="o">.</span><span class="n">loc</span></code></li>
+<li>note and hint lines</li>
+<li>wrapped cause information</li>
+<li>related secondary locations</li>
+</ul>
+<p>Semantic analysis still aggregates multiple diagnostics in <code class="language-python highlight"><span class="n">DiagnosticBag</span></code> and
+raises <code class="language-python highlight"><span class="n">SemanticError</span></code> only after the semantic pass completes. Later phases
+raise one structured diagnostic exception immediately because they do not have a
+bagging pass today.</p>
+<h3 id="source-locations">Source Locations<a class="headerlink" href="#source-locations" title="Permanent link">&para;</a></h3>
+<p>IRx centralizes source extraction through shared helpers:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">get_node_source_location</span><span class="p">(</span><span class="n">node</span><span class="p">)</span></code> safely reads <code class="language-python highlight"><span class="n">node</span><span class="o">.</span><span class="n">loc</span></code> without assuming
+  every AST node carries a full span</li>
+<li><code class="language-python highlight"><span class="n">SourceLocation</span></code> stores line and column today and already has optional end
+  fields for future span-aware parsers</li>
+<li><code class="language-python highlight"><span class="n">format_source_location</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> renders module and line/column consistently for
+  semantic and non-semantic diagnostics</li>
+</ul>
+<p>IRx does not invent fake spans. If an AST node does not carry location data, the
+diagnostic still formats cleanly without a location prefix.</p>
+<h3 id="diagnostic-codes-and-prefixes">Diagnostic Codes And Prefixes<a class="headerlink" href="#diagnostic-codes-and-prefixes" title="Permanent link">&para;</a></h3>
+<p>Diagnostic codes are split into a stable logical identifier and a configurable
+display prefix.</p>
+<ul>
+<li>IRx stores logical identifiers such as <code class="language-python highlight"><span class="n">S001</span></code>, <code class="language-python highlight"><span class="n">S010</span></code>, <code class="language-python highlight"><span class="n">L001</span></code>, <code class="language-python highlight"><span class="n">F001</span></code>, <code class="language-python highlight"><span class="n">R001</span></code>,
+  <code class="language-python highlight"><span class="n">C001</span></code>, and <code class="language-python highlight"><span class="n">K001</span></code></li>
+<li>IRx renders them through one shared <code class="language-python highlight"><span class="n">DiagnosticCodeFormatter</span></code></li>
+<li>the default display prefix is <code class="language-python highlight"><span class="n">IRX</span><span class="o">-</span></code></li>
+</ul>
+<p>Current high-level families:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">Sxxx</span></code>: semantic analysis</li>
+<li><code class="language-python highlight"><span class="n">Fxxx</span></code>: public FFI contract</li>
+<li><code class="language-python highlight"><span class="n">Lxxx</span></code>: lowering and codegen</li>
+<li><code class="language-python highlight"><span class="n">Rxxx</span></code>: runtime feature activation and symbol resolution</li>
+<li><code class="language-python highlight"><span class="n">Cxxx</span></code>: native runtime-artifact compilation</li>
+<li><code class="language-python highlight"><span class="n">Kxxx</span></code>: final executable linking</li>
+</ul>
+<p>Downstream compilers can override the prefix without forking IRx formatting
+logic:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">irx.diagnostics</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_diagnostic_code_prefix</span>
+
+<span class="n">set_diagnostic_code_prefix</span><span class="p">(</span><span class="s2">&quot;ARX-&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>After that override, the same logical code renders as <code class="language-python highlight"><span class="n">ARX</span><span class="o">-</span><span class="n">S010</span></code>, <code class="language-python highlight"><span class="n">ARX</span><span class="o">-</span><span class="n">L001</span></code>,
+<code class="language-python highlight"><span class="n">ARX</span><span class="o">-</span><span class="n">R001</span></code>, and so on.</p>
+<h3 id="formatting">Formatting<a class="headerlink" href="#formatting" title="Permanent link">&para;</a></h3>
+<p>IRx keeps the first diagnostic line compact:</p>
+<div class="language-text highlight"><pre><span></span><code>module_a:12:8: error[IRX-S010]: argument 1 of call to &#39;puts&#39; expects UTF8String but got Int32
+</code></pre></div>
+<p>When extra context exists, the formatter appends indented follow-up lines:</p>
+<div class="language-text highlight"><pre><span></span><code>module_a:4:2: error[IRX-S002]: Identifier already declared: value
+  note: duplicate declarations in one scope are not allowed
+  related: module_a:1:1: previous declaration is here
+</code></pre></div>
+<p>Non-semantic failures also keep their phase visible:</p>
+<div class="language-text highlight"><pre><span></span><code>error[IRX-K001] (link): link failed while producing &#39;demo&#39;
+  note: command: clang /tmp/irx_module.o -o /tmp/demo
+  note: stderr: undefined reference to `sqrt`
+</code></pre></div>
+<h2 id="function-signature-and-calling-contract">Function Signature And Calling Contract<a class="headerlink" href="#function-signature-and-calling-contract" title="Permanent link">&para;</a></h2>
+<p>Callable semantics are part of IRx's stable semantic boundary.</p>
+<ul>
+<li>every callable is normalized into one canonical semantic signature before
+  lowering</li>
+<li>the canonical signature includes callable identity, ordered parameters, return
+  type, calling convention class, variadic flag, extern/native status, and
+  lowered symbol name</li>
+<li>extern signatures additionally record required runtime features and validated
+  public FFI classification metadata</li>
+<li>parameter order is stable and exactly matches declaration order</li>
+<li>duplicate parameter names are rejected semantically</li>
+<li>unresolved parameter or return types are rejected semantically</li>
+<li>conflicting declarations are rejected semantically</li>
+</ul>
+<p>Calling conventions are classified semantically even when current LLVM emission
+is shared:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">irx_default</span></code> for IRx-defined functions</li>
+<li><code class="language-python highlight"><span class="n">c</span></code> for explicit extern/native declarations</li>
+</ul>
+<p>Current declaration metadata is intentionally narrow. When present on
+<code class="language-python highlight"><span class="n">FunctionPrototype</span></code>, IRx consumes:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">is_extern</span></code></li>
+<li><code class="language-python highlight"><span class="n">calling_convention</span></code></li>
+<li><code class="language-python highlight"><span class="n">is_variadic</span></code></li>
+<li><code class="language-python highlight"><span class="n">symbol_name</span></code></li>
+<li><code class="language-python highlight"><span class="n">runtime_feature</span></code></li>
+<li><code class="language-python highlight"><span class="n">runtime_features</span></code></li>
+</ul>
+<h2 id="class-inheritance-contract">Class Inheritance Contract<a class="headerlink" href="#class-inheritance-contract" title="Permanent link">&para;</a></h2>
+<p>Class semantics are also part of IRx's stable semantic boundary.</p>
+<ul>
+<li>every analyzed class records a deterministic C3 linearization in
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">mro</span></code></li>
+<li>multiple inheritance is allowed when C3 can produce a consistent order; if it
+  cannot, semantic analysis raises a diagnostic before lowering</li>
+<li>method lookup follows MRO order for inherited candidates, but class methods
+  now normalize into exact-signature overload groups in
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">method_groups</span></code> and <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">method_resolution</span></code></li>
+<li><code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">member_table</span></code> remains the single-name lookup surface for
+  attributes and method names with exactly one visible overload; overloaded
+  method families live only in the overload-group metadata</li>
+<li>same-name inherited attributes from distinct ancestors are rejected as
+  ambiguous unless they collapse to one logical shared ancestor in the MRO</li>
+<li>same-call-signature inherited methods from sibling bases are rejected unless
+  one candidate dominates unambiguously through inheritance or the subclass
+  supplies an exact-signature override</li>
+<li>diamond inheritance is allowed semantically; <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">shared_ancestors</span></code>
+  records ancestors reached through more than one direct-base lineage so later
+  layout/lowering phases can reuse that metadata instead of re-deriving it</li>
+<li>private members do not participate in inherited lookup; non-private inherited
+  members are normalized before lowering in <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">member_table</span></code> and
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">method_groups</span></code></li>
+</ul>
+<h2 id="class-layout-contract">Class Layout Contract<a class="headerlink" href="#class-layout-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now records a deterministic low-level object layout for every analyzed class
+before lowering.</p>
+<ul>
+<li>class values lower as pointers to identified object structs, not by-value
+  composites</li>
+<li>every class object reserves two hidden header slots first: one type-descriptor
+  pointer slot and one dispatch-table pointer slot</li>
+<li>the type-descriptor header slot is reserved in semantic layout metadata now,
+  but codegen does not populate a descriptor global yet; that slot is kept
+  stable for later construction/runtime work</li>
+<li>instance storage is flattened in one canonical ancestor-first order with
+  shared ancestors stored once per logical base class</li>
+<li><code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">instance_fields</span></code> records stable storage indices for all
+  declared instance attributes, including inherited storage that is not visible
+  for lookup</li>
+<li>declared static attributes lower to internal module globals named in
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">static_fields</span></code></li>
+<li><code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">visible_field_slots</span></code> and
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">visible_static_storage</span></code> let later lowering phases reuse
+  semantic member resolution instead of recomputing layout lookups from syntax</li>
+</ul>
+<h2 id="class-method-contract">Class Method Contract<a class="headerlink" href="#class-method-contract" title="Permanent link">&para;</a></h2>
+<p>IRx class methods now lower as explicit functions with analysis-owned dispatch
+metadata rather than as implicit runtime behavior.</p>
+<ul>
+<li>every analyzed class method records a normalized source signature plus a
+  lowered callable form in <code class="language-python highlight"><span class="n">SemanticClassMember</span><span class="o">.</span><span class="n">lowered_function</span></code></li>
+<li>instance methods gain one hidden leading <code class="language-python highlight"><span class="bp">self</span></code> parameter whose type is the
+  declaring class pointer representation</li>
+<li>static methods keep their declared parameter list and do not receive an
+  implicit receiver</li>
+<li>class methods support exact-signature multidispatch by method name and
+  explicit argument types; overload selection does not rank implicit numeric or
+  class-hierarchy conversions when more than one overload is visible</li>
+<li>non-private instance methods receive hierarchy-family-local dispatch slots in
+  <code class="language-python highlight"><span class="n">SemanticClassMember</span><span class="o">.</span><span class="n">dispatch_slot</span></code>; valid exact-signature overrides reuse the
+  inherited slot, and unrelated class families do not affect those slot numbers</li>
+<li><code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">dispatch_entries</span></code> and
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">visible_method_slots</span></code> provide the lowering-facing view
+  of one class dispatch table after MRO resolution, keyed by exact signature</li>
+<li><code class="language-python highlight"><span class="n">MethodCall</span></code> analysis records one <code class="language-python highlight"><span class="n">ResolvedMethodCall</span></code> with the chosen member,
+  overload key, candidate set, validated argument conversions, dispatch mode,
+  receiver class, and dispatch slot when indirect dispatch is required</li>
+<li>implicit <code class="language-python highlight"><span class="n">Derived</span> <span class="o">-&gt;</span> <span class="n">Base</span></code> upcasts participate in assignment, call, and return
+  compatibility, which makes overridden instance methods usable through
+  base-typed receivers</li>
+<li>full multiple-inheritance ancestor field views are still deferred; the current
+  upcast guarantee is specifically for class pointer compatibility and method
+  dispatch</li>
+<li>conversion-ranked overload selection is intentionally deferred; callers that
+  want a non-exact overload must spell the conversion explicitly with <code class="language-python highlight"><span class="n">Cast</span></code></li>
+<li><code class="language-python highlight"><span class="n">StaticMethodCall</span></code> analysis always resolves to direct calls because static
+  methods never consume a hidden receiver and do not participate in instance
+  dispatch</li>
+<li>lowering emits one internal dispatch table global per class when at least one
+  visible instance method has a dispatch slot, and instance call sites load the
+  callee through that table instead of re-resolving semantics from syntax</li>
+</ul>
+<h2 id="class-member-access-contract">Class Member Access Contract<a class="headerlink" href="#class-member-access-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now distinguishes instance and class-qualified member access forms
+explicitly instead of inferring them from generic field syntax.</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">FieldAccess</span></code> remains the low-level read form for <code class="language-python highlight"><span class="n">obj</span><span class="o">.</span><span class="n">attr</span></code> on structs and
+  class instances</li>
+<li><code class="language-python highlight"><span class="n">BaseFieldAccess</span></code> is the low-level read/write form for one explicit
+  base-qualified instance attribute view on a class receiver</li>
+<li><code class="language-python highlight"><span class="n">StaticFieldAccess</span></code> is the low-level read/write form for
+  <code class="language-python highlight"><span class="n">ClassName</span><span class="o">.</span><span class="n">static_attr</span></code></li>
+<li><code class="language-python highlight"><span class="n">MethodCall</span></code> remains the low-level call form for <code class="language-python highlight"><span class="n">obj</span><span class="o">.</span><span class="n">method</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> and uses
+  direct or indirect dispatch from analyzed method metadata</li>
+<li><code class="language-python highlight"><span class="n">BaseMethodCall</span></code> is the low-level call form for one explicit base-qualified
+  instance method invocation and lowers as a direct call to the selected base
+  implementation</li>
+<li><code class="language-python highlight"><span class="n">StaticMethodCall</span></code> remains the low-level call form for
+  <code class="language-python highlight"><span class="n">ClassName</span><span class="o">.</span><span class="n">static_method</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> and always lowers as a direct call</li>
+<li>base-qualified member access is legal only when the named base appears in the
+  receiver class MRO; analysis rejects unrelated class names before lowering</li>
+<li>static field reads resolve through
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">visible_static_storage</span></code> first and only fall back to
+  qualified-name storage metadata for the selected inherited member when needed</li>
+<li>instance field reads resolve through
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">visible_field_slots</span></code> and the canonical flattened storage
+  layout recorded during class analysis</li>
+<li>explicit base-qualified field reads resolve through the concrete receiver
+  layout using the selected base member's qualified storage slot</li>
+<li>lowering consumes the resolved storage and dispatch metadata attached during
+  semantic analysis and does not re-run class member lookup from syntax</li>
+<li>direct writes through <code class="language-python highlight"><span class="n">FieldAccess</span></code>, <code class="language-python highlight"><span class="n">BaseFieldAccess</span></code>, and
+  <code class="language-python highlight"><span class="n">StaticFieldAccess</span></code> reuse the same analyzed layout or storage metadata as
+  their read paths</li>
+<li>constant class members reject both assignment and unary mutation during
+  semantic analysis before lowering</li>
+<li>static field initialization remains limited to literal/default construction in
+  this phase; phase 8 adds mutability and write enforcement without changing
+  initialization order</li>
+<li>implicit ancestor field views remain deferred; IRx now supports only explicit
+  base-qualified ancestor access in this phase</li>
+</ul>
+<h2 id="class-access-control-contract">Class Access Control Contract<a class="headerlink" href="#class-access-control-contract" title="Permanent link">&para;</a></h2>
+<p>IRx enforces class visibility during semantic analysis instead of deferring it
+to lowering or runtime behavior.</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">public</span></code> members are accessible from any context that can already resolve the
+  containing class value</li>
+<li><code class="language-python highlight"><span class="n">private</span></code> members are accessible only while analyzing methods of their
+  declaring class</li>
+<li><code class="language-python highlight"><span class="n">protected</span></code> members are accessible only within the declaring class and its
+  subclasses; IRx does not add same-module or friend-style access</li>
+<li>private members still stay out of inherited lookup tables, but access sites
+  diagnose hidden base members as inaccessible rather than pretending they do
+  not exist</li>
+<li>explicit <code class="language-python highlight"><span class="n">BaseFieldAccess</span></code> and <code class="language-python highlight"><span class="n">BaseMethodCall</span></code> follow the same visibility
+  rules as ordinary member access; qualifying a base does not bypass access
+  control</li>
+<li>when the declaring class accesses one of its private members through a
+  derived-typed receiver, analysis resolves the originating base member and
+  lowering reuses the existing class-pointer upcast path</li>
+</ul>
+<h2 id="class-construction-contract">Class Construction Contract<a class="headerlink" href="#class-construction-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now exposes one low-level default-construction path for classes without
+introducing high-level constructor syntax yet.</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">ClassConstruct</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">)</span></code> allocates one heap object and returns the analyzed
+  class pointer type for <code class="language-python highlight"><span class="n">Name</span></code></li>
+<li>construction initializes object headers first, then instance fields in the
+  same canonical flattened storage order recorded in
+  <code class="language-python highlight"><span class="n">SemanticClass</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">instance_fields</span></code></li>
+<li>the reserved type-descriptor header slot is initialized to null for now</li>
+<li>the dispatch-table header slot is initialized to the class dispatch global
+  when one exists, otherwise null</li>
+<li>instance fields use their declaration initializer when present; otherwise they
+  receive the same zero/null default used for ordinary local declarations</li>
+<li>instance constant fields must have declaration initializers in the current
+  model because dedicated constructors are not implemented yet</li>
+<li>static class fields initialize once at module load from literal declaration
+  initializers or their zero/null default when no initializer is present</li>
+<li>non-literal static field initializers are rejected during semantic analysis in
+  this phase so codegen never has to invent runtime initialization order</li>
+</ul>
+<h2 id="class-abi-and-interop-contract">Class ABI And Interop Contract<a class="headerlink" href="#class-abi-and-interop-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now makes the internal class ABI explicit without treating it as a stable
+foreign object ABI.</p>
+<ul>
+<li>source-level <code class="language-python highlight"><span class="n">ClassType</span></code> parameters and return types inside IRx-defined
+  functions lower through the same pointer ABI as method receivers; they are not
+  copied by value</li>
+<li>class method bodies lower to internal LLVM symbols named with
+  <code class="language-python highlight"><span class="n">mangle_class_method_name</span><span class="p">(</span><span class="n">module_key</span><span class="p">,</span> <span class="n">class_name</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">overload_key</span><span class="p">)</span></code>
+  so the module, declaring class, method name, and exact overload signature all
+  participate in the symbol name</li>
+<li>class static attributes lower to internal globals named with
+  <code class="language-python highlight"><span class="n">mangle_class_static_name</span><span class="p">(</span><span class="n">module_key</span><span class="p">,</span> <span class="n">class_name</span><span class="p">,</span> <span class="n">member_name</span><span class="p">)</span></code></li>
+<li>dispatch tables and reserved descriptor metadata remain internal globals and
+  should be treated as opaque implementation details rather than a public ABI</li>
+<li>IRx does not promise a stable foreign ABI for general classes in this phase;
+  explicit extern declarations reject <code class="language-python highlight"><span class="n">ClassType</span></code> directly and through pointer
+  pointees</li>
+<li>ABI-oriented interop should continue to use plain structs, plain extern
+  functions, typed pointers, and opaque handles at foreign boundaries</li>
+</ul>
+<h2 id="class-diagnostics-contract">Class Diagnostics Contract<a class="headerlink" href="#class-diagnostics-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now treats class errors as stable semantic diagnostics rather than backend
+failures.</p>
+<ul>
+<li>unknown base classes diagnose before MRO resolution completes</li>
+<li>duplicate direct bases, self-inheritance, inheritance cycles, and inconsistent
+  C3 linearizations diagnose on the class definition</li>
+<li>duplicate member names, duplicate exact method signatures, return-type-only
+  overloads, and mixed static/instance method families diagnose during member
+  normalization</li>
+<li>inherited attribute ambiguity, inherited member conflicts, visibility
+  reductions on override, and static/instance status changes across inheritance
+  diagnose before lowering</li>
+<li>inaccessible private/protected member use, instance-vs-static access misuse,
+  and unrelated explicit base qualification diagnose at semantic access sites</li>
+<li>constant class members reject assignment and unary mutation during semantic
+  analysis before codegen</li>
+<li>invalid constant or static initialization rules diagnose while building the
+  canonical class initialization plan</li>
+</ul>
+<h2 id="public-ffi-contract">Public FFI Contract<a class="headerlink" href="#public-ffi-contract" title="Permanent link">&para;</a></h2>
+<p>IRx now treats explicit extern/native declarations as one public FFI layer
+instead of an incidental backend escape hatch.</p>
+<h3 id="what-qualifies-as-a-public-ffi-callable">What Qualifies As A Public FFI Callable<a class="headerlink" href="#what-qualifies-as-a-public-ffi-callable" title="Permanent link">&para;</a></h3>
+<ul>
+<li>only explicit extern declarations participate in the public FFI contract</li>
+<li>extern declarations must not define an IRx body</li>
+<li>extern declarations default to calling convention <code class="language-python highlight"><span class="n">c</span></code></li>
+<li>source-level function names default to <code class="language-python highlight"><span class="n">symbol_name</span> <span class="o">==</span> <span class="n">name</span></code></li>
+<li><code class="language-python highlight"><span class="n">symbol_name</span></code> may override the linked/native symbol while keeping a different
+  IRx-visible wrapper name</li>
+<li><code class="language-python highlight"><span class="n">runtime_feature</span></code> or <code class="language-python highlight"><span class="n">runtime_features</span></code> may declare explicit native dependency
+  packaging for that extern</li>
+<li>semantic analysis records the public/source name, linked symbol name, calling
+  convention, variadic flag, extern flag, required runtime features, and public
+  FFI admissibility metadata before lowering</li>
+</ul>
+<h3 id="public-ffi-type-policy">Public FFI Type Policy<a class="headerlink" href="#public-ffi-type-policy" title="Permanent link">&para;</a></h3>
+<p>IRx intentionally keeps the public FFI type surface narrow in this phase.</p>
+<p>Accepted in extern signatures:</p>
+<ul>
+<li>scalar integers</li>
+<li>scalar floats</li>
+<li><code class="language-python highlight"><span class="n">Boolean</span></code></li>
+<li><code class="language-python highlight"><span class="n">NoneType</span></code> only as a return type (<code class="language-python highlight"><span class="n">void</span></code>)</li>
+<li><code class="language-python highlight"><span class="n">String</span></code> / <code class="language-python highlight"><span class="n">UTF8String</span></code> / <code class="language-python highlight"><span class="n">UTF8Char</span></code> only as pointer-based extern values</li>
+<li><code class="language-python highlight"><span class="n">PointerType</span><span class="p">(</span><span class="n">T</span><span class="p">)</span></code> when <code class="language-python highlight"><span class="n">T</span></code> is itself FFI-admissible</li>
+<li><code class="language-python highlight"><span class="n">PointerType</span><span class="p">()</span></code> as an opaque pointer</li>
+<li><code class="language-python highlight"><span class="n">OpaqueHandleType</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span></code></li>
+<li><code class="language-python highlight"><span class="n">BufferOwnerType</span></code> as a named opaque handle</li>
+<li>ABI-compatible structs</li>
+<li>nested ABI-compatible structs by value</li>
+<li>the canonical <code class="language-python highlight"><span class="n">BufferViewType</span></code> descriptor, which is a stable plain ABI struct</li>
+</ul>
+<p>Rejected in extern signatures:</p>
+<ul>
+<li>unresolved or unsized types</li>
+<li><code class="language-python highlight"><span class="n">ClassType</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> values and pointers to class pointees</li>
+<li>non-ABI-stable internal-only composite forms</li>
+<li>temporal and other IRx-only types without an explicit public FFI ABI contract</li>
+<li>pointers to unsupported pointee types</li>
+<li>arbitrary variadic IRx-defined callables</li>
+<li>function pointers and callbacks in this phase</li>
+</ul>
+<h3 id="abi-compatible-structs-for-ffi">ABI-Compatible Structs For FFI<a class="headerlink" href="#abi-compatible-structs-for-ffi" title="Permanent link">&para;</a></h3>
+<p>The public FFI layer accepts a validated subset of IRx structs:</p>
+<ul>
+<li>fields must resolve semantically before lowering</li>
+<li>declaration order is the ABI field order</li>
+<li>empty structs are rejected</li>
+<li>direct or mutual by-value recursive layouts are rejected</li>
+<li>every field must itself be FFI-admissible</li>
+<li>nested structs are allowed when every nested field remains ABI-admissible</li>
+<li>by-value and by-pointer passing both use the same validated layout assumptions</li>
+<li>lowering emits the same plain LLVM struct layout that semantic validation
+  approved; no hidden headers or runtime payloads are introduced</li>
+</ul>
+<h3 id="pointers-and-opaque-handles">Pointers And Opaque Handles<a class="headerlink" href="#pointers-and-opaque-handles" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code class="language-python highlight"><span class="n">PointerType</span><span class="p">(</span><span class="n">T</span><span class="p">)</span></code> represents a typed native pointer</li>
+<li><code class="language-python highlight"><span class="n">PointerType</span><span class="p">()</span></code> represents an opaque pointer with no visible pointee layout</li>
+<li><code class="language-python highlight"><span class="n">OpaqueHandleType</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span></code> represents a first-class named native handle whose
+  layout is intentionally hidden</li>
+<li>opaque handles may be passed, returned, stored, and compared when comparison
+  is otherwise semantically supported</li>
+<li>opaque handles do not support field access or indexing</li>
+<li>nullability is not modeled statically yet; null is currently a runtime-level
+  concern rather than a typed IRx value</li>
+</ul>
+<h3 id="symbol-resolution-and-runtime-features">Symbol Resolution And Runtime Features<a class="headerlink" href="#symbol-resolution-and-runtime-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li>an extern with no runtime features emits only an LLVM external declaration;
+  the final system toolchain/linker is expected to resolve the symbol</li>
+<li>an extern with <code class="language-python highlight"><span class="n">runtime_feature</span></code> / <code class="language-python highlight"><span class="n">runtime_features</span></code> still emits one semantic
+  extern declaration, but it also activates the named runtime feature set for
+  that compilation unit</li>
+<li>runtime features remain the only place where IRx packages native C sources,
+  objects, static libraries, or linker flags</li>
+<li>duplicate extern declarations with incompatible ABI or runtime-feature meaning
+  are rejected semantically</li>
+<li>duplicate source-level declarations or duplicate <code class="language-python highlight"><span class="n">symbol_name</span></code> aliases must be
+  compatible in calling convention, variadic status, symbol name, parameter
+  types, return type, and required runtime features</li>
+</ul>
+<h3 id="intentionally-unsupported-for-now">Intentionally Unsupported For Now<a class="headerlink" href="#intentionally-unsupported-for-now" title="Permanent link">&para;</a></h3>
+<ul>
+<li>dynamic loading or plugin discovery</li>
+<li>callbacks and public function-pointer interop</li>
+<li>broad platform-specific ABI tuning beyond the current LLVM/data-layout model</li>
+<li>arbitrary variadic IRx-defined functions</li>
+<li>auto-coercion between incompatible pointers, structs, or opaque handles</li>
+</ul>
+<p>Minimal examples:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">puts</span> <span class="o">=</span> <span class="n">astx</span><span class="o">.</span><span class="n">FunctionPrototype</span><span class="p">(</span>
+    <span class="s2">&quot;puts&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Arguments</span><span class="p">(</span><span class="n">astx</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="n">astx</span><span class="o">.</span><span class="n">UTF8String</span><span class="p">())),</span>
+    <span class="n">return_type</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Int32</span><span class="p">(),</span>
+<span class="p">)</span>
+<span class="n">puts</span><span class="o">.</span><span class="n">is_extern</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">puts</span><span class="o">.</span><span class="n">calling_convention</span> <span class="o">=</span> <span class="s2">&quot;c&quot;</span>
+<span class="n">puts</span><span class="o">.</span><span class="n">symbol_name</span> <span class="o">=</span> <span class="s2">&quot;puts&quot;</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sqrt</span> <span class="o">=</span> <span class="n">astx</span><span class="o">.</span><span class="n">FunctionPrototype</span><span class="p">(</span>
+    <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Arguments</span><span class="p">(</span><span class="n">astx</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">astx</span><span class="o">.</span><span class="n">Float64</span><span class="p">())),</span>
+    <span class="n">return_type</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Float64</span><span class="p">(),</span>
+<span class="p">)</span>
+<span class="n">sqrt</span><span class="o">.</span><span class="n">is_extern</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">sqrt</span><span class="o">.</span><span class="n">calling_convention</span> <span class="o">=</span> <span class="s2">&quot;c&quot;</span>
+<span class="n">sqrt</span><span class="o">.</span><span class="n">symbol_name</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span>
+<span class="n">sqrt</span><span class="o">.</span><span class="n">runtime_feature</span> <span class="o">=</span> <span class="s2">&quot;libm&quot;</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><span class="n">open_handle</span> <span class="o">=</span> <span class="n">astx</span><span class="o">.</span><span class="n">FunctionPrototype</span><span class="p">(</span>
+    <span class="s2">&quot;open_handle&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Arguments</span><span class="p">(),</span>
+    <span class="n">return_type</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">OpaqueHandleType</span><span class="p">(</span><span class="s2">&quot;demo_handle&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">open_handle</span><span class="o">.</span><span class="n">is_extern</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">open_handle</span><span class="o">.</span><span class="n">calling_convention</span> <span class="o">=</span> <span class="s2">&quot;c&quot;</span>
+<span class="n">open_handle</span><span class="o">.</span><span class="n">symbol_name</span> <span class="o">=</span> <span class="s2">&quot;open_handle&quot;</span>
+</code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><span class="n">astx</span><span class="o">.</span><span class="n">StructDefStmt</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Point&quot;</span><span class="p">,</span>
+    <span class="n">attributes</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">VariableDeclaration</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Float64</span><span class="p">()),</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">VariableDeclaration</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Float64</span><span class="p">()),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+
+<span class="n">take_point</span> <span class="o">=</span> <span class="n">astx</span><span class="o">.</span><span class="n">FunctionPrototype</span><span class="p">(</span>
+    <span class="s2">&quot;take_point&quot;</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Arguments</span><span class="p">(</span><span class="n">astx</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="s2">&quot;point&quot;</span><span class="p">,</span> <span class="n">astx</span><span class="o">.</span><span class="n">StructType</span><span class="p">(</span><span class="s2">&quot;Point&quot;</span><span class="p">))),</span>
+    <span class="n">return_type</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Int32</span><span class="p">(),</span>
+<span class="p">)</span>
+<span class="n">take_point</span><span class="o">.</span><span class="n">is_extern</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">take_point</span><span class="o">.</span><span class="n">calling_convention</span> <span class="o">=</span> <span class="s2">&quot;c&quot;</span>
+<span class="n">take_point</span><span class="o">.</span><span class="n">symbol_name</span> <span class="o">=</span> <span class="s2">&quot;take_point&quot;</span>
+</code></pre></div>
+<h2 id="call-and-return-validation">Call And Return Validation<a class="headerlink" href="#call-and-return-validation" title="Permanent link">&para;</a></h2>
+<p>Function calls are validated through one semantic path before lowering:</p>
+<ul>
+<li>callee resolution must produce a callable symbol with a canonical signature</li>
+<li>fixed-arity calls must match the declared parameter count exactly</li>
+<li>variadic calls are limited to explicit extern/native declarations</li>
+<li>fixed prefix arguments use the canonical implicit-cast policy</li>
+<li>successful call analysis records resolved callable metadata, resolved argument
+  types, result type, and any inserted implicit conversions</li>
+<li>lowering must consume that metadata instead of repairing malformed calls</li>
+</ul>
+<p>Returns are also validated semantically before lowering:</p>
+<ul>
+<li><code class="language-python highlight"><span class="k">return</span> <span class="n">expr</span></code> is valid only in non-void functions</li>
+<li>bare <code class="language-python highlight"><span class="k">return</span></code> is valid only in void functions</li>
+<li>implicit return conversion follows the same canonical cast policy used for
+  assignments and call arguments</li>
+<li>non-void functions must not fall through</li>
+<li>structured control flow is analyzed conservatively; missing returns on any
+  reachable path are rejected</li>
+</ul>
+<p>Representative examples of the current semantic style:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">cannot</span> <span class="n">assign</span> <span class="n">Float64</span> <span class="n">to</span> <span class="s1">&#39;count&#39;</span> <span class="n">of</span> <span class="nb">type</span> <span class="n">Int32</span></code></li>
+<li><code class="language-python highlight"><span class="n">argument</span> <span class="mi">2</span> <span class="n">of</span> <span class="n">call</span> <span class="n">to</span> <span class="s1">&#39;sqrt&#39;</span> <span class="n">expects</span> <span class="n">Float64</span> <span class="n">but</span> <span class="n">got</span> <span class="n">Int32</span></code></li>
+<li><code class="language-python highlight"><span class="k">if</span> <span class="n">condition</span> <span class="n">must</span> <span class="n">be</span> <span class="n">Boolean</span><span class="p">,</span> <span class="n">got</span> <span class="n">Int32</span></code></li>
+<li><code class="language-python highlight"><span class="n">extern</span> <span class="s1">&#39;take_point&#39;</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">FFI</span><span class="o">-</span><span class="n">safe</span><span class="p">:</span> <span class="n">parameter</span> <span class="s1">&#39;point&#39;</span> <span class="n">field</span> <span class="s1">&#39;x&#39;</span> <span class="n">uses</span> <span class="n">unsupported</span> <span class="n">FFI</span> <span class="nb">type</span> <span class="s1">&#39;DateTime&#39;</span></code></li>
+</ul>
+<p>Void and non-void usage is explicit:</p>
+<ul>
+<li>void calls may be used as statements</li>
+<li>void calls may not be used as expression values</li>
+<li>non-void calls may be used as expressions or discarded as statements</li>
+</ul>
+<h2 id="main-contract"><code class="language-python highlight"><span class="n">main</span></code> Contract<a class="headerlink" href="#main-contract" title="Permanent link">&para;</a></h2>
+<p><code class="language-python highlight"><span class="n">main</span></code> is part of the stable semantic contract rather than a backend caveat:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">main</span></code> must be <code class="language-python highlight"><span class="n">Int32</span> <span class="n">main</span><span class="p">()</span></code></li>
+<li><code class="language-python highlight"><span class="n">main</span></code> must not be variadic</li>
+<li><code class="language-python highlight"><span class="n">main</span></code> must not be extern</li>
+<li><code class="language-python highlight"><span class="n">main</span></code> must return deterministically along every path</li>
+</ul>
+<p>IRx no longer accepts loose <code class="language-python highlight"><span class="n">void</span> <span class="n">main</span></code> behavior or non-deterministic
+fallthrough.</p>
+<h2 id="scalar-numeric-foundation">Scalar Numeric Foundation<a class="headerlink" href="#scalar-numeric-foundation" title="Permanent link">&para;</a></h2>
+<p>Binary scalar numerics use one canonical promotion table:</p>
+<table>
+<thead>
+<tr>
+<th>Operand mix</th>
+<th>Promoted operand type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="language-python highlight"><span class="nb">float</span> <span class="o">+</span> <span class="nb">float</span></code></td>
+<td>wider float</td>
+</tr>
+<tr>
+<td><code class="language-python highlight"><span class="nb">float</span> <span class="o">+</span> <span class="n">integer</span></code></td>
+<td>float widened to cover the integer width floor (<code class="language-python highlight"><span class="mi">16</span></code>, <code class="language-python highlight"><span class="mi">32</span></code>, or <code class="language-python highlight"><span class="mi">64</span></code> bits), capped at <code class="language-python highlight"><span class="n">Float64</span></code></td>
+</tr>
+<tr>
+<td><code class="language-python highlight"><span class="n">signed</span> <span class="o">+</span> <span class="n">signed</span></code></td>
+<td>wider signed integer</td>
+</tr>
+<tr>
+<td><code class="language-python highlight"><span class="n">unsigned</span> <span class="o">+</span> <span class="n">unsigned</span></code></td>
+<td>wider unsigned integer</td>
+</tr>
+<tr>
+<td><code class="language-python highlight"><span class="n">signed</span> <span class="o">+</span> <span class="n">unsigned</span></code></td>
+<td>wider signed integer when the signed operand is strictly wider; otherwise the wider unsigned integer</td>
+</tr>
+</tbody>
+</table>
+<p>Comparison operators (<code class="language-python highlight"><span class="o">&lt;</span></code>, <code class="language-python highlight"><span class="o">&gt;</span></code>, <code class="language-python highlight"><span class="o">&lt;=</span></code>, <code class="language-python highlight"><span class="o">&gt;=</span></code>, <code class="language-python highlight"><span class="o">==</span></code>, <code class="language-python highlight"><span class="o">!=</span></code>) promote their operands
+with the same table and always return <code class="language-python highlight"><span class="n">Boolean</span></code> semantically and <code class="language-python highlight"><span class="n">i1</span></code> in LLVM
+IR.</p>
+<h2 id="boolean-and-comparison-contract">Boolean And Comparison Contract<a class="headerlink" href="#boolean-and-comparison-contract" title="Permanent link">&para;</a></h2>
+<p>Boolean behavior is part of the stable semantic boundary:</p>
+<ul>
+<li>comparisons always return <code class="language-python highlight"><span class="n">Boolean</span></code></li>
+<li><code class="language-python highlight"><span class="k">if</span></code>, <code class="language-python highlight"><span class="k">while</span></code>, and <code class="language-python highlight"><span class="k">for</span><span class="o">-</span><span class="n">count</span></code> conditions must be <code class="language-python highlight"><span class="n">Boolean</span></code></li>
+<li><code class="language-python highlight"><span class="o">&amp;&amp;</span></code>, <code class="language-python highlight"><span class="o">||</span></code>, and <code class="language-python highlight"><span class="err">!</span></code> require <code class="language-python highlight"><span class="n">Boolean</span></code> operands</li>
+<li>implicit truthiness is forbidden for integers, floats, pointers, and other
+  non-boolean values</li>
+</ul>
+<p>Lowering should branch directly on the analyzed Boolean <code class="language-python highlight"><span class="n">i1</span></code> value for control
+flow instead of inventing zero-comparison truthiness rules during codegen.</p>
+<h2 id="loop-contract">Loop Contract<a class="headerlink" href="#loop-contract" title="Permanent link">&para;</a></h2>
+<p>Loop semantics are now part of the stable lowering contract for structured
+control flow:</p>
+<ul>
+<li><code class="language-python highlight"><span class="k">break</span></code> exits the nearest enclosing loop</li>
+<li><code class="language-python highlight"><span class="k">continue</span></code> targets the canonical re-entry block for the active loop form</li>
+<li><code class="language-python highlight"><span class="n">WhileStmt</span></code> re-enters through its condition block</li>
+<li><code class="language-python highlight"><span class="n">ForCountLoopStmt</span></code> evaluates initializer once, condition before each
+  iteration, update after each fallthrough or <code class="language-python highlight"><span class="k">continue</span></code>, and stores the update
+  result as the next loop-variable value</li>
+<li><code class="language-python highlight"><span class="n">ForRangeLoopStmt</span></code> initializes its induction variable once before the first
+  condition check, observes <code class="language-python highlight"><span class="n">end</span></code> and <code class="language-python highlight"><span class="n">step</span></code> before iteration begins, runs body
+  mutations before the step block, and does not expose the loop variable after
+  the loop</li>
+<li>loop misuse such as <code class="language-python highlight"><span class="k">break</span></code> or <code class="language-python highlight"><span class="k">continue</span></code> outside a loop is rejected
+  semantically before lowering and still surfaces as a structured lowering
+  diagnostic in direct backend use</li>
+</ul>
+<h2 id="struct-contract">Struct Contract<a class="headerlink" href="#struct-contract" title="Permanent link">&para;</a></h2>
+<p>Structs are IRx's stable composite storage and ABI foundation.</p>
+<ul>
+<li>struct names are stable semantic symbols</li>
+<li>field order is exactly declaration order</li>
+<li>field names must be unique within a struct</li>
+<li>field types must resolve semantically before lowering</li>
+<li>field layout must not be implicitly reordered by semantics or lowering</li>
+<li>field access must resolve semantically before codegen and lower by stable
+  field index</li>
+<li>nested structs by value are allowed when every referenced struct is fully
+  defined</li>
+<li>direct by-value recursive structs are forbidden</li>
+<li>mutual by-value recursive structs are forbidden</li>
+<li>structs can be passed and returned by value within IRx-defined functions</li>
+<li>the public FFI layer accepts only the ABI-compatible subset described above</li>
+<li>emitted LLVM struct types are plain data with no hidden headers, metadata,
+  tags, or runtime object payloads</li>
+</ul>
+<p>For now, empty structs are rejected explicitly instead of relying on backend-
+specific behavior.</p>
+<h2 id="bufferview-model">Buffer/View Model<a class="headerlink" href="#bufferview-model" title="Permanent link">&para;</a></h2>
+<p>IRx defines a canonical buffer owner plus buffer view substrate for low-level
+memory/container interop. This is not a user-facing scientific array API, and it
+does not define broadcasting, slicing syntax, reductions, or tensor algebra.</p>
+<p>The canonical view descriptor is a plain stable struct conceptually equivalent
+to:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">data</span><span class="p">:</span> <span class="n">ptr</span></code></li>
+<li><code class="language-python highlight"><span class="n">owner</span><span class="p">:</span> <span class="n">ptr</span> <span class="o">|</span> <span class="n">null</span></code></li>
+<li><code class="language-python highlight"><span class="n">dtype</span><span class="p">:</span> <span class="n">opaque</span> <span class="n">handle</span> <span class="ow">or</span> <span class="n">stable</span> <span class="n">token</span></code></li>
+<li><code class="language-python highlight"><span class="n">ndim</span><span class="p">:</span> <span class="n">i32</span></code></li>
+<li><code class="language-python highlight"><span class="n">shape</span><span class="p">:</span> <span class="n">ptr</span><span class="o">&lt;</span><span class="n">i64</span><span class="o">&gt;</span></code></li>
+<li><code class="language-python highlight"><span class="n">strides</span><span class="p">:</span> <span class="n">ptr</span><span class="o">&lt;</span><span class="n">i64</span><span class="o">&gt;</span></code></li>
+<li><code class="language-python highlight"><span class="n">offset_bytes</span><span class="p">:</span> <span class="n">i64</span></code></li>
+<li><code class="language-python highlight"><span class="n">flags</span><span class="p">:</span> <span class="n">i32</span></code></li>
+</ul>
+<p>Stable built-in primitive dtype tokens are also available when a producer does
+not need an out-of-band dtype handle:</p>
+<ul>
+<li><code class="language-python highlight"><span class="mi">1</span><span class="p">:</span> <span class="nb">bool</span></code></li>
+<li><code class="language-python highlight"><span class="mi">2</span><span class="p">:</span> <span class="n">int8</span></code></li>
+<li><code class="language-python highlight"><span class="mi">3</span><span class="p">:</span> <span class="n">int16</span></code></li>
+<li><code class="language-python highlight"><span class="mi">4</span><span class="p">:</span> <span class="n">int32</span></code></li>
+<li><code class="language-python highlight"><span class="mi">5</span><span class="p">:</span> <span class="n">int64</span></code></li>
+<li><code class="language-python highlight"><span class="mi">6</span><span class="p">:</span> <span class="n">uint8</span></code></li>
+<li><code class="language-python highlight"><span class="mi">7</span><span class="p">:</span> <span class="n">uint16</span></code></li>
+<li><code class="language-python highlight"><span class="mi">8</span><span class="p">:</span> <span class="n">uint32</span></code></li>
+<li><code class="language-python highlight"><span class="mi">9</span><span class="p">:</span> <span class="n">uint64</span></code></li>
+<li><code class="language-python highlight"><span class="mi">10</span><span class="p">:</span> <span class="n">float32</span></code></li>
+<li><code class="language-python highlight"><span class="mi">11</span><span class="p">:</span> <span class="n">float64</span></code></li>
+</ul>
+<p>Semantic rules:</p>
+<ul>
+<li>ownership is explicit as borrowed, owned, or external-owner</li>
+<li>exactly one ownership flag must be present</li>
+<li>borrowed views do not free memory and use a null owner handle</li>
+<li>owned and external-owner views use non-null opaque owner handles</li>
+<li>descriptor copies are shallow metadata copies</li>
+<li>deep copy is explicit and never implicit</li>
+<li>retain and release go through runtime/native helpers</li>
+<li>statically known borrowed views are rejected for retain/release helpers</li>
+<li>mutability is attached to the view, not only the allocation</li>
+<li>readonly and writable views are mutually exclusive</li>
+<li>writes through statically readonly views are rejected semantically</li>
+<li>raw byte writes require an 8-bit integer value and are not typed element
+  stores</li>
+<li>shape and strides describe logical indexing, not ownership</li>
+<li>offset support is part of the descriptor model</li>
+<li>null data with statically nonzero extent is rejected</li>
+<li><code class="language-python highlight"><span class="n">IRX_BUFFER_FLAG_VALIDITY_BITMAP</span></code> may advertise producer-side validity
+  metadata, but generic buffer operations remain null-agnostic</li>
+</ul>
+<p>Lowering uses <code class="language-python highlight"><span class="n">irx_buffer_view</span></code> as a named plain struct with stable field order:</p>
+<div class="language-llvm highlight"><pre><span></span><code><span class="nv">%&quot;irx_buffer_view&quot;</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="p">{</span><span class="kt">i8</span><span class="p">*,</span><span class="w"> </span><span class="kt">i8</span><span class="p">*,</span><span class="w"> </span><span class="kt">i8</span><span class="p">*,</span><span class="w"> </span><span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="kt">i64</span><span class="p">*,</span><span class="w"> </span><span class="kt">i64</span><span class="p">*,</span><span class="w"> </span><span class="kt">i64</span><span class="p">,</span><span class="w"> </span><span class="kt">i32</span><span class="p">}</span>
+</code></pre></div>
+<p>Runtime/native lifetime operations are feature-gated behind the <code class="language-python highlight"><span class="n">buffer</span></code> runtime
+feature. Plain descriptors do not pull native helper symbols into a module
+unless a helper is used.</p>
+<h2 id="arrow-runtime-interop-contract">Arrow Runtime Interop Contract<a class="headerlink" href="#arrow-runtime-interop-contract" title="Permanent link">&para;</a></h2>
+<p>IRx exposes Arrow as one optional runtime feature and FFI-owned ABI surface. It
+is not a first-class language container model.</p>
+<p>Stable scope in this phase:</p>
+<ul>
+<li>supported plain primitive Arrow storage types: <code class="language-python highlight"><span class="nb">bool</span></code>, <code class="language-python highlight"><span class="n">int8</span></code>, <code class="language-python highlight"><span class="n">int16</span></code>,
+  <code class="language-python highlight"><span class="n">int32</span></code>, <code class="language-python highlight"><span class="n">int64</span></code>, <code class="language-python highlight"><span class="n">uint8</span></code>, <code class="language-python highlight"><span class="n">uint16</span></code>, <code class="language-python highlight"><span class="n">uint32</span></code>, <code class="language-python highlight"><span class="n">uint64</span></code>, <code class="language-python highlight"><span class="n">float32</span></code>, and
+  <code class="language-python highlight"><span class="n">float64</span></code></li>
+<li>opaque schema, array builder, and array handles under <code class="language-python highlight"><span class="n">irx_arrow_</span><span class="o">*</span></code></li>
+<li>Arrow C Data import/export as the external interchange boundary</li>
+<li>explicit Arrow-to-<code class="language-python highlight"><span class="n">irx_buffer_view</span></code> projection for supported fixed-width
+  numeric arrays</li>
+</ul>
+<p>Import/export rules:</p>
+<ul>
+<li><code class="language-python highlight"><span class="n">irx_arrow_array_import_copy</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> copies external Arrow C Data into a new
+  runtime-owned array handle</li>
+<li><code class="language-python highlight"><span class="n">irx_arrow_array_import_move</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> adopts external Arrow C Data into a new
+  runtime-owned array handle and leaves the source structs moved-from on success</li>
+<li><code class="language-python highlight"><span class="n">irx_arrow_array_export</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> copies a runtime-owned array handle into an
+  independent Arrow C Data pair that the caller releases separately</li>
+<li>schema handles use the same copy-oriented pattern through
+  <code class="language-python highlight"><span class="n">irx_arrow_schema_import_copy</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> and <code class="language-python highlight"><span class="n">irx_arrow_schema_export</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code></li>
+</ul>
+<p>Nullability rules:</p>
+<ul>
+<li>Arrow nullability is modeled on Arrow handles, not as generic <code class="language-python highlight"><span class="n">BufferViewType</span></code>
+  element semantics</li>
+<li><code class="language-python highlight"><span class="n">irx_arrow_array_is_nullable</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code>, <code class="language-python highlight"><span class="n">irx_arrow_array_null_count</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code>, and
+  <code class="language-python highlight"><span class="n">irx_arrow_array_has_validity_bitmap</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> are the stable Arrow-side
+  inspection surface</li>
+<li><code class="language-python highlight"><span class="n">irx_arrow_array_validity_bitmap</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> exposes the physical validity bitmap
+  pointer plus bit offset and length</li>
+<li>generic buffer indexing, stores, and raw writes remain null-agnostic</li>
+</ul>
+<p>Arrow-to-buffer-view bridge rules:</p>
+<ul>
+<li>only fixed-width, byte-addressable primitive arrays are buffer-view compatible
+  in this phase</li>
+<li>the bridge is always readonly and borrowed</li>
+<li>bridged views use a null owner handle; the caller must keep the Arrow array
+  handle alive explicitly</li>
+<li>bridged views populate dtype, shape, strides, and offset for one 1-D columnar
+  value buffer</li>
+<li>when a validity bitmap exists, the returned view sets
+  <code class="language-python highlight"><span class="n">IRX_BUFFER_FLAG_VALIDITY_BITMAP</span></code></li>
+<li>bool arrays are supported as Arrow handles but are not buffer-view compatible
+  because their values are bit-packed</li>
+</ul>
+<p>Intentionally out of scope here:</p>
+<ul>
+<li>ArrowArrayStream, RecordBatch, and Table runtime handles</li>
+<li>dataframe/query semantics</li>
+<li>compute kernels</li>
+<li>nested, dictionary, temporal, decimal, and other non-primitive Arrow layouts</li>
+<li>implicit null-aware scalar semantics on generic buffer views</li>
+</ul>
+<p>Example scalar wrapper:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">astx</span><span class="o">.</span><span class="n">StructDefStmt</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ScalarBox&quot;</span><span class="p">,</span>
+    <span class="n">attributes</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">VariableDeclaration</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Int32</span><span class="p">()),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Example nested record:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">astx</span><span class="o">.</span><span class="n">StructDefStmt</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Descriptor&quot;</span><span class="p">,</span>
+    <span class="n">attributes</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">VariableDeclaration</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;point&quot;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">StructType</span><span class="p">(</span><span class="s2">&quot;Point&quot;</span><span class="p">)),</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">VariableDeclaration</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;ready&quot;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="n">astx</span><span class="o">.</span><span class="n">Boolean</span><span class="p">()),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="canonical-cast-policy">Canonical Cast Policy<a class="headerlink" href="#canonical-cast-policy" title="Permanent link">&para;</a></h3>
+<p>Implicit promotions in variable initializers, assignments, call arguments, and
+returns are intentionally narrower than explicit casts:</p>
+<ul>
+<li>same-type assignment is always allowed</li>
+<li>signed integers may widen to wider signed integers</li>
+<li>unsigned integers may widen to wider unsigned integers</li>
+<li>unsigned integers may widen to strictly wider signed integers</li>
+<li>integers may promote to floats when the target float width meets the same
+  <code class="language-python highlight"><span class="mi">16</span></code>/<code class="language-python highlight"><span class="mi">32</span></code>/<code class="language-python highlight"><span class="mi">64</span></code> floor used by the numeric-promotion table</li>
+<li>floats may widen to wider floats</li>
+<li>implicit sign-changing integer casts to unsigned targets are rejected</li>
+<li>implicit narrowing casts are rejected</li>
+<li>implicit float-to-integer and numeric-to-boolean casts are rejected</li>
+</ul>
+<p>Explicit <code class="language-python highlight"><span class="n">Cast</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> expressions allow the full scalar conversions:</p>
+<ul>
+<li>numeric-to-numeric casts</li>
+<li>boolean-to-numeric casts using <code class="language-python highlight"><span class="mi">0</span></code> and <code class="language-python highlight"><span class="mi">1</span></code></li>
+<li>numeric-to-boolean casts using <code class="language-python highlight"><span class="o">!=</span> <span class="mi">0</span></code> or <code class="language-python highlight"><span class="o">!=</span> <span class="mf">0.0</span></code></li>
+<li>string-to-string casts</li>
+<li>numeric/boolean-to-string casts through runtime formatting</li>
+</ul>
+<h2 id="error-boundaries">Error Boundaries<a class="headerlink" href="#error-boundaries" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Semantic errors: invalid programs, unsupported semantic input, and import
+  contract violations are reported as diagnostics and surfaced as
+  <code class="language-python highlight"><span class="n">SemanticError</span></code> from the public analysis entrypoints.</li>
+<li>Lowering errors: once semantic analysis succeeds, failures during LLVM IR
+  emission belong to backend lowering, not to semantic validation.</li>
+<li>Linking/runtime errors: native artifact compilation, linker execution, and
+  runtime integration failures happen after lowering and are outside the
+  semantic contract.</li>
+</ul>
+<h2 id="what-arx-may-hand-to-irx">What Arx May Hand to IRx<a class="headerlink" href="#what-arx-may-hand-to-irx" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Arx owns parsing. IRx accepts ASTx nodes and host-owned <code class="language-python highlight"><span class="n">ParsedModule</span></code> values;
+  it does not parse source files or perform package discovery.</li>
+<li>Single-root lowering may use <code class="language-python highlight"><span class="n">analyze</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> or <code class="language-python highlight"><span class="n">analyze_module</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> when no
+  cross-module import graph is required.</li>
+<li>Cross-module lowering must use <code class="language-python highlight"><span class="n">analyze_modules</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">resolver</span><span class="p">)</span></code> with a
+  host-supplied <code class="language-python highlight"><span class="n">ImportResolver</span></code>.</li>
+<li>Imports are currently part of the stable contract only at module top level.</li>
+<li>Wildcard imports and import expressions are not part of the current stable
+  lowering contract and are rejected semantically.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2022, IRx Team
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://twitter.com/xmnlab" target="_blank" rel="noopener" title="twitter.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M459.4 151.7c.3 4.5.3 9.1.3 13.6 0 138.7-105.6 298.6-298.6 298.6-59.5 0-114.7-17.2-161.1-47.1 8.4 1 16.6 1.3 25.3 1.3 49.1 0 94.2-16.6 130.3-44.8-46.1-1-84.8-31.2-98.1-72.8 6.5 1 13 1.6 19.8 1.6 9.4 0 18.8-1.3 27.6-3.6-48.1-9.7-84.1-52-84.1-103v-1.3c14 7.8 30.2 12.7 47.4 13.3-28.3-18.8-46.8-51-46.8-87.4 0-19.5 5.2-37.4 14.3-53C87.4 130.8 165 172.4 252.1 176.9c-1.6-7.8-2.6-15.9-2.6-24C249.5 95.1 296.3 48 354.4 48c30.2 0 57.5 12.7 76.7 33.1 23.7-4.5 46.5-13.3 66.6-25.3-7.8 24.4-24.4 44.8-46.1 57.8 21.1-2.3 41.6-8.1 60.4-16.2-14.3 20.8-32.2 39.3-52.6 54.3"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/arxlang/irx" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "search.highlight", "search.share", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
