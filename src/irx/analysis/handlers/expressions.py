@@ -1286,19 +1286,20 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         arg_key = ",".join(display_type_name(arg) for arg in arg_types)
         case_key = "|".join(
             (
-                f"{
-                    (
-                        case.receiver_class.qualified_name
-                        if case.receiver_class is not None
-                        else call_kind
-                    )
-                }:"
+                f"{receiver_key}:"
                 + ",".join(
                     candidate.member.qualified_name
                     for candidate in case.candidates
                 )
             )
             for case in runtime_cases
+            for receiver_key in [
+                (
+                    case.receiver_class.qualified_name
+                    if case.receiver_class is not None
+                    else call_kind
+                )
+            ]
         )
         dispatch_key = f"{call_kind}|{arg_key}|{case_key}"
         return mangle_class_multimethod_name(
