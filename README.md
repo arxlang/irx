@@ -38,6 +38,27 @@ via `clang`.
 - **Optional native runtimes:** `libc` externs are routed through the runtime
   feature layer, feature-backed externs can request `libm`, and Arrow is now
   available as an optional native runtime feature.
+- **Low-level classes:** pointer-based class objects with deterministic C3 MRO,
+  multiple inheritance, dispatch metadata, static globals, access control, and
+  explicit construction/member-access forms.
+
+## Class Support
+
+IRx now includes a first-class low-level class model in addition to plain
+structs.
+
+- instance and static attributes
+- instance and static methods
+- multiple inheritance with deterministic C3 linearization
+- `public` / `protected` / `private`
+- `static` / `constant` / `mutable`
+- deterministic flattened object layout and dispatch metadata
+- explicit `ClassConstruct`, `StaticFieldAccess`, `BaseFieldAccess`, and
+  `BaseMethodCall` forms
+
+For the user-facing overview and examples, see
+[docs/class-model.md](docs/class-model.md). For the normative semantic and
+lowering contract, see [docs/semantic-contract.md](docs/semantic-contract.md).
 
 ## Quick Start
 
