@@ -388,6 +388,27 @@ foreign object ABI.
 - ABI-oriented interop should continue to use plain structs, plain extern
   functions, typed pointers, and opaque handles at foreign boundaries
 
+## Class Diagnostics Contract
+
+IRx now treats class errors as stable semantic diagnostics rather than backend
+failures.
+
+- unknown base classes diagnose before MRO resolution completes
+- duplicate direct bases, self-inheritance, inheritance cycles, and inconsistent
+  C3 linearizations diagnose on the class definition
+- duplicate member names, duplicate exact method signatures, return-type-only
+  overloads, and mixed static/instance method families diagnose during member
+  normalization
+- inherited attribute ambiguity, inherited member conflicts, visibility
+  reductions on override, and static/instance status changes across inheritance
+  diagnose before lowering
+- inaccessible private/protected member use, instance-vs-static access misuse,
+  and unrelated explicit base qualification diagnose at semantic access sites
+- constant class members reject assignment and unary mutation during semantic
+  analysis before codegen
+- invalid constant or static initialization rules diagnose while building the
+  canonical class initialization plan
+
 ## Public FFI Contract
 
 IRx now treats explicit extern/native declarations as one public FFI layer

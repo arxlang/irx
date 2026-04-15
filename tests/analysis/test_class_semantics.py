@@ -324,6 +324,207 @@ def test_analyze_rejects_duplicate_member_names_in_one_class() -> None:
         analyze(make_module("app.main", node))
 
 
+def test_analyze_rejects_duplicate_exact_method_signature() -> None:
+    """
+    title: Classes reject duplicate exact method signatures.
+    """
+    node = astx.ClassDefStmt(
+        name="Vector",
+        methods=[
+            _method("render", astx.Argument("value", astx.Int32())),
+            _method("render", astx.Argument("value", astx.Int32())),
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="already defines this exact signature",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_method_overload_only_by_return_type() -> None:
+    """
+    title: Classes do not overload methods only by return type.
+    """
+    node = astx.ClassDefStmt(
+        name="Vector",
+        methods=[
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                return_type=astx.Int32(),
+            ),
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                return_type=astx.Float64(),
+            ),
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="cannot overload only by return type",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_static_and_instance_method_overloads() -> None:
+    """
+    title: Classes reject mixed static and instance overload families.
+    """
+    node = astx.ClassDefStmt(
+        name="Vector",
+        methods=[
+            _method("render"),
+            _method("render", is_static=True),
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="cannot mix static and instance overloads",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_static_instance_status_change_on_override() -> None:
+    """
+    title: Overrides must keep the inherited static or instance status.
+    """
+    base = astx.ClassDefStmt(name="Base", methods=[_method("render")])
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[_method("render", is_static=True)],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="changes static/instance status across inheritance",
+    ):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_visibility_reduction_on_override() -> None:
+    """
+    title: Overrides cannot narrow inherited method visibility.
+    """
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                visibility=astx.VisibilityKind.public,
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                visibility=astx.VisibilityKind.private,
+            )
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="cannot reduce visibility when overriding",
+    ):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_override_that_changes_only_return_type() -> None:
+    """
+    title: Overrides cannot differ from inherited methods only by return type.
+    """
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                return_type=astx.Int32(),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[
+            _method(
+                "render",
+                astx.Argument("value", astx.Int32()),
+                return_type=astx.Float64(),
+            )
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="cannot overload inherited methods only by return type",
+    ):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_constant_attribute_without_initializer() -> None:
+    """
+    title: Constant class attributes require declaration-time initialization.
+    """
+    node = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "limit",
+                astx.Int32(),
+                mutability=astx.MutabilityKind.constant,
+            )
+        ],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="requires an initializer",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_extern_class_methods() -> None:
+    """
+    title: Class methods stay internal to IRx and cannot be declared extern.
+    """
+    method = _method("render")
+    method.prototype.is_extern = True
+    node = astx.ClassDefStmt(name="Vector", methods=[method])
+
+    with pytest.raises(
+        SemanticError,
+        match="cannot be extern",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_variadic_class_methods() -> None:
+    """
+    title: Class methods cannot be variadic in the current model.
+    """
+    method = _method("render")
+    method.prototype.is_variadic = True
+    node = astx.ClassDefStmt(name="Vector", methods=[method])
+
+    with pytest.raises(
+        SemanticError,
+        match="must not be variadic",
+    ):
+        analyze(make_module("app.main", node))
+
+
 def test_analyze_rejects_attribute_redeclaration_from_base() -> None:
     """
     title: Attributes may not be redeclared across inheritance.
