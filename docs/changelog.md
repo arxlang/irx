@@ -1,6 +1,30 @@
 # Release Notes
 ---
 
+# [1.10.0](https://github.com/arxlang/irx/compare/1.9.0...1.10.0) (2026-04-15)
+
+
+### Features
+
+* Add FFI as a first-class public layer ([#285](https://github.com/arxlang/irx/issues/285)) ([bd48dd5](https://github.com/arxlang/irx/commit/bd48dd5dad5c2e6d0e4782e35e97af9d55072569))
+* add first-class buffer view indexing lowering ([#281](https://github.com/arxlang/irx/issues/281)) ([341e36e](https://github.com/arxlang/irx/commit/341e36e09d34c283a0679b15aec6934d22adc7f3))
+* Add initial support for classes ([#290](https://github.com/arxlang/irx/issues/290)) ([558b05c](https://github.com/arxlang/irx/commit/558b05cd4a41bf51634fd6db57ed4aff9924e4da))
+* Add support for import and import from features ([#273](https://github.com/arxlang/irx/issues/273)) ([dcbe85c](https://github.com/arxlang/irx/commit/dcbe85cbe7345c735781bc0be490fb1fb1bda76f))
+* Complete the scalar numeric foundation ([#277](https://github.com/arxlang/irx/issues/277)) ([b2a8b55](https://github.com/arxlang/irx/commit/b2a8b55a9e7d5df86f562d78cb7262e4348d27f4))
+* Define the buffer/view model ([#280](https://github.com/arxlang/irx/issues/280)) ([f3a8fb4](https://github.com/arxlang/irx/commit/f3a8fb4815d385020941af47b0d881b5b5147e79))
+* Expand Arrow from MVP to usable scientific interop substrate ([#286](https://github.com/arxlang/irx/issues/286)) ([0a415b0](https://github.com/arxlang/irx/commit/0a415b0dfdfc09803465049b78f4cb6e8972e98f))
+* Formalize the IRx semantic contract ([#276](https://github.com/arxlang/irx/issues/276)) ([d1157ad](https://github.com/arxlang/irx/commit/d1157ad5d14145881a26dafb925259df9283faaa))
+* Implement class improvement (Stages 2, 3, 4) ([#291](https://github.com/arxlang/irx/issues/291)) ([531d81b](https://github.com/arxlang/irx/commit/531d81be7b64444e1e6e72ab8e7254b5dd00f8b4))
+* Improve classes - Access control enforcement ([#292](https://github.com/arxlang/irx/issues/292)) ([7767553](https://github.com/arxlang/irx/commit/7767553c8fa0524cc757d32132e148d43164b569))
+* Improve Classes - Member access and lowering ([#294](https://github.com/arxlang/irx/issues/294)) ([80fdb51](https://github.com/arxlang/irx/commit/80fdb516f4a40983087b379380933f34d8dd0e12))
+* Improve Classes - Static storage, constants, and mutability ([#295](https://github.com/arxlang/irx/issues/295)) ([71bff44](https://github.com/arxlang/irx/commit/71bff4425272a0851794ec027f339923a7f09968))
+* Improve Classes: Define Construction and initialization ([#293](https://github.com/arxlang/irx/issues/293)) ([5d1e708](https://github.com/arxlang/irx/commit/5d1e70862612d3b9b3f0bdbb91fed3ba17629da6))
+* Improve diagnostics and source mapping ([#287](https://github.com/arxlang/irx/issues/287)) ([28b04a1](https://github.com/arxlang/irx/commit/28b04a1b247ae13eea60d3e4d2fda7d42620b311))
+* Loop and control-flow hardening for numeric kernels ([#288](https://github.com/arxlang/irx/issues/288)) ([9e6a975](https://github.com/arxlang/irx/commit/9e6a975154d33121243f7ad2bc766902ebe40ff3))
+* Make booleans first-class across semantics and lowering ([#278](https://github.com/arxlang/irx/issues/278)) ([7dafa90](https://github.com/arxlang/irx/commit/7dafa90a1f27167cd0b73356efdcbd4561486964))
+* **semantics:** harden function signatures and calling conventions ([#284](https://github.com/arxlang/irx/issues/284)) ([59b6758](https://github.com/arxlang/irx/commit/59b67581489de11ed78e8394e1d98a19823fb376))
+* Stabilize structs/records as the base composite type ([#279](https://github.com/arxlang/irx/issues/279)) ([dfa3eeb](https://github.com/arxlang/irx/commit/dfa3eeba2f221039464d05d1f47ed28ae179a620))
+
 # [1.9.0](https://github.com/arxlang/irx/compare/1.8.1...1.9.0) (2026-04-02)
 
 
