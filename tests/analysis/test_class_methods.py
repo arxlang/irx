@@ -23,6 +23,10 @@ PROTECTED_STATIC_VALUE = 5
 BASE_FIELD_VALUE = 13
 BASE_METHOD_RESULT = 21
 CHILD_METHOD_RESULT = 34
+STATIC_ASSIGNED_VALUE = 19
+INSTANCE_ASSIGNED_VALUE = 23
+BASE_ASSIGNED_VALUE = 29
+INCREMENTED_STATIC_VALUE = 8
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -54,6 +58,7 @@ def _attribute(
     type_: astx.DataType,
     *,
     visibility: astx.VisibilityKind = astx.VisibilityKind.public,
+    mutability: astx.MutabilityKind = astx.MutabilityKind.mutable,
     is_static: bool = False,
     value: astx.AST | None = None,
 ) -> astx.VariableDeclaration:
@@ -66,6 +71,8 @@ def _attribute(
         type: astx.DataType
       visibility:
         type: astx.VisibilityKind
+      mutability:
+        type: astx.MutabilityKind
       is_static:
         type: bool
       value:
@@ -76,7 +83,7 @@ def _attribute(
     declaration = astx.VariableDeclaration(
         name=name,
         type_=type_,
-        mutability=astx.MutabilityKind.mutable,
+        mutability=mutability,
         visibility=visibility,
         scope=(astx.ScopeKind.global_ if is_static else astx.ScopeKind.local),
         value=value if value is not None else astx.Undefined(),
@@ -607,6 +614,218 @@ def test_analyze_rejects_static_field_access_through_instance_receiver() -> (
         match="must be accessed through the class",
     ):
         analyze(make_module("app.main", counter))
+
+
+def test_analyze_static_field_assignment_uses_resolved_storage() -> None:
+    """
+    title: Static field writes reuse analyzed storage metadata.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.StaticFieldAccess("Counter", "instances"),
+        astx.LiteralInt32(STATIC_ASSIGNED_VALUE),
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+
+    analyze(make_module("app.main", counter, _main_returning(assign)))
+
+    resolved_class = _semantic(counter).resolved_class
+    resolved_access = _semantic(assign.lhs).resolved_static_class_field_access
+    resolved_assignment = _semantic(assign).resolved_assignment
+    assert resolved_class is not None
+    assert resolved_class.layout is not None
+    assert resolved_access is not None
+    assert resolved_assignment is not None
+    assert resolved_access.storage.global_name == (
+        resolved_class.layout.visible_static_storage["instances"].global_name
+    )
+    assert isinstance(_semantic(assign).resolved_type, astx.Int32)
+
+
+def test_analyze_inherited_static_field_assignment_reuses_base_storage() -> (
+    None
+):
+    """
+    title: Inherited static writes resolve to the selected base storage.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.StaticFieldAccess("Child", "instances"),
+        astx.LiteralInt32(STATIC_ASSIGNED_VALUE),
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "instances",
+                astx.Int32(),
+                is_static=True,
+                value=astx.LiteralInt32(INHERITED_STATIC_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+
+    analyze(make_module("app.main", base, child, _main_returning(assign)))
+
+    resolved_access = _semantic(assign.lhs).resolved_static_class_field_access
+    assert resolved_access is not None
+    assert resolved_access.storage.owner_name == "Base"
+    assert resolved_access.member.owner_name == "Base"
+
+
+def test_analyze_rejects_constant_static_field_assignment() -> None:
+    """
+    title: Constant static fields reject assignment after initialization.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.StaticFieldAccess("Counter", "limit"),
+        astx.LiteralInt32(STATIC_ASSIGNED_VALUE),
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "limit",
+                astx.Int32(),
+                mutability=astx.MutabilityKind.constant,
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+
+    with pytest.raises(SemanticError, match=r"Counter\.limit"):
+        analyze(make_module("app.main", counter, _main_returning(assign)))
+
+
+def test_analyze_rejects_constant_instance_field_assignment() -> None:
+    """
+    title: Constant instance fields reject assignment through receivers.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.FieldAccess(astx.Identifier("self"), "value"),
+        astx.LiteralInt32(INSTANCE_ASSIGNED_VALUE),
+    )
+    write = _returning_method("write", assign)
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "value",
+                astx.Int32(),
+                mutability=astx.MutabilityKind.constant,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+        methods=[write],
+    )
+
+    with pytest.raises(SemanticError, match=r"Counter\.value"):
+        analyze(make_module("app.main", counter))
+
+
+def test_rejects_constant_base_field_assignment_via_explicit_base() -> None:
+    """
+    title: Constant base-qualified fields reject explicit writes.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.BaseFieldAccess(astx.Identifier("self"), "Base", "value"),
+        astx.LiteralInt32(BASE_ASSIGNED_VALUE),
+    )
+    write = _returning_method("write", assign)
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "value",
+                astx.Int32(),
+                mutability=astx.MutabilityKind.constant,
+                value=astx.LiteralInt32(BASE_FIELD_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[write],
+    )
+
+    with pytest.raises(SemanticError, match=r"Base\.value"):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_rejects_constant_static_field_increment() -> None:
+    """
+    title: Constant static fields reject unary mutation.
+    """
+    increment = astx.UnaryOp(
+        op_code="++",
+        operand=astx.StaticFieldAccess("Counter", "limit"),
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute(
+                "limit",
+                astx.Int32(),
+                mutability=astx.MutabilityKind.constant,
+                is_static=True,
+                value=astx.LiteralInt32(STATIC_LITERAL_VALUE),
+            )
+        ],
+    )
+
+    with pytest.raises(SemanticError, match=r"Counter\.limit"):
+        analyze(make_module("app.main", counter, _main_returning(increment)))
+
+
+def test_analyze_allows_static_method_mutating_explicit_receiver_field() -> (
+    None
+):
+    """
+    title: Static methods may mutate instance fields via explicit receivers.
+    """
+    assign = astx.BinaryOp(
+        "=",
+        astx.FieldAccess(astx.Identifier("value"), "count"),
+        astx.LiteralInt32(INSTANCE_ASSIGNED_VALUE),
+    )
+    write = _returning_method(
+        "write",
+        assign,
+        astx.Argument("value", _class_type("Counter")),
+        is_static=True,
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[_attribute("count", astx.Int32())],
+        methods=[write],
+    )
+
+    analyze(make_module("app.main", counter))
+
+    resolved_access = _semantic(assign.lhs).resolved_class_field_access
+    resolved_assignment = _semantic(assign).resolved_assignment
+    assert resolved_access is not None
+    assert resolved_assignment is not None
+    assert resolved_access.member.owner_name == "Counter"
 
 
 def test_analyze_resolves_exact_method_overloads() -> None:

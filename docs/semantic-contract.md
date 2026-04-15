@@ -289,9 +289,10 @@ explicitly instead of inferring them from generic field syntax.
 
 - `FieldAccess` remains the low-level read form for `obj.attr` on structs and
   class instances
-- `BaseFieldAccess` is the low-level read form for one explicit base-qualified
-  instance attribute view on a class receiver
-- `StaticFieldAccess` is the low-level read form for `ClassName.static_attr`
+- `BaseFieldAccess` is the low-level read/write form for one explicit
+  base-qualified instance attribute view on a class receiver
+- `StaticFieldAccess` is the low-level read/write form for
+  `ClassName.static_attr`
 - `MethodCall` remains the low-level call form for `obj.method(...)` and uses
   direct or indirect dispatch from analyzed method metadata
 - `BaseMethodCall` is the low-level call form for one explicit base-qualified
@@ -311,8 +312,14 @@ explicitly instead of inferring them from generic field syntax.
   layout using the selected base member's qualified storage slot
 - lowering consumes the resolved storage and dispatch metadata attached during
   semantic analysis and does not re-run class member lookup from syntax
-- static field writes are intentionally deferred to phase 8 together with full
-  mutability and constant-assignment enforcement for class statics
+- direct writes through `FieldAccess`, `BaseFieldAccess`, and
+  `StaticFieldAccess` reuse the same analyzed layout or storage metadata as
+  their read paths
+- constant class members reject both assignment and unary mutation during
+  semantic analysis before lowering
+- static field initialization remains limited to literal/default construction in
+  this phase; phase 8 adds mutability and write enforcement without changing
+  initialization order
 - implicit ancestor field views remain deferred; IRx now supports only explicit
   base-qualified ancestor access in this phase
 
