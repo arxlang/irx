@@ -27,6 +27,9 @@ from tests.conftest import (
 SINGLE_DISPATCH_ENTRY_COUNT = 1
 CLASS_HEADER_SLOT_COUNT = 2
 FIRST_INSTANCE_STORAGE_INDEX = CLASS_HEADER_SLOT_COUNT
+BASE_METHOD_RESULT = 21
+CHILD_METHOD_RESULT = 34
+BASE_FIELD_VALUE = 13
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -404,6 +407,101 @@ def test_inherited_base_method_call_on_derived_receiver_uses_upcast(
     assert 'to %"main__Base"*' in ir_text
     assert "area_callee" in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_base_method_call_lowers_directly_to_selected_base(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Base-qualified calls bypass override dispatch and call the base.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[
+            _returning_method("area", astx.LiteralInt32(BASE_METHOD_RESULT))
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[
+            _returning_method("area", astx.LiteralInt32(CHILD_METHOD_RESULT))
+        ],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.BaseMethodCall(
+                astx.ClassConstruct("Child"),
+                "Base",
+                "area",
+                [],
+            )
+        ),
+    )
+    module = make_module("main", base, child, main_fn)
+
+    ir_text = builder.translate(module)
+    base_method_name = _mangled_method_name(module, base, "area")
+
+    assert f'call i32 @"{base_method_name}"' in ir_text
+    assert_jit_int_main_result(builder, module, BASE_METHOD_RESULT)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_base_field_access_reads_inherited_storage_from_receiver(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Base-qualified field reads use the receiver's flattened storage.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "value",
+                astx.Int32(),
+                value=astx.LiteralInt32(BASE_FIELD_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.BaseFieldAccess(
+                astx.ClassConstruct("Child"),
+                "Base",
+                "value",
+            )
+        ),
+    )
+    module = make_module("main", base, child, main_fn)
+
+    ir_text = builder.translate(module)
+
+    assert '"value_addr" = getelementptr inbounds %"main__Child"' in ir_text
+    assert_jit_int_main_result(builder, module, BASE_FIELD_VALUE)
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])

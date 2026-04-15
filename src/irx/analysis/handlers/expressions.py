@@ -20,6 +20,7 @@ from irx.analysis.normalization import normalize_flags, normalize_operator
 from irx.analysis.resolved_nodes import (
     ClassMemberKind,
     MethodDispatchKind,
+    ResolvedBaseClassFieldAccess,
     ResolvedClassConstruction,
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
@@ -376,7 +377,8 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self,
         class_: SemanticClass,
         member: SemanticClassMember,
-        field_name: str,
+        *,
+        visible_name: str | None = None,
     ) -> SemanticClassLayoutField:
         """
         title: Return one resolved class-instance storage slot.
@@ -385,14 +387,16 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: SemanticClass
           member:
             type: SemanticClassMember
-          field_name:
-            type: str
+          visible_name:
+            type: str | None
         returns:
           type: SemanticClassLayoutField
         """
         if class_.layout is None:
             raise TypeError("class field access requires a resolved layout")
-        field = class_.layout.visible_field_slots.get(field_name)
+        field = None
+        if visible_name is not None:
+            field = class_.layout.visible_field_slots.get(visible_name)
         if field is None:
             field = class_.layout.field_slots.get(member.qualified_name)
         if field is None:
@@ -485,6 +489,57 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             return None
         return binding.class_
+
+    def _resolve_base_access_classes(
+        self,
+        receiver_type: astx.DataType | None,
+        base_class_name: str,
+        *,
+        node: astx.AST,
+        context: str,
+    ) -> tuple[SemanticClass, SemanticClass] | None:
+        """
+        title: Resolve the receiver class and one explicit base view.
+        parameters:
+          receiver_type:
+            type: astx.DataType | None
+          base_class_name:
+            type: str
+          node:
+            type: astx.AST
+          context:
+            type: str
+        returns:
+          type: tuple[SemanticClass, SemanticClass] | None
+        """
+        receiver_class = self._resolve_class_from_type(
+            receiver_type,
+            node=node,
+            unknown_message=f"{context} requires a class value",
+        )
+        if receiver_class is None:
+            if not isinstance(receiver_type, astx.ClassType):
+                self.context.diagnostics.add(
+                    f"{context} requires a class value, got "
+                    f"{display_type_name(receiver_type)}",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+                )
+            return None
+        base_class = self._resolve_named_class(base_class_name, node=node)
+        if base_class is None:
+            return None
+        if not self._is_subclass_of(receiver_class, base_class):
+            self.context.diagnostics.add(
+                (
+                    f"class '{receiver_class.name}' does not inherit from "
+                    f"'{base_class.name}'"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+        return receiver_class, base_class
 
     def _visible_method_function(
         self,
@@ -1341,6 +1396,74 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, call_resolution.result_type)
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BaseMethodCall) -> None:
+        """
+        title: Visit BaseMethodCall nodes.
+        parameters:
+          node:
+            type: astx.BaseMethodCall
+        """
+        self.visit(node.receiver)
+        arg_types: list[astx.DataType | None] = []
+        for arg in node.args:
+            self.visit(arg)
+            arg_types.append(self._expr_type(arg))
+        if not self._require_value_expression(
+            node.receiver,
+            context="Base method call receiver",
+        ):
+            self._set_type(node, None)
+            return
+        receiver_type = self._expr_type(node.receiver)
+        resolved_classes = self._resolve_base_access_classes(
+            receiver_type,
+            node.base_class_name,
+            node=node,
+            context="base method call",
+        )
+        if resolved_classes is None:
+            self._set_type(node, None)
+            return
+        receiver_class, base_class = resolved_classes
+        resolved_overload = self._resolve_method_overload(
+            base_class,
+            node.method_name,
+            arg_types,
+            is_static=False,
+            node=node,
+        )
+        if resolved_overload is None:
+            self._set_type(node, None)
+            return
+        member, candidates = resolved_overload
+        function = member.lowered_function
+        if function is None:
+            raise TypeError("base method must have a lowered function")
+        visible_function = self._visible_method_function(base_class, member)
+        call_resolution = validate_call(
+            self.context.diagnostics,
+            function=visible_function,
+            arg_types=arg_types,
+            node=node,
+        )
+        self._set_call(node, call_resolution)
+        self._set_method_call(
+            node,
+            ResolvedMethodCall(
+                class_=base_class,
+                member=member,
+                function=function,
+                overload_key=(member.signature_key or member.qualified_name),
+                dispatch_kind=MethodDispatchKind.DIRECT,
+                call=call_resolution,
+                candidates=candidates,
+                receiver_type=receiver_type,
+                receiver_class=receiver_class,
+            ),
+        )
+        self._set_type(node, call_resolution.result_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.StaticMethodCall) -> None:
         """
         title: Visit StaticMethodCall nodes.
@@ -1391,6 +1514,79 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             ),
         )
         self._set_type(node, call_resolution.result_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.BaseFieldAccess) -> None:
+        """
+        title: Visit BaseFieldAccess nodes.
+        parameters:
+          node:
+            type: astx.BaseFieldAccess
+        """
+        self.visit(node.receiver)
+        if not self._require_value_expression(
+            node.receiver,
+            context="Base field access",
+        ):
+            self._set_type(node, None)
+            return
+        receiver_type = self._expr_type(node.receiver)
+        resolved_classes = self._resolve_base_access_classes(
+            receiver_type,
+            node.base_class_name,
+            node=node,
+            context="base field access",
+        )
+        if resolved_classes is None:
+            self._set_type(node, None)
+            return
+        receiver_class, base_class = resolved_classes
+        member = self._resolve_class_attribute_member(
+            base_class,
+            node.field_name,
+            node=node,
+        )
+        if member is None:
+            self._set_type(node, None)
+            return
+        if member.is_static:
+            self.context.diagnostics.add(
+                (
+                    f"static attribute '{base_class.name}.{node.field_name}' "
+                    "must be accessed through the class"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        if not self._member_is_accessible(member):
+            self.context.diagnostics.add(
+                (
+                    "class attribute "
+                    f"'{self._member_display_name(member)}' "
+                    "is not accessible from this context"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        field = self._resolve_class_field_slot(
+            receiver_class,
+            member,
+        )
+        self._set_class(node, base_class)
+        self._set_base_class_field_access(
+            node,
+            ResolvedBaseClassFieldAccess(
+                receiver_class=receiver_class,
+                base_class=base_class,
+                member=member,
+                field=field,
+            ),
+        )
+        self._set_type(node, member.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.StaticFieldAccess) -> None:
@@ -1534,7 +1730,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         field = self._resolve_class_field_slot(
             class_,
             member,
-            node.field_name,
+            visible_name=node.field_name,
         )
         self._set_class(node, class_)
         self._set_class_field_access(

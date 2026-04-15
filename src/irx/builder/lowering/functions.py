@@ -105,13 +105,13 @@ class FunctionVisitorMixin(VisitorMixinBase):
 
     def _semantic_method_call(
         self,
-        node: astx.MethodCall | astx.StaticMethodCall,
+        node: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall,
     ) -> ResolvedMethodCall:
         """
         title: Return the resolved semantic method-call metadata for one call.
         parameters:
           node:
-            type: astx.MethodCall | astx.StaticMethodCall
+            type: astx.BaseMethodCall | astx.MethodCall | astx.StaticMethodCall
         returns:
           type: ResolvedMethodCall
         """
@@ -493,6 +493,54 @@ class FunctionVisitorMixin(VisitorMixinBase):
             callee = self._declare_semantic_function(
                 method_resolution.function
             )
+        self._apply_calling_convention(method_resolution.function.signature)
+        if isinstance(
+            method_resolution.function.signature.return_type,
+            astx.NoneType,
+        ):
+            self._llvm.ir_builder.call(callee, lowered_args)
+            return
+        result = self._llvm.ir_builder.call(callee, lowered_args, "calltmp")
+        self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.BaseMethodCall) -> None:
+        """
+        title: Visit BaseMethodCall nodes.
+        parameters:
+          node:
+            type: astx.BaseMethodCall
+        """
+        method_resolution = self._semantic_method_call(node)
+        llvm_args = self._lower_explicit_call_arguments(
+            args=list(node.args),
+            resolution=method_resolution.call,
+            label=(
+                f"base method call '{method_resolution.class_.name}."
+                f"{method_resolution.member.name}'"
+            ),
+        )
+        self.visit_child(node.receiver)
+        receiver_value = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.receiver,
+            context=(
+                f"receiver for '{method_resolution.class_.name}."
+                f"{method_resolution.member.name}'"
+            ),
+        )
+        receiver_parameter_type = (
+            method_resolution.function.signature.parameters[0].type_
+            if method_resolution.function.signature.parameters
+            else None
+        )
+        lowered_receiver = self._cast_ast_value(
+            receiver_value,
+            source_type=self._resolved_ast_type(node.receiver),
+            target_type=receiver_parameter_type,
+        )
+        lowered_args = [lowered_receiver, *llvm_args]
+        callee = self._declare_semantic_function(method_resolution.function)
         self._apply_calling_convention(method_resolution.function.signature)
         if isinstance(
             method_resolution.function.signature.return_type,

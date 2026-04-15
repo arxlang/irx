@@ -33,11 +33,17 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_call`
 - `resolved_return`
 - `resolved_struct`
+- `resolved_class`
 - `resolved_module`
 - `resolved_imports`
 - `resolved_operator`
 - `resolved_assignment`
 - `resolved_field_access`
+- `resolved_class_field_access`
+- `resolved_base_class_field_access`
+- `resolved_static_class_field_access`
+- `resolved_method_call`
+- `resolved_class_construction`
 - `semantic_flags`
 - `extras`
 
@@ -283,23 +289,32 @@ explicitly instead of inferring them from generic field syntax.
 
 - `FieldAccess` remains the low-level read form for `obj.attr` on structs and
   class instances
+- `BaseFieldAccess` is the low-level read form for one explicit base-qualified
+  instance attribute view on a class receiver
 - `StaticFieldAccess` is the low-level read form for `ClassName.static_attr`
 - `MethodCall` remains the low-level call form for `obj.method(...)` and uses
   direct or indirect dispatch from analyzed method metadata
+- `BaseMethodCall` is the low-level call form for one explicit base-qualified
+  instance method invocation and lowers as a direct call to the selected base
+  implementation
 - `StaticMethodCall` remains the low-level call form for
   `ClassName.static_method(...)` and always lowers as a direct call
+- base-qualified member access is legal only when the named base appears in the
+  receiver class MRO; analysis rejects unrelated class names before lowering
 - static field reads resolve through
   `SemanticClass.layout.visible_static_storage` first and only fall back to
   qualified-name storage metadata for the selected inherited member when needed
 - instance field reads resolve through
   `SemanticClass.layout.visible_field_slots` and the canonical flattened storage
   layout recorded during class analysis
+- explicit base-qualified field reads resolve through the concrete receiver
+  layout using the selected base member's qualified storage slot
 - lowering consumes the resolved storage and dispatch metadata attached during
   semantic analysis and does not re-run class member lookup from syntax
 - static field writes are intentionally deferred to phase 8 together with full
   mutability and constant-assignment enforcement for class statics
-- full base-qualified multiple-inheritance ancestor field views remain deferred
-  in this phase
+- implicit ancestor field views remain deferred; IRx now supports only explicit
+  base-qualified ancestor access in this phase
 
 ## Class Access Control Contract
 
@@ -315,6 +330,9 @@ to lowering or runtime behavior.
 - private members still stay out of inherited lookup tables, but access sites
   diagnose hidden base members as inaccessible rather than pretending they do
   not exist
+- explicit `BaseFieldAccess` and `BaseMethodCall` follow the same visibility
+  rules as ordinary member access; qualifying a base does not bypass access
+  control
 - when the declaring class accesses one of its private members through a
   derived-typed receiver, analysis resolves the originating base member and
   lowering reuses the existing class-pointer upcast path

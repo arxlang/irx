@@ -20,6 +20,9 @@ RENDER_OVERLOAD_COUNT = 2
 STATIC_LITERAL_VALUE = 7
 INHERITED_STATIC_VALUE = 11
 PROTECTED_STATIC_VALUE = 5
+BASE_FIELD_VALUE = 13
+BASE_METHOD_RESULT = 21
+CHILD_METHOD_RESULT = 34
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -247,6 +250,169 @@ def test_analyze_self_field_access_uses_class_layout_slot() -> None:
     assert resolved_field is not None
     assert resolved_field.field.storage_index == FIRST_INSTANCE_STORAGE_INDEX
     assert resolved_field.member.name == "value"
+
+
+def test_analyze_base_field_access_uses_selected_base_storage() -> None:
+    """
+    title: Base-qualified field access resolves the selected ancestor slot.
+    """
+    access = astx.BaseFieldAccess(
+        astx.Identifier("value"),
+        "Base",
+        "count",
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "count",
+                astx.Int32(),
+                value=astx.LiteralInt32(BASE_FIELD_VALUE),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(access),
+    )
+
+    analyze(make_module("app.main", base, child, probe))
+
+    resolved_access = _semantic(access).resolved_base_class_field_access
+    assert resolved_access is not None
+    assert resolved_access.receiver_class.name == "Child"
+    assert resolved_access.base_class.name == "Base"
+    assert resolved_access.member.owner_name == "Base"
+    assert resolved_access.field.owner_name == "Base"
+
+
+def test_analyze_base_method_call_bypasses_override_dispatch() -> None:
+    """
+    title: Base-qualified method calls resolve directly to the base member.
+    """
+    base = astx.ClassDefStmt(
+        name="Base",
+        methods=[
+            _returning_method(
+                "area",
+                astx.LiteralInt32(BASE_METHOD_RESULT),
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[
+            _returning_method(
+                "area",
+                astx.LiteralInt32(CHILD_METHOD_RESULT),
+            )
+        ],
+    )
+    call = astx.BaseMethodCall(
+        astx.Identifier("shape"),
+        "Base",
+        "area",
+        [],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(call),
+    )
+
+    analyze(make_module("app.main", base, child, probe))
+
+    resolved_call = _semantic(call).resolved_method_call
+    assert resolved_call is not None
+    assert resolved_call.class_.name == "Base"
+    assert resolved_call.receiver_class is not None
+    assert resolved_call.receiver_class.name == "Child"
+    assert resolved_call.member.owner_name == "Base"
+    assert resolved_call.dispatch_kind is MethodDispatchKind.DIRECT
+    assert resolved_call.slot_index is None
+
+
+def test_analyze_rejects_base_field_access_for_unrelated_class() -> None:
+    """
+    title: Base-qualified access requires the named base in receiver MRO.
+    """
+    access = astx.BaseFieldAccess(
+        astx.Identifier("value"),
+        "Other",
+        "count",
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[_attribute("count", astx.Int32())],
+    )
+    other = astx.ClassDefStmt(
+        name="Other",
+        attributes=[_attribute("count", astx.Int32())],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(astx.Argument("value", _class_type("Child"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(access),
+    )
+
+    with pytest.raises(SemanticError, match="does not inherit from"):
+        analyze(make_module("app.main", base, other, child, probe))
+
+
+def test_analyze_rejects_private_base_field_access_via_explicit_base() -> None:
+    """
+    title: Explicit base-qualified field access still obeys visibility.
+    """
+    access = astx.BaseFieldAccess(
+        astx.Identifier("self"),
+        "Base",
+        "secret",
+    )
+    probe = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="probe",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(access),
+    )
+    base = astx.ClassDefStmt(
+        name="Base",
+        attributes=[
+            _attribute(
+                "secret",
+                astx.Int32(),
+                visibility=astx.VisibilityKind.private,
+            )
+        ],
+    )
+    child = astx.ClassDefStmt(
+        name="Child",
+        bases=[_class_type("Base")],
+        methods=[probe],
+    )
+
+    with pytest.raises(SemanticError, match="is not accessible"):
+        analyze(make_module("app.main", base, child))
 
 
 def test_analyze_static_field_access_uses_visible_static_storage() -> None:

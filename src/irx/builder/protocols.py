@@ -132,6 +132,20 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _base_class_field_address(
+        self,
+        _node: astx.BaseFieldAccess,
+    ) -> ir.Value:
+        """
+        title: Lower one base-qualified class field access to an address.
+        parameters:
+          _node:
+            type: astx.BaseFieldAccess
+        returns:
+          type: ir.Value
+        """
+        ...
+
     def _static_class_field_address(
         self,
         _node: astx.StaticFieldAccess,
