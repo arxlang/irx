@@ -468,6 +468,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#assertions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assertions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#optional-runtime-features" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3008,6 +3019,8 @@
       
         
       
+        
+      
     
     
     
@@ -3172,6 +3185,8 @@
       
         
       
+        
+      
     
     
     
@@ -3181,6 +3196,134 @@
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="api/builder/runtime/assertions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> assertions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_9_3" id="__nav_8_1_6_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> assertions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/builder/runtime/assertions/feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/builder/runtime/assertions/reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> reporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_4" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -3202,14 +3345,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_1_6_9_3" id="__nav_8_1_6_9_3_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_8_1_6_9_4" id="__nav_8_1_6_9_4_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_1_6_9_3">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3910,6 +4053,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#assertions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assertions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#optional-runtime-features" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4124,8 +4278,9 @@ that can <strong>translate</strong> ASTs to LLVM IR text or <strong>produce runn
 via <code class="language-python highlight"><span class="n">clang</span></code>.</p>
 <blockquote>
 <p>Status: early but functional. Arithmetic, variables, functions, returns,
-structured control flow with canonical loop lowering, and a few system-level
-expressions (e.g. <code class="language-python highlight"><span class="n">PrintExpr</span></code>) are supported.</p>
+structured control flow with canonical loop lowering, fatal assertion
+statements, and a few system-level expressions (e.g. <code class="language-python highlight"><span class="n">PrintExpr</span></code>) are
+supported.</p>
 </blockquote>
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
@@ -4148,19 +4303,22 @@ expressions (e.g. <code class="language-python highlight"><span class="n">PrintE
 <li><strong>Ops:</strong> <code class="language-python highlight"><span class="n">UnaryOp</span></code> (<code class="language-python highlight"><span class="o">++</span></code>, <code class="language-python highlight"><span class="o">--</span></code>), <code class="language-python highlight"><span class="n">BinaryOp</span></code> (<code class="language-python highlight"><span class="o">+</span> <span class="o">-</span> <span class="o">*</span> <span class="o">/</span> <span class="o">&lt;</span> <span class="o">&gt;</span></code>) with documented
     scalar numeric promotion and cast rules</li>
 <li><strong>Flow:</strong> <code class="language-python highlight"><span class="n">IfStmt</span></code>, <code class="language-python highlight"><span class="n">WhileStmt</span></code>, <code class="language-python highlight"><span class="n">ForCountLoopStmt</span></code>, <code class="language-python highlight"><span class="n">ForRangeLoopStmt</span></code>,
-    <code class="language-python highlight"><span class="n">BreakStmt</span></code>, <code class="language-python highlight"><span class="n">ContinueStmt</span></code></li>
+    <code class="language-python highlight"><span class="n">BreakStmt</span></code>, <code class="language-python highlight"><span class="n">ContinueStmt</span></code>, <code class="language-python highlight"><span class="n">system</span><span class="o">.</span><span class="n">AssertStmt</span></code></li>
 <li><strong>Functions:</strong> <code class="language-python highlight"><span class="n">FunctionPrototype</span></code>, <code class="language-python highlight"><span class="n">Function</span></code>, <code class="language-python highlight"><span class="n">FunctionReturn</span></code>,
     <code class="language-python highlight"><span class="n">FunctionCall</span></code></li>
+<li><strong>System:</strong> <code class="language-python highlight"><span class="n">system</span><span class="o">.</span><span class="n">PrintExpr</span></code> (string printing)</li>
 <li>
-<p><strong>System:</strong> <code class="language-python highlight"><span class="n">system</span><span class="o">.</span><span class="n">PrintExpr</span></code> (string printing)</p>
+<p><strong>Assertions:</strong> <code class="language-python highlight"><span class="n">system</span><span class="o">.</span><span class="n">AssertStmt</span></code> (fatal assertion with machine-readable
+    stderr reporting)</p>
 </li>
 <li>
 <p><strong>Built-ins:</strong> <code class="language-python highlight"><span class="n">putchar</span></code>, <code class="language-python highlight"><span class="n">putchard</span></code> (emitted as IR); <code class="language-python highlight"><span class="n">puts</span></code> declaration when
   needed.</p>
 </li>
 <li><strong>Optional native runtimes:</strong> <code class="language-python highlight"><span class="n">libc</span></code> externs are routed through the runtime
-  feature layer, feature-backed externs can request <code class="language-python highlight"><span class="n">libm</span></code>, and Arrow is now
-  available as an optional native runtime feature.</li>
+  feature layer, feature-backed externs can request <code class="language-python highlight"><span class="n">libm</span></code>, the fatal assertion
+  helper is linked on demand through <code class="language-python highlight"><span class="n">assertions</span></code>, and Arrow is now available as
+  an optional native runtime feature.</li>
 <li><strong>Low-level classes:</strong> pointer-based class objects with deterministic C3 MRO,
   multiple inheritance, dispatch metadata, static globals, access control, and
   explicit construction/member-access forms.</li>
@@ -4291,6 +4449,24 @@ or binary; use it for inspection, tests, or feeding another tool.</p>
 <li>Declare (or reuse) <code class="language-python highlight"><span class="n">i32</span> <span class="nd">@puts</span><span class="p">(</span><span class="n">i8</span><span class="o">*</span><span class="p">)</span></code>.</li>
 <li>Call <code class="language-python highlight"><span class="n">puts</span></code>.</li>
 </ol>
+<h3 id="assertions">Assertions<a class="headerlink" href="#assertions" title="Permanent link">&para;</a></h3>
+<p><code class="language-python highlight"><span class="n">AssertStmt</span></code> is a fatal statement-level check. Its lowering:</p>
+<ol>
+<li>Evaluate the Boolean condition.</li>
+<li>Branch to a pass block when the condition is true.</li>
+<li>On failure, call the native <code class="language-python highlight"><span class="n">__arx_assert_fail</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> runtime helper.</li>
+<li>Emit one machine-readable stderr line of the form
+   <code class="language-python highlight"><span class="n">ARX_ASSERT_FAIL</span><span class="o">|&lt;</span><span class="n">source</span><span class="o">&gt;|&lt;</span><span class="n">line</span><span class="o">&gt;|&lt;</span><span class="n">col</span><span class="o">&gt;|&lt;</span><span class="n">message</span><span class="o">&gt;</span></code>.</li>
+<li>Escape source and message payloads so the report stays on one physical line
+   even when strings contain newlines or delimiters.</li>
+<li>Terminate the failing process with a non-zero exit code.</li>
+</ol>
+<p>The source field uses the analyzed module display name when IRx has one;
+otherwise it falls back to the module name embedded in the AST.</p>
+<p>Today <code class="language-python highlight"><span class="n">AssertStmt</span></code> is hosted in IRx as an interim node so the backend and
+runtime contract can land independently. ASTx/Arx can still converge on the
+final shared surface later without changing the machine-readable failure
+protocol introduced here.</p>
 <h3 id="optional-runtime-features">Optional Runtime Features<a class="headerlink" href="#optional-runtime-features" title="Permanent link">&para;</a></h3>
 <p>IRx now has a generic runtime-feature system for native integrations that do not
 belong as handwritten LLVM container logic.</p>

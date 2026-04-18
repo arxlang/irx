@@ -2627,6 +2627,8 @@
       
         
       
+        
+      
     
     
     
@@ -2791,6 +2793,8 @@
       
         
       
+        
+      
     
     
     
@@ -2800,6 +2804,134 @@
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api/builder/runtime/assertions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> assertions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_6_9_3" id="__nav_8_1_6_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> assertions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/assertions/feature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> feature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builder/runtime/assertions/reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> reporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_6_9_4" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2821,14 +2953,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_1_6_9_3" id="__nav_8_1_6_9_3_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_8_1_6_9_4" id="__nav_8_1_6_9_4_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_1_6_9_3">
+        <nav class="md-nav" data-md-level="5" aria-labelledby="__nav_8_1_6_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1_6_9_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3450,6 +3582,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#assertion-failure-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assertion Failure Reporting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#arrow-as-a-runtime-feature" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3590,6 +3733,8 @@ side of IRx's stable FFI contract.</p>
 <p>Runtime features are named, optional, and per-compilation-unit.</p>
 <ul>
 <li><code class="language-python highlight"><span class="n">libc</span></code> Declares symbols such as <code class="language-python highlight"><span class="n">puts</span></code>, <code class="language-python highlight"><span class="n">malloc</span></code>, and <code class="language-python highlight"><span class="n">snprintf</span></code>.</li>
+<li><code class="language-python highlight"><span class="n">assertions</span></code> Declares <code class="language-python highlight"><span class="n">__arx_assert_fail</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> and links the native fatal
+  assertion helper that emits machine-readable stderr reports.</li>
 <li><code class="language-python highlight"><span class="n">libm</span></code> Declares math symbols such as <code class="language-python highlight"><span class="n">sqrt</span></code> and contributes <code class="language-python highlight"><span class="o">-</span><span class="n">lm</span></code>.</li>
 <li><code class="language-python highlight"><span class="n">buffer</span></code> Declares the low-level buffer owner/view lifetime helper ABI.</li>
 <li><code class="language-python highlight"><span class="n">arrow</span></code> Declares the IRx-owned Arrow runtime ABI and links the native Arrow
@@ -3650,6 +3795,19 @@ difference now is that runtime features may add native artifacts such as:</p>
 </ul>
 <p>The current Arrow feature uses C sources only, which keeps the build path
 reproducible on Linux and macOS without introducing dynamic loading.</p>
+<h2 id="assertion-failure-reporting">Assertion Failure Reporting<a class="headerlink" href="#assertion-failure-reporting" title="Permanent link">&para;</a></h2>
+<p>The <code class="language-python highlight"><span class="n">assertions</span></code> runtime feature exists for fatal <code class="language-python highlight"><span class="n">AssertStmt</span></code> lowering. Its
+native helper writes one machine-readable line to <code class="language-python highlight"><span class="n">stderr</span></code> before exiting the
+process with a non-zero status:</p>
+<div class="language-text highlight"><pre><span></span><code>ARX_ASSERT_FAIL|&lt;source&gt;|&lt;line&gt;|&lt;col&gt;|&lt;message&gt;
+</code></pre></div>
+<p>IRx also exposes small Python-side parsing helpers under
+<code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">runtime</span><span class="o">.</span><span class="n">assertions</span></code> so higher-level runners can extract one stable
+report from <code class="language-python highlight"><span class="n">stderr</span></code> without scraping human-oriented text. Source and message
+payloads escape backslashes, newlines, carriage returns, tabs, and protocol
+delimiters before printing so the report always remains one physical line. The
+source field uses the analyzed module display name when available and otherwise
+falls back to the module name stored in the AST.</p>
 <h2 id="arrow-as-a-runtime-feature">Arrow As A Runtime Feature<a class="headerlink" href="#arrow-as-a-runtime-feature" title="Permanent link">&para;</a></h2>
 <p>Arrow support is implemented as an optional native runtime, not as handwritten
 LLVM IR container logic.</p>
