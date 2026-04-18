@@ -2,6 +2,6 @@
 title: Compatibility exports for IRX system AST nodes.
 """
 
-from irx.astx.system import Cast, PrintExpr
+from irx.astx.system import AssertStmt, Cast, PrintExpr
 
-__all__ = ["Cast", "PrintExpr"]
+__all__ = ["AssertStmt", "Cast", "PrintExpr"]

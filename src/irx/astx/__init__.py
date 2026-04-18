@@ -89,6 +89,7 @@ from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
 from irx.astx.structs import FieldAccess as FieldAccess
 from irx.astx.structs import StructType as StructType
+from irx.astx.system import AssertStmt as AssertStmt
 from irx.astx.system import Cast as Cast
 from irx.astx.system import PrintExpr as PrintExpr
 from irx.typecheck import typechecked
@@ -97,6 +98,7 @@ __all__ = (
     "SPECIALIZED_BINARY_OP_EXTRA",
     "AddBinOp",
     "ArrowInt32ArrayLength",
+    "AssertStmt",
     "AssignmentBinOp",
     "BaseFieldAccess",
     "BaseMethodCall",

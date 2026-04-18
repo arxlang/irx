@@ -14,7 +14,13 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.types import display_type_name, is_boolean_type
+from irx.analysis.types import (
+    display_type_name,
+    is_boolean_type,
+    is_float_type,
+    is_integer_type,
+    is_string_type,
+)
 from irx.analysis.validation import resolve_return
 from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
@@ -47,6 +53,39 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
             node=condition,
             code=DiagnosticCodes.SEMANTIC_INVALID_CONDITION,
         )
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.AssertStmt) -> None:
+        """
+        title: Visit AssertStmt nodes.
+        parameters:
+          node:
+            type: astx.AssertStmt
+        """
+        self.visit(node.condition)
+        self._validate_boolean_condition(node.condition, label="assert")
+
+        if node.message is not None:
+            self.visit(node.message)
+            if self._require_value_expression(
+                node.message,
+                context="AssertStmt message",
+            ):
+                message_type = self._expr_type(node.message)
+                if not (
+                    is_string_type(message_type)
+                    or is_integer_type(message_type)
+                    or is_float_type(message_type)
+                    or is_boolean_type(message_type)
+                ):
+                    self.context.diagnostics.add(
+                        "unsupported AssertStmt message type "
+                        f"{display_type_name(message_type)}",
+                        node=node.message,
+                        code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                    )
+
+        self._set_type(node, None)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FunctionReturn) -> None:

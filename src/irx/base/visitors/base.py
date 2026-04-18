@@ -93,6 +93,16 @@ class BaseVisitor:
         self._not_implemented(node)
 
     @dispatch
+    def visit(self, node: astx.AssertStmt) -> None:
+        """
+        title: Visit AssertStmt nodes.
+        parameters:
+          node:
+            type: astx.AssertStmt
+        """
+        self._not_implemented(node)
+
+    @dispatch
     def visit(self, node: astx.AssignmentExpr) -> None:
         """
         title: Visit AssignmentExpr nodes.
