@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+# [1.11.0](https://github.com/arxlang/irx/compare/1.10.0...1.11.0) (2026-04-18)
+
+
+### Features
+
+* **irx:** add fatal AssertStmt lowering and assertion runtime ([#299](https://github.com/arxlang/irx/issues/299)) ([186c2fe](https://github.com/arxlang/irx/commit/186c2fede124c044126c7f232a866feed7a8cbd9))
+
 # [1.10.0](https://github.com/arxlang/irx/compare/1.9.0...1.10.0) (2026-04-15)
 
 
