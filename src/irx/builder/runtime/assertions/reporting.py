@@ -37,6 +37,49 @@ class AssertionFailureReport:
     message: str
 
 
+@typechecked
+def _decode_assert_failure_field(text: str) -> str:
+    """
+    title: Decode one escaped assertion failure protocol field.
+    parameters:
+      text:
+        type: str
+    returns:
+      type: str
+    """
+    decoded: list[str] = []
+    index = 0
+    escapes = {
+        "\\": "\\",
+        "n": "\n",
+        "p": "|",
+        "r": "\r",
+        "t": "\t",
+    }
+
+    while index < len(text):
+        char = text[index]
+        if char != "\\":
+            decoded.append(char)
+            index += 1
+            continue
+
+        if index + 1 >= len(text):
+            decoded.append("\\")
+            break
+
+        escaped = text[index + 1]
+        replacement = escapes.get(escaped)
+        if replacement is None:
+            decoded.append("\\")
+            decoded.append(escaped)
+        else:
+            decoded.append(replacement)
+        index += 2
+
+    return "".join(decoded)
+
+
 @public
 @typechecked
 def parse_assert_failure_line(line: str) -> AssertionFailureReport | None:
@@ -53,7 +96,7 @@ def parse_assert_failure_line(line: str) -> AssertionFailureReport | None:
     if not stripped.startswith(prefix):
         return None
 
-    parts = stripped.split("|", 4)
+    parts = stripped.split("|", ASSERT_FAILURE_FIELD_COUNT - 1)
     if len(parts) != ASSERT_FAILURE_FIELD_COUNT:
         return None
 
@@ -65,10 +108,10 @@ def parse_assert_failure_line(line: str) -> AssertionFailureReport | None:
         return None
 
     return AssertionFailureReport(
-        source=source,
+        source=_decode_assert_failure_field(source),
         line=line_number,
         col=col_number,
-        message=message,
+        message=_decode_assert_failure_field(message),
     )
 
 

@@ -194,10 +194,17 @@ Semantic invariants:
 3. On failure, call the native `__arx_assert_fail(...)` runtime helper.
 4. Emit one machine-readable stderr line of the form
    `ARX_ASSERT_FAIL|<source>|<line>|<col>|<message>`.
-5. Terminate the failing process with a non-zero exit code.
+5. Escape source and message payloads so the report stays on one physical line
+   even when strings contain newlines or delimiters.
+6. Terminate the failing process with a non-zero exit code.
 
 The source field uses the analyzed module display name when IRx has one;
 otherwise it falls back to the module name embedded in the AST.
+
+Today `AssertStmt` is hosted in IRx as an interim node so the backend and
+runtime contract can land independently. ASTx/Arx can still converge on the
+final shared surface later without changing the machine-readable failure
+protocol introduced here.
 
 ### Optional Runtime Features
 

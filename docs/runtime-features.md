@@ -117,9 +117,11 @@ ARX_ASSERT_FAIL|<source>|<line>|<col>|<message>
 
 IRx also exposes small Python-side parsing helpers under
 `irx.builder.runtime.assertions` so higher-level runners can extract one stable
-report from `stderr` without scraping human-oriented text. The source field uses
-the analyzed module display name when available and otherwise falls back to the
-module name stored in the AST.
+report from `stderr` without scraping human-oriented text. Source and message
+payloads escape backslashes, newlines, carriage returns, tabs, and protocol
+delimiters before printing so the report always remains one physical line. The
+source field uses the analyzed module display name when available and otherwise
+falls back to the module name stored in the AST.
 
 ## Arrow As A Runtime Feature
 

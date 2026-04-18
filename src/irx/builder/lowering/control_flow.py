@@ -148,11 +148,33 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         returns:
           type: ir.Value
         """
-        encoded = text.encode("utf8") + b"\0"
-        array_type = ir.ArrayType(self._llvm.INT8_TYPE, len(encoded))
-        global_name = f"{name_hint}_{abs(hash((name_hint, text)))}"
-        global_value = self._llvm.module.globals.get(global_name)
+        interned_globals = cast(
+            dict[tuple[str, str], ir.GlobalVariable],
+            getattr(self, "_interned_c_strings", {}),
+        )
+        cache_key = (name_hint, text)
+        global_value = interned_globals.get(cache_key)
+
         if global_value is None:
+            encoded = text.encode("utf8") + b"\0"
+            array_type = ir.ArrayType(self._llvm.INT8_TYPE, len(encoded))
+            normalized_hint = (
+                "".join(
+                    character if character.isalnum() else "_"
+                    for character in name_hint
+                ).strip("_")
+                or "cstring"
+            )
+            counter = cast(
+                int,
+                getattr(self, "_c_string_global_counter", 0),
+            )
+            global_name = f"{normalized_hint}_{counter}"
+            while global_name in self._llvm.module.globals:
+                counter += 1
+                global_name = f"{normalized_hint}_{counter}"
+            setattr(self, "_c_string_global_counter", counter + 1)
+
             global_value = ir.GlobalVariable(
                 self._llvm.module,
                 array_type,
@@ -161,8 +183,12 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             global_value.linkage = "internal"
             global_value.global_constant = True
             global_value.initializer = ir.Constant(
-                array_type, bytearray(encoded)
+                array_type,
+                bytearray(encoded),
             )
+            interned_globals[cache_key] = global_value
+            setattr(self, "_interned_c_strings", interned_globals)
+
         return self._llvm.ir_builder.gep(
             global_value,
             [

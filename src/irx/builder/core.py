@@ -349,6 +349,8 @@ class VisitorCore(BuilderVisitor):
     _emitted_function_bodies: set[str]
     _module_display_names: dict[int, str]
     _current_module_display_name: str | None
+    _interned_c_strings: dict[tuple[str, str], ir.GlobalVariable]
+    _c_string_global_counter: int
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
@@ -380,6 +382,8 @@ class VisitorCore(BuilderVisitor):
         self._emitted_function_bodies = set()
         self._module_display_names = {}
         self._current_module_display_name = None
+        self._interned_c_strings = {}
+        self._c_string_global_counter = 0
         self.entry_function_symbol_id = None
         self._fast_math_enabled = False
         self._current_function_return_type = None
@@ -432,6 +436,8 @@ class VisitorCore(BuilderVisitor):
         analyzed = analyze(node)
         self._module_display_names = {}
         self._current_module_display_name = None
+        self._interned_c_strings = {}
+        self._c_string_global_counter = 0
         if isinstance(analyzed, astx.Module):
             self._module_display_names[id(analyzed)] = (
                 getattr(analyzed, "name", "") or "<module>"
