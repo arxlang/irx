@@ -37,6 +37,8 @@ The runtime stack is layered in four parts:
 Runtime features are named, optional, and per-compilation-unit.
 
 - `libc` Declares symbols such as `puts`, `malloc`, and `snprintf`.
+- `assertions` Declares `__arx_assert_fail(...)` and links the native fatal
+  assertion helper that emits machine-readable stderr reports.
 - `libm` Declares math symbols such as `sqrt` and contributes `-lm`.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `arrow` Declares the IRx-owned Arrow runtime ABI and links the native Arrow
@@ -102,6 +104,22 @@ difference now is that runtime features may add native artifacts such as:
 
 The current Arrow feature uses C sources only, which keeps the build path
 reproducible on Linux and macOS without introducing dynamic loading.
+
+## Assertion Failure Reporting
+
+The `assertions` runtime feature exists for fatal `AssertStmt` lowering. Its
+native helper writes one machine-readable line to `stderr` before exiting the
+process with a non-zero status:
+
+```text
+ARX_ASSERT_FAIL|<source>|<line>|<col>|<message>
+```
+
+IRx also exposes small Python-side parsing helpers under
+`irx.builder.runtime.assertions` so higher-level runners can extract one stable
+report from `stderr` without scraping human-oriented text. The source field uses
+the analyzed module display name when available and otherwise falls back to the
+module name stored in the AST.
 
 ## Arrow As A Runtime Feature
 

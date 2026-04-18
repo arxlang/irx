@@ -7,12 +7,16 @@ title: Control-flow visitor mixins for llvmliteir.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterator, Literal
+from typing import Iterator, Literal, cast
 
 from llvmlite import ir
 
 from irx import astx
-from irx.analysis.types import is_float_type, is_unsigned_type
+from irx.analysis.types import (
+    is_boolean_type,
+    is_float_type,
+    is_unsigned_type,
+)
 from irx.builder.core import (
     VisitorCore,
     semantic_assignment_key,
@@ -27,6 +31,10 @@ from irx.builder.diagnostics import (
 )
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
+from irx.builder.runtime.assertions import (
+    ASSERT_FAILURE_SYMBOL_NAME,
+    ASSERT_RUNTIME_FEATURE_NAME,
+)
 from irx.builder.state import LoopTargets
 from irx.builder.types import is_fp_type, is_int_type
 from irx.builder.vector import emit_add
@@ -90,6 +98,139 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         function = self._llvm.ir_builder.function
         return tuple(
             function.append_basic_block(f"{prefix}.{role}") for role in roles
+        )
+
+    def _assert_source_name(self, node: astx.AST) -> str:
+        """
+        title: Return one stable source label for assertion reporting.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: str
+        """
+        current_display_name = cast(
+            str | None,
+            getattr(self, "_current_module_display_name", None),
+        )
+        if current_display_name:
+            return current_display_name
+
+        current: astx.AST | None = node
+        while current is not None:
+            if isinstance(current, astx.Module):
+                display_names = cast(
+                    dict[int, str],
+                    getattr(self, "_module_display_names", {}),
+                )
+                display_name = display_names.get(id(current))
+                if display_name:
+                    return display_name
+                module_name = cast(str, getattr(current, "name", ""))
+                return module_name or "<module>"
+            parent = getattr(current, "parent", None)
+            current = parent if isinstance(parent, astx.AST) else None
+        return "<module>"
+
+    def _constant_c_string_pointer(
+        self,
+        text: str,
+        *,
+        name_hint: str,
+    ) -> ir.Value:
+        """
+        title: Return one pointer to one internal constant UTF-8 string.
+        parameters:
+          text:
+            type: str
+          name_hint:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        encoded = text.encode("utf8") + b"\0"
+        array_type = ir.ArrayType(self._llvm.INT8_TYPE, len(encoded))
+        global_name = f"{name_hint}_{abs(hash((name_hint, text)))}"
+        global_value = self._llvm.module.globals.get(global_name)
+        if global_value is None:
+            global_value = ir.GlobalVariable(
+                self._llvm.module,
+                array_type,
+                name=global_name,
+            )
+            global_value.linkage = "internal"
+            global_value.global_constant = True
+            global_value.initializer = ir.Constant(
+                array_type, bytearray(encoded)
+            )
+        return self._llvm.ir_builder.gep(
+            global_value,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+            ],
+            inbounds=True,
+            name=f"{name_hint}_ptr",
+        )
+
+    def _lower_assert_message_pointer(self, node: astx.AssertStmt) -> ir.Value:
+        """
+        title: Lower one assertion message to one runtime C string pointer.
+        parameters:
+          node:
+            type: astx.AssertStmt
+        returns:
+          type: ir.Value
+        """
+        if node.message is None:
+            return self._constant_c_string_pointer(
+                "assertion failed",
+                name_hint="assert_message",
+            )
+
+        self.visit_child(node.message)
+        message_value = require_lowered_value(
+            safe_pop(self.result_stack),
+            node=node.message,
+            context="assert message",
+        )
+        message_source_type = self._resolved_ast_type(node.message)
+        message_type = message_value.type
+
+        if (
+            isinstance(message_type, ir.PointerType)
+            and message_type.pointee == self._llvm.INT8_TYPE
+        ):
+            return message_value
+
+        if is_int_type(message_type):
+            int_arg, int_fmt = self._normalize_int_for_printf(
+                message_value,
+                unsigned=is_unsigned_type(message_source_type)
+                or is_boolean_type(message_source_type),
+            )
+            int_fmt_gv = self._get_or_create_format_global(int_fmt)
+            return self._snprintf_heap(int_fmt_gv, [int_arg])
+
+        if isinstance(
+            message_type, (ir.HalfType, ir.FloatType, ir.DoubleType)
+        ):
+            if isinstance(message_type, (ir.HalfType, ir.FloatType)):
+                float_arg = self._llvm.ir_builder.fpext(
+                    message_value,
+                    self._llvm.DOUBLE_TYPE,
+                    "assert_msg_to_double",
+                )
+            else:
+                float_arg = message_value
+            float_fmt_gv = self._get_or_create_format_global("%.6f")
+            return self._snprintf_heap(float_fmt_gv, [float_arg])
+
+        raise_lowering_error(
+            "unsupported AssertStmt message lowering for type "
+            f"{lowered_value_type_name(message_value)}",
+            code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            node=node.message,
         )
 
     def _discard_child_results(self, node: astx.AST) -> None:
@@ -473,6 +614,44 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
 
         if result is not None:
             self.result_stack.append(result)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.AssertStmt) -> None:
+        """
+        title: Visit AssertStmt nodes.
+        parameters:
+          node:
+            type: astx.AssertStmt
+        """
+        self.visit_child(node.condition)
+        condition_value = self._lower_boolean_condition(
+            safe_pop(self.result_stack),
+            node=node.condition,
+            context="assert",
+        )
+
+        pass_bb, fail_bb = self._append_basic_blocks("assert", "pass", "fail")
+        self._llvm.ir_builder.cbranch(condition_value, pass_bb, fail_bb)
+
+        self._llvm.ir_builder.position_at_start(fail_bb)
+        source_ptr = self._constant_c_string_pointer(
+            self._assert_source_name(node),
+            name_hint="assert_source",
+        )
+        line_value = ir.Constant(self._llvm.INT32_TYPE, node.loc.line)
+        col_value = ir.Constant(self._llvm.INT32_TYPE, node.loc.col)
+        message_ptr = self._lower_assert_message_pointer(node)
+        fail_function = self.require_runtime_symbol(
+            ASSERT_RUNTIME_FEATURE_NAME,
+            ASSERT_FAILURE_SYMBOL_NAME,
+        )
+        self._llvm.ir_builder.call(
+            fail_function,
+            [source_ptr, line_value, col_value, message_ptr],
+        )
+        self._llvm.ir_builder.unreachable()
+
+        self._llvm.ir_builder.position_at_start(pass_bb)
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:

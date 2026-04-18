@@ -347,6 +347,8 @@ class VisitorCore(BuilderVisitor):
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     _emitted_function_bodies: set[str]
+    _module_display_names: dict[int, str]
+    _current_module_display_name: str | None
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
@@ -376,6 +378,8 @@ class VisitorCore(BuilderVisitor):
         self.struct_types = {}
         self.llvm_structs_by_qualified_name = {}
         self._emitted_function_bodies = set()
+        self._module_display_names = {}
+        self._current_module_display_name = None
         self.entry_function_symbol_id = None
         self._fast_math_enabled = False
         self._current_function_return_type = None
@@ -426,7 +430,12 @@ class VisitorCore(BuilderVisitor):
           type: str
         """
         analyzed = analyze(node)
+        self._module_display_names = {}
+        self._current_module_display_name = None
         if isinstance(analyzed, astx.Module):
+            self._module_display_names[id(analyzed)] = (
+                getattr(analyzed, "name", "") or "<module>"
+            )
             self._set_entry_function_from_module(analyzed)
             self._translate_modules([analyzed])
         else:
@@ -449,9 +458,18 @@ class VisitorCore(BuilderVisitor):
           type: str
         """
         session = analyze_modules(root, resolver)
+        ordered_modules = session.ordered_modules()
+        self._module_display_names = {
+            id(parsed_module.ast): (
+                parsed_module.display_name
+                or getattr(parsed_module.ast, "name", "")
+                or str(parsed_module.key)
+            )
+            for parsed_module in ordered_modules
+        }
         self._set_entry_function_from_module(root.ast)
         self._translate_modules(
-            [parsed_module.ast for parsed_module in session.ordered_modules()]
+            [parsed_module.ast for parsed_module in ordered_modules]
         )
         return str(self._llvm.module)
 
@@ -512,11 +530,19 @@ class VisitorCore(BuilderVisitor):
             type: list[astx.Module]
         """
         for module in modules:
+            self._current_module_display_name = self._module_display_names.get(
+                id(module),
+                getattr(module, "name", "") or "<module>",
+            )
             for node in module.nodes:
                 if isinstance(node, (astx.StructDefStmt, astx.ClassDefStmt)):
                     self.visit(node)
 
         for module in modules:
+            self._current_module_display_name = self._module_display_names.get(
+                id(module),
+                getattr(module, "name", "") or "<module>",
+            )
             for node in module.nodes:
                 if isinstance(node, astx.FunctionPrototype):
                     self.visit(node)
@@ -524,9 +550,15 @@ class VisitorCore(BuilderVisitor):
                     self.visit(node.prototype)
 
         for module in modules:
+            self._current_module_display_name = self._module_display_names.get(
+                id(module),
+                getattr(module, "name", "") or "<module>",
+            )
             for node in module.nodes:
                 if isinstance(node, astx.FunctionDef):
                     self.visit(node)
+
+        self._current_module_display_name = None
 
     def activate_runtime_feature(self, feature_name: str) -> None:
         """
