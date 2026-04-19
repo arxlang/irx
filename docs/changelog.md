@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+# [1.12.0](https://github.com/arxlang/irx/compare/1.11.0...1.12.0) (2026-04-19)
+
+
+### Features
+
+* Improve module handling ([#300](https://github.com/arxlang/irx/issues/300)) ([c777251](https://github.com/arxlang/irx/commit/c777251f814a4f8509cd65dc9668b2bc65f45776))
+
 # [1.11.0](https://github.com/arxlang/irx/compare/1.10.0...1.11.0) (2026-04-18)
 
 
