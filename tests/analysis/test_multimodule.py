@@ -78,6 +78,30 @@ def _point_struct(name: str = "Point") -> astx.StructDefStmt:
     )
 
 
+def _sum2_function(name: str = "sum2") -> astx.FunctionDef:
+    """
+    title: Build a small float64 helper with two parameters.
+    parameters:
+      name:
+        type: str
+    returns:
+      type: astx.FunctionDef
+    """
+    body = astx.Block()
+    body.append(astx.FunctionReturn(astx.Identifier("lhs")))
+    return astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name,
+            args=astx.Arguments(
+                astx.Argument("lhs", astx.Float64()),
+                astx.Argument("rhs", astx.Float64()),
+            ),
+            return_type=astx.Float64(),
+        ),
+        body=body,
+    )
+
+
 def _shape_class(name: str = "Shape") -> astx.ClassDefStmt:
     """
     title: Build a simple class definition.
@@ -181,6 +205,179 @@ def test_analyze_modules_registers_plain_module_import_binding() -> None:
     assert alias_semantic.resolved_module is not None
     assert alias_semantic.resolved_module.module_key == "lib"
     assert session.visible_bindings[root.key]["lib"].kind == "module"
+
+
+def test_analyze_modules_resolves_module_namespace_call() -> None:
+    """
+    title: Module alias imports resolve callable namespace member access.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    import_stmt = astx.ImportStmt(
+        [astx.AliasExpr("sciarx.stats", asname="stats")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    resolved_call = _semantic(namespace_call)
+    resolved_member = resolved_call.resolved_module_member_access
+    resolved_function = resolved_call.resolved_function
+
+    assert resolved_member is not None
+    assert resolved_function is not None
+    assert resolved_member.module.module_key == "sciarx.stats"
+    assert resolved_member.binding.function is resolved_function
+    assert resolved_function.module_key == "sciarx.stats"
+    assert resolved_call.resolved_call is not None
+
+
+def test_analyze_modules_resolves_module_namespace_member_reference() -> None:
+    """
+    title: Bare namespace member access resolves to the exported declaration.
+    """
+    member_access = astx.FieldAccess(astx.Identifier("stats"), "sum2")
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            member_access,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    resolved_member = _semantic(member_access).resolved_module_member_access
+    resolved_function = _semantic(member_access).resolved_function
+
+    assert resolved_member is not None
+    assert resolved_function is not None
+    assert resolved_member.member_name == "sum2"
+    assert resolved_member.binding.function is resolved_function
+    assert resolved_function.module_key == "sciarx.stats"
+
+
+def test_analyze_modules_keeps_namespace_and_direct_calls_equivalent() -> None:
+    """
+    title: Direct imports and namespace calls share the same callable target.
+    """
+    direct_call = astx.FunctionCall(
+        "sum2_direct",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(
+            module="sciarx.stats",
+            names=[astx.AliasExpr("sum2", asname="sum2_direct")],
+        ),
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            direct_call,
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    direct_function = _semantic(direct_call).resolved_function
+    namespace_function = _semantic(namespace_call).resolved_function
+
+    assert direct_function is not None
+    assert namespace_function is not None
+    assert direct_function is namespace_function
+
+
+def test_analyze_modules_reports_missing_module_namespace_member() -> None:
+    """
+    title: Missing namespace members produce a clear semantic diagnostic.
+    """
+    bad_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "does_not_exist",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            bad_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    with pytest.raises(
+        SemanticError,
+        match="module namespace 'stats' has no member 'does_not_exist'",
+    ):
+        analyze_modules(
+            root,
+            StaticImportResolver({"sciarx.stats": stats_module}),
+        )
+
+
+def test_analyze_modules_keeps_struct_field_access_behavior() -> None:
+    """
+    title: Module namespace support does not disturb struct field access.
+    """
+    field_access = astx.FieldAccess(astx.Identifier("point"), "x")
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _point_struct(),
+        _int_function(
+            "main",
+            astx.VariableDeclaration(
+                name="point",
+                type_=astx.StructType("Point"),
+            ),
+            field_access,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    assert _semantic(field_access).resolved_field_access is not None
+    assert _semantic(field_access).resolved_module_member_access is None
 
 
 def test_analyze_modules_returns_dep_order_and_predeclared_imports() -> None:

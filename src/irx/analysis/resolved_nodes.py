@@ -1066,6 +1066,29 @@ class ResolvedImportBinding:
 @public
 @typechecked
 @dataclass(frozen=True)
+class ResolvedModuleMemberAccess:
+    """
+    title: Resolved module-namespace member access.
+    summary: >-
+      Record which imported module namespace one member access targeted and the
+      visible binding that namespace lookup selected.
+    attributes:
+      module:
+        type: SemanticModule
+      member_name:
+        type: str
+      binding:
+        type: SemanticBinding
+    """
+
+    module: SemanticModule
+    member_name: str
+    binding: SemanticBinding
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class SemanticFlags:
     """
     title: Normalized semantic flags.
@@ -1325,6 +1348,8 @@ class SemanticInfo:
         type: ResolvedAssignment | None
       resolved_field_access:
         type: ResolvedFieldAccess | None
+      resolved_module_member_access:
+        type: ResolvedModuleMemberAccess | None
       resolved_class_field_access:
         type: ResolvedClassFieldAccess | None
       resolved_base_class_field_access:
@@ -1355,6 +1380,7 @@ class SemanticInfo:
     resolved_operator: ResolvedOperator | None = None
     resolved_assignment: ResolvedAssignment | None = None
     resolved_field_access: ResolvedFieldAccess | None = None
+    resolved_module_member_access: ResolvedModuleMemberAccess | None = None
     resolved_class_field_access: ResolvedClassFieldAccess | None = None
     resolved_base_class_field_access: ResolvedBaseClassFieldAccess | None = (
         None

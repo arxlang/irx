@@ -65,6 +65,30 @@ def _point_struct(name: str = "Point") -> astx.StructDefStmt:
     )
 
 
+def _sum2_function(name: str = "sum2") -> astx.FunctionDef:
+    """
+    title: Build a small float64 helper with two parameters.
+    parameters:
+      name:
+        type: str
+    returns:
+      type: astx.FunctionDef
+    """
+    body = astx.Block()
+    body.append(astx.FunctionReturn(astx.Identifier("lhs")))
+    return astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name,
+            args=astx.Arguments(
+                astx.Argument("lhs", astx.Float64()),
+                astx.Argument("rhs", astx.Float64()),
+            ),
+            return_type=astx.Float64(),
+        ),
+        body=body,
+    )
+
+
 def test_translate_modules_mangles_same_named_functions() -> None:
     """
     title: Same bare function names produce distinct LLVM symbols.
@@ -126,6 +150,83 @@ def test_translate_modules_calls_imported_function_by_defining_symbol() -> (
     )
 
     assert f'call i32 @"{mangle_function_name("lib", "foo")}"()' in ir_text
+
+
+def test_translate_modules_calls_function_through_module_namespace() -> None:
+    """
+    title: Namespace method-call syntax lowers to the defining module symbol.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    call_text = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+
+    assert call_text in ir_text
+
+
+def test_translate_modules_keeps_direct_and_namespace_calls_equivalent() -> (
+    None
+):
+    """
+    title: Direct imports and namespace calls lower to the same callee symbol.
+    """
+    direct_call = astx.FunctionCall(
+        "sum2_direct",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(
+            module="sciarx.stats",
+            names=[astx.AliasExpr("sum2", asname="sum2_direct")],
+        ),
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            direct_call,
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+    call_text = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+    expected_count = 2
+
+    assert ir_text.count(call_text) == expected_count
 
 
 def test_translate_modules_emits_imported_definition_once() -> None:

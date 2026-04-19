@@ -25,13 +25,16 @@ from irx.analysis.resolved_nodes import (
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedMethodCall,
+    ResolvedModuleMemberAccess,
     ResolvedStaticClassFieldAccess,
+    SemanticBinding,
     SemanticClass,
     SemanticClassLayoutField,
     SemanticClassMember,
     SemanticClassStaticStorage,
     SemanticFunction,
     SemanticInfo,
+    SemanticModule,
     SemanticSymbol,
 )
 from irx.analysis.types import (
@@ -221,6 +224,205 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
           type: str
         """
         return f"{member.owner_name}.{member.name}"
+
+    def _module_namespace_type(
+        self,
+        module: SemanticModule,
+    ) -> astx.ModuleNamespaceType:
+        """
+        title: Build one semantic-only module namespace type.
+        parameters:
+          module:
+            type: SemanticModule
+        returns:
+          type: astx.ModuleNamespaceType
+        """
+        return astx.ModuleNamespaceType(
+            module.module_key,
+            display_name=module.display_name,
+        )
+
+    def _module_namespace(
+        self,
+        node: astx.AST,
+    ) -> SemanticModule | None:
+        """
+        title: Return the resolved module namespace for one expression.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticModule | None
+        """
+        semantic = getattr(node, "semantic", None)
+        module = getattr(semantic, "resolved_module", None)
+        if isinstance(module, SemanticModule):
+            return module
+        return None
+
+    def _module_namespace_name(
+        self,
+        node: astx.AST,
+        module: SemanticModule | None = None,
+    ) -> str:
+        """
+        title: Return one stable display name for a namespace expression.
+        parameters:
+          node:
+            type: astx.AST
+          module:
+            type: SemanticModule | None
+        returns:
+          type: str
+        """
+        if isinstance(node, astx.Identifier):
+            return cast(str, node.name)
+        if isinstance(node, astx.FieldAccess):
+            base_name = self._module_namespace_name(node.value, module)
+            return f"{base_name}.{node.field_name}"
+        resolved_module = self._module_namespace(node)
+        if resolved_module is not None:
+            return resolved_module.display_name or str(
+                resolved_module.module_key
+            )
+        if module is not None:
+            return module.display_name or str(module.module_key)
+        return "<module>"
+
+    def _resolve_module_member_binding(
+        self,
+        module: SemanticModule,
+        member_name: str,
+        *,
+        node: astx.AST,
+        namespace_name: str,
+    ) -> SemanticBinding | None:
+        """
+        title: Resolve one visible member through a module namespace.
+        parameters:
+          module:
+            type: SemanticModule
+          member_name:
+            type: str
+          node:
+            type: astx.AST
+          namespace_name:
+            type: str
+        returns:
+          type: SemanticBinding | None
+        """
+        binding = self.bindings.resolve(
+            member_name,
+            module_key=module.module_key,
+        )
+        if binding is not None:
+            return binding
+        self.context.diagnostics.add(
+            (
+                f"module namespace '{namespace_name}' has no member "
+                f"'{member_name}'"
+            ),
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+        )
+        return None
+
+    def _set_module_member_resolution(
+        self,
+        node: astx.AST,
+        *,
+        module: SemanticModule,
+        member_name: str,
+        binding: SemanticBinding,
+    ) -> None:
+        """
+        title: Attach resolved module-member semantics to one node.
+        parameters:
+          node:
+            type: astx.AST
+          module:
+            type: SemanticModule
+          member_name:
+            type: str
+          binding:
+            type: SemanticBinding
+        """
+        self._set_module_member_access(
+            node,
+            ResolvedModuleMemberAccess(
+                module=module,
+                member_name=member_name,
+                binding=binding,
+            ),
+        )
+        if binding.function is not None:
+            self._set_function(node, binding.function)
+            return
+        if binding.module is not None:
+            self._set_module(node, binding.module)
+            self._set_type(
+                node,
+                self._module_namespace_type(binding.module),
+            )
+            return
+        if binding.struct is not None:
+            self._set_struct(node, binding.struct)
+        if binding.class_ is not None:
+            self._set_class(node, binding.class_)
+
+    def _resolve_module_namespace_call(
+        self,
+        node: astx.MethodCall,
+        module: SemanticModule,
+        arg_types: list[astx.DataType | None],
+    ) -> None:
+        """
+        title: Resolve one callable lookup through a module namespace.
+        parameters:
+          node:
+            type: astx.MethodCall
+          module:
+            type: SemanticModule
+          arg_types:
+            type: list[astx.DataType | None]
+        """
+        namespace_name = self._module_namespace_name(node.receiver, module)
+        binding = self._resolve_module_member_binding(
+            module,
+            node.method_name,
+            node=node,
+            namespace_name=namespace_name,
+        )
+        if binding is None:
+            self._set_type(node, None)
+            return
+        self._set_module_member_resolution(
+            node,
+            module=module,
+            member_name=node.method_name,
+            binding=binding,
+        )
+        function = binding.function
+        if function is None:
+            self.context.diagnostics.add(
+                (
+                    f"module namespace '{namespace_name}' member "
+                    f"'{node.method_name}' is not callable"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            self._set_type(node, None)
+            return
+        call_resolution = validate_call(
+            self.context.diagnostics,
+            function=function,
+            arg_types=arg_types,
+            node=node,
+        )
+        self._set_function(node, function)
+        self._set_call(node, call_resolution)
+        self._set_type(node, call_resolution.result_type)
 
     def _class_member_target_symbol(
         self,
@@ -1172,18 +1374,28 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             type: astx.Identifier
         """
         symbol = self.context.scopes.resolve(node.name)
-        if symbol is None:
-            self.context.diagnostics.add(
-                f"cannot resolve name '{node.name}'",
-                node=node,
-                code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
-            )
+        if symbol is not None:
+            self._set_symbol(node, symbol)
+            self._set_type(node, symbol.type_)
+            return
+
+        binding = self.bindings.resolve(node.name)
+        if binding is not None and binding.module is not None:
+            self._set_module(node, binding.module)
             self._set_type(
-                node, cast(astx.DataType | None, getattr(node, "type_", None))
+                node,
+                self._module_namespace_type(binding.module),
             )
             return
-        self._set_symbol(node, symbol)
-        self._set_type(node, symbol.type_)
+
+        self.context.diagnostics.add(
+            f"cannot resolve name '{node.name}'",
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_UNRESOLVED_NAME,
+        )
+        self._set_type(
+            node, cast(astx.DataType | None, getattr(node, "type_", None))
+        )
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.VariableAssignment) -> None:
@@ -1494,6 +1706,10 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             context="Method call receiver",
         ):
             self._set_type(node, None)
+            return
+        module = self._module_namespace(node.receiver)
+        if module is not None:
+            self._resolve_module_namespace_call(node, module, arg_types)
             return
         receiver_type = self._expr_type(node.receiver)
         class_ = self._resolve_class_from_type(
@@ -1815,6 +2031,25 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             context="Field access",
         ):
             self._set_type(node, None)
+            return
+        module = self._module_namespace(node.value)
+        if module is not None:
+            namespace_name = self._module_namespace_name(node.value, module)
+            binding = self._resolve_module_member_binding(
+                module,
+                node.field_name,
+                node=node,
+                namespace_name=namespace_name,
+            )
+            if binding is None:
+                self._set_type(node, None)
+                return
+            self._set_module_member_resolution(
+                node,
+                module=module,
+                member_name=node.field_name,
+                binding=binding,
+            )
             return
         base_type = self._expr_type(node.value)
         struct = self._resolve_struct_from_type(
