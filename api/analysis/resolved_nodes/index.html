@@ -1554,6 +1554,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#irx.analysis.resolved_nodes.ResolvedModuleMemberAccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ResolvedModuleMemberAccess
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#irx.analysis.resolved_nodes.ResolvedOperator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2009,6 +2020,8 @@
       
         
       
+        
+      
     
     
     
@@ -2185,6 +2198,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../astx/modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> modules
   
 
     
@@ -4365,6 +4406,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#irx.analysis.resolved_nodes.ResolvedModuleMemberAccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ResolvedModuleMemberAccess
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#irx.analysis.resolved_nodes.ResolvedOperator" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4892,6 +4944,18 @@
   
       dataclass
    (irx.analysis.resolved_nodes.ResolvedMethodCall)" href="#irx.analysis.resolved_nodes.ResolvedMethodCall">ResolvedMethodCall</a></code></b>
+          –
+          <div class="doc-md-description">
+            
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="            ResolvedModuleMemberAccess
+
+
+  
+      dataclass
+   (irx.analysis.resolved_nodes.ResolvedModuleMemberAccess)" href="#irx.analysis.resolved_nodes.ResolvedModuleMemberAccess">ResolvedModuleMemberAccess</a></code></b>
           –
           <div class="doc-md-description">
             
@@ -6911,6 +6975,84 @@ attributes:
 
 
 
+<h2 id="irx.analysis.resolved_nodes.ResolvedModuleMemberAccess" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ResolvedModuleMemberAccess</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#irx.analysis.resolved_nodes.ResolvedModuleMemberAccess" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">ResolvedModuleMemberAccess</span><span class="p">(</span>
+    <span class="n">module</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            SemanticModule
+
+
+  
+      dataclass
+   (irx.analysis.resolved_nodes.SemanticModule)" href="#irx.analysis.resolved_nodes.SemanticModule">SemanticModule</a></span><span class="p">,</span>
+    <span class="n">member_name</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span>
+    <span class="n">binding</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            SemanticBinding
+
+
+  
+      dataclass
+   (irx.analysis.resolved_nodes.SemanticBinding)" href="#irx.analysis.resolved_nodes.SemanticBinding">SemanticBinding</a></span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Record which imported module namespace one member access targeted and the
+  visible binding that namespace lookup selected.
+attributes:
+  module:
+    type: SemanticModule
+  member_name:
+    type: str
+  binding:
+    type: SemanticBinding</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h2 id="irx.analysis.resolved_nodes.ResolvedOperator" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ResolvedOperator</span>
 
@@ -8632,6 +8774,13 @@ attributes:
       dataclass
    (irx.analysis.resolved_nodes.ResolvedFieldAccess)" href="#irx.analysis.resolved_nodes.ResolvedFieldAccess">ResolvedFieldAccess</a></span>
     <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">resolved_module_member_access</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            ResolvedModuleMemberAccess
+
+
+  
+      dataclass
+   (irx.analysis.resolved_nodes.ResolvedModuleMemberAccess)" href="#irx.analysis.resolved_nodes.ResolvedModuleMemberAccess">ResolvedModuleMemberAccess</a></span>
+    <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resolved_class_field_access</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            ResolvedClassFieldAccess
 
 
@@ -8718,6 +8867,8 @@ attributes:
     type: ResolvedAssignment | None
   resolved_field_access:
     type: ResolvedFieldAccess | None
+  resolved_module_member_access:
+    type: ResolvedModuleMemberAccess | None
   resolved_class_field_access:
     type: ResolvedClassFieldAccess | None
   resolved_base_class_field_access:

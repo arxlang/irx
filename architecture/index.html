@@ -1679,6 +1679,8 @@
       
         
       
+        
+      
     
     
     
@@ -1855,6 +1857,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> modules
   
 
     
@@ -4055,7 +4085,9 @@ discovery. Those responsibilities stay outside the library.</p>
 <li>the cache of reachable parsed modules</li>
 <li>the import dependency graph and stable load order</li>
 <li>cycle diagnostics</li>
-<li>per-module visible top-level bindings used for import alias resolution</li>
+<li>per-module visible top-level bindings used for direct imports and module
+  namespace aliases</li>
+<li>semantic-only module namespace values and namespace-member lookup metadata</li>
 </ul>
 <p>Semantic identity for top-level functions and structs is module-aware. Backend
 lowering consumes that semantic identity rather than raw source names, which is
