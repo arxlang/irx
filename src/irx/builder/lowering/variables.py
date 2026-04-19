@@ -12,8 +12,10 @@ from irx.builder.core import (
     semantic_assignment_key,
     semantic_symbol_key,
 )
+from irx.builder.diagnostics import raise_lowering_error
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -64,11 +66,17 @@ class VariableVisitorMixin(VisitorMixinBase):
         """
         symbol_key = semantic_symbol_key(node, node.name)
         expr_var = self.named_values.get(symbol_key)
-        if not expr_var:
-            raise Exception(f"Unknown variable name: {node.name}")
+        if expr_var:
+            result = self._llvm.ir_builder.load(expr_var, node.name)
+            self.result_stack.append(result)
+            return
 
-        result = self._llvm.ir_builder.load(expr_var, node.name)
-        self.result_stack.append(result)
+        namespace_value = self._namespace_value(node)
+        if namespace_value is not None:
+            self.result_stack.append(namespace_value)
+            return
+
+        raise Exception(f"Unknown variable name: {node.name}")
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.FieldAccess) -> None:
@@ -78,6 +86,31 @@ class VariableVisitorMixin(VisitorMixinBase):
           node:
             type: astx.FieldAccess
         """
+        namespace_value = self._namespace_value(node)
+        if namespace_value is not None:
+            self.visit_child(node.value)
+            _ = safe_pop(self.result_stack)
+            self.result_stack.append(namespace_value)
+            return
+
+        resolved_module_member_access = getattr(
+            getattr(node, "semantic", None),
+            "resolved_module_member_access",
+            None,
+        )
+        if resolved_module_member_access is not None:
+            raise_lowering_error(
+                "module namespace member references are lowerable only when "
+                "they resolve to nested namespaces or are used in call "
+                "position",
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+                node=node,
+                hint=(
+                    "use namespace.member(...) for callable members, or "
+                    "return/bind a namespace-valued member instead"
+                ),
+            )
+
         if isinstance(node.value, astx.FieldAccess):
             parent_ptr = self._field_address(node.value)
             parent_value = self._llvm.ir_builder.load(

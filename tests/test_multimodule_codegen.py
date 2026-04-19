@@ -7,6 +7,7 @@ from __future__ import annotations
 from irx import astx
 from irx.analysis.module_symbols import (
     mangle_function_name,
+    mangle_namespace_name,
     mangle_struct_name,
 )
 from irx.builder import Builder
@@ -227,6 +228,147 @@ def test_translate_modules_keeps_direct_and_namespace_calls_equivalent() -> (
     expected_count = 2
 
     assert ir_text.count(call_text) == expected_count
+
+
+def test_translate_modules_lowers_local_namespace_variables() -> None:
+    """
+    title: Namespace-typed locals lower as reusable opaque namespace handles.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats_local"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            astx.VariableDeclaration(
+                name="stats_local",
+                type_=astx.NamespaceType("sciarx.stats"),
+                value=astx.Identifier("stats"),
+            ),
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    call_text = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+    namespace_global = mangle_namespace_name("sciarx.stats", "module")
+
+    assert call_text in ir_text
+    assert f'@"{namespace_global}" = internal constant i8 0' in ir_text
+
+
+def test_translate_modules_lowers_returned_namespace_values() -> None:
+    """
+    title: Namespace-typed returns lower as opaque pointer signatures.
+    """
+    get_stats_body = astx.Block()
+    get_stats_body.append(astx.FunctionReturn(astx.Identifier("stats")))
+    namespace_call = astx.MethodCall(
+        astx.FunctionCall("get_stats", []),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "get_stats",
+                args=astx.Arguments(),
+                return_type=astx.NamespaceType("sciarx.stats"),
+            ),
+            body=get_stats_body,
+        ),
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    get_stats_name = mangle_function_name("app.main", "get_stats")
+    sum2_call = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+
+    assert f'define i8* @"{get_stats_name}"()' in ir_text
+    assert f'call i8* @"{get_stats_name}"()' in ir_text
+    assert sum2_call in ir_text
+
+
+def test_translate_modules_lowers_namespace_parameters() -> None:
+    """
+    title: Namespace values can flow through function parameters.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats_ns"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    use_stats_body = astx.Block()
+    use_stats_body.append(astx.FunctionReturn(namespace_call))
+    use_stats = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "use_stats",
+            args=astx.Arguments(
+                astx.Argument(
+                    "stats_ns",
+                    astx.NamespaceType("sciarx.stats"),
+                )
+            ),
+            return_type=astx.Float64(),
+        ),
+        body=use_stats_body,
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        use_stats,
+        _int_function(
+            "main",
+            astx.FunctionCall("use_stats", [astx.Identifier("stats")]),
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    use_stats_name = mangle_function_name("app.main", "use_stats")
+    expected_namespace_call_count = 1
+
+    assert f'define double @"{use_stats_name}"(i8* %"stats_ns")' in ir_text
+    assert f'call double @"{use_stats_name}"(i8* @"' in ir_text
+    assert (
+        ir_text.count(
+            f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+        )
+        == expected_namespace_call_count
+    )
 
 
 def test_translate_modules_emits_imported_definition_once() -> None:

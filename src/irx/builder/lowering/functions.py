@@ -494,6 +494,8 @@ class FunctionVisitorMixin(VisitorMixinBase):
                 resolution=resolution,
                 label=(f"module namespace call '{module_member.member_name}'"),
             )
+            self.visit_child(node.receiver)
+            _ = safe_pop(self.result_stack)
             self._apply_calling_convention(function.signature)
             if isinstance(callee.function_type.return_type, ir.VoidType):
                 self._llvm.ir_builder.call(callee, llvm_args)

@@ -1,8 +1,10 @@
 """
-title: IRX-owned module namespace AST types.
+title: IRX-owned namespace AST types.
 """
 
 from __future__ import annotations
+
+from enum import Enum
 
 import astx
 
@@ -12,61 +14,97 @@ from irx.typecheck import typechecked
 
 
 @typechecked
-class ModuleNamespaceType(AnyType):
+class NamespaceKind(str, Enum):
     """
-    title: Semantic-only module namespace type.
+    title: Stable namespace categories.
     summary: >-
-      Represent one imported module namespace value during semantic analysis
-      without modeling it as a runtime aggregate.
+      Distinguish the semantic origin of one namespace-valued binding while
+      keeping the user-facing expression model uniform.
+    """
+
+    MODULE = "module"
+    PACKAGE = "package"
+    LIBRARY = "library"
+
+
+@typechecked
+class NamespaceType(AnyType):
+    """
+    title: Semantic-only namespace type.
+    summary: >-
+      Represent one imported namespace value during semantic analysis and
+      lowering without modeling it as a user-defined runtime aggregate.
     attributes:
-      module_key:
+      namespace_key:
         type: str
+      namespace_kind:
+        type: NamespaceKind
       display_name:
         type: str | None
     """
 
-    module_key: str
+    namespace_key: str
+    namespace_kind: NamespaceKind
     display_name: str | None
 
     def __init__(
         self,
-        module_key: str,
+        namespace_key: str,
         *,
+        namespace_kind: NamespaceKind = NamespaceKind.MODULE,
         display_name: str | None = None,
     ) -> None:
         """
-        title: Initialize one module namespace type.
+        title: Initialize one namespace type.
         parameters:
-          module_key:
+          namespace_key:
             type: str
+          namespace_kind:
+            type: NamespaceKind
           display_name:
             type: str | None
         """
         super().__init__()
-        self.module_key = module_key
+        self.namespace_key = namespace_key
+        self.namespace_kind = namespace_kind
         self.display_name = display_name
 
-    def __str__(self) -> str:
+    @property
+    def module_key(self) -> str:
         """
-        title: Render one module namespace type as text.
+        title: Return the legacy module-key alias for this namespace.
         returns:
           type: str
         """
-        visible_name = self.display_name or self.module_key
-        return f"ModuleNamespaceType[{visible_name}]"
+        return self.namespace_key
+
+    def __str__(self) -> str:
+        """
+        title: Render one namespace type as text.
+        returns:
+          type: str
+        """
+        visible_name = self.display_name or self.namespace_key
+        return f"NamespaceType[{self.namespace_kind.value}:{visible_name}]"
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
-        title: Build one repr structure for a module namespace type.
+        title: Build one repr structure for a namespace type.
         parameters:
           simplified:
             type: bool
         returns:
           type: astx.base.ReprStruct
         """
-        visible_name = self.display_name or self.module_key
-        key = f"MODULE-NAMESPACE[{visible_name}]"
+        visible_name = self.display_name or self.namespace_key
+        key = f"NAMESPACE[{self.namespace_kind.value}:{visible_name}]"
         return self._prepare_struct(key, visible_name, simplified)
 
 
-__all__ = ["ModuleNamespaceType"]
+ModuleNamespaceType = NamespaceType
+
+__all__ = [
+    "ModuleNamespaceType",
+    "NamespaceKind",
+    "NamespaceType",
+]

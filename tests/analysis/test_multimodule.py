@@ -278,6 +278,89 @@ def test_analyze_modules_resolves_module_namespace_member_reference() -> None:
     assert resolved_function.module_key == "sciarx.stats"
 
 
+def test_analyze_modules_resolves_local_namespace_variable_calls() -> None:
+    """
+    title: Local variables typed as namespaces preserve module-member lookup.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats_local"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        _int_function(
+            "main",
+            astx.VariableDeclaration(
+                name="stats_local",
+                type_=astx.NamespaceType("sciarx.stats"),
+                value=astx.Identifier("stats"),
+            ),
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    resolved_function = _semantic(namespace_call).resolved_function
+    resolved_module = _semantic(namespace_call.receiver).resolved_module
+
+    assert resolved_function is not None
+    assert resolved_function.module_key == "sciarx.stats"
+    assert resolved_module is not None
+    assert resolved_module.module_key == "sciarx.stats"
+
+
+def test_analyze_modules_resolves_namespace_return_values() -> None:
+    """
+    title: Function results typed as namespaces remain callable as receivers.
+    """
+    get_stats_body = astx.Block()
+    get_stats_body.append(astx.FunctionReturn(astx.Identifier("stats")))
+    namespace_call = astx.MethodCall(
+        astx.FunctionCall("get_stats", []),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportStmt([astx.AliasExpr("sciarx.stats", asname="stats")]),
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "get_stats",
+                args=astx.Arguments(),
+                return_type=astx.NamespaceType("sciarx.stats"),
+            ),
+            body=get_stats_body,
+        ),
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    analyze_modules(
+        root,
+        StaticImportResolver({"sciarx.stats": stats_module}),
+    )
+
+    resolved_receiver_type = _semantic(namespace_call.receiver).resolved_type
+    resolved_function = _semantic(namespace_call).resolved_function
+
+    assert isinstance(resolved_receiver_type, astx.NamespaceType)
+    assert resolved_receiver_type.namespace_key == "sciarx.stats"
+    assert resolved_function is not None
+    assert resolved_function.module_key == "sciarx.stats"
+
+
 def test_analyze_modules_keeps_namespace_and_direct_calls_equivalent() -> None:
     """
     title: Direct imports and namespace calls share the same callable target.

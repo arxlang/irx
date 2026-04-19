@@ -228,18 +228,40 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
     def _module_namespace_type(
         self,
         module: SemanticModule,
-    ) -> astx.ModuleNamespaceType:
+    ) -> astx.NamespaceType:
         """
-        title: Build one semantic-only module namespace type.
+        title: Build one semantic-only namespace type for a module.
         parameters:
           module:
             type: SemanticModule
         returns:
-          type: astx.ModuleNamespaceType
+          type: astx.NamespaceType
         """
-        return astx.ModuleNamespaceType(
+        return astx.NamespaceType(
             module.module_key,
+            namespace_kind=astx.NamespaceKind.MODULE,
             display_name=module.display_name,
+        )
+
+    def _module_namespace_from_type(
+        self,
+        type_: astx.DataType | None,
+    ) -> SemanticModule | None:
+        """
+        title: Reconstruct module identity from a namespace type.
+        parameters:
+          type_:
+            type: astx.DataType | None
+        returns:
+          type: SemanticModule | None
+        """
+        if not isinstance(type_, astx.NamespaceType):
+            return None
+        if type_.namespace_kind is not astx.NamespaceKind.MODULE:
+            return None
+        return self.factory.make_module(
+            type_.namespace_key,
+            display_name=type_.display_name,
         )
 
     def _module_namespace(
@@ -258,7 +280,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         module = getattr(semantic, "resolved_module", None)
         if isinstance(module, SemanticModule):
             return module
-        return None
+        return self._module_namespace_from_type(self._expr_type(node))
 
     def _module_namespace_name(
         self,
@@ -1377,6 +1399,9 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if symbol is not None:
             self._set_symbol(node, symbol)
             self._set_type(node, symbol.type_)
+            module = self._module_namespace_from_type(symbol.type_)
+            if module is not None:
+                self._set_module(node, module)
             return
 
         binding = self.bindings.resolve(node.name)
