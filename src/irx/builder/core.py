@@ -27,6 +27,7 @@ from irx.analysis.module_interfaces import ImportResolver, ParsedModule
 from irx.analysis.module_symbols import (
     mangle_class_name,
     mangle_function_name,
+    mangle_namespace_name,
     mangle_struct_name,
     qualified_class_name,
     qualified_struct_name,
@@ -351,6 +352,7 @@ class VisitorCore(BuilderVisitor):
     _current_module_display_name: str | None
     _interned_c_strings: dict[tuple[str, str], ir.GlobalVariable]
     _c_string_global_counter: int
+    _namespace_globals: dict[tuple[str, str], ir.GlobalVariable]
     entry_function_symbol_id: str | None
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
@@ -384,6 +386,7 @@ class VisitorCore(BuilderVisitor):
         self._current_module_display_name = None
         self._interned_c_strings = {}
         self._c_string_global_counter = 0
+        self._namespace_globals = {}
         self.entry_function_symbol_id = None
         self._fast_math_enabled = False
         self._current_function_return_type = None
@@ -527,6 +530,90 @@ class VisitorCore(BuilderVisitor):
         ):
             return "main"
         return semantic_function_name(node, fallback)
+
+    def _namespace_global(
+        self,
+        namespace_type: astx.NamespaceType,
+    ) -> ir.GlobalVariable:
+        """
+        title: Return one stable LLVM global backing a namespace handle.
+        parameters:
+          namespace_type:
+            type: astx.NamespaceType
+        returns:
+          type: ir.GlobalVariable
+        """
+        cache_key = (
+            namespace_type.namespace_key,
+            namespace_type.namespace_kind.value,
+        )
+        existing = self._namespace_globals.get(cache_key)
+        if existing is not None:
+            return existing
+
+        global_name = mangle_namespace_name(
+            namespace_type.namespace_key,
+            namespace_type.namespace_kind.value,
+        )
+        module_globals = self._llvm.module.globals
+        global_value = module_globals.get(global_name)
+        if global_value is not None:
+            namespace_global = cast(ir.GlobalVariable, global_value)
+            self._namespace_globals[cache_key] = namespace_global
+            return namespace_global
+
+        namespace_global = ir.GlobalVariable(
+            self._llvm.module,
+            self._llvm.INT8_TYPE,
+            name=global_name,
+        )
+        namespace_global.linkage = "internal"
+        namespace_global.global_constant = True
+        namespace_global.initializer = ir.Constant(self._llvm.INT8_TYPE, 0)
+        self._namespace_globals[cache_key] = namespace_global
+        return namespace_global
+
+    def _namespace_value_for_type(
+        self,
+        namespace_type: astx.NamespaceType,
+    ) -> ir.Value:
+        """
+        title: Return one lowered value for a namespace type.
+        parameters:
+          namespace_type:
+            type: astx.NamespaceType
+        returns:
+          type: ir.Value
+        """
+        namespace_global = self._namespace_global(namespace_type)
+        return namespace_global.bitcast(self._llvm.OPAQUE_POINTER_TYPE)
+
+    def _namespace_value(
+        self,
+        node: astx.AST,
+    ) -> ir.Value | None:
+        """
+        title: Return one lowered namespace value for an analyzed node.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ir.Value | None
+        """
+        semantic = getattr(node, "semantic", None)
+        resolved_module = getattr(semantic, "resolved_module", None)
+        if resolved_module is not None:
+            return self._namespace_value_for_type(
+                astx.NamespaceType(
+                    resolved_module.module_key,
+                    namespace_kind=astx.NamespaceKind.MODULE,
+                    display_name=resolved_module.display_name,
+                )
+            )
+        resolved_type = self._resolved_ast_type(node)
+        if isinstance(resolved_type, astx.NamespaceType):
+            return self._namespace_value_for_type(resolved_type)
+        return None
 
     def _translate_modules(self, modules: list[astx.Module]) -> None:
         """
@@ -932,6 +1019,8 @@ class VisitorCore(BuilderVisitor):
         """
         if type_ is None:
             return None
+        if isinstance(type_, astx.NamespaceType):
+            return self._llvm.OPAQUE_POINTER_TYPE
         if isinstance(type_, astx.BufferOwnerType):
             return self._llvm.BUFFER_OWNER_HANDLE_TYPE
         if isinstance(type_, astx.OpaqueHandleType):

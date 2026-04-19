@@ -15,7 +15,8 @@ IRx currently treats these phases as stable:
 - `top_level_predeclaration`: `analyze_modules(...)` registers top-level
   functions and structs for every reachable module before body validation.
 - `top_level_import_resolution`: `analyze_modules(...)` resolves module-top-
-  level imports into module-visible bindings and rejects unsupported import
+  level imports into module-visible bindings, including semantic-only module
+  namespace aliases for plain module imports, and rejects unsupported import
   forms.
 - `semantic_validation`: `analyze(...)`, `analyze_module(...)`, and
   `analyze_modules(...)` attach semantic sidecars, normalize resolved meaning,
@@ -39,6 +40,7 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_operator`
 - `resolved_assignment`
 - `resolved_field_access`
+- `resolved_module_member_access`
 - `resolved_class_field_access`
 - `resolved_base_class_field_access`
 - `resolved_static_class_field_access`

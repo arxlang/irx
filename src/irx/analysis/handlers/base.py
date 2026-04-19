@@ -26,6 +26,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedFieldAccess,
     ResolvedImportBinding,
     ResolvedMethodCall,
+    ResolvedModuleMemberAccess,
     ResolvedOperator,
     ResolvedStaticClassFieldAccess,
     ReturnResolution,
@@ -292,6 +293,21 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           field_access:
             type: ResolvedFieldAccess | None
+        """
+        raise NotImplementedError
+
+    def _set_module_member_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedModuleMemberAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved module-member access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedModuleMemberAccess | None
         """
         raise NotImplementedError
 
@@ -886,6 +902,21 @@ class SemanticAnalyzerCore(BaseVisitor):
             type: ResolvedFieldAccess | None
         """
         self._semantic(node).resolved_field_access = field_access
+
+    def _set_module_member_access(
+        self,
+        node: astx.AST,
+        field_access: ResolvedModuleMemberAccess | None,
+    ) -> None:
+        """
+        title: Attach resolved module-member access metadata.
+        parameters:
+          node:
+            type: astx.AST
+          field_access:
+            type: ResolvedModuleMemberAccess | None
+        """
+        self._semantic(node).resolved_module_member_access = field_access
 
     def _set_class_field_access(
         self,

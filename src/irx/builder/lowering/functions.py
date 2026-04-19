@@ -459,6 +459,51 @@ class FunctionVisitorMixin(VisitorMixinBase):
           node:
             type: astx.MethodCall
         """
+        semantic = getattr(node, "semantic", None)
+        module_member = getattr(
+            semantic,
+            "resolved_module_member_access",
+            None,
+        )
+        if module_member is not None:
+            resolution = require_semantic_metadata(
+                cast(
+                    CallResolution | None,
+                    getattr(semantic, "resolved_call", None),
+                ),
+                node=node,
+                metadata="resolved_call",
+                context=(
+                    f"module namespace call '{module_member.member_name}'"
+                ),
+            )
+            function = require_semantic_metadata(
+                cast(
+                    SemanticFunction | None,
+                    getattr(semantic, "resolved_function", None),
+                ),
+                node=node,
+                metadata="resolved_function",
+                context=(
+                    f"module namespace call '{module_member.member_name}'"
+                ),
+            )
+            callee = self._declare_semantic_function(function)
+            llvm_args = self._lower_explicit_call_arguments(
+                args=list(node.args),
+                resolution=resolution,
+                label=(f"module namespace call '{module_member.member_name}'"),
+            )
+            self.visit_child(node.receiver)
+            _ = safe_pop(self.result_stack)
+            self._apply_calling_convention(function.signature)
+            if isinstance(callee.function_type.return_type, ir.VoidType):
+                self._llvm.ir_builder.call(callee, llvm_args)
+                return
+            result = self._llvm.ir_builder.call(callee, llvm_args, "calltmp")
+            self.result_stack.append(result)
+            return
+
         method_resolution = self._semantic_method_call(node)
         llvm_args = self._lower_explicit_call_arguments(
             args=list(node.args),

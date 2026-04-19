@@ -87,6 +87,9 @@ from irx.astx.classes import StaticFieldAccess as StaticFieldAccess
 from irx.astx.classes import StaticMethodCall as StaticMethodCall
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
+from irx.astx.modules import ModuleNamespaceType as ModuleNamespaceType
+from irx.astx.modules import NamespaceKind as NamespaceKind
+from irx.astx.modules import NamespaceType as NamespaceType
 from irx.astx.structs import FieldAccess as FieldAccess
 from irx.astx.structs import StructType as StructType
 from irx.astx.system import AssertStmt as AssertStmt
@@ -128,7 +131,10 @@ __all__ = (
     "LtBinOp",
     "MethodCall",
     "ModBinOp",
+    "ModuleNamespaceType",
     "MulBinOp",
+    "NamespaceKind",
+    "NamespaceType",
     "NeBinOp",
     "OpaqueHandleType",
     "PointerType",

@@ -312,6 +312,25 @@ def mangle_class_name(module_key: ModuleKey, class_name: str) -> str:
 
 @public
 @typechecked
+def mangle_namespace_name(
+    namespace_key: ModuleKey,
+    namespace_kind: str,
+) -> str:
+    """
+    title: Return a deterministic LLVM namespace-handle name.
+    parameters:
+      namespace_key:
+        type: ModuleKey
+      namespace_kind:
+        type: str
+    returns:
+      type: str
+    """
+    return _mangle_parts(str(namespace_key), namespace_kind, "namespace")
+
+
+@public
+@typechecked
 def class_method_symbol_basename(
     class_name: str,
     method_name: str,

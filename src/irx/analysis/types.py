@@ -83,6 +83,12 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             qualified_name=type_.qualified_name,
             ancestor_qualified_names=type_.ancestor_qualified_names,
         )
+    if isinstance(type_, astx.NamespaceType):
+        return astx.NamespaceType(
+            type_.namespace_key,
+            namespace_kind=type_.namespace_kind,
+            display_name=type_.display_name,
+        )
     if isinstance(type_, astx.PointerType):
         pointee_type = (
             clone_type(type_.pointee_type)
@@ -121,6 +127,9 @@ def display_type_name(type_: astx.DataType | None) -> str:
         return type_.qualified_name or type_.name
     if isinstance(type_, astx.ClassType):
         return type_.qualified_name or type_.name
+    if isinstance(type_, astx.NamespaceType):
+        visible_name = type_.display_name or type_.namespace_key
+        return f"{type_.namespace_kind.value} namespace '{visible_name}'"
     if isinstance(type_, astx.PointerType):
         if type_.pointee_type is None:
             return "PointerType"
@@ -157,6 +166,14 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
         return lhs_identity == rhs_identity
+    if isinstance(lhs, astx.NamespaceType) and isinstance(
+        rhs,
+        astx.NamespaceType,
+    ):
+        return (
+            lhs.namespace_key == rhs.namespace_key
+            and lhs.namespace_kind is rhs.namespace_kind
+        )
     if isinstance(lhs, astx.PointerType) and isinstance(rhs, astx.PointerType):
         if lhs.pointee_type is None or rhs.pointee_type is None:
             return lhs.pointee_type is None and rhs.pointee_type is None

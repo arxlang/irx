@@ -735,6 +735,20 @@ class VisitorMixinTypingBase:
         """
         return False
 
+    def _namespace_value(
+        self,
+        _node: astx.AST,
+    ) -> ir.Value | None:
+        """
+        title: Return one lowered namespace value for an analyzed node.
+        parameters:
+          _node:
+            type: astx.AST
+        returns:
+          type: ir.Value | None
+        """
+        return cast(ir.Value | None, None)
+
     def _llvm_type_for_ast_type(
         self,
         _type: astx.DataType | None,

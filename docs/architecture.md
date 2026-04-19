@@ -103,7 +103,9 @@ That session owns:
 - the cache of reachable parsed modules
 - the import dependency graph and stable load order
 - cycle diagnostics
-- per-module visible top-level bindings used for import alias resolution
+- per-module visible top-level bindings used for direct imports and module
+  namespace aliases
+- semantic-only module namespace values and namespace-member lookup metadata
 
 Semantic identity for top-level functions and structs is module-aware. Backend
 lowering consumes that semantic identity rather than raw source names, which is
