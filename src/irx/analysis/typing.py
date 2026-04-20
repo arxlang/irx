@@ -11,6 +11,7 @@ from irx import astx
 from irx.analysis.types import (
     common_numeric_type,
     is_boolean_type,
+    is_integer_type,
     is_numeric_type,
     is_string_type,
 )
@@ -57,7 +58,9 @@ def binary_result_type(
         return common_numeric_type(lhs_type, rhs_type)
 
     if op_code in {"|", "&", "^"}:
-        return lhs_type
+        if is_integer_type(lhs_type) and is_integer_type(rhs_type):
+            return common_numeric_type(lhs_type, rhs_type)
+        return None
 
     return lhs_type if lhs_type == rhs_type else None
 

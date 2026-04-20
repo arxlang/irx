@@ -14,6 +14,7 @@ from irx.analysis.handlers.control_flow import ControlFlowVisitorMixin
 from irx.analysis.handlers.declarations import DeclarationVisitorMixin
 from irx.analysis.handlers.expressions import ExpressionVisitorMixin
 from irx.analysis.handlers.imports import ImportVisitorMixin
+from irx.analysis.handlers.templates import TemplateVisitorMixin
 from irx.typecheck import typechecked
 
 
@@ -21,6 +22,7 @@ from irx.typecheck import typechecked
 @typechecked
 class SemanticAnalyzer(
     ImportVisitorMixin,
+    TemplateVisitorMixin,
     DeclarationVisitorMixin,
     ExpressionVisitorMixin,
     ControlFlowVisitorMixin,

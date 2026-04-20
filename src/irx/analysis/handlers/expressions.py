@@ -9,6 +9,7 @@ summary: >-
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import cast
 
 from irx import astx
@@ -436,13 +437,36 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             self._set_type(node, None)
             return
+        target_function = function
+        validation_function = function
+        if function.template_params:
+            resolved_specialization = self._resolve_template_call_target(
+                function,
+                arg_types,
+                node,
+            )
+            if resolved_specialization is None:
+                self._set_type(node, None)
+                return
+            target_function = resolved_specialization
+            validation_function = replace(
+                resolved_specialization,
+                name=function.name,
+            )
         call_resolution = validate_call(
             self.context.diagnostics,
-            function=function,
+            function=validation_function,
             arg_types=arg_types,
             node=node,
         )
-        self._set_function(node, function)
+        if validation_function is not target_function:
+            call_resolution = replace(
+                call_resolution,
+                callee=self.factory.make_callable_resolution(target_function),
+                signature=target_function.signature,
+                result_type=target_function.signature.return_type,
+            )
+        self._set_function(node, target_function)
         self._set_call(node, call_resolution)
         self._set_type(node, call_resolution.result_type)
 
@@ -1618,11 +1642,18 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 and is_string_type(rhs_type)
             )
         ):
-            if node.op_code not in {"|", "&", "^"}:
-                self.context.diagnostics.add(
-                    f"Invalid operator '{node.op_code}' for operand types",
-                    node=node,
-                )
+            self.context.diagnostics.add(
+                f"Invalid operator '{node.op_code}' for operand types",
+                node=node,
+            )
+
+        if node.op_code in {"|", "&", "^"} and not (
+            is_integer_type(lhs_type) and is_integer_type(rhs_type)
+        ):
+            self.context.diagnostics.add(
+                f"Invalid operator '{node.op_code}' for operand types",
+                node=node,
+            )
 
         result_type = binary_result_type(node.op_code, lhs_type, rhs_type)
         self._set_type(node, result_type)
@@ -1665,13 +1696,36 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             )
             return
         function = binding.function
-        self._set_function(node, function)
+        target_function = function
+        validation_function = function
+        if function.template_params:
+            resolved_specialization = self._resolve_template_call_target(
+                function,
+                arg_types,
+                node,
+            )
+            if resolved_specialization is None:
+                self._set_type(node, None)
+                return
+            target_function = resolved_specialization
+            validation_function = replace(
+                resolved_specialization,
+                name=function.name,
+            )
+        self._set_function(node, target_function)
         call_resolution = validate_call(
             self.context.diagnostics,
-            function=function,
+            function=validation_function,
             arg_types=arg_types,
             node=node,
         )
+        if validation_function is not target_function:
+            call_resolution = replace(
+                call_resolution,
+                callee=self.factory.make_callable_resolution(target_function),
+                signature=target_function.signature,
+                result_type=target_function.signature.return_type,
+            )
         self._set_call(node, call_resolution)
         self._set_type(node, call_resolution.result_type)
 
@@ -1767,6 +1821,21 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if function is None:
             raise TypeError("instance method must have a lowered function")
         visible_function = self._visible_method_function(class_, member)
+        if function.template_params:
+            specialized_function = self._resolve_template_method_call_target(
+                function,
+                visible_function,
+                arg_types,
+                node,
+            )
+            if specialized_function is None:
+                self._set_type(node, None)
+                return
+            visible_function = self._specialize_signature(
+                visible_function,
+                self._specialization_bindings_map(specialized_function),
+            )
+            function = specialized_function
         call_resolution = validate_call(
             self.context.diagnostics,
             function=visible_function,
@@ -1839,6 +1908,21 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if function is None:
             raise TypeError("base method must have a lowered function")
         visible_function = self._visible_method_function(base_class, member)
+        if function.template_params:
+            specialized_function = self._resolve_template_method_call_target(
+                function,
+                visible_function,
+                arg_types,
+                node,
+            )
+            if specialized_function is None:
+                self._set_type(node, None)
+                return
+            visible_function = self._specialize_signature(
+                visible_function,
+                self._specialization_bindings_map(specialized_function),
+            )
+            function = specialized_function
         call_resolution = validate_call(
             self.context.diagnostics,
             function=visible_function,
@@ -1893,6 +1977,21 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if function is None:
             raise TypeError("static method must have a lowered function")
         visible_function = self._visible_method_function(class_, member)
+        if function.template_params:
+            specialized_function = self._resolve_template_method_call_target(
+                function,
+                visible_function,
+                arg_types,
+                node,
+            )
+            if specialized_function is None:
+                self._set_type(node, None)
+                return
+            visible_function = self._specialize_signature(
+                visible_function,
+                self._specialization_bindings_map(specialized_function),
+            )
+            function = specialized_function
         call_resolution = validate_call(
             self.context.diagnostics,
             function=visible_function,

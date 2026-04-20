@@ -97,6 +97,24 @@ named `stats`.
 IRx does not parse source text, search the filesystem, or implement package
 discovery. Those responsibilities stay outside the library.
 
+### Template Specialization Metadata
+
+IRx also carries semantic-only template metadata for compile-time
+specialization. The current scope is bounded template functions and methods.
+
+Semantic analysis preserves:
+
+- template parameters attached to callable definitions
+- finite union bounds used as specialization domains
+- unresolved template type variables inside generic signatures
+- explicit template arguments attached to call sites
+- stable specialization identities and generated concrete callables
+
+During analysis, template bodies are validated over every admissible bound
+substitution. Successful specializations are materialized as generated concrete
+functions so backend lowering can continue to operate mostly on ordinary
+non-template callables.
+
 ### Compilation Session
 
 The multi-module path is centered on `CompilationSession` in

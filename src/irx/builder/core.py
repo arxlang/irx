@@ -636,10 +636,22 @@ class VisitorCore(BuilderVisitor):
                 id(module),
                 getattr(module, "name", "") or "<module>",
             )
-            for node in module.nodes:
+            function_nodes = [
+                *module.nodes,
+                *astx.generated_template_nodes(module),
+            ]
+            for node in function_nodes:
                 if isinstance(node, astx.FunctionPrototype):
+                    if astx.is_template_node(
+                        node
+                    ) and not astx.is_template_specialization(node):
+                        continue
                     self.visit(node)
                 elif isinstance(node, astx.FunctionDef):
+                    if astx.is_template_node(
+                        node.prototype
+                    ) and not astx.is_template_specialization(node):
+                        continue
                     self.visit(node.prototype)
 
         for module in modules:
@@ -647,8 +659,16 @@ class VisitorCore(BuilderVisitor):
                 id(module),
                 getattr(module, "name", "") or "<module>",
             )
-            for node in module.nodes:
+            function_nodes = [
+                *module.nodes,
+                *astx.generated_template_nodes(module),
+            ]
+            for node in function_nodes:
                 if isinstance(node, astx.FunctionDef):
+                    if astx.is_template_node(
+                        node.prototype
+                    ) and not astx.is_template_specialization(node):
+                        continue
                     self.visit(node)
 
         self._current_module_display_name = None

@@ -264,6 +264,28 @@ def qualified_local_name(
 
 @public
 @typechecked
+def specialized_function_basename(
+    function_name: str,
+    arg_type_names: tuple[str, ...],
+) -> str:
+    """
+    title: Return a deterministic specialization basename.
+    parameters:
+      function_name:
+        type: str
+      arg_type_names:
+        type: tuple[str, Ellipsis]
+    returns:
+      type: str
+    """
+    if not arg_type_names:
+        return function_name
+    suffix = _mangle_parts(*arg_type_names)
+    return f"{function_name}__{suffix}"
+
+
+@public
+@typechecked
 def mangle_function_name(module_key: ModuleKey, function_name: str) -> str:
     """
     title: Return a deterministic LLVM function name.
