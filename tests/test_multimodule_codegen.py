@@ -186,6 +186,103 @@ def test_translate_modules_calls_function_through_module_namespace() -> None:
     assert call_text in ir_text
 
 
+def test_translate_modules_lowers_child_module_from_import() -> None:
+    """
+    title: Import-from child modules lower like explicit namespace imports.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(module="sciarx", names=[astx.AliasExpr("stats")]),
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    sciarx = make_parsed_module("sciarx")
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+            }
+        ),
+    )
+
+    call_text = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+
+    assert call_text in ir_text
+
+
+def test_translate_modules_lowers_grouped_child_module_from_imports() -> None:
+    """
+    title: >-
+      Grouped child-module import-from bindings lower to each module symbol.
+    """
+    stats_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    linalg_call = astx.MethodCall(
+        astx.Identifier("linalg"),
+        "norm2",
+        [astx.LiteralFloat64(3.0), astx.LiteralFloat64(4.0)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(
+            module="sciarx",
+            names=[astx.AliasExpr("stats"), astx.AliasExpr("linalg")],
+        ),
+        _int_function(
+            "main",
+            stats_call,
+            linalg_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    sciarx = make_parsed_module("sciarx")
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+    linalg_module = make_parsed_module(
+        "sciarx.linalg",
+        _sum2_function("norm2"),
+    )
+
+    ir_text = translate_modules_ir(
+        Builder(),
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+                "sciarx.linalg": linalg_module,
+            }
+        ),
+    )
+
+    stats_call_text = (
+        f'call double @"{mangle_function_name("sciarx.stats", "sum2")}"('
+    )
+    linalg_call_text = (
+        f'call double @"{mangle_function_name("sciarx.linalg", "norm2")}"('
+    )
+
+    assert stats_call_text in ir_text
+    assert linalg_call_text in ir_text
+
+
 def test_translate_modules_keeps_direct_and_namespace_calls_equivalent() -> (
     None
 ):
