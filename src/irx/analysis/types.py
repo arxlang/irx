@@ -68,6 +68,16 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
     returns:
       type: astx.DataType
     """
+    if isinstance(type_, astx.UnionType):
+        return astx.UnionType(
+            tuple(clone_type(member) for member in type_.members),
+            alias_name=type_.alias_name,
+        )
+    if isinstance(type_, astx.TemplateTypeVar):
+        return astx.TemplateTypeVar(
+            type_.name,
+            bound=clone_type(type_.bound),
+        )
     if isinstance(type_, astx.StructType):
         return astx.StructType(
             type_.name,
@@ -123,6 +133,14 @@ def display_type_name(type_: astx.DataType | None) -> str:
     """
     if type_ is None:
         return "<unknown>"
+    if isinstance(type_, astx.UnionType):
+        if type_.alias_name is not None:
+            return type_.alias_name
+        return " | ".join(
+            display_type_name(member) for member in type_.members
+        )
+    if isinstance(type_, astx.TemplateTypeVar):
+        return type_.name
     if isinstance(type_, astx.StructType):
         return type_.qualified_name or type_.name
     if isinstance(type_, astx.ClassType):
@@ -158,6 +176,20 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     """
     if lhs is None or rhs is None:
         return False
+    if isinstance(lhs, astx.UnionType) and isinstance(rhs, astx.UnionType):
+        if lhs.alias_name != rhs.alias_name:
+            return False
+        if len(lhs.members) != len(rhs.members):
+            return False
+        return all(
+            same_type(left_member, right_member)
+            for left_member, right_member in zip(lhs.members, rhs.members)
+        )
+    if isinstance(lhs, astx.TemplateTypeVar) and isinstance(
+        rhs,
+        astx.TemplateTypeVar,
+    ):
+        return lhs.name == rhs.name and same_type(lhs.bound, rhs.bound)
     if isinstance(lhs, astx.StructType) and isinstance(rhs, astx.StructType):
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
@@ -576,6 +608,14 @@ def is_assignable(
         return True
     if same_type(target, value):
         return True
+    if isinstance(target, astx.UnionType):
+        return any(is_assignable(member, value) for member in target.members)
+    if isinstance(value, astx.UnionType):
+        return all(is_assignable(target, member) for member in value.members)
+    if isinstance(target, astx.TemplateTypeVar):
+        return is_assignable(target.bound, value)
+    if isinstance(value, astx.TemplateTypeVar):
+        return is_assignable(target, value.bound)
     if isinstance(target, astx.ClassType) and isinstance(
         value, astx.ClassType
     ):

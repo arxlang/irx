@@ -225,6 +225,116 @@ class SemanticVisitorMixinTypingBase:
         """
         raise NotImplementedError
 
+    def _reset_template_analysis_state(
+        self,
+        module: astx.Module,
+    ) -> None:
+        """
+        title: Reset per-run template state attached to one module.
+        parameters:
+          module:
+            type: astx.Module
+        """
+        raise NotImplementedError
+
+    def _resolve_template_call_target(
+        self,
+        function: SemanticFunction,
+        _arg_types: list[astx.DataType | None],
+        node: astx.AST,
+    ) -> SemanticFunction | None:
+        """
+        title: Resolve one template function call target.
+        parameters:
+          function:
+            type: SemanticFunction
+          _arg_types:
+            type: list[astx.DataType | None]
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticFunction | None
+        """
+        raise NotImplementedError
+
+    def _resolve_template_method_call_target(
+        self,
+        function: SemanticFunction,
+        _visible_function: SemanticFunction,
+        _arg_types: list[astx.DataType | None],
+        node: astx.AST,
+    ) -> SemanticFunction | None:
+        """
+        title: Resolve one template method call target.
+        parameters:
+          function:
+            type: SemanticFunction
+          _visible_function:
+            type: SemanticFunction
+          _arg_types:
+            type: list[astx.DataType | None]
+          node:
+            type: astx.AST
+        returns:
+          type: SemanticFunction | None
+        """
+        raise NotImplementedError
+
+    def _specialization_bindings_map(
+        self,
+        function: SemanticFunction,
+    ) -> dict[str, astx.DataType]:
+        """
+        title: Return one specialization binding map.
+        parameters:
+          function:
+            type: SemanticFunction
+        returns:
+          type: dict[str, astx.DataType]
+        """
+        raise NotImplementedError
+
+    def _specialize_signature(
+        self,
+        function: SemanticFunction,
+        bindings: dict[str, astx.DataType],
+    ) -> SemanticFunction:
+        """
+        title: Return one callable wrapper with substituted types.
+        parameters:
+          function:
+            type: SemanticFunction
+          bindings:
+            type: dict[str, astx.DataType]
+        returns:
+          type: SemanticFunction
+        """
+        raise NotImplementedError
+
+    def _prepare_function_template_specializations(
+        self,
+        function: SemanticFunction,
+    ) -> None:
+        """
+        title: Prepare concrete specializations for one template function.
+        parameters:
+          function:
+            type: SemanticFunction
+        """
+        raise NotImplementedError
+
+    def _analyze_function_template_specializations(
+        self,
+        function: SemanticFunction,
+    ) -> None:
+        """
+        title: Analyze prepared specializations for one template function.
+        parameters:
+          function:
+            type: SemanticFunction
+        """
+        raise NotImplementedError
+
     def _set_imports(
         self,
         node: astx.AST,
@@ -649,6 +759,14 @@ class SemanticAnalyzerCore(BaseVisitor):
         returns:
           type: astx.Module
         """
+        if not predeclared:
+            reset_templates = getattr(
+                self,
+                "_reset_template_analysis_state",
+                None,
+            )
+            if callable(reset_templates):
+                reset_templates(parsed_module.ast)
         with self.context.in_module(parsed_module.key):
             self._visit_module(parsed_module.ast, predeclared=predeclared)
         return parsed_module.ast
@@ -1120,6 +1238,23 @@ class SemanticAnalyzerCore(BaseVisitor):
         returns:
           type: astx.DataType
         """
+        if isinstance(type_, astx.UnionType):
+            for member in type_.members:
+                self._resolve_declared_type(
+                    member,
+                    node=node,
+                    unknown_message=unknown_message,
+                )
+            self._set_type(type_, type_)
+            return type_
+        if isinstance(type_, astx.TemplateTypeVar):
+            self._resolve_declared_type(
+                type_.bound,
+                node=node,
+                unknown_message=unknown_message,
+            )
+            self._set_type(type_, type_)
+            return type_
         self._resolve_struct_from_type(
             type_,
             node=node,
@@ -1130,6 +1265,7 @@ class SemanticAnalyzerCore(BaseVisitor):
             node=node,
             unknown_message=unknown_message,
         )
+        self._set_type(type_, type_)
         return type_
 
     def _root_assignment_symbol(
@@ -1267,6 +1403,7 @@ class SemanticAnalyzerCore(BaseVisitor):
         """
         for node in module.nodes:
             if isinstance(node, astx.FunctionPrototype):
+                setattr(node, "irx_owner_module", module)
                 function = self.registry.register_function(
                     node,
                     validate_ffi=False,
@@ -1274,6 +1411,8 @@ class SemanticAnalyzerCore(BaseVisitor):
                 self.bindings.bind_function(node.name, function, node=node)
                 self._set_function(node, function)
             elif isinstance(node, astx.FunctionDef):
+                setattr(node, "irx_owner_module", module)
+                setattr(node.prototype, "irx_owner_module", module)
                 function = self.registry.register_function(
                     node.prototype,
                     definition=node,
@@ -1310,11 +1449,30 @@ class SemanticAnalyzerCore(BaseVisitor):
             type: bool
         """
         self._set_type(module, None)
-        with self.context.scope("module"):
-            if not predeclared:
-                self._predeclare_module_members(module)
-            for node in module.nodes:
-                self.visit(node)
+        previous_module = getattr(self, "_current_ast_module", None)
+        setattr(self, "_current_ast_module", module)
+        try:
+            with self.context.scope("module"):
+                if not predeclared:
+                    self._predeclare_module_members(module)
+                    prepare_templates = getattr(
+                        self,
+                        "_prepare_template_specialization_skeletons",
+                        None,
+                    )
+                    if callable(prepare_templates):
+                        prepare_templates(module)
+                    analyze_templates = getattr(
+                        self,
+                        "_analyze_prepared_template_specializations",
+                        None,
+                    )
+                    if callable(analyze_templates):
+                        analyze_templates(module)
+                for node in module.nodes:
+                    self.visit(node)
+        finally:
+            setattr(self, "_current_ast_module", previous_module)
         main_function = self.context.get_function(
             self._current_module_key(),
             "main",

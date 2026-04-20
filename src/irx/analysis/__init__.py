@@ -60,6 +60,8 @@ from irx.analysis.resolved_nodes import (
     SemanticModule,
     SemanticStruct,
     SemanticSymbol,
+    TemplateArgumentBinding,
+    TemplateSpecializationKey,
 )
 from irx.analysis.session import CompilationSession
 from irx.diagnostics import Diagnostic, DiagnosticBag, SemanticError
@@ -113,6 +115,8 @@ __all__ = [
     "SemanticPhase",
     "SemanticStruct",
     "SemanticSymbol",
+    "TemplateArgumentBinding",
+    "TemplateSpecializationKey",
     "analyze",
     "analyze_module",
     "analyze_modules",

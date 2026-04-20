@@ -131,6 +131,14 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
             definition=(
                 definition if definition is not None else function.definition
             ),
+            template_params=tuple(
+                astx.TemplateParam(
+                    param.name,
+                    clone_type(param.bound),
+                    param.loc,
+                )
+                for param in astx.get_template_params(prototype)
+            ),
         )
         self.context.register_function(updated)
         return updated
@@ -1236,6 +1244,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         function = member.lowered_function
         if not isinstance(declaration, astx.FunctionDef) or function is None:
             return
+        if function.template_params:
+            self._prepare_function_template_specializations(function)
+            self._analyze_function_template_specializations(function)
+            return
 
         hidden_parameter_count = len(function.args) - len(
             declaration.prototype.args.nodes
@@ -1930,6 +1942,8 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
                     or member.is_static
                     or member.visibility is astx.VisibilityKind.private
                     or member.signature_key is None
+                    or member.lowered_function is None
+                    or member.lowered_function.template_params
                 ):
                     continue
                 slot_index = slot_by_signature.get(member.signature_key)
@@ -2207,6 +2221,8 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.FunctionPrototype
         """
+        for template_param in astx.get_template_params(node):
+            self._resolve_declared_type(template_param.bound, node=node)
         for arg in node.args.nodes:
             self._resolve_declared_type(arg.type_, node=arg)
         self._resolve_declared_type(node.return_type, node=node)
@@ -2216,6 +2232,9 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         function = self._synchronize_function_signature(function, node)
         self.bindings.bind_function(node.name, function, node=node)
         self._set_function(node, function)
+        if function.template_params:
+            self._set_type(node, None)
+            return
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FunctionDef) -> None:
@@ -2225,6 +2244,8 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.FunctionDef
         """
+        for template_param in astx.get_template_params(node.prototype):
+            self._resolve_declared_type(template_param.bound, node=node)
         for arg in node.prototype.args.nodes:
             self._resolve_declared_type(arg.type_, node=arg)
         self._resolve_declared_type(node.prototype.return_type, node=node)
@@ -2242,6 +2263,10 @@ class DeclarationVisitorMixin(SemanticVisitorMixinBase):
         self.bindings.bind_function(node.name, function, node=node)
         self._set_function(node.prototype, function)
         self._set_function(node, function)
+        if function.template_params:
+            self._set_type(node.prototype, None)
+            self._set_type(node, None)
+            return
         with self.context.in_function(function):
             with self.context.scope("function"):
                 for arg_node, arg_symbol in zip(

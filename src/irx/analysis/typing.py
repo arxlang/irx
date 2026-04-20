@@ -56,9 +56,6 @@ def binary_result_type(
     if op_code in {"+", "-", "*", "/", "%"}:
         return common_numeric_type(lhs_type, rhs_type)
 
-    if op_code in {"|", "&", "^"}:
-        return lhs_type
-
     return lhs_type if lhs_type == rhs_type else None
 
 

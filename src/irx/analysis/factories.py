@@ -231,6 +231,14 @@ class SemanticEntityFactory:
             definition=definition,
             module_key=module_key,
             qualified_name=qualified_function_name(module_key, prototype.name),
+            template_params=tuple(
+                astx.TemplateParam(
+                    param.name,
+                    clone_type(param.bound),
+                    param.loc,
+                )
+                for param in astx.get_template_params(prototype)
+            ),
         )
 
     def make_callable_resolution(

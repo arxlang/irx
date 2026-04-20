@@ -866,6 +866,46 @@ class ImplicitConversion:
 @public
 @typechecked
 @dataclass(frozen=True)
+class TemplateArgumentBinding:
+    """
+    title: One concrete template argument binding.
+    summary: >-
+      Record the concrete type selected for one named template parameter in a
+      specialization.
+    attributes:
+      name:
+        type: str
+      type_:
+        type: astx.DataType
+    """
+
+    name: str
+    type_: astx.DataType
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class TemplateSpecializationKey:
+    """
+    title: Stable semantic template-specialization identity.
+    summary: >-
+      Identify one concrete specialization of a template function by the
+      original semantic function name and the ordered concrete type names.
+    attributes:
+      qualified_name:
+        type: str
+      arg_type_names:
+        type: tuple[str, Ellipsis]
+    """
+
+    qualified_name: str
+    arg_type_names: tuple[str, ...]
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class SemanticFunction:
     """
     title: Resolved function information.
@@ -891,6 +931,16 @@ class SemanticFunction:
         type: ModuleKey
       qualified_name:
         type: str
+      template_params:
+        type: tuple[astx.TemplateParam, Ellipsis]
+      template_bindings:
+        type: tuple[TemplateArgumentBinding, Ellipsis]
+      template_definition:
+        type: SemanticFunction | None
+      specialization_key:
+        type: TemplateSpecializationKey | None
+      specializations:
+        type: dict[TemplateSpecializationKey, SemanticFunction]
     """
 
     symbol_id: str
@@ -902,6 +952,13 @@ class SemanticFunction:
     definition: astx.FunctionDef | None = None
     module_key: ModuleKey = field(default_factory=lambda: "<unknown>")
     qualified_name: str = ""
+    template_params: tuple[astx.TemplateParam, ...] = ()
+    template_bindings: tuple[TemplateArgumentBinding, ...] = ()
+    template_definition: "SemanticFunction" | None = None
+    specialization_key: TemplateSpecializationKey | None = None
+    specializations: dict[TemplateSpecializationKey, "SemanticFunction"] = (
+        field(default_factory=dict, compare=False)
+    )
 
 
 @public
