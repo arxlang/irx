@@ -9,10 +9,21 @@ from typing import cast
 import pytest
 
 from irx import astx
-from irx.analysis import MethodDispatchKind, SemanticError, analyze
+from irx.analysis import (
+    MethodDispatchKind,
+    SemanticError,
+    analyze,
+    analyze_modules,
+)
 from irx.analysis.resolved_nodes import SemanticInfo
 
-from tests.conftest import make_module
+from tests.conftest import (
+    StaticImportResolver,
+    make_module,
+    make_parsed_module,
+)
+
+EXPECTED_NUMBER_SPECIALIZATION_COUNT = 2
 
 
 def _semantic(node: astx.AST) -> SemanticInfo:
@@ -37,6 +48,34 @@ def _number_bound() -> astx.UnionType:
         (astx.Int32(), astx.Float64()),
         alias_name="Number",
     )
+
+
+def _mixed_scalar_bound() -> astx.UnionType:
+    """
+    title: Build a small mixed bound with one unsupported member.
+    returns:
+      type: astx.UnionType
+    """
+    return astx.UnionType(
+        (astx.Int32(), astx.Boolean()),
+        alias_name="IntOrBoolean",
+    )
+
+
+def _generated_function_names(module: astx.Module) -> set[str]:
+    """
+    title: Return generated template function names for one module.
+    parameters:
+      module:
+        type: astx.Module
+    returns:
+      type: set[str]
+    """
+    return {
+        node.name
+        for node in astx.generated_template_nodes(module)
+        if isinstance(node, astx.FunctionDef)
+    }
 
 
 def _template_param(name: str = "T") -> astx.TemplateParam:
@@ -172,11 +211,7 @@ def test_analyze_template_function_specializes_inferred_call() -> None:
 
     resolved_call = _semantic(call).resolved_call
     resolved_function = _semantic(call).resolved_function
-    generated_names = {
-        node.name
-        for node in astx.generated_template_nodes(module)
-        if isinstance(node, astx.FunctionDef)
-    }
+    generated_names = _generated_function_names(module)
 
     assert resolved_call is not None
     assert resolved_function is not None
@@ -255,11 +290,16 @@ def test_analyze_template_definition_reports_failing_substitution() -> None:
     """
     title: Template validation reports the substitution that fails.
     """
+    mixed_bound = _mixed_scalar_bound()
+    mixed_param = astx.TemplateParam("T", mixed_bound)
+    mixed_var = astx.TemplateTypeVar("T", bound=mixed_bound)
     template_fn = _templated_function(
-        "bit_and",
-        astx.BinaryOp("&", astx.Identifier("lhs"), astx.Identifier("rhs")),
-        astx.Argument("lhs", _template_var()),
-        astx.Argument("rhs", _template_var()),
+        "add_like",
+        astx.BinaryOp("+", astx.Identifier("lhs"), astx.Identifier("rhs")),
+        astx.Argument("lhs", mixed_var),
+        astx.Argument("rhs", mixed_var),
+        return_type=mixed_var,
+        template_params=(mixed_param,),
     )
     module = make_module(
         "app.main",
@@ -271,8 +311,8 @@ def test_analyze_template_definition_reports_failing_substitution() -> None:
         analyze(module)
 
     message = str(excinfo.value)
-    assert "Template function 'bit_and' is invalid for T = Float64" in message
-    assert "Invalid operator '&' for operand types" in message
+    assert "Template function 'add_like' is invalid for T = Boolean" in message
+    assert "Invalid operator '+' for operand types" in message
 
 
 def test_analyze_template_instance_method_uses_direct_specialization() -> None:
@@ -311,13 +351,12 @@ def test_analyze_template_instance_method_uses_direct_specialization() -> None:
 
     analyze(module)
 
+    resolved_class = _semantic(box).resolved_class
     resolved_method = _semantic(call).resolved_method_call
-    generated_names = {
-        node.name
-        for node in astx.generated_template_nodes(module)
-        if isinstance(node, astx.FunctionDef)
-    }
+    generated_names = _generated_function_names(module)
 
+    assert resolved_class is not None
+    assert resolved_class.declared_member_table["echo"].dispatch_slot is None
     assert resolved_method is not None
     assert resolved_method.dispatch_kind is MethodDispatchKind.DIRECT
     assert resolved_method.function.name == "echo__Int32"
@@ -345,3 +384,67 @@ def test_analyze_static_template_method_specializes_call() -> None:
     assert resolved_method is not None
     assert resolved_method.function.name == "identity__Int32"
     assert resolved_method.dispatch_kind is MethodDispatchKind.DIRECT
+
+
+def test_analyze_template_analysis_is_idempotent_for_same_module_ast() -> None:
+    """
+    title: Reanalyzing one module clears old generated specializations first.
+    """
+    template_fn = _templated_function(
+        "add",
+        astx.BinaryOp("+", astx.Identifier("lhs"), astx.Identifier("rhs")),
+        astx.Argument("lhs", _template_var()),
+        astx.Argument("rhs", _template_var()),
+    )
+    call = astx.FunctionCall(
+        "add",
+        [astx.LiteralInt32(1), astx.LiteralInt32(2)],
+    )
+    module = make_module("app.main", template_fn, _main_returning(call))
+
+    analyze(module)
+    first_names = _generated_function_names(module)
+
+    analyze(module)
+    second_names = _generated_function_names(module)
+
+    assert first_names == {"add__Int32", "add__Float64"}
+    assert second_names == first_names
+    assert len(astx.generated_template_nodes(module)) == (
+        EXPECTED_NUMBER_SPECIALIZATION_COUNT
+    )
+
+
+def test_analyze_modules_template_analysis_is_idempotent() -> None:
+    """
+    title: Reanalyzing one module graph clears old generated specializations.
+    """
+    template_fn = _templated_function(
+        "add",
+        astx.BinaryOp("+", astx.Identifier("lhs"), astx.Identifier("rhs")),
+        astx.Argument("lhs", _template_var()),
+        astx.Argument("rhs", _template_var()),
+    )
+    call = astx.FunctionCall(
+        "add",
+        [astx.LiteralInt32(1), astx.LiteralInt32(2)],
+    )
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(module="lib", names=[astx.AliasExpr("add")]),
+        _main_returning(call),
+    )
+    lib = make_parsed_module("lib", template_fn)
+    resolver = StaticImportResolver({"lib": lib})
+
+    analyze_modules(root, resolver)
+    first_names = _generated_function_names(lib.ast)
+
+    analyze_modules(root, resolver)
+    second_names = _generated_function_names(lib.ast)
+
+    assert first_names == {"add__Int32", "add__Float64"}
+    assert second_names == first_names
+    assert len(astx.generated_template_nodes(lib.ast)) == (
+        EXPECTED_NUMBER_SPECIALIZATION_COUNT
+    )

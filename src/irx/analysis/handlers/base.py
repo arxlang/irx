@@ -225,6 +225,18 @@ class SemanticVisitorMixinTypingBase:
         """
         raise NotImplementedError
 
+    def _reset_template_analysis_state(
+        self,
+        module: astx.Module,
+    ) -> None:
+        """
+        title: Reset per-run template state attached to one module.
+        parameters:
+          module:
+            type: astx.Module
+        """
+        raise NotImplementedError
+
     def _resolve_template_call_target(
         self,
         function: SemanticFunction,
@@ -747,6 +759,14 @@ class SemanticAnalyzerCore(BaseVisitor):
         returns:
           type: astx.Module
         """
+        if not predeclared:
+            reset_templates = getattr(
+                self,
+                "_reset_template_analysis_state",
+                None,
+            )
+            if callable(reset_templates):
+                reset_templates(parsed_module.ast)
         with self.context.in_module(parsed_module.key):
             self._visit_module(parsed_module.ast, predeclared=predeclared)
         return parsed_module.ast

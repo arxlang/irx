@@ -91,6 +91,9 @@ def analyze_modules(
     analyzer = SemanticAnalyzer(session=session)
 
     for parsed_module in session.ordered_modules():
+        analyzer._reset_template_analysis_state(parsed_module.ast)
+
+    for parsed_module in session.ordered_modules():
         with analyzer.context.in_module(parsed_module.key):
             analyzer._predeclare_module_members(parsed_module.ast)
 

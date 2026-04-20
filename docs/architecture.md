@@ -113,7 +113,12 @@ Semantic analysis preserves:
 During analysis, template bodies are validated over every admissible bound
 substitution. Successful specializations are materialized as generated concrete
 functions so backend lowering can continue to operate mostly on ordinary
-non-template callables.
+non-template callables. That generated specialization set is treated as
+per-analysis state and is cleared before rerunning semantic analysis on the same
+AST module.
+
+For v1, template methods lower only as direct concrete specializations. They do
+not participate in class dispatch slots or virtual-style dispatch tables.
 
 ### Compilation Session
 

@@ -305,6 +305,44 @@ class TemplateVisitorMixin(SemanticVisitorMixinBase):
 
         clear(node)
 
+    def _reset_template_analysis_state(self, module: astx.Module) -> None:
+        """
+        title: Reset per-run template state attached to one module AST.
+        parameters:
+          module:
+            type: astx.Module
+        """
+        astx.clear_generated_template_nodes(module)
+        seen: set[int] = set()
+
+        def clear(current: astx.AST) -> None:
+            """
+            title: Clear template-analysis markers from one reachable AST node.
+            parameters:
+              current:
+                type: astx.AST
+            """
+            current_id = id(current)
+            if current_id in seen:
+                return
+            seen.add(current_id)
+            for attr_name in (
+                _SPECIALIZATION_ANALYZED_ATTR,
+                _TEMPLATE_PREPARED_ATTR,
+            ):
+                if hasattr(current, attr_name):
+                    delattr(current, attr_name)
+            for value in vars(current).values():
+                if isinstance(value, astx.AST):
+                    clear(value)
+                    continue
+                if isinstance(value, list | tuple):
+                    for item in value:
+                        if isinstance(item, astx.AST):
+                            clear(item)
+
+        clear(module)
+
     def _substitute_declared_types(
         self,
         node: astx.AST,

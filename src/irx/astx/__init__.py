@@ -96,10 +96,11 @@ from irx.astx.system import AssertStmt as AssertStmt
 from irx.astx.system import Cast as Cast
 from irx.astx.system import PrintExpr as PrintExpr
 from irx.astx.templates import TemplateParam as TemplateParam
-from irx.astx.templates import TemplateTypeVar as TemplateTypeVar
-from irx.astx.templates import UnionType as UnionType
 from irx.astx.templates import (
     add_generated_template_node as add_generated_template_node,
+)
+from irx.astx.templates import (
+    clear_generated_template_nodes as clear_generated_template_nodes,
 )
 from irx.astx.templates import (
     generated_template_nodes as generated_template_nodes,
@@ -118,6 +119,8 @@ from irx.astx.templates import set_template_params as set_template_params
 from irx.astx.templates import (
     template_specialization_name as template_specialization_name,
 )
+from irx.astx.types import TemplateTypeVar as TemplateTypeVar
+from irx.astx.types import UnionType as UnionType
 from irx.typecheck import typechecked
 
 __all__ = (
@@ -171,6 +174,7 @@ __all__ = (
     "UnionType",
     "add_generated_template_node",
     "binary_op_type_for_opcode",
+    "clear_generated_template_nodes",
     "generated_template_nodes",
     "get_template_args",
     "get_template_params",

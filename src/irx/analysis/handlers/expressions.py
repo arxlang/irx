@@ -1647,14 +1647,6 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                 node=node,
             )
 
-        if node.op_code in {"|", "&", "^"} and not (
-            is_integer_type(lhs_type) and is_integer_type(rhs_type)
-        ):
-            self.context.diagnostics.add(
-                f"Invalid operator '{node.op_code}' for operand types",
-                node=node,
-            )
-
         result_type = binary_result_type(node.op_code, lhs_type, rhs_type)
         self._set_type(node, result_type)
         self._set_operator(
