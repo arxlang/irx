@@ -80,19 +80,19 @@ class ImportVisitorMixin(SemanticVisitorMixinBase):
         assert session is not None
 
         requested_specifier = f"{'.' * node.level}{node.module or ''}"
-        resolved_module = session.resolve_import_specifier(
+        resolved_parent = session.resolve_import_specifier(
             self._current_module_key(),
             node,
             requested_specifier,
         )
-        if resolved_module is None:
+        if resolved_parent is None:
             return
 
-        target_module = self.factory.make_module(
-            resolved_module.key,
-            display_name=resolved_module.display_name,
+        parent_module = self.factory.make_module(
+            resolved_parent.key,
+            display_name=resolved_parent.display_name,
         )
-        self._set_module(node, target_module)
+        self._set_module(node, parent_module)
         resolved_imports = []
 
         for alias in node.names:
@@ -102,42 +102,64 @@ class ImportVisitorMixin(SemanticVisitorMixinBase):
                     node=alias,
                 )
                 continue
-            target_binding = self.bindings.resolve(
+
+            target_binding, resolved_child = session.resolve_import_from_name(
+                self._current_module_key(),
+                node,
+                resolved_parent.key,
                 alias.name,
-                module_key=resolved_module.key,
             )
-            if target_binding is None or target_binding.kind not in {
-                "function",
-                "struct",
-                "class",
-            }:
-                self.context.diagnostics.add(
-                    f"Imported symbol '{alias.name}' was not found in "
-                    f"module '{requested_specifier}'",
+            local_name = alias.asname or alias.name
+
+            if target_binding is not None:
+                binding = self.bindings.bind(
+                    local_name,
+                    target_binding,
                     node=alias,
                 )
+                resolved_binding = self.factory.make_import_binding(
+                    local_name=local_name,
+                    requested_name=alias.name,
+                    source_module_key=resolved_parent.key,
+                    binding=binding,
+                )
+                resolved_imports.append(resolved_binding)
+                self._set_module(alias, parent_module)
+                self._set_imports(alias, (resolved_binding,))
+                if target_binding.function is not None:
+                    self._set_function(alias, target_binding.function)
+                if target_binding.struct is not None:
+                    self._set_struct(alias, target_binding.struct)
+                if target_binding.class_ is not None:
+                    self._set_class(alias, target_binding.class_)
                 continue
-            local_name = alias.asname or alias.name
-            binding = self.bindings.bind(
-                local_name,
-                target_binding,
+
+            if resolved_child is not None:
+                child_module = self.factory.make_module(
+                    resolved_child.key,
+                    display_name=resolved_child.display_name,
+                )
+                binding = self.bindings.bind_module(
+                    local_name,
+                    child_module,
+                    node=alias,
+                )
+                resolved_binding = self.factory.make_import_binding(
+                    local_name=local_name,
+                    requested_name=alias.name,
+                    source_module_key=resolved_child.key,
+                    binding=binding,
+                )
+                resolved_imports.append(resolved_binding)
+                self._set_module(alias, child_module)
+                self._set_imports(alias, (resolved_binding,))
+                continue
+
+            self.context.diagnostics.add(
+                f"Imported symbol '{alias.name}' was not found in "
+                f"module '{requested_specifier}'",
                 node=alias,
             )
-            resolved_binding = self.factory.make_import_binding(
-                local_name=local_name,
-                requested_name=alias.name,
-                source_module_key=resolved_module.key,
-                binding=binding,
-            )
-            resolved_imports.append(resolved_binding)
-            self._set_module(alias, target_module)
-            self._set_imports(alias, (resolved_binding,))
-            if target_binding.function is not None:
-                self._set_function(alias, target_binding.function)
-            if target_binding.struct is not None:
-                self._set_struct(alias, target_binding.struct)
-            if target_binding.class_ is not None:
-                self._set_class(alias, target_binding.class_)
 
         self._set_imports(node, tuple(resolved_imports))
 

@@ -89,6 +89,11 @@ The boundary is explicit:
 - IRx expands the reachable dependency graph, performs cross-module semantic
   analysis, and lowers the reachable graph into one LLVM module for the MVP
 
+Import-from resolution remains symbol-first, but it also supports child-module
+namespace sugar: `import stats from sciarx` may bind `sciarx.stats` as a local
+module namespace when `sciarx` does not already expose an importable symbol
+named `stats`.
+
 IRx does not parse source text, search the filesystem, or implement package
 discovery. Those responsibilities stay outside the library.
 

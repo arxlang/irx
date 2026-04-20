@@ -207,6 +207,284 @@ def test_analyze_modules_registers_plain_module_import_binding() -> None:
     assert session.visible_bindings[root.key]["lib"].kind == "module"
 
 
+def test_analyze_modules_resolves_child_module_from_import() -> None:
+    """
+    title: Child modules bind as namespaces through import-from sugar.
+    """
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    import_stmt = astx.ImportFromStmt(
+        module="sciarx",
+        names=[astx.AliasExpr("stats")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function(
+            "main",
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    sciarx = make_parsed_module("sciarx")
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    session = analyze_modules(
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+            }
+        ),
+    )
+
+    resolved_import = _semantic(import_stmt).resolved_imports[0]
+    alias_semantic = _semantic(import_stmt.names[0])
+    resolved_member = _semantic(namespace_call).resolved_module_member_access
+
+    assert resolved_import.source_module_key == "sciarx.stats"
+    assert resolved_import.binding.module is not None
+    assert alias_semantic.resolved_module is not None
+    assert alias_semantic.resolved_module.module_key == "sciarx.stats"
+    assert session.visible_bindings[root.key]["stats"].kind == "module"
+    assert session.graph == {
+        "app.main": {"sciarx", "sciarx.stats"},
+        "sciarx": set(),
+        "sciarx.stats": set(),
+    }
+    assert resolved_member is not None
+    assert resolved_member.module.module_key == "sciarx.stats"
+
+
+def test_analyze_modules_resolves_grouped_child_module_from_imports() -> None:
+    """
+    title: Grouped import-from statements resolve child modules independently.
+    """
+    stats_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    linalg_call = astx.MethodCall(
+        astx.Identifier("linalg"),
+        "norm2",
+        [astx.LiteralFloat64(3.0), astx.LiteralFloat64(4.0)],
+    )
+    import_stmt = astx.ImportFromStmt(
+        module="sciarx",
+        names=[astx.AliasExpr("stats"), astx.AliasExpr("linalg")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function(
+            "main",
+            stats_call,
+            linalg_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    sciarx = make_parsed_module("sciarx")
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+    linalg_module = make_parsed_module(
+        "sciarx.linalg",
+        _sum2_function("norm2"),
+    )
+
+    session = analyze_modules(
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+                "sciarx.linalg": linalg_module,
+            }
+        ),
+    )
+
+    stats_import, linalg_import = _semantic(import_stmt).resolved_imports
+    resolved_stats = _semantic(stats_call).resolved_function
+    resolved_linalg = _semantic(linalg_call).resolved_function
+
+    assert stats_import.source_module_key == "sciarx.stats"
+    assert linalg_import.source_module_key == "sciarx.linalg"
+    assert resolved_stats is not None
+    assert resolved_linalg is not None
+    assert resolved_stats.module_key == "sciarx.stats"
+    assert resolved_linalg.module_key == "sciarx.linalg"
+    assert session.graph["app.main"] == {
+        "sciarx",
+        "sciarx.linalg",
+        "sciarx.stats",
+    }
+
+
+def test_analyze_modules_resolves_mixed_from_import_targets() -> None:
+    """
+    title: Import-from statements may mix direct symbols and child modules.
+    """
+    direct_call = astx.FunctionCall(
+        "sum2",
+        [astx.LiteralFloat64(1.0), astx.LiteralFloat64(2.0)],
+    )
+    namespace_call = astx.MethodCall(
+        astx.Identifier("stats"),
+        "sum2",
+        [astx.LiteralFloat64(3.0), astx.LiteralFloat64(4.0)],
+    )
+    import_stmt = astx.ImportFromStmt(
+        module="sciarx",
+        names=[astx.AliasExpr("sum2"), astx.AliasExpr("stats")],
+    )
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function(
+            "main",
+            direct_call,
+            namespace_call,
+            astx.FunctionReturn(astx.LiteralInt32(0)),
+        ),
+    )
+    sciarx = make_parsed_module("sciarx", _sum2_function())
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    session = analyze_modules(
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+            }
+        ),
+    )
+
+    direct_import, module_import = _semantic(import_stmt).resolved_imports
+    resolved_direct = _semantic(direct_call).resolved_function
+    resolved_namespace = _semantic(namespace_call).resolved_function
+
+    assert direct_import.source_module_key == "sciarx"
+    assert direct_import.binding.function is not None
+    assert module_import.source_module_key == "sciarx.stats"
+    assert module_import.binding.module is not None
+    assert resolved_direct is not None
+    assert resolved_namespace is not None
+    assert resolved_direct.module_key == "sciarx"
+    assert resolved_namespace.module_key == "sciarx.stats"
+    assert session.graph["app.main"] == {"sciarx", "sciarx.stats"}
+
+
+def test_analyze_modules_prefers_direct_symbol_for_from_import() -> None:
+    """
+    title: Direct importable symbols take precedence over child modules.
+    """
+    import_stmt = astx.ImportFromStmt(
+        module="sciarx",
+        names=[astx.AliasExpr("stats")],
+    )
+    call = astx.FunctionCall("stats", [])
+    root = make_parsed_module(
+        "app.main",
+        import_stmt,
+        _int_function("main", astx.FunctionReturn(call)),
+    )
+    sciarx = make_parsed_module(
+        "sciarx",
+        _int_function("stats", astx.FunctionReturn(astx.LiteralInt32(5))),
+    )
+    stats_module = make_parsed_module("sciarx.stats", _sum2_function())
+
+    session = analyze_modules(
+        root,
+        StaticImportResolver(
+            {
+                "sciarx": sciarx,
+                "sciarx.stats": stats_module,
+            }
+        ),
+    )
+
+    resolved_import = _semantic(import_stmt).resolved_imports[0]
+    resolved_function = _semantic(call).resolved_function
+
+    assert resolved_import.source_module_key == "sciarx"
+    assert resolved_import.binding.function is not None
+    assert resolved_import.binding.module is None
+    assert resolved_function is not None
+    assert resolved_function.module_key == "sciarx"
+    assert session.graph == {
+        "app.main": {"sciarx"},
+        "sciarx": set(),
+    }
+    assert "sciarx.stats" not in session.modules
+
+
+def test_analyze_modules_reports_missing_from_import_name() -> None:
+    """
+    title: Missing import-from names still report the existing diagnostic.
+    """
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(
+            module="sciarx", names=[astx.AliasExpr("missing")]
+        ),
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    sciarx = make_parsed_module("sciarx")
+
+    with pytest.raises(SemanticError) as exc_info:
+        analyze_modules(root, StaticImportResolver({"sciarx": sciarx}))
+
+    message = str(exc_info.value)
+
+    assert "Imported symbol 'missing'" in message
+    assert "Unable to resolve module 'sciarx.missing'" not in message
+
+
+def test_analyze_modules_propagates_unexpected_probe_failures() -> None:
+    """
+    title: Unexpected child-module probe failures still surface directly.
+    """
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(module="sciarx", names=[astx.AliasExpr("stats")]),
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    sciarx = make_parsed_module("sciarx")
+
+    def resolver(
+        requesting_module_key: str,
+        import_node: astx.ImportStmt | astx.ImportFromStmt,
+        requested_specifier: str,
+    ) -> ParsedModule:
+        """
+        title: Resolver that sometimes fails on child module lookups.
+        parameters:
+          requesting_module_key:
+            type: str
+          import_node:
+            type: astx.ImportStmt | astx.ImportFromStmt
+          requested_specifier:
+            type: str
+        returns:
+          type: ParsedModule
+        """
+        _ = requesting_module_key
+        _ = import_node
+        if requested_specifier == "sciarx":
+            return sciarx
+        if requested_specifier == "sciarx.stats":
+            raise RuntimeError("resolver boom")
+        raise LookupError(requested_specifier)
+
+    with pytest.raises(RuntimeError, match="resolver boom"):
+        analyze_modules(root, resolver)
+
+
 def test_analyze_modules_resolves_module_namespace_call() -> None:
     """
     title: Module alias imports resolve callable namespace member access.
