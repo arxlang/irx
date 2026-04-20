@@ -445,6 +445,46 @@ def test_analyze_modules_reports_missing_from_import_name() -> None:
     assert "Unable to resolve module 'sciarx.missing'" not in message
 
 
+def test_analyze_modules_propagates_unexpected_probe_failures() -> None:
+    """
+    title: Unexpected child-module probe failures still surface directly.
+    """
+    root = make_parsed_module(
+        "app.main",
+        astx.ImportFromStmt(module="sciarx", names=[astx.AliasExpr("stats")]),
+        _int_function("main", astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+    sciarx = make_parsed_module("sciarx")
+
+    def resolver(
+        requesting_module_key: str,
+        import_node: astx.ImportStmt | astx.ImportFromStmt,
+        requested_specifier: str,
+    ) -> ParsedModule:
+        """
+        title: Resolver that sometimes fails on child module lookups.
+        parameters:
+          requesting_module_key:
+            type: str
+          import_node:
+            type: astx.ImportStmt | astx.ImportFromStmt
+          requested_specifier:
+            type: str
+        returns:
+          type: ParsedModule
+        """
+        _ = requesting_module_key
+        _ = import_node
+        if requested_specifier == "sciarx":
+            return sciarx
+        if requested_specifier == "sciarx.stats":
+            raise RuntimeError("resolver boom")
+        raise LookupError(requested_specifier)
+
+    with pytest.raises(RuntimeError, match="resolver boom"):
+        analyze_modules(root, resolver)
+
+
 def test_analyze_modules_resolves_module_namespace_call() -> None:
     """
     title: Module alias imports resolve callable namespace member access.

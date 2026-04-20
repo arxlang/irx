@@ -228,7 +228,8 @@ class CompilationSession:
         title: Probe one import request without emitting diagnostics.
         summary: >-
           Try the host resolver for speculative import edges such as child-
-          module fallbacks while keeping missing probes silent.
+          module fallbacks while keeping expected missing-module probes silent
+          but still surfacing unexpected resolver failures.
         parameters:
           requesting_module_key:
             type: ModuleKey
@@ -249,7 +250,7 @@ class CompilationSession:
                 import_node,
                 requested_specifier,
             )
-        except Exception:
+        except LookupError:
             self._probe_cache[cache_key] = None
             return None
 
