@@ -8,31 +8,31 @@
       
       
       
-        <link rel="canonical" href="https://irx.arxlang.org/api/analysis/handlers/declarations/">
+        <link rel="canonical" href="https://irx.arxlang.org/api/astx/types/">
       
       
-        <link rel="prev" href="../control_flow/">
+        <link rel="prev" href="../templates/">
       
       
-        <link rel="next" href="../expressions/">
+        <link rel="next" href="../../base/">
       
       
         
       
       
-      <link rel="icon" href="../../../../images/favicon.ico">
+      <link rel="icon" href="../../../images/favicon.ico">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
-        <title>declarations - IRx</title>
+        <title>types - IRx</title>
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#irx.analysis.handlers.declarations" class="md-skip">
+        <a href="#irx.astx.types" class="md-skip">
           Skip to content
         </a>
       
@@ -94,9 +94,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../.." title="IRx" class="md-header__button md-logo" aria-label="IRx" data-md-component="logo">
+    <a href="../../.." title="IRx" class="md-header__button md-logo" aria-label="IRx" data-md-component="logo">
       
-  <img src="../../../../images/logo.png" alt="logo">
+  <img src="../../../images/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> declarations
+              <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
             
           </span>
         </div>
@@ -236,9 +236,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../.." title="IRx" class="md-nav__button md-logo" aria-label="IRx" data-md-component="logo">
+    <a href="../../.." title="IRx" class="md-nav__button md-logo" aria-label="IRx" data-md-component="logo">
       
-  <img src="../../../../images/logo.png" alt="logo">
+  <img src="../../../images/logo.png" alt="logo">
 
     </a>
     IRx
@@ -265,7 +265,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -292,7 +292,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../installation/" class="md-nav__link">
+      <a href="../../../installation/" class="md-nav__link">
         
   
   
@@ -319,7 +319,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../architecture/" class="md-nav__link">
+      <a href="../../../architecture/" class="md-nav__link">
         
   
   
@@ -346,7 +346,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../semantic-contract/" class="md-nav__link">
+      <a href="../../../semantic-contract/" class="md-nav__link">
         
   
   
@@ -373,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../buffer-view-model/" class="md-nav__link">
+      <a href="../../../buffer-view-model/" class="md-nav__link">
         
   
   
@@ -400,7 +400,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog/" class="md-nav__link">
+      <a href="../../../changelog/" class="md-nav__link">
         
   
   
@@ -427,7 +427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../contributing/" class="md-nav__link">
+      <a href="../../../contributing/" class="md-nav__link">
         
   
   
@@ -545,7 +545,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../" class="md-nav__link ">
+            <a href="../../" class="md-nav__link ">
               
   
   
@@ -586,8 +586,6 @@
                 
   
   
-    
-  
   
   
     
@@ -639,15 +637,15 @@
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
+            <a href="../../analysis/" class="md-nav__link ">
               
   
   
@@ -671,7 +669,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8_1_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -691,7 +689,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../analyzer/" class="md-nav__link">
+      <a href="../../analysis/analyzer/" class="md-nav__link">
         
   
   
@@ -719,7 +717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../../analysis/api/" class="md-nav__link">
         
   
   
@@ -747,7 +745,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../bindings/" class="md-nav__link">
+      <a href="../../analysis/bindings/" class="md-nav__link">
         
   
   
@@ -775,7 +773,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../context/" class="md-nav__link">
+      <a href="../../analysis/context/" class="md-nav__link">
         
   
   
@@ -803,7 +801,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contract/" class="md-nav__link">
+      <a href="../../analysis/contract/" class="md-nav__link">
         
   
   
@@ -831,7 +829,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../factories/" class="md-nav__link">
+      <a href="../../analysis/factories/" class="md-nav__link">
         
   
   
@@ -859,7 +857,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ffi/" class="md-nav__link">
+      <a href="../../analysis/ffi/" class="md-nav__link">
         
   
   
@@ -884,8 +882,6 @@
                 
   
   
-    
-  
   
   
     
@@ -911,15 +907,15 @@
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2_9" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../analysis/handlers/" class="md-nav__link ">
               
   
   
@@ -943,7 +939,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_2_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_2_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8_1_2_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -963,7 +959,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../base/" class="md-nav__link">
+      <a href="../../analysis/handlers/base/" class="md-nav__link">
         
   
   
@@ -991,7 +987,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../control_flow/" class="md-nav__link">
+      <a href="../../analysis/handlers/control_flow/" class="md-nav__link">
         
   
   
@@ -1016,37 +1012,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> declarations
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../analysis/handlers/declarations/" class="md-nav__link">
         
   
   
@@ -1062,54 +1031,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;DeclarationVisitorMixin
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" DeclarationVisitorMixin">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;visit
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1122,7 +1043,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../expressions/" class="md-nav__link">
+      <a href="../../analysis/handlers/expressions/" class="md-nav__link">
         
   
   
@@ -1150,7 +1071,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../imports/" class="md-nav__link">
+      <a href="../../analysis/handlers/imports/" class="md-nav__link">
         
   
   
@@ -1158,6 +1079,696 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/handlers/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/module_interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/module_symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/normalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/resolved_nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> resolved_nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/scopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> scopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> session
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/typing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1_3" id="__nav_8_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../arrow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../binary_op/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> binary_op
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../buffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ffi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../structs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> structs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../symbol_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbol_table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
   
 
     
@@ -1199,29 +1810,30 @@
 
               
             
-          </ul>
-        </nav>
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../module_interfaces/" class="md-nav__link">
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
         
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_interfaces
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
   
 
     
@@ -1229,216 +1841,10 @@
   
   
 
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../module_symbols/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_symbols
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../normalization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> normalization
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../registry/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolved_nodes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> resolved_nodes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../scopes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> scopes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../session/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> session
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../symbols/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbols
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../types/" class="md-nav__link">
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1454,462 +1860,82 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../typing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../validation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> validation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
       
         
-          
-        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
-        
+        <li class="md-nav__item">
+  <a href="#irx.astx.types.TemplateTypeVar" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TemplateTypeVar
       
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" TemplateTypeVar">
+      <ul class="md-nav__list">
         
+          <li class="md-nav__item">
+  <a href="#irx.astx.types.TemplateTypeVar.get_struct" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_struct
       
+    </span>
+  </a>
+  
+</li>
         
+      </ul>
+    </nav>
+  
+</li>
       
-        
+        <li class="md-nav__item">
+  <a href="#irx.astx.types.UnionType" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;UnionType
       
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" UnionType">
+      <ul class="md-nav__list">
         
+          <li class="md-nav__item">
+  <a href="#irx.astx.types.UnionType.get_struct" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_struct
       
+    </span>
+  </a>
+  
+</li>
         
+      </ul>
+    </nav>
+  
+</li>
       
-        
+    </ul>
+  
+</nav>
       
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_3" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../../astx/" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_8_1_3" id="__nav_8_1_3_label" tabindex="0">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_1_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> astx
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/arrow/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/binary_op/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> binary_op
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/buffer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> buffer
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/classes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> classes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/ffi/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> ffi
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/modules/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> modules
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/structs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> structs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/symbol_table/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbol_table
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/system/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/templates/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../astx/types/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1950,7 +1976,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../base/" class="md-nav__link ">
+            <a href="../../base/" class="md-nav__link ">
               
   
   
@@ -2016,7 +2042,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../base/visitors/" class="md-nav__link ">
+            <a href="../../base/visitors/" class="md-nav__link ">
               
   
   
@@ -2060,7 +2086,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../base/visitors/base/" class="md-nav__link">
+      <a href="../../base/visitors/base/" class="md-nav__link">
         
   
   
@@ -2088,7 +2114,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../base/visitors/protocols/" class="md-nav__link">
+      <a href="../../base/visitors/protocols/" class="md-nav__link">
         
   
   
@@ -2132,7 +2158,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../buffer/" class="md-nav__link">
+      <a href="../../buffer/" class="md-nav__link">
         
   
   
@@ -2202,7 +2228,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/" class="md-nav__link ">
+            <a href="../../builder/" class="md-nav__link ">
               
   
   
@@ -2246,7 +2272,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/backend/" class="md-nav__link">
+      <a href="../../builder/backend/" class="md-nav__link">
         
   
   
@@ -2274,7 +2300,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/base/" class="md-nav__link">
+      <a href="../../builder/base/" class="md-nav__link">
         
   
   
@@ -2302,7 +2328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/casting/" class="md-nav__link">
+      <a href="../../builder/casting/" class="md-nav__link">
         
   
   
@@ -2330,7 +2356,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/core/" class="md-nav__link">
+      <a href="../../builder/core/" class="md-nav__link">
         
   
   
@@ -2358,7 +2384,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/diagnostics/" class="md-nav__link">
+      <a href="../../builder/diagnostics/" class="md-nav__link">
         
   
   
@@ -2426,7 +2452,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/lowering/" class="md-nav__link ">
+            <a href="../../builder/lowering/" class="md-nav__link ">
               
   
   
@@ -2470,7 +2496,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/arrow/" class="md-nav__link">
+      <a href="../../builder/lowering/arrow/" class="md-nav__link">
         
   
   
@@ -2498,7 +2524,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/binary_ops/" class="md-nav__link">
+      <a href="../../builder/lowering/binary_ops/" class="md-nav__link">
         
   
   
@@ -2526,7 +2552,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/buffer/" class="md-nav__link">
+      <a href="../../builder/lowering/buffer/" class="md-nav__link">
         
   
   
@@ -2554,7 +2580,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/control_flow/" class="md-nav__link">
+      <a href="../../builder/lowering/control_flow/" class="md-nav__link">
         
   
   
@@ -2582,7 +2608,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/functions/" class="md-nav__link">
+      <a href="../../builder/lowering/functions/" class="md-nav__link">
         
   
   
@@ -2610,7 +2636,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/literals/" class="md-nav__link">
+      <a href="../../builder/lowering/literals/" class="md-nav__link">
         
   
   
@@ -2638,7 +2664,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/modules/" class="md-nav__link">
+      <a href="../../builder/lowering/modules/" class="md-nav__link">
         
   
   
@@ -2666,7 +2692,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/system/" class="md-nav__link">
+      <a href="../../builder/lowering/system/" class="md-nav__link">
         
   
   
@@ -2694,7 +2720,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/temporal/" class="md-nav__link">
+      <a href="../../builder/lowering/temporal/" class="md-nav__link">
         
   
   
@@ -2722,7 +2748,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/unary_ops/" class="md-nav__link">
+      <a href="../../builder/lowering/unary_ops/" class="md-nav__link">
         
   
   
@@ -2750,7 +2776,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/variables/" class="md-nav__link">
+      <a href="../../builder/lowering/variables/" class="md-nav__link">
         
   
   
@@ -2786,7 +2812,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/protocols/" class="md-nav__link">
+      <a href="../../builder/protocols/" class="md-nav__link">
         
   
   
@@ -2848,7 +2874,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/" class="md-nav__link ">
+            <a href="../../builder/runtime/" class="md-nav__link ">
               
   
   
@@ -2912,7 +2938,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/arrow/" class="md-nav__link ">
+            <a href="../../builder/runtime/arrow/" class="md-nav__link ">
               
   
   
@@ -2956,7 +2982,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/arrow/feature/" class="md-nav__link">
+      <a href="../../builder/runtime/arrow/feature/" class="md-nav__link">
         
   
   
@@ -3014,7 +3040,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/assertions/" class="md-nav__link ">
+            <a href="../../builder/runtime/assertions/" class="md-nav__link ">
               
   
   
@@ -3058,7 +3084,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/assertions/feature/" class="md-nav__link">
+      <a href="../../builder/runtime/assertions/feature/" class="md-nav__link">
         
   
   
@@ -3086,7 +3112,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/assertions/reporting/" class="md-nav__link">
+      <a href="../../builder/runtime/assertions/reporting/" class="md-nav__link">
         
   
   
@@ -3142,7 +3168,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/buffer/" class="md-nav__link ">
+            <a href="../../builder/runtime/buffer/" class="md-nav__link ">
               
   
   
@@ -3186,7 +3212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/buffer/feature/" class="md-nav__link">
+      <a href="../../builder/runtime/buffer/feature/" class="md-nav__link">
         
   
   
@@ -3222,7 +3248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/feature_libc/" class="md-nav__link">
+      <a href="../../builder/runtime/feature_libc/" class="md-nav__link">
         
   
   
@@ -3250,7 +3276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/feature_libm/" class="md-nav__link">
+      <a href="../../builder/runtime/feature_libm/" class="md-nav__link">
         
   
   
@@ -3278,7 +3304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/features/" class="md-nav__link">
+      <a href="../../builder/runtime/features/" class="md-nav__link">
         
   
   
@@ -3306,7 +3332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/linking/" class="md-nav__link">
+      <a href="../../builder/runtime/linking/" class="md-nav__link">
         
   
   
@@ -3334,7 +3360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/registry/" class="md-nav__link">
+      <a href="../../builder/runtime/registry/" class="md-nav__link">
         
   
   
@@ -3370,7 +3396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/state/" class="md-nav__link">
+      <a href="../../builder/state/" class="md-nav__link">
         
   
   
@@ -3398,7 +3424,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/strings/" class="md-nav__link">
+      <a href="../../builder/strings/" class="md-nav__link">
         
   
   
@@ -3426,7 +3452,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/types/" class="md-nav__link">
+      <a href="../../builder/types/" class="md-nav__link">
         
   
   
@@ -3454,7 +3480,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/vector/" class="md-nav__link">
+      <a href="../../builder/vector/" class="md-nav__link">
         
   
   
@@ -3490,7 +3516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../diagnostics/" class="md-nav__link">
+      <a href="../../diagnostics/" class="md-nav__link">
         
   
   
@@ -3518,7 +3544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../symbol_table/" class="md-nav__link">
+      <a href="../../symbol_table/" class="md-nav__link">
         
   
   
@@ -3546,7 +3572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../system/" class="md-nav__link">
+      <a href="../../system/" class="md-nav__link">
         
   
   
@@ -3574,7 +3600,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../typecheck/" class="md-nav__link">
+      <a href="../../typecheck/" class="md-nav__link">
         
   
   
@@ -3668,7 +3694,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../tutorials/get-started/" class="md-nav__link">
+      <a href="../../../tutorials/get-started/" class="md-nav__link">
         
   
   
@@ -3723,22 +3749,50 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin" class="md-nav__link">
+  <a href="#irx.astx.types.TemplateTypeVar" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;DeclarationVisitorMixin
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TemplateTypeVar
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" DeclarationVisitorMixin">
+    <nav class="md-nav" aria-label=" TemplateTypeVar">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit" class="md-nav__link">
+  <a href="#irx.astx.types.TemplateTypeVar.get_struct" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;visit
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_struct
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#irx.astx.types.UnionType" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;UnionType
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" UnionType">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#irx.astx.types.UnionType.get_struct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_struct
       
     </span>
   </a>
@@ -3774,16 +3828,16 @@
 
 
 
-<h1 id="irx.analysis.handlers.declarations" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">declarations</span>
+<h1 id="irx.astx.types" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">types</span>
 
 
-<a href="#irx.analysis.handlers.declarations" class="headerlink" title="Permanent link">&para;</a></h1>
+<a href="#irx.astx.types" class="headerlink" title="Permanent link">&para;</a></h1>
 
     <div class="doc doc-contents first">
 
-        <p>Handle modules, functions, structs, and lexical declarations while delegating
-  semantic entity creation and registration to shared infrastructure.</p>
+        <p>Provide semantic-facing type nodes that extend the upstream ASTx type model
+  without coupling them to template metadata helpers.</p>
 
 
 
@@ -3797,7 +3851,14 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="            DeclarationVisitorMixin (irx.analysis.handlers.declarations.DeclarationVisitorMixin)" href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin">DeclarationVisitorMixin</a></code></b>
+          <b><code><a class="autorefs autorefs-internal" title="            TemplateTypeVar (irx.astx.types.TemplateTypeVar)" href="#irx.astx.types.TemplateTypeVar">TemplateTypeVar</a></code></b>
+          –
+          <div class="doc-md-description">
+            
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="            UnionType (irx.astx.types.UnionType)" href="#irx.astx.types.UnionType">UnionType</a></code></b>
           –
           <div class="doc-md-description">
             
@@ -3825,18 +3886,29 @@
 
 
 
-<h2 id="irx.analysis.handlers.declarations.DeclarationVisitorMixin" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DeclarationVisitorMixin</span>
+<h2 id="irx.astx.types.TemplateTypeVar" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TemplateTypeVar</span>
 
 
-<a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin" class="headerlink" title="Permanent link">&para;</a></h2>
-
+<a href="#irx.astx.types.TemplateTypeVar" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">TemplateTypeVar</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bound</span><span class="p">:</span> <span class="n"><span title="astx.DataType">DataType</span></span><span class="p">)</span>
+</code></pre></div>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="irx.analysis.handlers.base.SemanticVisitorMixinBase">SemanticVisitorMixinBase</span></code></p>
+              Bases: <code><span title="astx.types.AnyType">AnyType</span></code></p>
 
 
+
+        <p>Represent one unresolved template type parameter inside function
+  signatures or local declared types before specialization.
+attributes:
+  name:
+    type: str
+  bound:
+    type: astx.DataType</p>
+
+        
 
 
 
@@ -3852,7 +3924,7 @@
 <p><span class="doc-section-title">Methods:</span></p>
     <ul>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="            visit (irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit)" href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit">visit</a></code></b>
+            <b><code><a class="autorefs autorefs-internal" title="            get_struct (irx.astx.types.TemplateTypeVar.get_struct)" href="#irx.astx.types.TemplateTypeVar.get_struct">get_struct</a></code></b>
             –
             <div class="doc-md-description">
               
@@ -3862,6 +3934,33 @@
 
 
 
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/irx/astx/types.py</code></summary>
+                    <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bound</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">DataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    title: Initialize one template type variable.</span>
+<span class="sd">    parameters:</span>
+<span class="sd">      name:</span>
+<span class="sd">        type: str</span>
+<span class="sd">      bound:</span>
+<span class="sd">        type: astx.DataType</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bound</span> <span class="o">=</span> <span class="n">bound</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
 
 
 
@@ -3879,12 +3978,12 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">visit</span>
+<h3 id="irx.astx.types.TemplateTypeVar.get_struct" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_struct</span>
 
 
-<a href="#irx.analysis.handlers.declarations.DeclarationVisitorMixin.visit" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">visit</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n"><span title="irx.astx.StructDefStmt">StructDefStmt</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+<a href="#irx.astx.types.TemplateTypeVar.get_struct" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">get_struct</span><span class="p">(</span><span class="n">simplified</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="astx.base.ReprStruct">ReprStruct</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3893,34 +3992,210 @@
 
 
             <details class="mkdocstrings-source">
-              <summary>Source code in <code>src/irx/analysis/handlers/declarations.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2373</span>
-<span class="normal">2374</span>
-<span class="normal">2375</span>
-<span class="normal">2376</span>
-<span class="normal">2377</span>
-<span class="normal">2378</span>
-<span class="normal">2379</span>
-<span class="normal">2380</span>
-<span class="normal">2381</span>
-<span class="normal">2382</span>
-<span class="normal">2383</span>
-<span class="normal">2384</span>
-<span class="normal">2385</span>
-<span class="normal">2386</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@SemanticAnalyzerCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">StructDefStmt</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <summary>Source code in <code>src/irx/astx/types.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">simplified</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">astx</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">ReprStruct</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    title: Visit StructDefStmt nodes.</span>
+<span class="sd">    title: Build one repr structure for a template type variable.</span>
 <span class="sd">    parameters:</span>
-<span class="sd">      node:</span>
-<span class="sd">        type: astx.StructDefStmt</span>
+<span class="sd">      simplified:</span>
+<span class="sd">        type: bool</span>
+<span class="sd">    returns:</span>
+<span class="sd">      type: astx.base.ReprStruct</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_struct</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">bindings</span><span class="o">.</span><span class="n">bind_struct</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">struct</span><span class="p">,</span> <span class="n">node</span><span class="o">=</span><span class="n">node</span><span class="p">)</span>
-    <span class="n">struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_struct_fields</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_set_struct</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">struct</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_validate_struct_cycles</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_set_type</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;TEMPLATE_TYPE_VAR[</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">]&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">DataTypesStruct</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;bound&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bound</span><span class="o">.</span><span class="n">get_struct</span><span class="p">(</span><span class="n">simplified</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_struct</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">simplified</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="irx.astx.types.UnionType" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">UnionType</span>
+
+
+<a href="#irx.astx.types.UnionType" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">UnionType</span><span class="p">(</span>
+    <span class="n">members</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Iterable" href="https://docs.python.org/3/library/typing.html#typing.Iterable">Iterable</a></span><span class="p">[</span><span class="n"><span title="astx.DataType">DataType</span></span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">alias_name</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="astx.types.AnyType">AnyType</span></code></p>
+
+
+
+        <p>Represent one union of concrete type references that semantic analysis
+  may enumerate as a finite type domain.
+attributes:
+  members:
+    type: tuple[astx.DataType, Ellipsis]
+  alias_name:
+    type: str | None</p>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="            get_struct (irx.astx.types.UnionType.get_struct)" href="#irx.astx.types.UnionType.get_struct">get_struct</a></code></b>
+            –
+            <div class="doc-md-description">
+              
+            </div>
+          </li>
+    </ul>
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/irx/astx/types.py</code></summary>
+                    <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">members</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">astx</span><span class="o">.</span><span class="n">DataType</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">alias_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    title: Initialize one finite union type.</span>
+<span class="sd">    parameters:</span>
+<span class="sd">      members:</span>
+<span class="sd">        type: Iterable[astx.DataType]</span>
+<span class="sd">      alias_name:</span>
+<span class="sd">        type: str | None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">members</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">alias_name</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="irx.astx.types.UnionType.get_struct" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_struct</span>
+
+
+<a href="#irx.astx.types.UnionType.get_struct" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">get_struct</span><span class="p">(</span><span class="n">simplified</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="astx.base.ReprStruct">ReprStruct</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/irx/astx/types.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">simplified</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">astx</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">ReprStruct</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    title: Build one repr structure for a finite union type.</span>
+<span class="sd">    parameters:</span>
+<span class="sd">      simplified:</span>
+<span class="sd">        type: bool</span>
+<span class="sd">    returns:</span>
+<span class="sd">      type: astx.base.ReprStruct</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;UNION[</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">alias_name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">]&quot;</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+        <span class="n">astx</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">DataTypesStruct</span><span class="p">,</span>
+        <span class="p">[</span><span class="n">member</span><span class="o">.</span><span class="n">get_struct</span><span class="p">(</span><span class="n">simplified</span><span class="p">)</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_struct</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">simplified</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4025,10 +4300,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "search.highlight", "search.share", "search.suggest"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "search.highlight", "search.share", "search.suggest"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

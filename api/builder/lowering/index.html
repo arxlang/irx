@@ -901,6 +901,8 @@
       
         
       
+        
+      
     
     
     
@@ -1077,6 +1079,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/handlers/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
   
 
     
@@ -1445,6 +1475,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1733,6 +1767,62 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../astx/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../astx/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
   
 
     
@@ -5322,7 +5412,9 @@
 <span class="normal">266</span>
 <span class="normal">267</span>
 <span class="normal">268</span>
-<span class="normal">269</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@VisitorCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@VisitorCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">ClassDefStmt</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    title: Visit ClassDefStmt nodes.</span>
@@ -5400,6 +5492,8 @@
         <span class="n">dispatch_global</span><span class="o">.</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">dispatch_initializer</span>
 
     <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">methods</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">astx</span><span class="o">.</span><span class="n">is_template_node</span><span class="p">(</span><span class="n">method</span><span class="o">.</span><span class="n">prototype</span><span class="p">):</span>
+            <span class="k">continue</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>

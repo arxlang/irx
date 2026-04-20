@@ -905,6 +905,8 @@
       
         
       
+        
+      
     
     
     
@@ -1156,6 +1158,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
   
 
     
@@ -1524,6 +1554,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1812,6 +1846,62 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../astx/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../astx/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
   
 
     
@@ -3804,52 +3894,52 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/irx/analysis/handlers/expressions.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2518</span>
-<span class="normal">2519</span>
-<span class="normal">2520</span>
-<span class="normal">2521</span>
-<span class="normal">2522</span>
-<span class="normal">2523</span>
-<span class="normal">2524</span>
-<span class="normal">2525</span>
-<span class="normal">2526</span>
-<span class="normal">2527</span>
-<span class="normal">2528</span>
-<span class="normal">2529</span>
-<span class="normal">2530</span>
-<span class="normal">2531</span>
-<span class="normal">2532</span>
-<span class="normal">2533</span>
-<span class="normal">2534</span>
-<span class="normal">2535</span>
-<span class="normal">2536</span>
-<span class="normal">2537</span>
-<span class="normal">2538</span>
-<span class="normal">2539</span>
-<span class="normal">2540</span>
-<span class="normal">2541</span>
-<span class="normal">2542</span>
-<span class="normal">2543</span>
-<span class="normal">2544</span>
-<span class="normal">2545</span>
-<span class="normal">2546</span>
-<span class="normal">2547</span>
-<span class="normal">2548</span>
-<span class="normal">2549</span>
-<span class="normal">2550</span>
-<span class="normal">2551</span>
-<span class="normal">2552</span>
-<span class="normal">2553</span>
-<span class="normal">2554</span>
-<span class="normal">2555</span>
-<span class="normal">2556</span>
-<span class="normal">2557</span>
-<span class="normal">2558</span>
-<span class="normal">2559</span>
-<span class="normal">2560</span>
-<span class="normal">2561</span>
-<span class="normal">2562</span>
-<span class="normal">2563</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@SemanticAnalyzerCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2609</span>
+<span class="normal">2610</span>
+<span class="normal">2611</span>
+<span class="normal">2612</span>
+<span class="normal">2613</span>
+<span class="normal">2614</span>
+<span class="normal">2615</span>
+<span class="normal">2616</span>
+<span class="normal">2617</span>
+<span class="normal">2618</span>
+<span class="normal">2619</span>
+<span class="normal">2620</span>
+<span class="normal">2621</span>
+<span class="normal">2622</span>
+<span class="normal">2623</span>
+<span class="normal">2624</span>
+<span class="normal">2625</span>
+<span class="normal">2626</span>
+<span class="normal">2627</span>
+<span class="normal">2628</span>
+<span class="normal">2629</span>
+<span class="normal">2630</span>
+<span class="normal">2631</span>
+<span class="normal">2632</span>
+<span class="normal">2633</span>
+<span class="normal">2634</span>
+<span class="normal">2635</span>
+<span class="normal">2636</span>
+<span class="normal">2637</span>
+<span class="normal">2638</span>
+<span class="normal">2639</span>
+<span class="normal">2640</span>
+<span class="normal">2641</span>
+<span class="normal">2642</span>
+<span class="normal">2643</span>
+<span class="normal">2644</span>
+<span class="normal">2645</span>
+<span class="normal">2646</span>
+<span class="normal">2647</span>
+<span class="normal">2648</span>
+<span class="normal">2649</span>
+<span class="normal">2650</span>
+<span class="normal">2651</span>
+<span class="normal">2652</span>
+<span class="normal">2653</span>
+<span class="normal">2654</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@SemanticAnalyzerCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">SubscriptExpr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    title: Visit SubscriptExpr nodes.</span>

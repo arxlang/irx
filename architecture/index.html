@@ -446,6 +446,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#template-specialization-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template Specialization Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#compilation-session" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1137,6 +1148,8 @@
       
         
       
+        
+      
     
     
     
@@ -1313,6 +1326,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/handlers/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
   
 
     
@@ -1681,6 +1722,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1969,6 +2014,62 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/astx/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
   
 
     
@@ -3857,6 +3958,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#template-specialization-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template Specialization Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#compilation-session" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4074,8 +4186,31 @@ phase split still leaves room for that evolution.</p>
 <li>IRx expands the reachable dependency graph, performs cross-module semantic
   analysis, and lowers the reachable graph into one LLVM module for the MVP</li>
 </ul>
+<p>Import-from resolution remains symbol-first, but it also supports child-module
+namespace sugar: <code class="language-python highlight"><span class="kn">import</span><span class="w"> </span><span class="nn">stats</span> <span class="kn">from</span><span class="w"> </span><span class="nn">sciarx</span></code> may bind <code class="language-python highlight"><span class="n">sciarx</span><span class="o">.</span><span class="n">stats</span></code> as a local
+module namespace when <code class="language-python highlight"><span class="n">sciarx</span></code> does not already expose an importable symbol
+named <code class="language-python highlight"><span class="n">stats</span></code>.</p>
 <p>IRx does not parse source text, search the filesystem, or implement package
 discovery. Those responsibilities stay outside the library.</p>
+<h3 id="template-specialization-metadata">Template Specialization Metadata<a class="headerlink" href="#template-specialization-metadata" title="Permanent link">&para;</a></h3>
+<p>IRx also carries semantic-only template metadata for compile-time
+specialization. The current scope is bounded template functions and methods.</p>
+<p>Semantic analysis preserves:</p>
+<ul>
+<li>template parameters attached to callable definitions</li>
+<li>finite union bounds used as specialization domains</li>
+<li>unresolved template type variables inside generic signatures</li>
+<li>explicit template arguments attached to call sites</li>
+<li>stable specialization identities and generated concrete callables</li>
+</ul>
+<p>During analysis, template bodies are validated over every admissible bound
+substitution. Successful specializations are materialized as generated concrete
+functions so backend lowering can continue to operate mostly on ordinary
+non-template callables. That generated specialization set is treated as
+per-analysis state and is cleared before rerunning semantic analysis on the same
+AST module.</p>
+<p>For v1, template methods lower only as direct concrete specializations. They do
+not participate in class dispatch slots or virtual-style dispatch tables.</p>
 <h3 id="compilation-session">Compilation Session<a class="headerlink" href="#compilation-session" title="Permanent link">&para;</a></h3>
 <p>The multi-module path is centered on <code class="language-python highlight"><span class="n">CompilationSession</span></code> in
 <code class="language-python highlight"><span class="n">src</span><span class="o">/</span><span class="n">irx</span><span class="o">/</span><span class="n">analysis</span><span class="o">/</span><span class="n">session</span><span class="o">.</span><span class="n">py</span></code>.</p>

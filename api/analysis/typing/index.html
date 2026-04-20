@@ -903,6 +903,8 @@
       
         
       
+        
+      
     
     
     
@@ -1079,6 +1081,34 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../handlers/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
   
 
     
@@ -1516,6 +1546,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1804,6 +1838,62 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../astx/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../astx/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
   
 
     
@@ -3786,10 +3876,7 @@
 <span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@typechecked</span>
+<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@typechecked</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">binary_result_type</span><span class="p">(</span>
     <span class="n">op_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">lhs_type</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">DataType</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
@@ -3828,9 +3915,6 @@
     <span class="k">if</span> <span class="n">op_code</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="s2">&quot;%&quot;</span><span class="p">}:</span>
         <span class="k">return</span> <span class="n">common_numeric_type</span><span class="p">(</span><span class="n">lhs_type</span><span class="p">,</span> <span class="n">rhs_type</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">op_code</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;|&quot;</span><span class="p">,</span> <span class="s2">&quot;&amp;&quot;</span><span class="p">,</span> <span class="s2">&quot;^&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">lhs_type</span>
-
     <span class="k">return</span> <span class="n">lhs_type</span> <span class="k">if</span> <span class="n">lhs_type</span> <span class="o">==</span> <span class="n">rhs_type</span> <span class="k">else</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -3858,7 +3942,10 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/irx/analysis/typing.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">65</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
@@ -3876,10 +3963,7 @@
 <span class="normal">80</span>
 <span class="normal">81</span>
 <span class="normal">82</span>
-<span class="normal">83</span>
-<span class="normal">84</span>
-<span class="normal">85</span>
-<span class="normal">86</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@typechecked</span>
+<span class="normal">83</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@typechecked</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">unary_result_type</span><span class="p">(</span>
     <span class="n">op_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">operand_type</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">DataType</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
