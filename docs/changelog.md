@@ -1,6 +1,14 @@
 # Release Notes
 ---
 
+# [1.13.0](https://github.com/arxlang/irx/compare/1.12.0...1.13.0) (2026-04-20)
+
+
+### Features
+
+* Implement function/method template ([#302](https://github.com/arxlang/irx/issues/302)) ([8b005fc](https://github.com/arxlang/irx/commit/8b005fc9592e8397d1c3beb4387f0242bbe47db1))
+* Improve import module from package ([#301](https://github.com/arxlang/irx/issues/301)) ([6218f69](https://github.com/arxlang/irx/commit/6218f69d26ad6c3232b45a44c41434cfa5745d2d))
+
 # [1.12.0](https://github.com/arxlang/irx/compare/1.11.0...1.12.0) (2026-04-19)
 
 
