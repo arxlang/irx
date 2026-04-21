@@ -1,7 +1,7 @@
 """
 title: Host-facing module interfaces for multi-module analysis.
 summary: >-
-  Define the parser-agnostic types that hosts pass into IRX for multi-module
+  Define the parser-agnostic types that hosts pass into IRx for multi-module
   compilation.
 """
 
@@ -50,7 +50,7 @@ class ImportResolver(Protocol):
     """
     title: Host callback that resolves imports to parsed modules.
     summary: >-
-      Describe the host-owned callback IRX uses to turn import specifiers into
+      Describe the host-owned callback IRx uses to turn import specifiers into
       already-parsed modules.
     """
 

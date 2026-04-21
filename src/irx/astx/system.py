@@ -1,5 +1,5 @@
 """
-title: IRX-owned system AST nodes.
+title: IRx-owned system AST nodes.
 """
 
 from __future__ import annotations

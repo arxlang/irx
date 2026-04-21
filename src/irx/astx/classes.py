@@ -1,5 +1,5 @@
 """
-title: IRX-owned class AST nodes.
+title: IRx-owned class AST nodes.
 summary: >-
   Provide explicit class-type references and class-definition nodes that host
   compilers can use before higher-level surface syntax exists in Arx.

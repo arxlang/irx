@@ -1,5 +1,5 @@
 """
-title: IRX-owned namespace AST types.
+title: IRx-owned namespace AST types.
 """
 
 from __future__ import annotations

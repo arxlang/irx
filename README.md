@@ -405,7 +405,7 @@ def test_binary_op_basic():
   with non-PIE relocations.
 - Current IRx defaults to PIC-compatible object emission, which should work with
   PIE-default linkers.
-- If you are using an older ARX/IRX stack, update first.
+- If you are using an older Arx/IRx stack, update first.
 - If you must link externally as a workaround, use:
 
   ```bash

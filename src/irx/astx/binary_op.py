@@ -1,5 +1,5 @@
 """
-title: IRX-owned BinaryOp node specializations.
+title: IRx-owned BinaryOp node specializations.
 """
 
 from __future__ import annotations

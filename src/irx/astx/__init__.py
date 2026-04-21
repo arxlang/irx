@@ -1,5 +1,5 @@
 """
-title: IRX-owned AST facade built on top of ASTx.
+title: IRx-owned AST facade built on top of ASTx.
 """
 
 from __future__ import annotations
