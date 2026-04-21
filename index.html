@@ -479,10 +479,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#optional-runtime-features" class="md-nav__link">
+  <a href="#runtime-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Runtime Features
+        Runtime Features
       
     </span>
   </a>
@@ -1919,14 +1919,14 @@
   
   
     <li class="md-nav__item">
-      <a href="api/astx/arrow/" class="md-nav__link">
+      <a href="api/astx/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2775,14 +2775,14 @@
   
   
     <li class="md-nav__item">
-      <a href="api/builder/lowering/arrow/" class="md-nav__link">
+      <a href="api/builder/lowering/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3217,14 +3217,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="api/builder/runtime/arrow/" class="md-nav__link ">
+            <a href="api/builder/runtime/array/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3246,7 +3246,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
           </label>
@@ -3261,7 +3261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="api/builder/runtime/arrow/feature/" class="md-nav__link">
+      <a href="api/builder/runtime/array/feature/" class="md-nav__link">
         
   
   
@@ -4184,10 +4184,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#optional-runtime-features" class="md-nav__link">
+  <a href="#runtime-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Runtime Features
+        Runtime Features
       
     </span>
   </a>
@@ -4408,7 +4408,7 @@ supported.</p>
   (<a href="https://github.com/beartype/plum"><code class="language-python highlight"><span class="n">plum</span></code></a>).</li>
 <li><strong>Back end:</strong> IR construction and object emission with <a href="https://llvmlite.readthedocs.io/">llvmlite</a>.</li>
 <li><strong>Native build:</strong> links with <code class="language-python highlight"><span class="n">clang</span></code> to produce an executable.</li>
-<li><strong>Optional runtime features:</strong> native capabilities are feature-gated per
+<li><strong>On-demand runtime features:</strong> native capabilities are activated per
   compilation unit instead of being linked into every binary.</li>
 <li><strong>PIE-friendly objects:</strong> emits PIC-compatible objects by default to work with
   modern PIE-default linkers.</li>
@@ -4435,10 +4435,10 @@ supported.</p>
 <p><strong>Built-ins:</strong> <code class="language-python highlight"><span class="n">putchar</span></code>, <code class="language-python highlight"><span class="n">putchard</span></code> (emitted as IR); <code class="language-python highlight"><span class="n">puts</span></code> declaration when
   needed.</p>
 </li>
-<li><strong>Optional native runtimes:</strong> <code class="language-python highlight"><span class="n">libc</span></code> externs are routed through the runtime
+<li><strong>Native runtime features:</strong> <code class="language-python highlight"><span class="n">libc</span></code> externs are routed through the runtime
   feature layer, feature-backed externs can request <code class="language-python highlight"><span class="n">libm</span></code>, the fatal assertion
-  helper is linked on demand through <code class="language-python highlight"><span class="n">assertions</span></code>, and Arrow is now available as
-  an optional native runtime feature.</li>
+  helper is linked on demand through <code class="language-python highlight"><span class="n">assertions</span></code>, and IRx ships a builtin array
+  runtime backed by Arrow for low-level array/interoperability work.</li>
 <li><strong>Low-level classes:</strong> pointer-based class objects with deterministic C3 MRO,
   multiple inheritance, dispatch metadata, static globals, access control, and
   explicit construction/member-access forms.</li>
@@ -4587,11 +4587,11 @@ otherwise it falls back to the module name embedded in the AST.</p>
 runtime contract can land independently. ASTx/Arx can still converge on the
 final shared surface later without changing the machine-readable failure
 protocol introduced here.</p>
-<h3 id="optional-runtime-features">Optional Runtime Features<a class="headerlink" href="#optional-runtime-features" title="Permanent link">&para;</a></h3>
+<h3 id="runtime-features">Runtime Features<a class="headerlink" href="#runtime-features" title="Permanent link">&para;</a></h3>
 <p>IRx now has a generic runtime-feature system for native integrations that do not
 belong as handwritten LLVM container logic.</p>
 <ul>
-<li>Features are registered by name, such as <code class="language-python highlight"><span class="n">libc</span></code>, <code class="language-python highlight"><span class="n">libm</span></code>, and <code class="language-python highlight"><span class="n">arrow</span></code>.</li>
+<li>Features are registered by name, such as <code class="language-python highlight"><span class="n">libc</span></code>, <code class="language-python highlight"><span class="n">libm</span></code>, and <code class="language-python highlight"><span class="n">array</span></code>.</li>
 <li>Features can declare external symbols, native C sources, objects, or static
   libraries.</li>
 <li>The linker only compiles and links artifacts for features that are active in
@@ -4606,8 +4606,9 @@ belong as handwritten LLVM container logic.</p>
 <li>known feature-owned symbols are declared through the runtime registry instead
   of a separate ad hoc native path</li>
 </ul>
-<p>Arrow uses this path as its first substantial consumer:</p>
+<p>The builtin array runtime uses this path as its first substantial consumer:</p>
 <ul>
+<li>canonical Python exports under <code class="language-python highlight"><span class="n">src</span><span class="o">/</span><span class="n">irx</span><span class="o">/</span><span class="n">builder</span><span class="o">/</span><span class="n">runtime</span><span class="o">/</span><span class="n">array</span><span class="o">/</span></code></li>
 <li>native runtime implemented in C under <code class="language-python highlight"><span class="n">src</span><span class="o">/</span><span class="n">irx</span><span class="o">/</span><span class="n">builder</span><span class="o">/</span><span class="n">runtime</span><span class="o">/</span><span class="n">arrow</span><span class="o">/</span></code></li>
 <li>opaque <code class="language-python highlight"><span class="n">irx_arrow_</span><span class="o">*</span></code> handles for schemas, builders, and arrays</li>
 <li>Arrow C Data import/export boundary with explicit copy and move/adopt import
@@ -4619,8 +4620,9 @@ belong as handwritten LLVM container logic.</p>
 <li>Python <code class="language-python highlight"><span class="n">nanoarrow</span></code> installed by default for interop and tests</li>
 <li><code class="language-python highlight"><span class="n">arx</span><span class="o">-</span><span class="n">nanoarrow</span><span class="o">-</span><span class="n">sources</span></code> installed by default for native runtime builds</li>
 </ul>
-<p>The Arrow layer remains intentionally low-level: handles, lifecycle, inspection,
-C Data interop, and a conservative buffer/view bridge. IRx still does not encode
+<p>The builtin array layer remains intentionally low-level: handles, lifecycle,
+inspection, C Data interop, and a conservative buffer/view bridge. Arrow stays
+an implementation and interoperability detail. IRx still does not encode
 dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.</p>
 <h2 id="scalar-numeric-semantics">Scalar Numeric Semantics<a class="headerlink" href="#scalar-numeric-semantics" title="Permanent link">&para;</a></h2>
 <p>IRx now treats scalar numerics as a stable substrate instead of an ad hoc
@@ -4763,7 +4765,7 @@ symbol-resolution rules.</p>
   with non-PIE relocations.</li>
 <li>Current IRx defaults to PIC-compatible object emission, which should work with
   PIE-default linkers.</li>
-<li>If you are using an older ARX/IRX stack, update first.</li>
+<li>If you are using an older Arx/IRx stack, update first.</li>
 <li>If you must link externally as a workaround, use:</li>
 </ul>
 <div class="language-bash highlight"><pre><span></span><code>clang<span class="w"> </span>-no-pie<span class="w"> </span>file.o<span class="w"> </span>-o<span class="w"> </span>program
@@ -4781,8 +4783,8 @@ symbol-resolution rules.</p>
 <li>Optimization toggles/passes.</li>
 <li>Alternative backends and/or JIT runner.</li>
 <li>Better diagnostics and source locations in IR.</li>
-<li>Expand optional <a href="https://arrow.apache.org/">Apache Arrow</a> runtime support:
-  streams, variable-width primitives, and higher-level interop handles.</li>
+<li>Expand builtin array/<a href="https://arrow.apache.org/">Apache Arrow</a> runtime
+  support: streams, variable-width primitives, and higher-level interop handles.</li>
 </ul>
 <h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
 <p>Please see the <a href="https://irx.arxlang.org/contributing/">contributing guide</a>. Add

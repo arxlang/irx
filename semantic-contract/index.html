@@ -737,15 +737,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arrow-runtime-interop-contract" class="md-nav__link">
+  <a href="#array-runtime-interop-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Arrow Runtime Interop Contract
+        Array Runtime Interop Contract
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Arrow Runtime Interop Contract">
+    <nav class="md-nav" aria-label="Array Runtime Interop Contract">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1959,14 +1959,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/astx/arrow/" class="md-nav__link">
+      <a href="../api/astx/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2815,14 +2815,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/builder/lowering/arrow/" class="md-nav__link">
+      <a href="../api/builder/lowering/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3257,14 +3257,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/builder/runtime/arrow/" class="md-nav__link ">
+            <a href="../api/builder/runtime/array/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3286,7 +3286,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
           </label>
@@ -3301,7 +3301,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/builder/runtime/arrow/feature/" class="md-nav__link">
+      <a href="../api/builder/runtime/array/feature/" class="md-nav__link">
         
   
   
@@ -4399,15 +4399,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arrow-runtime-interop-contract" class="md-nav__link">
+  <a href="#array-runtime-interop-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Arrow Runtime Interop Contract
+        Array Runtime Interop Contract
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Arrow Runtime Interop Contract">
+    <nav class="md-nav" aria-label="Array Runtime Interop Contract">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5171,9 +5171,10 @@ not need an out-of-band dtype handle:</p>
 <p>Runtime/native lifetime operations are feature-gated behind the <code class="language-python highlight"><span class="n">buffer</span></code> runtime
 feature. Plain descriptors do not pull native helper symbols into a module
 unless a helper is used.</p>
-<h2 id="arrow-runtime-interop-contract">Arrow Runtime Interop Contract<a class="headerlink" href="#arrow-runtime-interop-contract" title="Permanent link">&para;</a></h2>
-<p>IRx exposes Arrow as one optional runtime feature and FFI-owned ABI surface. It
-is not a first-class language container model.</p>
+<h2 id="array-runtime-interop-contract">Array Runtime Interop Contract<a class="headerlink" href="#array-runtime-interop-contract" title="Permanent link">&para;</a></h2>
+<p>IRx exposes arrays through a builtin runtime surface backed by Arrow. The
+high-level abstraction is array-oriented; the low-level FFI ABI remains
+Arrow-specific. It is not a first-class language container model.</p>
 <p>Stable scope in this phase:</p>
 <ul>
 <li>supported plain primitive Arrow storage types: <code class="language-python highlight"><span class="nb">bool</span></code>, <code class="language-python highlight"><span class="n">int8</span></code>, <code class="language-python highlight"><span class="n">int16</span></code>,

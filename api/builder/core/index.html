@@ -1535,14 +1535,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../astx/arrow/" class="md-nav__link">
+      <a href="../../astx/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2710,14 +2710,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../lowering/arrow/" class="md-nav__link">
+      <a href="../lowering/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3152,14 +3152,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../runtime/arrow/" class="md-nav__link ">
+            <a href="../runtime/array/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -3181,7 +3181,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
           </label>
@@ -3196,7 +3196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runtime/arrow/feature/" class="md-nav__link">
+      <a href="../runtime/array/feature/" class="md-nav__link">
         
   
   
@@ -4695,9 +4695,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/irx/builder/core.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">866</span>
-<span class="normal">867</span>
-<span class="normal">868</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">868</span>
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
@@ -4722,7 +4720,9 @@
 <span class="normal">890</span>
 <span class="normal">891</span>
 <span class="normal">892</span>
-<span class="normal">893</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">create_entry_block_alloca</span><span class="p">(</span>
+<span class="normal">893</span>
+<span class="normal">894</span>
+<span class="normal">895</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">create_entry_block_alloca</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">type_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">ir</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span>
@@ -4774,9 +4774,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/irx/builder/core.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">845</span>
-<span class="normal">846</span>
-<span class="normal">847</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">847</span>
 <span class="normal">848</span>
 <span class="normal">849</span>
 <span class="normal">850</span>
@@ -4793,7 +4791,9 @@
 <span class="normal">861</span>
 <span class="normal">862</span>
 <span class="normal">863</span>
-<span class="normal">864</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ir</span><span class="o">.</span><span class="n">Function</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">864</span>
+<span class="normal">865</span>
+<span class="normal">866</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ir</span><span class="o">.</span><span class="n">Function</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    title: Get function.</span>
 <span class="sd">    parameters:</span>
@@ -4923,7 +4923,9 @@
 <span class="normal">817</span>
 <span class="normal">818</span>
 <span class="normal">819</span>
-<span class="normal">820</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    title: Initialize.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -4978,10 +4980,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">INT32_TYPE</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">BUFFER_VIEW_TYPE</span> <span class="o">=</span> <span class="n">buffer_view_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARRAY_BUILDER_HANDLE_TYPE</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">OPAQUE_POINTER_TYPE</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARRAY_HANDLE_TYPE</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">OPAQUE_POINTER_TYPE</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARROW_ARRAY_BUILDER_HANDLE_TYPE</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">OPAQUE_POINTER_TYPE</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARRAY_BUILDER_HANDLE_TYPE</span>
     <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARROW_ARRAY_HANDLE_TYPE</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">OPAQUE_POINTER_TYPE</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARROW_ARRAY_HANDLE_TYPE</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">ARRAY_HANDLE_TYPE</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">TIME_TYPE</span> <span class="o">=</span> <span class="n">ir</span><span class="o">.</span><span class="n">LiteralStructType</span><span class="p">(</span>
         <span class="p">[</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_llvm</span><span class="o">.</span><span class="n">INT32_TYPE</span><span class="p">,</span>
@@ -5156,14 +5160,14 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/irx/builder/core.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">960</span>
-<span class="normal">961</span>
-<span class="normal">962</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">962</span>
 <span class="normal">963</span>
 <span class="normal">964</span>
 <span class="normal">965</span>
 <span class="normal">966</span>
-<span class="normal">967</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_fast_math</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">967</span>
+<span class="normal">968</span>
+<span class="normal">969</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_fast_math</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    title: Set fast math.</span>
 <span class="sd">    parameters:</span>

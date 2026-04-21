@@ -1527,14 +1527,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/astx/arrow/" class="md-nav__link">
+      <a href="../api/astx/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2383,14 +2383,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/builder/lowering/arrow/" class="md-nav__link">
+      <a href="../api/builder/lowering/array/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2825,14 +2825,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/builder/runtime/arrow/" class="md-nav__link ">
+            <a href="../api/builder/runtime/array/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -2854,7 +2854,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> arrow
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
           </label>
@@ -2869,7 +2869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/builder/runtime/arrow/feature/" class="md-nav__link">
+      <a href="../api/builder/runtime/array/feature/" class="md-nav__link">
         
   
   
@@ -3713,10 +3713,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arrow-as-a-runtime-feature" class="md-nav__link">
+  <a href="#builtin-array-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Arrow As A Runtime Feature
+        Builtin Array Runtime
       
     </span>
   </a>
@@ -3835,8 +3835,8 @@ way to:</p>
 <li>keep native runtime ownership rules outside the LLVM IR middle-end</li>
 </ul>
 <p>This runtime-feature layer keeps IRx focused on lowering while allowing Arx to
-grow optional native integrations later. It is also the public native-dependency
-side of IRx's stable FFI contract.</p>
+grow additional native integrations later. It is also the public
+native-dependency side of IRx's stable FFI contract.</p>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <p>The runtime stack is layered in four parts:</p>
 <ol>
@@ -3846,19 +3846,21 @@ side of IRx's stable FFI contract.</p>
    activation/declarations for one LLVM module.</li>
 <li><code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">runtime</span><span class="o">.</span><span class="n">linking</span></code> Compiles native C sources and links optional
    objects only for active features.</li>
-<li>Feature packages such as <code class="language-python highlight"><span class="n">libc</span></code> and <code class="language-python highlight"><span class="n">arrow</span></code> Consume the generic system
+<li>Feature packages such as <code class="language-python highlight"><span class="n">libc</span></code> and <code class="language-python highlight"><span class="n">array</span></code> Consume the generic system
    without special cases in the builder.</li>
 </ol>
 <h2 id="activation-model">Activation Model<a class="headerlink" href="#activation-model" title="Permanent link">&para;</a></h2>
-<p>Runtime features are named, optional, and per-compilation-unit.</p>
+<p>Runtime features are named and activated per compilation unit. The builtin array
+runtime is packaged with IRx even though its native artifacts are linked only
+when needed.</p>
 <ul>
 <li><code class="language-python highlight"><span class="n">libc</span></code> Declares symbols such as <code class="language-python highlight"><span class="n">puts</span></code>, <code class="language-python highlight"><span class="n">malloc</span></code>, and <code class="language-python highlight"><span class="n">snprintf</span></code>.</li>
 <li><code class="language-python highlight"><span class="n">assertions</span></code> Declares <code class="language-python highlight"><span class="n">__arx_assert_fail</span><span class="p">(</span><span class="o">...</span><span class="p">)</span></code> and links the native fatal
   assertion helper that emits machine-readable stderr reports.</li>
 <li><code class="language-python highlight"><span class="n">libm</span></code> Declares math symbols such as <code class="language-python highlight"><span class="n">sqrt</span></code> and contributes <code class="language-python highlight"><span class="o">-</span><span class="n">lm</span></code>.</li>
 <li><code class="language-python highlight"><span class="n">buffer</span></code> Declares the low-level buffer owner/view lifetime helper ABI.</li>
-<li><code class="language-python highlight"><span class="n">arrow</span></code> Declares the IRx-owned Arrow runtime ABI and links the native Arrow
-  runtime.</li>
+<li><code class="language-python highlight"><span class="n">array</span></code> Declares the builtin array runtime surface and links the Arrow-backed
+  native implementation.</li>
 </ul>
 <p>The builder and visitor cooperate as follows:</p>
 <ul>
@@ -3871,7 +3873,7 @@ side of IRx's stable FFI contract.</p>
 <li>inactive features contribute nothing to the link command</li>
 </ul>
 <p>This is intentionally separate from any future language-level import or module
-system. A future Arx <code class="language-python highlight"><span class="n">std</span><span class="o">.</span><span class="n">arrow</span></code> layer can decide when to activate <code class="language-python highlight"><span class="n">arrow</span></code>, but
+system. A future Arx array-facing layer can decide when to activate <code class="language-python highlight"><span class="n">array</span></code>, but
 the native integration remains owned by IRx.</p>
 <h2 id="extern-declarations-and-feature-backed-linking">Extern Declarations And Feature-Backed Linking<a class="headerlink" href="#extern-declarations-and-feature-backed-linking" title="Permanent link">&para;</a></h2>
 <p>Public FFI declarations now use one consistent rule:</p>
@@ -3892,7 +3894,7 @@ the native integration remains owned by IRx.</p>
 <li>plain <code class="language-python highlight"><span class="n">puts</span></code> extern: system linker resolution only</li>
 <li><code class="language-python highlight"><span class="n">sqrt</span></code> extern with <code class="language-python highlight"><span class="n">runtime_feature</span> <span class="o">=</span> <span class="s2">&quot;libm&quot;</span></code>: LLVM declaration plus the
   <code class="language-python highlight"><span class="n">libm</span></code> feature's <code class="language-python highlight"><span class="o">-</span><span class="n">lm</span></code> linker flag</li>
-<li>Arrow helpers: IRx-owned nodes imply the <code class="language-python highlight"><span class="n">arrow</span></code> feature and its packaged
+<li>Array helpers: IRx-owned nodes imply the <code class="language-python highlight"><span class="n">array</span></code> feature and its packaged
   native runtime</li>
 </ul>
 <h2 id="external-symbols">External Symbols<a class="headerlink" href="#external-symbols" title="Permanent link">&para;</a></h2>
@@ -3913,8 +3915,8 @@ difference now is that runtime features may add native artifacts such as:</p>
 <li>prebuilt objects</li>
 <li>static libraries</li>
 </ul>
-<p>The current Arrow feature uses C sources only, which keeps the build path
-reproducible on Linux and macOS without introducing dynamic loading.</p>
+<p>The current builtin array runtime uses C sources only, which keeps the build
+path reproducible on Linux and macOS without introducing dynamic loading.</p>
 <h2 id="assertion-failure-reporting">Assertion Failure Reporting<a class="headerlink" href="#assertion-failure-reporting" title="Permanent link">&para;</a></h2>
 <p>The <code class="language-python highlight"><span class="n">assertions</span></code> runtime feature exists for fatal <code class="language-python highlight"><span class="n">AssertStmt</span></code> lowering. Its
 native helper writes one machine-readable line to <code class="language-python highlight"><span class="n">stderr</span></code> before exiting the
@@ -3928,10 +3930,10 @@ payloads escape backslashes, newlines, carriage returns, tabs, and protocol
 delimiters before printing so the report always remains one physical line. The
 source field uses the analyzed module display name when available and otherwise
 falls back to the module name stored in the AST.</p>
-<h2 id="arrow-as-a-runtime-feature">Arrow As A Runtime Feature<a class="headerlink" href="#arrow-as-a-runtime-feature" title="Permanent link">&para;</a></h2>
-<p>Arrow support is implemented as an optional native runtime, not as handwritten
-LLVM IR container logic.</p>
-<p>Current Arrow substrate:</p>
+<h2 id="builtin-array-runtime">Builtin Array Runtime<a class="headerlink" href="#builtin-array-runtime" title="Permanent link">&para;</a></h2>
+<p>IRx array support is implemented as a builtin native runtime backed by Arrow,
+not as handwritten LLVM IR container logic.</p>
+<p>Current array substrate:</p>
 <ul>
 <li>opaque runtime handles for schemas, array builders, and arrays</li>
 <li>supported primitive storage types: <code class="language-python highlight"><span class="n">int8</span></code>, <code class="language-python highlight"><span class="n">int16</span></code>, <code class="language-python highlight"><span class="n">int32</span></code>, <code class="language-python highlight"><span class="n">int64</span></code>, <code class="language-python highlight"><span class="n">uint8</span></code>,
@@ -3953,8 +3955,9 @@ LLVM IR container logic.</p>
 <li>no dataframe/query semantics or compute-kernel surface</li>
 </ul>
 <h2 id="abi-boundary">ABI Boundary<a class="headerlink" href="#abi-boundary" title="Permanent link">&para;</a></h2>
-<p>The public ABI exposed to generated LLVM IR and native harnesses is an IRx-owned
-C ABI under <code class="language-python highlight"><span class="n">irx_arrow_</span><span class="o">*</span></code>.</p>
+<p>The public high-level abstraction is array-oriented, while the low-level ABI
+exposed to generated LLVM IR and native harnesses remains the IRx-owned Arrow C
+ABI under <code class="language-python highlight"><span class="n">irx_arrow_</span><span class="o">*</span></code>.</p>
 <p>Key rules:</p>
 <ul>
 <li>handles are opaque pointers</li>
@@ -4046,10 +4049,10 @@ runtime calls are reserved for owned or external-owner views.</p>
 <li>generic runtime-feature registry/state/linking</li>
 <li><code class="language-python highlight"><span class="n">libc</span></code> routed through the new feature system</li>
 <li>low-level <code class="language-python highlight"><span class="n">buffer</span></code> runtime feature for owner/view retain-release helpers</li>
-<li>Arrow native runtime feature with packaged nanoarrow sources</li>
+<li>builtin array runtime feature with packaged nanoarrow sources</li>
 <li>Python <code class="language-python highlight"><span class="n">nanoarrow</span></code> dependency and direct interop tests</li>
 <li>centralized Arrow runtime symbol declarations</li>
-<li>one internal Arrow lowering path: <code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">arrow</span><span class="o">.</span><span class="n">ArrowInt32ArrayLength</span></code></li>
+<li>one internal array lowering path: <code class="language-python highlight"><span class="n">irx</span><span class="o">.</span><span class="n">astx</span><span class="o">.</span><span class="n">ArrayInt32ArrayLength</span></code></li>
 <li>tests for registry behavior, IR declarations, build integration, primitive
   type coverage, nullability, move/copy ownership, and Arrow-to-buffer-view
   projection</li>
@@ -4070,7 +4073,7 @@ runtime calls are reserved for owned or external-owner views.</p>
 <p>Phase 4:</p>
 <ul>
 <li>limited native compute kernels where justified</li>
-<li>optional Arrow compute backend evaluation if the Arx layer needs it</li>
+<li>optional Arrow compute backend evaluation if a future Arx layer needs it</li>
 </ul>
 
 
