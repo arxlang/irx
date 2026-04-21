@@ -1,5 +1,5 @@
 """
-title: Arrow runtime feature declarations.
+title: Builtin array runtime feature declarations backed by Arrow.
 """
 
 from __future__ import annotations
@@ -52,9 +52,9 @@ IRX_ARROW_TYPE_BOOL = 11
 
 @typechecked
 @dataclass(frozen=True)
-class ArrowPrimitiveTypeSpec:
+class ArrayPrimitiveTypeSpec:
     """
-    title: Supported Arrow primitive storage type metadata.
+    title: Supported builtin array primitive storage type metadata.
     attributes:
       name:
         type: str
@@ -75,80 +75,80 @@ class ArrowPrimitiveTypeSpec:
     buffer_view_compatible: bool
 
 
-ARROW_PRIMITIVE_TYPE_SPECS = {
+ARRAY_PRIMITIVE_TYPE_SPECS = {
     spec.name: spec
     for spec in (
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "int8",
             IRX_ARROW_TYPE_INT8,
             BUFFER_DTYPE_INT8,
             1,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "int16",
             IRX_ARROW_TYPE_INT16,
             BUFFER_DTYPE_INT16,
             2,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "int32",
             IRX_ARROW_TYPE_INT32,
             BUFFER_DTYPE_INT32,
             4,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "int64",
             IRX_ARROW_TYPE_INT64,
             BUFFER_DTYPE_INT64,
             8,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "uint8",
             IRX_ARROW_TYPE_UINT8,
             BUFFER_DTYPE_UINT8,
             1,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "uint16",
             IRX_ARROW_TYPE_UINT16,
             BUFFER_DTYPE_UINT16,
             2,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "uint32",
             IRX_ARROW_TYPE_UINT32,
             BUFFER_DTYPE_UINT32,
             4,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "uint64",
             IRX_ARROW_TYPE_UINT64,
             BUFFER_DTYPE_UINT64,
             8,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "float32",
             IRX_ARROW_TYPE_FLOAT32,
             BUFFER_DTYPE_FLOAT32,
             4,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "float64",
             IRX_ARROW_TYPE_FLOAT64,
             BUFFER_DTYPE_FLOAT64,
             8,
             True,
         ),
-        ArrowPrimitiveTypeSpec(
+        ArrayPrimitiveTypeSpec(
             "bool",
             IRX_ARROW_TYPE_BOOL,
             BUFFER_DTYPE_BOOL,
@@ -160,14 +160,17 @@ ARROW_PRIMITIVE_TYPE_SPECS = {
 
 
 @typechecked
-def build_arrow_runtime_feature() -> RuntimeFeature:
+def _build_runtime_feature(feature_name: str) -> RuntimeFeature:
     """
-    title: Build the Arrow runtime feature specification.
+    title: Build one runtime feature specification.
+    parameters:
+      feature_name:
+        type: str
     returns:
       type: RuntimeFeature
     """
     runtime_root = Path(__file__).resolve().parent
-    native_root = runtime_root / "native"
+    native_root = (runtime_root.parent / "arrow" / "native").resolve()
     buffer_native_root = (runtime_root.parent / "buffer" / "native").resolve()
     compile_flags = ("-std=c99", "-DNANOARROW_NAMESPACE=IrxNanoarrow")
     nanoarrow_include_dir = get_include_dir()
@@ -329,17 +332,17 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
     }
 
     return RuntimeFeature(
-        name="arrow",
+        name=feature_name,
         symbols=symbols,
         artifacts=tuple(artifacts),
         metadata={
             "type_ids": {
                 name: spec.type_id
-                for name, spec in ARROW_PRIMITIVE_TYPE_SPECS.items()
+                for name, spec in ARRAY_PRIMITIVE_TYPE_SPECS.items()
             },
             "buffer_dtype_tokens": {
                 name: spec.dtype_token
-                for name, spec in ARROW_PRIMITIVE_TYPE_SPECS.items()
+                for name, spec in ARRAY_PRIMITIVE_TYPE_SPECS.items()
             },
             "supported_primitive_types": {
                 name: {
@@ -348,15 +351,27 @@ def build_arrow_runtime_feature() -> RuntimeFeature:
                     "element_size_bytes": spec.element_size_bytes,
                     "buffer_view_compatible": spec.buffer_view_compatible,
                 }
-                for name, spec in ARROW_PRIMITIVE_TYPE_SPECS.items()
+                for name, spec in ARRAY_PRIMITIVE_TYPE_SPECS.items()
             },
             "opaque_handles": {
                 "schema": "irx_arrow_schema_handle",
                 "array_builder": "irx_arrow_array_builder_handle",
                 "array": "irx_arrow_array_handle",
             },
+            "canonical_name": "array",
+            "implementation": "arrow",
         },
     )
+
+
+@typechecked
+def build_array_runtime_feature() -> RuntimeFeature:
+    """
+    title: Build the builtin array runtime feature specification.
+    returns:
+      type: RuntimeFeature
+    """
+    return _build_runtime_feature("array")
 
 
 @typechecked
@@ -527,7 +542,7 @@ def _declare_builder_new(visitor: VisitorProtocol) -> ir.Function:
         visitor._llvm.INT32_TYPE,
         [
             visitor._llvm.INT32_TYPE,
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE.as_pointer(),
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE.as_pointer(),
         ],
     )
 
@@ -547,7 +562,7 @@ def _declare_builder_append_null(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_append_null",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
             visitor._llvm.INT64_TYPE,
         ],
     )
@@ -568,7 +583,7 @@ def _declare_builder_append_int(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_append_int",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
             visitor._llvm.INT64_TYPE,
         ],
     )
@@ -589,7 +604,7 @@ def _declare_builder_append_uint(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_append_uint",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
             visitor._llvm.INT64_TYPE,
         ],
     )
@@ -610,7 +625,7 @@ def _declare_builder_append_double(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_append_double",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
             visitor._llvm.DOUBLE_TYPE,
         ],
     )
@@ -630,7 +645,7 @@ def _declare_builder_int32_new(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_builder_int32_new",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE.as_pointer()],
+        [visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE.as_pointer()],
     )
 
 
@@ -649,7 +664,7 @@ def _declare_builder_append_int32(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_append_int32",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
             visitor._llvm.INT32_TYPE,
         ],
     )
@@ -670,8 +685,8 @@ def _declare_builder_finish(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_builder_finish",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE,
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE.as_pointer(),
+            visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE,
+            visitor._llvm.ARRAY_HANDLE_TYPE.as_pointer(),
         ],
     )
 
@@ -690,7 +705,7 @@ def _declare_builder_release(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_builder_release",
         visitor._llvm.VOID_TYPE,
-        [visitor._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_BUILDER_HANDLE_TYPE],
     )
 
 
@@ -708,7 +723,7 @@ def _declare_array_length(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_length",
         visitor._llvm.INT64_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -726,7 +741,7 @@ def _declare_array_offset(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_offset",
         visitor._llvm.INT64_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -744,7 +759,7 @@ def _declare_array_null_count(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_null_count",
         visitor._llvm.INT64_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -762,7 +777,7 @@ def _declare_array_type_id(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_type_id",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -780,7 +795,7 @@ def _declare_array_is_nullable(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_is_nullable",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -800,7 +815,7 @@ def _declare_array_has_validity_bitmap(
         visitor,
         "irx_arrow_array_has_validity_bitmap",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -820,7 +835,7 @@ def _declare_array_can_borrow_buffer_view(
         visitor,
         "irx_arrow_array_can_borrow_buffer_view",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -839,7 +854,7 @@ def _declare_array_schema_copy(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_schema_copy",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE,
+            visitor._llvm.ARRAY_HANDLE_TYPE,
             _opaque_handle_type(visitor).as_pointer(),
         ],
     )
@@ -860,7 +875,7 @@ def _declare_array_export(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_export",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE,
+            visitor._llvm.ARRAY_HANDLE_TYPE,
             visitor._llvm.OPAQUE_POINTER_TYPE,
             visitor._llvm.OPAQUE_POINTER_TYPE,
         ],
@@ -884,7 +899,7 @@ def _declare_array_import_copy(visitor: VisitorProtocol) -> ir.Function:
         [
             visitor._llvm.OPAQUE_POINTER_TYPE,
             visitor._llvm.OPAQUE_POINTER_TYPE,
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE.as_pointer(),
+            visitor._llvm.ARRAY_HANDLE_TYPE.as_pointer(),
         ],
     )
 
@@ -906,7 +921,7 @@ def _declare_array_import_move(visitor: VisitorProtocol) -> ir.Function:
         [
             visitor._llvm.OPAQUE_POINTER_TYPE,
             visitor._llvm.OPAQUE_POINTER_TYPE,
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE.as_pointer(),
+            visitor._llvm.ARRAY_HANDLE_TYPE.as_pointer(),
         ],
     )
 
@@ -926,7 +941,7 @@ def _declare_array_validity_bitmap(visitor: VisitorProtocol) -> ir.Function:
         "irx_arrow_array_validity_bitmap",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE,
+            visitor._llvm.ARRAY_HANDLE_TYPE,
             visitor._llvm.OPAQUE_POINTER_TYPE.as_pointer(),
             visitor._llvm.INT64_TYPE.as_pointer(),
             visitor._llvm.INT64_TYPE.as_pointer(),
@@ -951,7 +966,7 @@ def _declare_array_borrow_buffer_view(
         "irx_arrow_array_borrow_buffer_view",
         visitor._llvm.INT32_TYPE,
         [
-            visitor._llvm.ARROW_ARRAY_HANDLE_TYPE,
+            visitor._llvm.ARRAY_HANDLE_TYPE,
             visitor._llvm.BUFFER_VIEW_TYPE.as_pointer(),
         ],
     )
@@ -971,7 +986,7 @@ def _declare_array_retain(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_retain",
         visitor._llvm.INT32_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -989,7 +1004,7 @@ def _declare_array_release(visitor: VisitorProtocol) -> ir.Function:
         visitor,
         "irx_arrow_array_release",
         visitor._llvm.VOID_TYPE,
-        [visitor._llvm.ARROW_ARRAY_HANDLE_TYPE],
+        [visitor._llvm.ARRAY_HANDLE_TYPE],
     )
 
 
@@ -1012,7 +1027,7 @@ def _declare_last_error(visitor: VisitorProtocol) -> ir.Function:
 
 
 __all__ = [
-    "ARROW_PRIMITIVE_TYPE_SPECS",
+    "ARRAY_PRIMITIVE_TYPE_SPECS",
     "IRX_ARROW_TYPE_BOOL",
     "IRX_ARROW_TYPE_FLOAT32",
     "IRX_ARROW_TYPE_FLOAT64",
@@ -1025,6 +1040,6 @@ __all__ = [
     "IRX_ARROW_TYPE_UINT32",
     "IRX_ARROW_TYPE_UINT64",
     "IRX_ARROW_TYPE_UNKNOWN",
-    "ArrowPrimitiveTypeSpec",
-    "build_arrow_runtime_feature",
+    "ArrayPrimitiveTypeSpec",
+    "build_array_runtime_feature",
 ]

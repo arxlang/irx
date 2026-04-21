@@ -31,8 +31,8 @@ from irx.buffer import (
     BUFFER_FLAG_VALIDITY_BITMAP,
 )
 from irx.builder import Builder
-from irx.builder.runtime.arrow.feature import (
-    ARROW_PRIMITIVE_TYPE_SPECS,
+from irx.builder.runtime.array.feature import (
+    ARRAY_PRIMITIVE_TYPE_SPECS,
     IRX_ARROW_TYPE_BOOL,
     IRX_ARROW_TYPE_FLOAT32,
     IRX_ARROW_TYPE_FLOAT64,
@@ -44,7 +44,7 @@ from irx.builder.runtime.arrow.feature import (
     IRX_ARROW_TYPE_UINT16,
     IRX_ARROW_TYPE_UINT32,
     IRX_ARROW_TYPE_UINT64,
-    build_arrow_runtime_feature,
+    build_array_runtime_feature,
 )
 from irx.builder.runtime.linking import (
     compile_native_artifacts,
@@ -228,9 +228,9 @@ def _find_c_compiler() -> str | None:
     return shutil.which("clang") or shutil.which("cc")
 
 
-def _arrow_length_module(values: list[int]) -> astx.Module:
+def _array_length_module(values: list[int]) -> astx.Module:
     """
-    title: Arrow length module.
+    title: Array length module.
     parameters:
       values:
         type: list[int]
@@ -244,7 +244,7 @@ def _arrow_length_module(values: list[int]) -> astx.Module:
     body = astx.Block()
     body.append(
         astx.FunctionReturn(
-            astx.ArrowInt32ArrayLength(
+            astx.ArrayInt32ArrayLength(
                 [astx.LiteralInt32(value) for value in values]
             )
         )
@@ -278,7 +278,7 @@ def _compile_arrow_harness(source: str) -> subprocess.CompletedProcess[str]:
     returns:
       type: subprocess.CompletedProcess[str]
     """
-    feature = build_arrow_runtime_feature()
+    feature = build_array_runtime_feature()
     include_dirs: list[Path] = []
     seen_include_dirs: set[Path] = set()
     for artifact in feature.artifacts:
@@ -354,7 +354,7 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
     if sys.platform == "win32":
         pytest.skip("nanoarrow interop shared-library tests require Unix")
 
-    feature = build_arrow_runtime_feature()
+    feature = build_array_runtime_feature()
     c_compiler = _find_c_compiler()
     if c_compiler is None:
         pytest.skip("a C compiler is required for Arrow runtime interop tests")
@@ -647,7 +647,7 @@ def _primitive_spec(name: str) -> tuple[int, int, bool]:
     returns:
       type: tuple[int, int, bool]
     """
-    spec = ARROW_PRIMITIVE_TYPE_SPECS[name]
+    spec = ARRAY_PRIMITIVE_TYPE_SPECS[name]
     return (
         spec.type_id,
         spec.dtype_token,
@@ -657,11 +657,11 @@ def _primitive_spec(name: str) -> tuple[int, int, bool]:
 
 def test_arrow_symbols_absent_when_unused() -> None:
     """
-    title: Arrow runtime declarations should be absent when unused.
+    title: Array runtime declarations should be absent when unused.
     """
     builder = Builder()
 
-    ir_text = builder.translate(_arrow_length_module([]))
+    ir_text = builder.translate(_array_length_module([]))
     assert "irx_arrow_array_builder_int32_new" in ir_text
 
     plain_builder = Builder()
@@ -671,10 +671,10 @@ def test_arrow_symbols_absent_when_unused() -> None:
 
 def test_arrow_length_codegen_declares_runtime_symbols() -> None:
     """
-    title: Arrow lowering should declare runtime symbols and parse as LLVM.
+    title: Array lowering should declare runtime symbols and parse as LLVM.
     """
     builder = Builder()
-    ir_text = builder.translate(_arrow_length_module([1, 2, 3]))
+    ir_text = builder.translate(_array_length_module([1, 2, 3]))
 
     llvm.parse_assembly(ir_text)
 
@@ -682,7 +682,7 @@ def test_arrow_length_codegen_declares_runtime_symbols() -> None:
         builder.translator.runtime_features.active_feature_names()
     )
 
-    assert "arrow" in active_features
+    assert "array" in active_features
     assert '@"irx_arrow_array_builder_int32_new"' in ir_text
     assert '@"irx_arrow_array_length"' in ir_text
     assert builder.translator.runtime_features.native_artifacts()
@@ -692,7 +692,7 @@ def test_arrow_feature_uses_packaged_nanoarrow_sources() -> None:
     """
     title: Arrow runtime should compile against arx-nanoarrow-sources.
     """
-    feature = build_arrow_runtime_feature()
+    feature = build_array_runtime_feature()
     native_sources = {
         artifact.path
         for artifact in feature.artifacts
@@ -712,7 +712,7 @@ def test_arrow_feature_metadata_exposes_supported_primitive_mapping() -> None:
     title: >-
       Arrow feature metadata should publish the explicit primitive mapping.
     """
-    feature = build_arrow_runtime_feature()
+    feature = build_array_runtime_feature()
     supported = cast(
         dict[str, SupportedPrimitiveMetadata],
         feature.metadata["supported_primitive_types"],
@@ -741,13 +741,13 @@ def test_arrow_feature_metadata_exposes_supported_primitive_mapping() -> None:
 def test_arrow_length_build_returns_length() -> None:
     """
     title: >-
-      Building an Arrow-backed module should link and return the array length.
+      Building an array-backed module should link and return the array length.
     """
     if shutil.which("clang") is None:
         pytest.skip("builder.build() currently requires clang")
 
     builder = Builder()
-    module = _arrow_length_module([10, 20, 30])
+    module = _array_length_module([10, 20, 30])
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_path = Path(tmp_dir) / "arrow_len"

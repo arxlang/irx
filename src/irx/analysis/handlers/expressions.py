@@ -2304,18 +2304,18 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.ArrowInt32ArrayLength) -> None:
+    def visit(self, node: astx.ArrayInt32ArrayLength) -> None:
         """
-        title: Visit ArrowInt32ArrayLength nodes.
+        title: Visit ArrayInt32ArrayLength nodes.
         parameters:
           node:
-            type: astx.ArrowInt32ArrayLength
+            type: astx.ArrayInt32ArrayLength
         """
         for item in node.values:
             self.visit(item)
             if not is_integer_type(self._expr_type(item)):
                 self.context.diagnostics.add(
-                    "Arrow helper supports only integer expressions",
+                    "Array helper supports only integer expressions",
                     node=item,
                 )
         self._set_type(node, astx.Int32())

@@ -1,5 +1,5 @@
 """
-title: IRx-owned Arrow AST nodes.
+title: IRx-owned array AST nodes.
 """
 
 from typing import cast
@@ -10,11 +10,12 @@ from irx.typecheck import typechecked
 
 
 @typechecked
-class ArrowInt32ArrayLength(astx.base.DataType):
+class ArrayInt32ArrayLength(astx.base.DataType):
     """
-    title: Internal Arrow helper AST node.
+    title: Internal array helper AST node.
     summary: >-
-      Build an Arrow int32 array using the IRx runtime, then return its length.
+      Build an int32 array using the IRx builtin array runtime, then return its
+      length.
     attributes:
       values:
         type: list[astx.AST]
@@ -27,7 +28,7 @@ class ArrowInt32ArrayLength(astx.base.DataType):
 
     def __init__(self, values: list[astx.AST]) -> None:
         """
-        title: Initialize ArrowInt32ArrayLength.
+        title: Initialize ArrayInt32ArrayLength.
         parameters:
           values:
             type: list[astx.AST]
@@ -38,19 +39,22 @@ class ArrowInt32ArrayLength(astx.base.DataType):
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
-        title: Return the structured representation of the Arrow helper.
+        title: Return the structured representation of the array helper.
         parameters:
           simplified:
             type: bool
         returns:
           type: astx.base.ReprStruct
         """
-        key = "ArrowInt32ArrayLength"
         value = cast(
             astx.base.ReprStruct,
             [item.get_struct(simplified) for item in self.values],
         )
-        return self._prepare_struct(key, value, simplified)
+        return self._prepare_struct(
+            "ArrayInt32ArrayLength",
+            value,
+            simplified,
+        )
 
 
-__all__ = ["ArrowInt32ArrayLength"]
+__all__ = ["ArrayInt32ArrayLength"]

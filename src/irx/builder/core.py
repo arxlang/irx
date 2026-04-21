@@ -786,10 +786,12 @@ class VisitorCore(BuilderVisitor):
                 self._llvm.INT32_TYPE,
             )
         self._llvm.BUFFER_VIEW_TYPE = buffer_view_type
+        self._llvm.ARRAY_BUILDER_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        self._llvm.ARRAY_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
         self._llvm.ARROW_ARRAY_BUILDER_HANDLE_TYPE = (
-            self._llvm.OPAQUE_POINTER_TYPE
+            self._llvm.ARRAY_BUILDER_HANDLE_TYPE
         )
-        self._llvm.ARROW_ARRAY_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        self._llvm.ARROW_ARRAY_HANDLE_TYPE = self._llvm.ARRAY_HANDLE_TYPE
         self._llvm.TIME_TYPE = ir.LiteralStructType(
             [
                 self._llvm.INT32_TYPE,
