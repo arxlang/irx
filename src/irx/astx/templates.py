@@ -1,8 +1,8 @@
 """
-title: IRX-owned template AST helpers.
+title: IRx-owned template AST helpers.
 summary: >-
   Provide semantic-facing template metadata for compile-time specialization
-  without requiring parser-level syntax support inside IRX.
+  without requiring parser-level syntax support inside IRx.
 """
 
 from __future__ import annotations

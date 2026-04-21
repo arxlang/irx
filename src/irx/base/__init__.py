@@ -1,3 +1,3 @@
 """
-title: Shared foundational infrastructure for IRX.
+title: Shared foundational infrastructure for IRx.
 """
