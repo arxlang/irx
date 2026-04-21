@@ -9,6 +9,18 @@ from typing import Any
 import astx as _upstream_astx
 
 from irx.astx.array import ArrayInt32ArrayLength as ArrayInt32ArrayLength
+from irx.astx.array import NdarrayByteOffset as NdarrayByteOffset
+from irx.astx.array import NdarrayElementCount as NdarrayElementCount
+from irx.astx.array import NdarrayIndex as NdarrayIndex
+from irx.astx.array import NdarrayLiteral as NdarrayLiteral
+from irx.astx.array import NdarrayNdim as NdarrayNdim
+from irx.astx.array import NdarrayRelease as NdarrayRelease
+from irx.astx.array import NdarrayRetain as NdarrayRetain
+from irx.astx.array import NdarrayShape as NdarrayShape
+from irx.astx.array import NdarrayStore as NdarrayStore
+from irx.astx.array import NdarrayStride as NdarrayStride
+from irx.astx.array import NdarrayType as NdarrayType
+from irx.astx.array import NdarrayView as NdarrayView
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA as SPECIALIZED_BINARY_OP_EXTRA,
 )
@@ -161,6 +173,18 @@ __all__ = (
     "MulBinOp",
     "NamespaceKind",
     "NamespaceType",
+    "NdarrayByteOffset",
+    "NdarrayElementCount",
+    "NdarrayIndex",
+    "NdarrayLiteral",
+    "NdarrayNdim",
+    "NdarrayRelease",
+    "NdarrayRetain",
+    "NdarrayShape",
+    "NdarrayStore",
+    "NdarrayStride",
+    "NdarrayType",
+    "NdarrayView",
     "NeBinOp",
     "OpaqueHandleType",
     "PointerType",

@@ -117,6 +117,13 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             else None
         )
         return astx.BufferViewType(element_type)
+    if isinstance(type_, astx.NdarrayType):
+        element_type = (
+            clone_type(type_.element_type)
+            if type_.element_type is not None
+            else None
+        )
+        return astx.NdarrayType(element_type)
     return type_.__class__()
 
 
@@ -158,6 +165,10 @@ def display_type_name(type_: astx.DataType | None) -> str:
         if type_.element_type is None:
             return "BufferViewType"
         return f"BufferViewType[{display_type_name(type_.element_type)}]"
+    if isinstance(type_, astx.NdarrayType):
+        if type_.element_type is None:
+            return "NdarrayType"
+        return f"NdarrayType[{display_type_name(type_.element_type)}]"
     return str(type_.__class__.__name__)
 
 
@@ -218,6 +229,13 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
     if isinstance(lhs, astx.BufferViewType) and isinstance(
         rhs,
         astx.BufferViewType,
+    ):
+        if lhs.element_type is None or rhs.element_type is None:
+            return True
+        return same_type(lhs.element_type, rhs.element_type)
+    if isinstance(lhs, astx.NdarrayType) and isinstance(
+        rhs,
+        astx.NdarrayType,
     ):
         if lhs.element_type is None or rhs.element_type is None:
             return True

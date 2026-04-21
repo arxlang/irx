@@ -245,6 +245,16 @@ inspection, C Data interop, and a conservative buffer/view bridge. Arrow stays
 an implementation and interoperability detail. IRx still does not encode
 dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.
 
+On top of that substrate, IRx now exposes an internal ndarray layer for
+multidimensional values:
+
+- storage still lives in the builtin Arrow-backed array runtime
+- layout still lives in the canonical `irx_buffer_view` metadata
+- ndarray lowering adds rank, shape, stride, offset, indexing, and shallow view
+  semantics without introducing a second memory model
+- current ndarray support is limited to fixed-width numeric element types and
+  readonly Arrow-backed storage
+
 ## Scalar Numeric Semantics
 
 IRx now treats scalar numerics as a stable substrate instead of an ad hoc

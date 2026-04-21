@@ -116,6 +116,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             (
                 astx.StructType,
                 astx.BufferViewType,
+                astx.NdarrayType,
                 astx.PointerType,
                 astx.OpaqueHandleType,
                 astx.BufferOwnerType,
