@@ -261,7 +261,7 @@ Implemented in this phase:
 - builtin array runtime feature with packaged nanoarrow sources
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
-- one internal array lowering path: `irx.array.ArrayInt32ArrayLength`
+- one internal array lowering path: `irx.astx.ArrayInt32ArrayLength`
 - tests for registry behavior, IR declarations, build integration, primitive
   type coverage, nullability, move/copy ownership, and Arrow-to-buffer-view
   projection
