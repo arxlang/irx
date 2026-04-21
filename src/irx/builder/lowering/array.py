@@ -87,11 +87,4 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.result_stack.append(length_i32)
 
 
-@typechecked
-class ArrowVisitorMixin(ArrayVisitorMixin):
-    """
-    title: Compatibility alias for ArrayVisitorMixin.
-    """
-
-
-__all__ = ["ArrayVisitorMixin", "ArrowVisitorMixin"]
+__all__ = ["ArrayVisitorMixin"]

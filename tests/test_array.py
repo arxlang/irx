@@ -33,22 +33,9 @@ def test_array_int32_array_length_get_struct_shapes() -> None:
     ]
 
 
-def test_arrow_alias_preserves_legacy_struct_key() -> None:
+def test_array_helper_lowers_through_array_runtime() -> None:
     """
-    title: Legacy Arrow helper aliases should remain available.
-    """
-    node = astx.ArrowInt32ArrayLength([astx.LiteralInt32(1)])
-
-    full = node.get_struct()
-
-    assert isinstance(full, dict)
-    assert "ArrowInt32ArrayLength" in full
-
-
-def test_arrow_alias_still_lowers_through_array_runtime() -> None:
-    """
-    title: >-
-      Legacy Arrow helper aliases should still lower through the array runtime.
+    title: Array helper should lower through the array runtime.
     """
     builder = Builder()
     module = astx.Module()
@@ -57,7 +44,7 @@ def test_arrow_alias_still_lowers_through_array_runtime() -> None:
     )
     body = astx.Block()
     body.append(
-        astx.FunctionReturn(astx.ArrowInt32ArrayLength([astx.LiteralInt32(1)]))
+        astx.FunctionReturn(astx.ArrayInt32ArrayLength([astx.LiteralInt32(1)]))
     )
     module.block.append(astx.FunctionDef(prototype=main_proto, body=body))
 

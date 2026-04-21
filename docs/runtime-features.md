@@ -45,7 +45,6 @@ when needed.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `array` Declares the builtin array runtime surface and links the Arrow-backed
   native implementation.
-- `arrow` Remains available as a compatibility alias for older feature names.
 
 The builder and visitor cooperate as follows:
 

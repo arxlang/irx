@@ -23,8 +23,6 @@ class ArrayInt32ArrayLength(astx.base.DataType):
         type: astx.Int32
     """
 
-    _struct_key = "ArrayInt32ArrayLength"
-
     values: list[astx.AST]
     type_: astx.Int32
 
@@ -52,24 +50,11 @@ class ArrayInt32ArrayLength(astx.base.DataType):
             astx.base.ReprStruct,
             [item.get_struct(simplified) for item in self.values],
         )
-        return self._prepare_struct(self._struct_key, value, simplified)
+        return self._prepare_struct(
+            "ArrayInt32ArrayLength",
+            value,
+            simplified,
+        )
 
 
-@typechecked
-class ArrowInt32ArrayLength(ArrayInt32ArrayLength):
-    """
-    title: Compatibility alias for ArrayInt32ArrayLength.
-    summary: >-
-      Preserve the legacy Arrow-oriented helper name while the canonical IRx
-      abstraction is array-oriented.
-    attributes:
-      values:
-        type: list[astx.AST]
-      type_:
-        type: astx.Int32
-    """
-
-    _struct_key = "ArrowInt32ArrayLength"
-
-
-__all__ = ["ArrayInt32ArrayLength", "ArrowInt32ArrayLength"]
+__all__ = ["ArrayInt32ArrayLength"]

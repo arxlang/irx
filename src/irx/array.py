@@ -1,7 +1,7 @@
 """
-title: Compatibility exports for IRx array AST nodes.
+title: IRx array AST exports.
 """
 
-from irx.astx.array import ArrayInt32ArrayLength, ArrowInt32ArrayLength
+from irx.astx.array import ArrayInt32ArrayLength
 
-__all__ = ["ArrayInt32ArrayLength", "ArrowInt32ArrayLength"]
+__all__ = ["ArrayInt32ArrayLength"]

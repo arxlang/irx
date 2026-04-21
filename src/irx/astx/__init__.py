@@ -9,7 +9,6 @@ from typing import Any
 import astx as _upstream_astx
 
 from irx.astx.array import ArrayInt32ArrayLength as ArrayInt32ArrayLength
-from irx.astx.array import ArrowInt32ArrayLength as ArrowInt32ArrayLength
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA as SPECIALIZED_BINARY_OP_EXTRA,
 )
@@ -128,7 +127,6 @@ __all__ = (
     "SPECIALIZED_BINARY_OP_EXTRA",
     "AddBinOp",
     "ArrayInt32ArrayLength",
-    "ArrowInt32ArrayLength",
     "AssertStmt",
     "AssignmentBinOp",
     "BaseFieldAccess",

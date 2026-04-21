@@ -198,7 +198,6 @@ def test_print_expr_uses_libc_feature_without_array_runtime() -> None:
 
     assert "libc" in active_features
     assert "array" not in active_features
-    assert "arrow" not in active_features
     assert '@"puts"' in ir_text
     assert '@"snprintf"' in ir_text
 
