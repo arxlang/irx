@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+# [1.14.0](https://github.com/arxlang/irx/compare/1.13.0...1.14.0) (2026-04-21)
+
+
+### Features
+
+* Set arrow as builtin backend for arrays ([#304](https://github.com/arxlang/irx/issues/304)) ([6bf5e3f](https://github.com/arxlang/irx/commit/6bf5e3f42c2377126575a15906d6b78a4311db32))
+
 # [1.13.0](https://github.com/arxlang/irx/compare/1.12.0...1.13.0) (2026-04-20)
 
 
