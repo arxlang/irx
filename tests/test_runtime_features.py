@@ -175,9 +175,9 @@ def test_runtime_feature_state_collects_only_active_artifacts() -> None:
     assert [artifact.path for artifact in artifacts] == [Path("/tmp/b.c")]
 
 
-def test_print_expr_uses_libc_feature_without_arrow() -> None:
+def test_print_expr_uses_libc_feature_without_array_runtime() -> None:
     """
-    title: PrintExpr should activate libc without pulling in Arrow.
+    title: PrintExpr should activate libc without pulling in the array runtime.
     """
     builder = Builder()
     module = astx.Module()
@@ -197,6 +197,7 @@ def test_print_expr_uses_libc_feature_without_arrow() -> None:
     )
 
     assert "libc" in active_features
+    assert "array" not in active_features
     assert "arrow" not in active_features
     assert '@"puts"' in ir_text
     assert '@"snprintf"' in ir_text

@@ -70,6 +70,8 @@ class VariablesLLVM:
     OPAQUE_POINTER_TYPE: ir.types.Type
     BUFFER_OWNER_HANDLE_TYPE: ir.types.Type
     BUFFER_VIEW_TYPE: ir.types.Type
+    ARRAY_BUILDER_HANDLE_TYPE: ir.types.Type
+    ARRAY_HANDLE_TYPE: ir.types.Type
     ARROW_ARRAY_BUILDER_HANDLE_TYPE: ir.types.Type
     ARROW_ARRAY_HANDLE_TYPE: ir.types.Type
 

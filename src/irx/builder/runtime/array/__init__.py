@@ -1,8 +1,8 @@
 """
-title: Arrow-backed runtime feature compatibility exports for IRx.
+title: Canonical array runtime feature support for IRx.
 """
 
-from irx.builder.runtime.arrow.feature import (
+from irx.builder.runtime.array.feature import (
     ARRAY_PRIMITIVE_TYPE_SPECS,
     ARROW_PRIMITIVE_TYPE_SPECS,
     build_array_runtime_feature,

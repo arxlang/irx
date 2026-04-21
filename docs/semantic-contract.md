@@ -745,10 +745,11 @@ Runtime/native lifetime operations are feature-gated behind the `buffer` runtime
 feature. Plain descriptors do not pull native helper symbols into a module
 unless a helper is used.
 
-## Arrow Runtime Interop Contract
+## Array Runtime Interop Contract
 
-IRx exposes Arrow as one optional runtime feature and FFI-owned ABI surface. It
-is not a first-class language container model.
+IRx exposes arrays through a builtin runtime surface backed by Arrow. The
+high-level abstraction is array-oriented; the low-level FFI ABI remains
+Arrow-specific. It is not a first-class language container model.
 
 Stable scope in this phase:
 

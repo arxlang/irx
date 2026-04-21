@@ -17,7 +17,7 @@ via `clang`.
   ([`plum`](https://github.com/beartype/plum)).
 - **Back end:** IR construction and object emission with [llvmlite].
 - **Native build:** links with `clang` to produce an executable.
-- **Optional runtime features:** native capabilities are feature-gated per
+- **On-demand runtime features:** native capabilities are activated per
   compilation unit instead of being linked into every binary.
 - **PIE-friendly objects:** emits PIC-compatible objects by default to work with
   modern PIE-default linkers.
@@ -38,10 +38,10 @@ via `clang`.
 
 - **Built-ins:** `putchar`, `putchard` (emitted as IR); `puts` declaration when
   needed.
-- **Optional native runtimes:** `libc` externs are routed through the runtime
+- **Native runtime features:** `libc` externs are routed through the runtime
   feature layer, feature-backed externs can request `libm`, the fatal assertion
-  helper is linked on demand through `assertions`, and Arrow is now available as
-  an optional native runtime feature.
+  helper is linked on demand through `assertions`, and IRx ships a builtin array
+  runtime backed by Arrow for low-level array/interoperability work.
 - **Low-level classes:** pointer-based class objects with deterministic C3 MRO,
   multiple inheritance, dispatch metadata, static globals, access control, and
   explicit construction/member-access forms.
@@ -206,12 +206,12 @@ runtime contract can land independently. ASTx/Arx can still converge on the
 final shared surface later without changing the machine-readable failure
 protocol introduced here.
 
-### Optional Runtime Features
+### Runtime Features
 
 IRx now has a generic runtime-feature system for native integrations that do not
 belong as handwritten LLVM container logic.
 
-- Features are registered by name, such as `libc`, `libm`, and `arrow`.
+- Features are registered by name, such as `libc`, `libm`, and `array`.
 - Features can declare external symbols, native C sources, objects, or static
   libraries.
 - The linker only compiles and links artifacts for features that are active in
@@ -226,8 +226,9 @@ Public extern declarations integrate with the same layer:
 - known feature-owned symbols are declared through the runtime registry instead
   of a separate ad hoc native path
 
-Arrow uses this path as its first substantial consumer:
+The builtin array runtime uses this path as its first substantial consumer:
 
+- canonical Python exports under `src/irx/builder/runtime/array/`
 - native runtime implemented in C under `src/irx/builder/runtime/arrow/`
 - opaque `irx_arrow_*` handles for schemas, builders, and arrays
 - Arrow C Data import/export boundary with explicit copy and move/adopt import
@@ -239,8 +240,9 @@ Arrow uses this path as its first substantial consumer:
 - Python `nanoarrow` installed by default for interop and tests
 - `arx-nanoarrow-sources` installed by default for native runtime builds
 
-The Arrow layer remains intentionally low-level: handles, lifecycle, inspection,
-C Data interop, and a conservative buffer/view bridge. IRx still does not encode
+The builtin array layer remains intentionally low-level: handles, lifecycle,
+inspection, C Data interop, and a conservative buffer/view bridge. Arrow stays
+an implementation and interoperability detail. IRx still does not encode
 dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.
 
 ## Scalar Numeric Semantics
@@ -425,8 +427,8 @@ def test_binary_op_basic():
 - Optimization toggles/passes.
 - Alternative backends and/or JIT runner.
 - Better diagnostics and source locations in IR.
-- Expand optional [Apache Arrow](https://arrow.apache.org/) runtime support:
-  streams, variable-width primitives, and higher-level interop handles.
+- Expand builtin array/[Apache Arrow](https://arrow.apache.org/) runtime
+  support: streams, variable-width primitives, and higher-level interop handles.
 
 ## Contributing
 

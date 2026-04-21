@@ -16,8 +16,8 @@ way to:
 - keep native runtime ownership rules outside the LLVM IR middle-end
 
 This runtime-feature layer keeps IRx focused on lowering while allowing Arx to
-grow optional native integrations later. It is also the public native-dependency
-side of IRx's stable FFI contract.
+grow additional native integrations later. It is also the public
+native-dependency side of IRx's stable FFI contract.
 
 ## Architecture
 
@@ -29,20 +29,23 @@ The runtime stack is layered in four parts:
    activation/declarations for one LLVM module.
 3. `irx.builder.runtime.linking` Compiles native C sources and links optional
    objects only for active features.
-4. Feature packages such as `libc` and `arrow` Consume the generic system
+4. Feature packages such as `libc` and `array` Consume the generic system
    without special cases in the builder.
 
 ## Activation Model
 
-Runtime features are named, optional, and per-compilation-unit.
+Runtime features are named and activated per compilation unit. The builtin array
+runtime is packaged with IRx even though its native artifacts are linked only
+when needed.
 
 - `libc` Declares symbols such as `puts`, `malloc`, and `snprintf`.
 - `assertions` Declares `__arx_assert_fail(...)` and links the native fatal
   assertion helper that emits machine-readable stderr reports.
 - `libm` Declares math symbols such as `sqrt` and contributes `-lm`.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
-- `arrow` Declares the IRx-owned Arrow runtime ABI and links the native Arrow
-  runtime.
+- `array` Declares the builtin array runtime surface and links the Arrow-backed
+  native implementation.
+- `arrow` Remains available as a compatibility alias for older feature names.
 
 The builder and visitor cooperate as follows:
 
@@ -55,7 +58,7 @@ The builder and visitor cooperate as follows:
 - inactive features contribute nothing to the link command
 
 This is intentionally separate from any future language-level import or module
-system. A future Arx `std.arrow` layer can decide when to activate `arrow`, but
+system. A future Arx array-facing layer can decide when to activate `array`, but
 the native integration remains owned by IRx.
 
 ## Extern Declarations And Feature-Backed Linking
@@ -78,7 +81,7 @@ Example split:
 - plain `puts` extern: system linker resolution only
 - `sqrt` extern with `runtime_feature = "libm"`: LLVM declaration plus the
   `libm` feature's `-lm` linker flag
-- Arrow helpers: IRx-owned nodes imply the `arrow` feature and its packaged
+- Array helpers: IRx-owned nodes imply the `array` feature and its packaged
   native runtime
 
 ## External Symbols
@@ -102,8 +105,8 @@ difference now is that runtime features may add native artifacts such as:
 - prebuilt objects
 - static libraries
 
-The current Arrow feature uses C sources only, which keeps the build path
-reproducible on Linux and macOS without introducing dynamic loading.
+The current builtin array runtime uses C sources only, which keeps the build
+path reproducible on Linux and macOS without introducing dynamic loading.
 
 ## Assertion Failure Reporting
 
@@ -123,12 +126,12 @@ delimiters before printing so the report always remains one physical line. The
 source field uses the analyzed module display name when available and otherwise
 falls back to the module name stored in the AST.
 
-## Arrow As A Runtime Feature
+## Builtin Array Runtime
 
-Arrow support is implemented as an optional native runtime, not as handwritten
-LLVM IR container logic.
+IRx array support is implemented as a builtin native runtime backed by Arrow,
+not as handwritten LLVM IR container logic.
 
-Current Arrow substrate:
+Current array substrate:
 
 - opaque runtime handles for schemas, array builders, and arrays
 - supported primitive storage types: `int8`, `int16`, `int32`, `int64`, `uint8`,
@@ -151,8 +154,9 @@ What IRx does not do here:
 
 ## ABI Boundary
 
-The public ABI exposed to generated LLVM IR and native harnesses is an IRx-owned
-C ABI under `irx_arrow_*`.
+The public high-level abstraction is array-oriented, while the low-level ABI
+exposed to generated LLVM IR and native harnesses remains the IRx-owned Arrow C
+ABI under `irx_arrow_*`.
 
 Key rules:
 
@@ -255,10 +259,10 @@ Implemented in this phase:
 - generic runtime-feature registry/state/linking
 - `libc` routed through the new feature system
 - low-level `buffer` runtime feature for owner/view retain-release helpers
-- Arrow native runtime feature with packaged nanoarrow sources
+- builtin array runtime feature with packaged nanoarrow sources
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
-- one internal Arrow lowering path: `irx.arrow.ArrowInt32ArrayLength`
+- one internal array lowering path: `irx.array.ArrayInt32ArrayLength`
 - tests for registry behavior, IR declarations, build integration, primitive
   type coverage, nullability, move/copy ownership, and Arrow-to-buffer-view
   projection
@@ -280,4 +284,4 @@ Phase 3:
 Phase 4:
 
 - limited native compute kernels where justified
-- optional Arrow compute backend evaluation if the Arx layer needs it
+- optional Arrow compute backend evaluation if a future Arx layer needs it
