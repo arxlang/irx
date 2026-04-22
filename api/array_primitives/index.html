@@ -8,31 +8,31 @@
       
       
       
-        <link rel="canonical" href="https://irx.arxlang.org/api/analysis/handlers/expressions/">
+        <link rel="canonical" href="https://irx.arxlang.org/api/array_primitives/">
       
       
-        <link rel="prev" href="../declarations/">
+        <link rel="prev" href="../array/">
       
       
-        <link rel="next" href="../imports/">
+        <link rel="next" href="../astx/">
       
       
         
       
       
-      <link rel="icon" href="../../../../images/favicon.ico">
+      <link rel="icon" href="../../images/favicon.ico">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
-        <title>expressions - IRx</title>
+        <title>array_primitives - IRx</title>
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#irx.analysis.handlers.expressions" class="md-skip">
+        <a href="#irx.array_primitives" class="md-skip">
           Skip to content
         </a>
       
@@ -94,9 +94,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../.." title="IRx" class="md-header__button md-logo" aria-label="IRx" data-md-component="logo">
+    <a href="../.." title="IRx" class="md-header__button md-logo" aria-label="IRx" data-md-component="logo">
       
-  <img src="../../../../images/logo.png" alt="logo">
+  <img src="../../images/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> expressions
+              <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array_primitives
             
           </span>
         </div>
@@ -236,9 +236,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../.." title="IRx" class="md-nav__button md-logo" aria-label="IRx" data-md-component="logo">
+    <a href="../.." title="IRx" class="md-nav__button md-logo" aria-label="IRx" data-md-component="logo">
       
-  <img src="../../../../images/logo.png" alt="logo">
+  <img src="../../images/logo.png" alt="logo">
 
     </a>
     IRx
@@ -265,7 +265,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -292,7 +292,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   
@@ -319,7 +319,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -346,7 +346,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../semantic-contract/" class="md-nav__link">
+      <a href="../../semantic-contract/" class="md-nav__link">
         
   
   
@@ -373,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../buffer-view-model/" class="md-nav__link">
+      <a href="../../buffer-view-model/" class="md-nav__link">
         
   
   
@@ -400,7 +400,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../changelog/" class="md-nav__link">
+      <a href="../../changelog/" class="md-nav__link">
         
   
   
@@ -427,7 +427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -549,7 +549,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -590,8 +590,6 @@
                 
   
   
-    
-  
   
   
     
@@ -643,15 +641,15 @@
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
+            <a href="../analysis/" class="md-nav__link ">
               
   
   
@@ -675,7 +673,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_1_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8_1_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -695,7 +693,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../analyzer/" class="md-nav__link">
+      <a href="../analysis/analyzer/" class="md-nav__link">
         
   
   
@@ -723,7 +721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../analysis/api/" class="md-nav__link">
         
   
   
@@ -751,7 +749,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../bindings/" class="md-nav__link">
+      <a href="../analysis/bindings/" class="md-nav__link">
         
   
   
@@ -779,7 +777,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../context/" class="md-nav__link">
+      <a href="../analysis/context/" class="md-nav__link">
         
   
   
@@ -807,7 +805,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contract/" class="md-nav__link">
+      <a href="../analysis/contract/" class="md-nav__link">
         
   
   
@@ -835,7 +833,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../factories/" class="md-nav__link">
+      <a href="../analysis/factories/" class="md-nav__link">
         
   
   
@@ -863,7 +861,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ffi/" class="md-nav__link">
+      <a href="../analysis/ffi/" class="md-nav__link">
         
   
   
@@ -888,8 +886,6 @@
                 
   
   
-    
-  
   
   
     
@@ -915,15 +911,15 @@
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1_2_9" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../analysis/handlers/" class="md-nav__link ">
               
   
   
@@ -947,7 +943,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_2_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_8_1_2_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8_1_2_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -967,7 +963,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../base/" class="md-nav__link">
+      <a href="../analysis/handlers/base/" class="md-nav__link">
         
   
   
@@ -995,7 +991,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../control_flow/" class="md-nav__link">
+      <a href="../analysis/handlers/control_flow/" class="md-nav__link">
         
   
   
@@ -1023,7 +1019,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../declarations/" class="md-nav__link">
+      <a href="../analysis/handlers/declarations/" class="md-nav__link">
         
   
   
@@ -1031,6 +1027,442 @@
     
   
     <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> declarations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/handlers/expressions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> expressions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/handlers/imports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/handlers/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/module_interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/module_symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/normalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/resolved_nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> resolved_nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/scopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> scopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> session
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/symbols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/typing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../array/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
   
 
     
@@ -1067,7 +1499,7 @@
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> expressions
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array_primitives
   
 
     
@@ -1085,7 +1517,7 @@
   <span class="md-ellipsis">
     
   
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> expressions
+    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array_primitives
   
 
     
@@ -1111,30 +1543,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin" class="md-nav__link">
+  <a href="#irx.array_primitives.ArrayPrimitiveTypeSpec" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ExpressionVisitorMixin
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ArrayPrimitiveTypeSpec
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label=" ExpressionVisitorMixin">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;visit
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1142,442 +1557,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../imports/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> imports
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../templates/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> templates
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../module_interfaces/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_interfaces
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../module_symbols/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> module_symbols
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../normalization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> normalization
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../registry/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> registry
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolved_nodes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> resolved_nodes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../scopes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> scopes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../session/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> session
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../symbols/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> symbols
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../types/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> types
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../typing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> typing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../validation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> validation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../array/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../array_primitives/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    <code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> array_primitives
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1630,7 +1609,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../astx/" class="md-nav__link ">
+            <a href="../astx/" class="md-nav__link ">
               
   
   
@@ -1674,7 +1653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/array/" class="md-nav__link">
+      <a href="../astx/array/" class="md-nav__link">
         
   
   
@@ -1702,7 +1681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/binary_op/" class="md-nav__link">
+      <a href="../astx/binary_op/" class="md-nav__link">
         
   
   
@@ -1730,7 +1709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/buffer/" class="md-nav__link">
+      <a href="../astx/buffer/" class="md-nav__link">
         
   
   
@@ -1758,7 +1737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/classes/" class="md-nav__link">
+      <a href="../astx/classes/" class="md-nav__link">
         
   
   
@@ -1786,7 +1765,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/ffi/" class="md-nav__link">
+      <a href="../astx/ffi/" class="md-nav__link">
         
   
   
@@ -1814,7 +1793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/modules/" class="md-nav__link">
+      <a href="../astx/modules/" class="md-nav__link">
         
   
   
@@ -1842,7 +1821,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/structs/" class="md-nav__link">
+      <a href="../astx/structs/" class="md-nav__link">
         
   
   
@@ -1870,7 +1849,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/symbol_table/" class="md-nav__link">
+      <a href="../astx/symbol_table/" class="md-nav__link">
         
   
   
@@ -1898,7 +1877,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/system/" class="md-nav__link">
+      <a href="../astx/system/" class="md-nav__link">
         
   
   
@@ -1926,7 +1905,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/templates/" class="md-nav__link">
+      <a href="../astx/templates/" class="md-nav__link">
         
   
   
@@ -1954,7 +1933,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../astx/types/" class="md-nav__link">
+      <a href="../astx/types/" class="md-nav__link">
         
   
   
@@ -2010,7 +1989,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../base/" class="md-nav__link ">
+            <a href="../base/" class="md-nav__link ">
               
   
   
@@ -2076,7 +2055,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../base/visitors/" class="md-nav__link ">
+            <a href="../base/visitors/" class="md-nav__link ">
               
   
   
@@ -2120,7 +2099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../base/visitors/base/" class="md-nav__link">
+      <a href="../base/visitors/base/" class="md-nav__link">
         
   
   
@@ -2148,7 +2127,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../base/visitors/protocols/" class="md-nav__link">
+      <a href="../base/visitors/protocols/" class="md-nav__link">
         
   
   
@@ -2192,7 +2171,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../buffer/" class="md-nav__link">
+      <a href="../buffer/" class="md-nav__link">
         
   
   
@@ -2262,7 +2241,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/" class="md-nav__link ">
+            <a href="../builder/" class="md-nav__link ">
               
   
   
@@ -2306,7 +2285,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/backend/" class="md-nav__link">
+      <a href="../builder/backend/" class="md-nav__link">
         
   
   
@@ -2334,7 +2313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/base/" class="md-nav__link">
+      <a href="../builder/base/" class="md-nav__link">
         
   
   
@@ -2362,7 +2341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/casting/" class="md-nav__link">
+      <a href="../builder/casting/" class="md-nav__link">
         
   
   
@@ -2390,7 +2369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/core/" class="md-nav__link">
+      <a href="../builder/core/" class="md-nav__link">
         
   
   
@@ -2418,7 +2397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/diagnostics/" class="md-nav__link">
+      <a href="../builder/diagnostics/" class="md-nav__link">
         
   
   
@@ -2486,7 +2465,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/lowering/" class="md-nav__link ">
+            <a href="../builder/lowering/" class="md-nav__link ">
               
   
   
@@ -2530,7 +2509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/array/" class="md-nav__link">
+      <a href="../builder/lowering/array/" class="md-nav__link">
         
   
   
@@ -2558,7 +2537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/binary_ops/" class="md-nav__link">
+      <a href="../builder/lowering/binary_ops/" class="md-nav__link">
         
   
   
@@ -2586,7 +2565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/buffer/" class="md-nav__link">
+      <a href="../builder/lowering/buffer/" class="md-nav__link">
         
   
   
@@ -2614,7 +2593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/control_flow/" class="md-nav__link">
+      <a href="../builder/lowering/control_flow/" class="md-nav__link">
         
   
   
@@ -2642,7 +2621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/functions/" class="md-nav__link">
+      <a href="../builder/lowering/functions/" class="md-nav__link">
         
   
   
@@ -2670,7 +2649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/literals/" class="md-nav__link">
+      <a href="../builder/lowering/literals/" class="md-nav__link">
         
   
   
@@ -2698,7 +2677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/modules/" class="md-nav__link">
+      <a href="../builder/lowering/modules/" class="md-nav__link">
         
   
   
@@ -2726,7 +2705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/system/" class="md-nav__link">
+      <a href="../builder/lowering/system/" class="md-nav__link">
         
   
   
@@ -2754,7 +2733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/temporal/" class="md-nav__link">
+      <a href="../builder/lowering/temporal/" class="md-nav__link">
         
   
   
@@ -2782,7 +2761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/unary_ops/" class="md-nav__link">
+      <a href="../builder/lowering/unary_ops/" class="md-nav__link">
         
   
   
@@ -2810,7 +2789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/lowering/variables/" class="md-nav__link">
+      <a href="../builder/lowering/variables/" class="md-nav__link">
         
   
   
@@ -2846,7 +2825,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/protocols/" class="md-nav__link">
+      <a href="../builder/protocols/" class="md-nav__link">
         
   
   
@@ -2908,7 +2887,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/" class="md-nav__link ">
+            <a href="../builder/runtime/" class="md-nav__link ">
               
   
   
@@ -2972,7 +2951,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/array/" class="md-nav__link ">
+            <a href="../builder/runtime/array/" class="md-nav__link ">
               
   
   
@@ -3016,7 +2995,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/array/feature/" class="md-nav__link">
+      <a href="../builder/runtime/array/feature/" class="md-nav__link">
         
   
   
@@ -3074,7 +3053,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/assertions/" class="md-nav__link ">
+            <a href="../builder/runtime/assertions/" class="md-nav__link ">
               
   
   
@@ -3118,7 +3097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/assertions/feature/" class="md-nav__link">
+      <a href="../builder/runtime/assertions/feature/" class="md-nav__link">
         
   
   
@@ -3146,7 +3125,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/assertions/reporting/" class="md-nav__link">
+      <a href="../builder/runtime/assertions/reporting/" class="md-nav__link">
         
   
   
@@ -3202,7 +3181,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../builder/runtime/buffer/" class="md-nav__link ">
+            <a href="../builder/runtime/buffer/" class="md-nav__link ">
               
   
   
@@ -3246,7 +3225,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/buffer/feature/" class="md-nav__link">
+      <a href="../builder/runtime/buffer/feature/" class="md-nav__link">
         
   
   
@@ -3282,7 +3261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/feature_libc/" class="md-nav__link">
+      <a href="../builder/runtime/feature_libc/" class="md-nav__link">
         
   
   
@@ -3310,7 +3289,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/feature_libm/" class="md-nav__link">
+      <a href="../builder/runtime/feature_libm/" class="md-nav__link">
         
   
   
@@ -3338,7 +3317,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/features/" class="md-nav__link">
+      <a href="../builder/runtime/features/" class="md-nav__link">
         
   
   
@@ -3366,7 +3345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/linking/" class="md-nav__link">
+      <a href="../builder/runtime/linking/" class="md-nav__link">
         
   
   
@@ -3394,7 +3373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/runtime/registry/" class="md-nav__link">
+      <a href="../builder/runtime/registry/" class="md-nav__link">
         
   
   
@@ -3430,7 +3409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/state/" class="md-nav__link">
+      <a href="../builder/state/" class="md-nav__link">
         
   
   
@@ -3458,7 +3437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/strings/" class="md-nav__link">
+      <a href="../builder/strings/" class="md-nav__link">
         
   
   
@@ -3486,7 +3465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/types/" class="md-nav__link">
+      <a href="../builder/types/" class="md-nav__link">
         
   
   
@@ -3514,7 +3493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../builder/vector/" class="md-nav__link">
+      <a href="../builder/vector/" class="md-nav__link">
         
   
   
@@ -3550,7 +3529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../diagnostics/" class="md-nav__link">
+      <a href="../diagnostics/" class="md-nav__link">
         
   
   
@@ -3578,7 +3557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../symbol_table/" class="md-nav__link">
+      <a href="../symbol_table/" class="md-nav__link">
         
   
   
@@ -3606,7 +3585,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../system/" class="md-nav__link">
+      <a href="../system/" class="md-nav__link">
         
   
   
@@ -3634,7 +3613,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../typecheck/" class="md-nav__link">
+      <a href="../typecheck/" class="md-nav__link">
         
   
   
@@ -3728,7 +3707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../tutorials/get-started/" class="md-nav__link">
+      <a href="../../tutorials/get-started/" class="md-nav__link">
         
   
   
@@ -3783,30 +3762,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin" class="md-nav__link">
+  <a href="#irx.array_primitives.ArrayPrimitiveTypeSpec" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ExpressionVisitorMixin
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ArrayPrimitiveTypeSpec
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label=" ExpressionVisitorMixin">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;visit
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3834,16 +3796,16 @@
 
 
 
-<h1 id="irx.analysis.handlers.expressions" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">expressions</span>
+<h1 id="irx.array_primitives" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">array_primitives</span>
 
 
-<a href="#irx.analysis.handlers.expressions" class="headerlink" title="Permanent link">&para;</a></h1>
+<a href="#irx.array_primitives" class="headerlink" title="Permanent link">&para;</a></h1>
 
     <div class="doc doc-contents first">
 
-        <p>Resolve lexical identifiers, visible function names, and expression typing
-  rules while delegating reusable registration and binding logic elsewhere.</p>
+        <p>Define stable primitive type metadata shared by the builtin Arrow-backed
+  array runtime and higher-level NDArray helpers.</p>
 
 
 
@@ -3857,7 +3819,12 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="            ExpressionVisitorMixin (irx.analysis.handlers.expressions.ExpressionVisitorMixin)" href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin">ExpressionVisitorMixin</a></code></b>
+          <b><code><a class="autorefs autorefs-internal" title="            ArrayPrimitiveTypeSpec
+
+
+  
+      dataclass
+   (irx.array_primitives.ArrayPrimitiveTypeSpec)" href="#irx.array_primitives.ArrayPrimitiveTypeSpec">ArrayPrimitiveTypeSpec</a></code></b>
           –
           <div class="doc-md-description">
             
@@ -3885,16 +3852,29 @@
 
 
 
-<h2 id="irx.analysis.handlers.expressions.ExpressionVisitorMixin" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ExpressionVisitorMixin</span>
+<h2 id="irx.array_primitives.ArrayPrimitiveTypeSpec" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ArrayPrimitiveTypeSpec</span>
 
 
-<a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin" class="headerlink" title="Permanent link">&para;</a></h2>
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
 
+<a href="#irx.array_primitives.ArrayPrimitiveTypeSpec" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">ArrayPrimitiveTypeSpec</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></span><span class="p">,</span>
+    <span class="n">type_id</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">,</span>
+    <span class="n">dtype_token</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span><span class="p">,</span>
+    <span class="n">element_size_bytes</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">buffer_view_compatible</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
 
     <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="irx.analysis.handlers.base.SemanticVisitorMixinBase">SemanticVisitorMixinBase</span></code></p>
+
+
+
+        
 
 
 
@@ -3905,20 +3885,6 @@
 
 
 
-
-
-
-
-<p><span class="doc-section-title">Methods:</span></p>
-    <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="            visit (irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit)" href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit">visit</a></code></b>
-            –
-            <div class="doc-md-description">
-              
-            </div>
-          </li>
-    </ul>
 
 
 
@@ -3935,121 +3901,6 @@
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">visit</span>
-
-
-<a href="#irx.analysis.handlers.expressions.ExpressionVisitorMixin.visit" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">visit</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n"><span title="irx.astx.SubscriptExpr">SubscriptExpr</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>src/irx/analysis/handlers/expressions.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3333</span>
-<span class="normal">3334</span>
-<span class="normal">3335</span>
-<span class="normal">3336</span>
-<span class="normal">3337</span>
-<span class="normal">3338</span>
-<span class="normal">3339</span>
-<span class="normal">3340</span>
-<span class="normal">3341</span>
-<span class="normal">3342</span>
-<span class="normal">3343</span>
-<span class="normal">3344</span>
-<span class="normal">3345</span>
-<span class="normal">3346</span>
-<span class="normal">3347</span>
-<span class="normal">3348</span>
-<span class="normal">3349</span>
-<span class="normal">3350</span>
-<span class="normal">3351</span>
-<span class="normal">3352</span>
-<span class="normal">3353</span>
-<span class="normal">3354</span>
-<span class="normal">3355</span>
-<span class="normal">3356</span>
-<span class="normal">3357</span>
-<span class="normal">3358</span>
-<span class="normal">3359</span>
-<span class="normal">3360</span>
-<span class="normal">3361</span>
-<span class="normal">3362</span>
-<span class="normal">3363</span>
-<span class="normal">3364</span>
-<span class="normal">3365</span>
-<span class="normal">3366</span>
-<span class="normal">3367</span>
-<span class="normal">3368</span>
-<span class="normal">3369</span>
-<span class="normal">3370</span>
-<span class="normal">3371</span>
-<span class="normal">3372</span>
-<span class="normal">3373</span>
-<span class="normal">3374</span>
-<span class="normal">3375</span>
-<span class="normal">3376</span>
-<span class="normal">3377</span>
-<span class="normal">3378</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@SemanticAnalyzerCore</span><span class="o">.</span><span class="n">visit</span><span class="o">.</span><span class="n">dispatch</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="n">astx</span><span class="o">.</span><span class="n">SubscriptExpr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    title: Visit SubscriptExpr nodes.</span>
-<span class="sd">    parameters:</span>
-<span class="sd">      node:</span>
-<span class="sd">        type: astx.SubscriptExpr</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">astx</span><span class="o">.</span><span class="n">LiteralNone</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
-    <span class="n">value_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expr_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">astx</span><span class="o">.</span><span class="n">LiteralDict</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">node</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">diagnostics</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
-                <span class="s2">&quot;SubscriptExpr: key lookup on empty dict&quot;</span><span class="p">,</span>
-                <span class="n">node</span><span class="o">=</span><span class="n">node</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
-            <span class="n">node</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
-            <span class="p">(</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralInt8</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralInt16</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralInt32</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralInt64</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralUInt8</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralUInt16</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralUInt32</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralUInt64</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralFloat32</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">LiteralFloat64</span><span class="p">,</span>
-                <span class="n">astx</span><span class="o">.</span><span class="n">Identifier</span><span class="p">,</span>
-            <span class="p">),</span>
-        <span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">diagnostics</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
-                <span class="s2">&quot;SubscriptExpr: only integer and floating-point &quot;</span>
-                <span class="s2">&quot;dict keys are supported&quot;</span><span class="p">,</span>
-                <span class="n">node</span><span class="o">=</span><span class="n">node</span><span class="p">,</span>
-            <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_set_type</span><span class="p">(</span>
-        <span class="n">node</span><span class="p">,</span>
-        <span class="n">cast</span><span class="p">(</span>
-            <span class="n">astx</span><span class="o">.</span><span class="n">DataType</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="nb">getattr</span><span class="p">(</span><span class="n">value_type</span><span class="p">,</span> <span class="s2">&quot;value_type&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-        <span class="p">),</span>
-    <span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
 
 
 
@@ -4149,10 +4000,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "search.highlight", "search.share", "search.suggest"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "search.highlight", "search.share", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
