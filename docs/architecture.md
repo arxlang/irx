@@ -223,6 +223,31 @@ element type and emit a store. The default bounds policy means semantic static
 bounds rejection when provable and no emitted runtime bounds helper yet. Future
 checked and unchecked runtime modes can reuse the same element-pointer helper.
 
+## NDArray Layering
+
+IRx now treats NDArray support as a distinct semantic layer built on two
+existing foundations:
+
+- the builtin Arrow-backed array runtime provides storage and backend
+  interoperability
+- the canonical `irx_buffer_view` substrate provides rank, shape, strides,
+  offset, and layout flags
+
+That split keeps high-level naming backend-neutral:
+
+- `array` remains the storage/runtime-oriented abstraction
+- `buffer/view` remains the low-level layout and ownership substrate
+- `ndarray` is the multidimensional semantic abstraction layered on top
+
+Current ndarray lowering stays intentionally conservative:
+
+- literals build flat Arrow arrays, then wrap them in external-owner buffer
+  views
+- indexing and byte-offset queries reuse buffer/view stride arithmetic
+- view construction is shallow and metadata-driven
+- fixed-width numeric element types are supported in this phase
+- Arrow-backed NDArrays remain readonly in this phase
+
 ## Why `visit(...)` Remains the Public Lowering Boundary
 
 The codegen layer continues to use method-based Plum multiple dispatch:

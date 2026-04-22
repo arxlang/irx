@@ -60,6 +60,7 @@ class BufferVisitorMixin(VisitorMixinBase):
         values: tuple[int, ...],
         *,
         purpose: str,
+        symbol_namespace: str = "buffer",
     ) -> ir.Value:
         """
         title: Lower one tuple of i64 values to a stable global pointer.
@@ -67,6 +68,8 @@ class BufferVisitorMixin(VisitorMixinBase):
           values:
             type: tuple[int, Ellipsis]
           purpose:
+            type: str
+          symbol_namespace:
             type: str
         returns:
           type: ir.Value
@@ -85,7 +88,7 @@ class BufferVisitorMixin(VisitorMixinBase):
         global_value = ir.GlobalVariable(
             self._llvm.module,
             array_type,
-            name=f"irx_buffer_{purpose}_{index}",
+            name=f"irx_{symbol_namespace}_{purpose}_{index}",
         )
         global_value.linkage = "internal"
         global_value.global_constant = True
@@ -97,7 +100,7 @@ class BufferVisitorMixin(VisitorMixinBase):
                 ir.Constant(self._llvm.INT32_TYPE, 0),
             ],
             inbounds=True,
-            name=f"irx_buffer_{purpose}_ptr_{index}",
+            name=f"irx_{symbol_namespace}_{purpose}_ptr_{index}",
         )
 
     def _buffer_view_value_from_metadata(
@@ -320,11 +323,10 @@ class BufferVisitorMixin(VisitorMixinBase):
             name="irx_buffer_index_trunc",
         )
 
-    def lower_buffer_element_pointer(
+    def lower_buffer_byte_offset(
         self,
         view: ir.Value,
         indices: list[ir.Value],
-        element_type: astx.DataType,
         *,
         index_nodes: list[astx.AST],
         bounds_policy: BufferIndexBoundsPolicy = (
@@ -332,14 +334,12 @@ class BufferVisitorMixin(VisitorMixinBase):
         ),
     ) -> ir.Value:
         """
-        title: Lower a buffer view indexed access to a typed element pointer.
+        title: Lower one buffer view indexed access to a byte offset.
         parameters:
           view:
             type: ir.Value
           indices:
             type: list[ir.Value]
-          element_type:
-            type: astx.DataType
           index_nodes:
             type: list[astx.AST]
           bounds_policy:
@@ -353,13 +353,6 @@ class BufferVisitorMixin(VisitorMixinBase):
         if len(indices) != len(index_nodes):
             raise Exception("buffer view index lowering arity mismatch")
 
-        element_llvm_type = self._llvm_type_for_ast_type(element_type)
-        if element_llvm_type is None:
-            raise Exception(
-                "buffer view indexing has unsupported element type"
-            )
-
-        data = self._extract_buffer_view_data(view)
         strides = self._extract_buffer_view_strides(view)
         total_offset = self._extract_buffer_view_offset_bytes(view)
 
@@ -387,6 +380,48 @@ class BufferVisitorMixin(VisitorMixinBase):
                 name=f"irx_buffer_index_offset_{axis}",
             )
 
+        return total_offset
+
+    def lower_buffer_element_pointer(
+        self,
+        view: ir.Value,
+        indices: list[ir.Value],
+        element_type: astx.DataType,
+        *,
+        index_nodes: list[astx.AST],
+        bounds_policy: BufferIndexBoundsPolicy = (
+            BufferIndexBoundsPolicy.DEFAULT
+        ),
+    ) -> ir.Value:
+        """
+        title: Lower a buffer view indexed access to a typed element pointer.
+        parameters:
+          view:
+            type: ir.Value
+          indices:
+            type: list[ir.Value]
+          element_type:
+            type: astx.DataType
+          index_nodes:
+            type: list[astx.AST]
+          bounds_policy:
+            type: BufferIndexBoundsPolicy
+        returns:
+          type: ir.Value
+        """
+        element_llvm_type = self._llvm_type_for_ast_type(element_type)
+        if element_llvm_type is None:
+            raise Exception(
+                "buffer view indexing has unsupported element type"
+            )
+
+        data = self._extract_buffer_view_data(view)
+        total_offset = self.lower_buffer_byte_offset(
+            view,
+            indices,
+            index_nodes=index_nodes,
+            bounds_policy=bounds_policy,
+        )
         byte_ptr = self._llvm.ir_builder.gep(
             data,
             [total_offset],

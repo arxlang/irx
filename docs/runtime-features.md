@@ -143,6 +143,18 @@ Current array substrate:
 - Python `nanoarrow` dependency installed by default in IRx
 - `nanoarrow` used internally for schema/array helpers and validation
 
+Current initial NDArray layer on top of that substrate:
+
+- ndarray values lower through the same `irx_buffer_view` descriptor used by the
+  low-level buffer/view model
+- ndarray construction uses Arrow-backed array storage plus a buffer-owner
+  bridge so the view can manage Arrow-backed lifetime explicitly
+- indexing and byte-offset calculation reuse descriptor `shape`, `strides`, and
+  `offset_bytes`
+- shallow ndarray views may replace shape/stride/offset metadata without
+  creating a second storage runtime
+- current ndarray lowering supports fixed-width numeric element types only
+
 What IRx does not do here:
 
 - no direct LLVM struct encoding of Arrow containers
@@ -215,6 +227,13 @@ The buffer bridge is intentionally conservative:
 - writable views are not exposed in this phase
 - borrowed views use a null owner handle, so the caller must keep the Arrow
   array handle alive explicitly
+
+The NDArray layer builds on top of this bridge rather than bypassing it:
+
+- fresh ndarray literals allocate Arrow-backed storage, then wrap that storage
+  in an external-owner `irx_buffer_view`
+- ndarray views stay shallow and metadata-driven
+- readonly semantics are preserved for Arrow-backed NDArrays in this phase
 
 ## Nanoarrow
 

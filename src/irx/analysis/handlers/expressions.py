@@ -57,15 +57,32 @@ from irx.analysis.validation import (
     validate_literal_time,
     validate_literal_timestamp,
 )
+from irx.array import (
+    NDARRAY_ELEMENT_TYPE_EXTRA,
+    NDARRAY_FLAGS_EXTRA,
+    NDARRAY_LAYOUT_EXTRA,
+    NDArrayLayout,
+    ndarray_byte_bounds,
+    ndarray_default_strides,
+    ndarray_element_count,
+    ndarray_element_size_bytes,
+    ndarray_is_c_contiguous,
+    ndarray_is_f_contiguous,
+    validate_ndarray_layout,
+)
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     specialize_binary_op,
 )
 from irx.buffer import (
+    BUFFER_FLAG_VALIDITY_BITMAP,
     BUFFER_VIEW_ELEMENT_TYPE_EXTRA,
     BUFFER_VIEW_METADATA_EXTRA,
+    BufferMutability,
     BufferOwnership,
     BufferViewMetadata,
+    buffer_view_flags,
+    buffer_view_has_validity_bitmap,
     buffer_view_is_readonly,
     buffer_view_ownership,
     validate_buffer_view_metadata,
@@ -155,6 +172,116 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             and initializer_type.element_type is not None
         ):
             return initializer_type.element_type
+        return None
+
+    def _static_ndarray_layout(
+        self,
+        node: astx.AST,
+    ) -> NDArrayLayout | None:
+        """
+        title: >-
+          Return static ndarray layout metadata when analysis can prove it.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: NDArrayLayout | None
+        """
+        semantic = self._semantic(node)
+        layout = semantic.extras.get(NDARRAY_LAYOUT_EXTRA)
+        if isinstance(layout, NDArrayLayout):
+            return layout
+
+        symbol = semantic.resolved_symbol
+        declaration = symbol.declaration if symbol is not None else None
+        initializer = getattr(declaration, "value", None)
+        if not isinstance(initializer, astx.AST):
+            return None
+
+        initializer_semantic = getattr(initializer, "semantic", None)
+        initializer_extras = getattr(initializer_semantic, "extras", {})
+        layout = initializer_extras.get(NDARRAY_LAYOUT_EXTRA)
+        if isinstance(layout, NDArrayLayout):
+            return layout
+        return None
+
+    def _static_ndarray_element_type(
+        self,
+        node: astx.AST,
+    ) -> astx.DataType | None:
+        """
+        title: >-
+          Return the scalar ndarray element type when analysis can prove it.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: astx.DataType | None
+        """
+        semantic = self._semantic(node)
+        element_type = semantic.extras.get(NDARRAY_ELEMENT_TYPE_EXTRA)
+        if isinstance(element_type, astx.DataType):
+            return element_type
+
+        ndarray_type = self._expr_type(node)
+        if (
+            isinstance(ndarray_type, astx.NDArrayType)
+            and ndarray_type.element_type is not None
+        ):
+            return ndarray_type.element_type
+
+        symbol = semantic.resolved_symbol
+        declaration = symbol.declaration if symbol is not None else None
+        initializer = getattr(declaration, "value", None)
+        if not isinstance(initializer, astx.AST):
+            return None
+
+        initializer_semantic = getattr(initializer, "semantic", None)
+        initializer_extras = getattr(initializer_semantic, "extras", {})
+        element_type = initializer_extras.get(NDARRAY_ELEMENT_TYPE_EXTRA)
+        if isinstance(element_type, astx.DataType):
+            return element_type
+
+        initializer_type = getattr(
+            initializer_semantic,
+            "resolved_type",
+            getattr(initializer, "type_", None),
+        )
+        if (
+            isinstance(initializer_type, astx.NDArrayType)
+            and initializer_type.element_type is not None
+        ):
+            return initializer_type.element_type
+        return None
+
+    def _static_ndarray_flags(
+        self,
+        node: astx.AST,
+    ) -> int | None:
+        """
+        title: Return static NDArray flags when analysis can prove them.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: int | None
+        """
+        semantic = self._semantic(node)
+        flags = semantic.extras.get(NDARRAY_FLAGS_EXTRA)
+        if isinstance(flags, int):
+            return flags
+
+        symbol = semantic.resolved_symbol
+        declaration = symbol.declaration if symbol is not None else None
+        initializer = getattr(declaration, "value", None)
+        if not isinstance(initializer, astx.AST):
+            return None
+
+        initializer_semantic = getattr(initializer, "semantic", None)
+        initializer_extras = getattr(initializer_semantic, "extras", {})
+        flags = initializer_extras.get(NDARRAY_FLAGS_EXTRA)
+        if isinstance(flags, int):
+            return flags
         return None
 
     def _is_subclass_of(
@@ -1383,6 +1510,106 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         )
         return element_type
 
+    def _validate_ndarray_index_operation(
+        self,
+        *,
+        node: astx.AST,
+        base: astx.AST,
+        indices: list[astx.AST],
+        is_store: bool,
+    ) -> astx.DataType | None:
+        """
+        title: Validate one NDArray indexed access.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          indices:
+            type: list[astx.AST]
+          is_store:
+            type: bool
+        returns:
+          type: astx.DataType | None
+        """
+        base_type = self._expr_type(base)
+        if not isinstance(base_type, astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray indexing requires a NDArrayType base",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        layout = self._static_ndarray_layout(base)
+        if layout is None:
+            self.context.diagnostics.add(
+                "ndarray indexing requires static layout metadata",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        elif len(indices) != layout.ndim:
+            self.context.diagnostics.add(
+                "ndarray indexing index count must match ndarray ndim",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        else:
+            for axis, index in enumerate(indices):
+                extent = layout.shape[axis]
+                static_index = self._static_integer_literal_value(index)
+                if static_index is None:
+                    continue
+                if static_index < 0 or static_index >= extent:
+                    self.context.diagnostics.add(
+                        "ndarray index "
+                        f"{axis} statically out of bounds for extent {extent}",
+                        node=index,
+                        code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                    )
+
+        flags = self._static_ndarray_flags(base)
+        if is_store and flags is not None and buffer_view_is_readonly(flags):
+            self.context.diagnostics.add(
+                "cannot write through a readonly ndarray view",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        for index in indices:
+            index_type = self._expr_type(index)
+            if not is_integer_type(index_type):
+                self.context.diagnostics.add(
+                    "ndarray indices must be integer typed",
+                    node=index,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                )
+                continue
+            if bit_width(index_type) > bit_width(astx.Int64()):
+                self.context.diagnostics.add(
+                    "ndarray indices must fit 64-bit stride arithmetic",
+                    node=index,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                )
+
+        element_type = self._static_ndarray_element_type(base)
+        if element_type is None:
+            self.context.diagnostics.add(
+                "ndarray indexing requires a known element type",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+            return None
+        if ndarray_element_size_bytes(element_type) is None:
+            self.context.diagnostics.add(
+                "ndarray indexing requires a fixed-width numeric element type",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+            return None
+
+        self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = element_type
+        return element_type
+
     def _validate_buffer_lifetime_operation(
         self,
         *,
@@ -1407,6 +1634,35 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if ownership is BufferOwnership.BORROWED or metadata.owner.is_null:
             self.context.diagnostics.add(
                 f"buffer {operation} requires an owned or external-owner view",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+    def _validate_ndarray_lifetime_operation(
+        self,
+        *,
+        node: astx.AST,
+        view: astx.AST,
+        operation: str,
+    ) -> None:
+        """
+        title: Validate one explicit NDArray lifetime helper operation.
+        parameters:
+          node:
+            type: astx.AST
+          view:
+            type: astx.AST
+          operation:
+            type: str
+        """
+        flags = self._static_ndarray_flags(view)
+        if flags is None:
+            return
+        ownership = buffer_view_ownership(flags)
+        if ownership is BufferOwnership.BORROWED:
+            self.context.diagnostics.add(
+                "ndarray "
+                f"{operation} requires an owned or external-owner view",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -2318,6 +2574,474 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
                     "Array helper supports only integer expressions",
                     node=item,
                 )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayLiteral) -> None:
+        """
+        title: Visit NDArrayLiteral nodes.
+        parameters:
+          node:
+            type: astx.NDArrayLiteral
+        """
+        for item in node.values:
+            self.visit(item)
+            validate_assignment(
+                self.context.diagnostics,
+                target_name="ndarray element",
+                target_type=node.element_type,
+                value_type=self._expr_type(item),
+                node=item,
+            )
+
+        shape = tuple(node.shape)
+        element_size_bytes = ndarray_element_size_bytes(node.element_type)
+        if element_size_bytes is None:
+            if isinstance(node.element_type, astx.Boolean):
+                self.context.diagnostics.add(
+                    "bool ndarrays are not supported because bit-packed Arrow "
+                    "values are not buffer-view compatible",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                )
+            else:
+                self.context.diagnostics.add(
+                    "ndarray literals require a fixed-width numeric element "
+                    "type",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                )
+
+        if node.strides is None:
+            if element_size_bytes is None or any(dim < 0 for dim in shape):
+                strides = tuple(0 for _ in shape)
+            else:
+                strides = ndarray_default_strides(shape, element_size_bytes)
+        else:
+            strides = tuple(node.strides)
+
+        layout = NDArrayLayout(
+            shape=shape,
+            strides=strides,
+            offset_bytes=node.offset_bytes,
+        )
+        for error in validate_ndarray_layout(layout):
+            self.context.diagnostics.add(
+                error,
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        expected_value_count = ndarray_element_count(layout)
+        if len(node.values) != expected_value_count:
+            self.context.diagnostics.add(
+                "ndarray literal value count must match the shape extent",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        if element_size_bytes is not None:
+            bounds = ndarray_byte_bounds(layout)
+            if bounds is not None:
+                minimum, maximum = bounds
+                storage_bytes = len(node.values) * element_size_bytes
+                if minimum < 0 or maximum + element_size_bytes > storage_bytes:
+                    self.context.diagnostics.add(
+                        "ndarray literal layout exceeds compact backing "
+                        "storage",
+                        node=node,
+                        code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                    )
+
+            flags = buffer_view_flags(
+                BufferOwnership.EXTERNAL_OWNER,
+                BufferMutability.READONLY,
+                c_contiguous=ndarray_is_c_contiguous(
+                    layout,
+                    element_size_bytes,
+                ),
+                f_contiguous=ndarray_is_f_contiguous(
+                    layout,
+                    element_size_bytes,
+                ),
+            )
+            self._semantic(node).extras[NDARRAY_FLAGS_EXTRA] = flags
+
+        self._semantic(node).extras[NDARRAY_LAYOUT_EXTRA] = layout
+        self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
+            node.element_type
+        )
+        node.type_ = astx.NDArrayType(node.element_type)
+        self._set_type(node, node.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayView) -> None:
+        """
+        title: Visit NDArrayView nodes.
+        parameters:
+          node:
+            type: astx.NDArrayView
+        """
+        self.visit(node.base)
+        base_type = self._expr_type(node.base)
+        if not isinstance(base_type, astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray views require a NDArrayType base",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        base_layout = self._static_ndarray_layout(node.base)
+        if base_layout is None:
+            self.context.diagnostics.add(
+                "ndarray views require static base layout metadata",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        element_type = self._static_ndarray_element_type(node.base)
+        if element_type is None:
+            self.context.diagnostics.add(
+                "ndarray views require a known element type",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        element_size_bytes = ndarray_element_size_bytes(element_type)
+        if element_type is not None and element_size_bytes is None:
+            self.context.diagnostics.add(
+                "ndarray views require a fixed-width numeric element type",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        shape = tuple(node.shape)
+        if node.strides is None:
+            if (
+                base_layout is None
+                or element_size_bytes is None
+                or any(dim < 0 for dim in shape)
+            ):
+                strides = tuple(0 for _ in shape)
+            else:
+                if not ndarray_is_c_contiguous(
+                    base_layout,
+                    element_size_bytes,
+                ):
+                    self.context.diagnostics.add(
+                        "ndarray views without explicit strides require a "
+                        "C-contiguous base",
+                        node=node,
+                        code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                    )
+                expected_count = 1
+                for dim in shape:
+                    expected_count *= dim
+                if expected_count != ndarray_element_count(base_layout):
+                    self.context.diagnostics.add(
+                        "ndarray reshape views require the same element count "
+                        "as the base",
+                        node=node,
+                        code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                    )
+                strides = ndarray_default_strides(shape, element_size_bytes)
+        else:
+            strides = tuple(node.strides)
+
+        base_offset_bytes = (
+            base_layout.offset_bytes if base_layout is not None else 0
+        )
+        layout = NDArrayLayout(
+            shape=shape,
+            strides=strides,
+            offset_bytes=base_offset_bytes + node.offset_bytes,
+        )
+        for error in validate_ndarray_layout(layout):
+            self.context.diagnostics.add(
+                error,
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+
+        if base_layout is not None and element_size_bytes is not None:
+            base_bounds = ndarray_byte_bounds(base_layout)
+            view_bounds = ndarray_byte_bounds(layout)
+            if (
+                base_bounds is not None
+                and view_bounds is not None
+                and (
+                    view_bounds[0] < base_bounds[0]
+                    or view_bounds[1] > base_bounds[1]
+                )
+            ):
+                self.context.diagnostics.add(
+                    "ndarray view exceeds base storage bounds",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+                )
+
+        base_flags = self._static_ndarray_flags(node.base)
+        if base_flags is None:
+            flags = buffer_view_flags(
+                BufferOwnership.EXTERNAL_OWNER,
+                BufferMutability.READONLY,
+                c_contiguous=(
+                    False
+                    if element_size_bytes is None
+                    else ndarray_is_c_contiguous(layout, element_size_bytes)
+                ),
+                f_contiguous=(
+                    False
+                    if element_size_bytes is None
+                    else ndarray_is_f_contiguous(layout, element_size_bytes)
+                ),
+            )
+        else:
+            ownership = (
+                buffer_view_ownership(base_flags)
+                or BufferOwnership.EXTERNAL_OWNER
+            )
+            mutability = (
+                BufferMutability.READONLY
+                if buffer_view_is_readonly(base_flags)
+                else BufferMutability.WRITABLE
+            )
+            flags = buffer_view_flags(
+                ownership,
+                mutability,
+                c_contiguous=(
+                    False
+                    if element_size_bytes is None
+                    else ndarray_is_c_contiguous(layout, element_size_bytes)
+                ),
+                f_contiguous=(
+                    False
+                    if element_size_bytes is None
+                    else ndarray_is_f_contiguous(layout, element_size_bytes)
+                ),
+            )
+            if buffer_view_has_validity_bitmap(base_flags):
+                flags |= BUFFER_FLAG_VALIDITY_BITMAP
+
+        if element_type is not None:
+            self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
+                element_type
+            )
+            node.type_ = astx.NDArrayType(element_type)
+        self._semantic(node).extras[NDARRAY_LAYOUT_EXTRA] = layout
+        self._semantic(node).extras[NDARRAY_FLAGS_EXTRA] = flags
+        self._set_type(node, node.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayIndex) -> None:
+        """
+        title: Visit NDArrayIndex nodes.
+        parameters:
+          node:
+            type: astx.NDArrayIndex
+        """
+        self.visit(node.base)
+        for index in node.indices:
+            self.visit(index)
+        element_type = self._validate_ndarray_index_operation(
+            node=node,
+            base=node.base,
+            indices=node.indices,
+            is_store=False,
+        )
+        if element_type is not None:
+            node.type_ = element_type
+        self._set_type(node, element_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayStore) -> None:
+        """
+        title: Visit NDArrayStore nodes.
+        parameters:
+          node:
+            type: astx.NDArrayStore
+        """
+        self.visit(node.base)
+        for index in node.indices:
+            self.visit(index)
+        self.visit(node.value)
+        element_type = self._validate_ndarray_index_operation(
+            node=node,
+            base=node.base,
+            indices=node.indices,
+            is_store=True,
+        )
+        if element_type is not None:
+            validate_assignment(
+                self.context.diagnostics,
+                target_name="ndarray element",
+                target_type=element_type,
+                value_type=self._expr_type(node.value),
+                node=node,
+            )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayNDim) -> None:
+        """
+        title: Visit NDArrayNDim nodes.
+        parameters:
+          node:
+            type: astx.NDArrayNDim
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray ndim requires a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayShape) -> None:
+        """
+        title: Visit NDArrayShape nodes.
+        parameters:
+          node:
+            type: astx.NDArrayShape
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray shape queries require a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        layout = self._static_ndarray_layout(node.base)
+        if layout is None:
+            self.context.diagnostics.add(
+                "ndarray shape queries require static layout metadata",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        elif node.axis < 0 or node.axis >= layout.ndim:
+            self.context.diagnostics.add(
+                "ndarray shape axis is out of bounds",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._set_type(node, astx.Int64())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayStride) -> None:
+        """
+        title: Visit NDArrayStride nodes.
+        parameters:
+          node:
+            type: astx.NDArrayStride
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray stride queries require a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        layout = self._static_ndarray_layout(node.base)
+        if layout is None:
+            self.context.diagnostics.add(
+                "ndarray stride queries require static layout metadata",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        elif node.axis < 0 or node.axis >= layout.ndim:
+            self.context.diagnostics.add(
+                "ndarray stride axis is out of bounds",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._set_type(node, astx.Int64())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayElementCount) -> None:
+        """
+        title: Visit NDArrayElementCount nodes.
+        parameters:
+          node:
+            type: astx.NDArrayElementCount
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray element_count requires a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        if self._static_ndarray_layout(node.base) is None:
+            self.context.diagnostics.add(
+                "ndarray element_count requires static layout metadata",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._set_type(node, astx.Int64())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayByteOffset) -> None:
+        """
+        title: Visit NDArrayByteOffset nodes.
+        parameters:
+          node:
+            type: astx.NDArrayByteOffset
+        """
+        self.visit(node.base)
+        for index in node.indices:
+            self.visit(index)
+        self._validate_ndarray_index_operation(
+            node=node,
+            base=node.base,
+            indices=node.indices,
+            is_store=False,
+        )
+        self._set_type(node, astx.Int64())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayRetain) -> None:
+        """
+        title: Visit NDArrayRetain nodes.
+        parameters:
+          node:
+            type: astx.NDArrayRetain
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray retain requires a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._validate_ndarray_lifetime_operation(
+            node=node,
+            view=node.base,
+            operation="retain",
+        )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.NDArrayRelease) -> None:
+        """
+        title: Visit NDArrayRelease nodes.
+        parameters:
+          node:
+            type: astx.NDArrayRelease
+        """
+        self.visit(node.base)
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+            self.context.diagnostics.add(
+                "ndarray release requires a NDArrayType value",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
+            )
+        self._validate_ndarray_lifetime_operation(
+            node=node,
+            view=node.base,
+            operation="release",
+        )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
