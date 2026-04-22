@@ -17,7 +17,7 @@ def get_version() -> str:
     try:
         return importlib_metadata.version(__name__)
     except importlib_metadata.PackageNotFoundError:  # pragma: no cover
-        return "1.14.0"  # semantic-release
+        return "1.15.0"  # semantic-release
 
 
 __author__ = """Ivan Ogasawara"""

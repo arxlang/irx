@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+# [1.15.0](https://github.com/arxlang/irx/compare/1.14.0...1.15.0) (2026-04-22)
+
+
+### Features
+
+* Add initial Arrow-backed NDArray support ([#305](https://github.com/arxlang/irx/issues/305)) ([08cf887](https://github.com/arxlang/irx/commit/08cf8873a132909601ec3a9302abdd9abab96bc8))
+
 # [1.14.0](https://github.com/arxlang/irx/compare/1.13.0...1.14.0) (2026-04-21)
 
 
