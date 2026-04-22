@@ -8,7 +8,7 @@ reductions, tensor algebra, or high-level dtype policy.
 The model exists so Arx can lower scientific data structures into stable plain
 ABI data without baking array-library behavior into IRx.
 
-IRx's ndarray layer now uses this substrate directly:
+IRx's NDArray layer now uses this substrate directly:
 
 - Arrow-backed array storage remains the source of physical data buffers
 - ndarray metadata is expressed through `shape`, `strides`, `offset_bytes`, and

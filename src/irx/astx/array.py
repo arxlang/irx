@@ -1,5 +1,5 @@
 """
-title: IRx-owned array and ndarray AST nodes.
+title: IRx-owned array and NDArray AST nodes.
 summary: >-
   Provide internal nodes for the Arrow-backed array runtime plus the higher-
   level ndarray abstraction layered on the canonical buffer/view substrate.
@@ -66,9 +66,9 @@ class ArrayInt32ArrayLength(astx.base.DataType):
 
 
 @typechecked
-class NdarrayType(AnyType):
+class NDArrayType(AnyType):
     """
-    title: Internal ndarray semantic type.
+    title: Internal NDArray semantic type.
     summary: >-
       Represent the higher-level multidimensional array abstraction while
       reusing the canonical buffer/view representation during lowering.
@@ -81,7 +81,7 @@ class NdarrayType(AnyType):
 
     def __init__(self, element_type: astx.DataType | None = None) -> None:
         """
-        title: Initialize one ndarray type.
+        title: Initialize one NDArray type.
         parameters:
           element_type:
             type: astx.DataType | None
@@ -91,19 +91,19 @@ class NdarrayType(AnyType):
 
     def __str__(self) -> str:
         """
-        title: Render the ndarray type.
+        title: Render the NDArray type.
         returns:
           type: str
         """
         if self.element_type is None:
-            return "NdarrayType"
-        return f"NdarrayType[{self.element_type}]"
+            return "NDArrayType"
+        return f"NDArrayType[{self.element_type}]"
 
 
 @typechecked
-class NdarrayLiteral(astx.base.DataType):
+class NDArrayLiteral(astx.base.DataType):
     """
-    title: Internal Arrow-backed ndarray literal node.
+    title: Internal Arrow-backed NDArray literal node.
     summary: >-
       Build one flat Arrow array from scalar values, then attach ndarray shape
       and stride metadata over the resulting storage.
@@ -119,7 +119,7 @@ class NdarrayLiteral(astx.base.DataType):
       offset_bytes:
         type: int
       type_:
-        type: NdarrayType
+        type: NDArrayType
     """
 
     values: list[astx.AST]
@@ -127,7 +127,7 @@ class NdarrayLiteral(astx.base.DataType):
     shape: tuple[int, ...]
     strides: tuple[int, ...] | None
     offset_bytes: int
-    type_: NdarrayType
+    type_: NDArrayType
 
     def __init__(
         self,
@@ -139,7 +139,7 @@ class NdarrayLiteral(astx.base.DataType):
         offset_bytes: int = 0,
     ) -> None:
         """
-        title: Initialize one ndarray literal.
+        title: Initialize one NDArray literal.
         parameters:
           values:
             type: Sequence[astx.AST]
@@ -158,11 +158,11 @@ class NdarrayLiteral(astx.base.DataType):
         self.shape = tuple(shape)
         self.strides = None if strides is None else tuple(strides)
         self.offset_bytes = offset_bytes
-        self.type_ = NdarrayType(element_type)
+        self.type_ = NDArrayType(element_type)
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
-        title: Return the structured representation of the ndarray literal.
+        title: Return the structured representation of the NDArray literal.
         parameters:
           simplified:
             type: bool
@@ -177,16 +177,16 @@ class NdarrayLiteral(astx.base.DataType):
             "offset_bytes": self.offset_bytes,
         }
         return self._prepare_struct(
-            "NdarrayLiteral",
+            "NDArrayLiteral",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayView(astx.base.DataType):
+class NDArrayView(astx.base.DataType):
     """
-    title: Internal ndarray view node.
+    title: Internal NDArray view node.
     summary: >-
       Build one shallow ndarray view by reusing the base storage and replacing
       the logical shape, strides, and offset metadata.
@@ -200,14 +200,14 @@ class NdarrayView(astx.base.DataType):
       offset_bytes:
         type: int
       type_:
-        type: NdarrayType
+        type: NDArrayType
     """
 
     base: astx.AST
     shape: tuple[int, ...]
     strides: tuple[int, ...] | None
     offset_bytes: int
-    type_: NdarrayType
+    type_: NDArrayType
 
     def __init__(
         self,
@@ -218,7 +218,7 @@ class NdarrayView(astx.base.DataType):
         offset_bytes: int = 0,
     ) -> None:
         """
-        title: Initialize one ndarray view.
+        title: Initialize one NDArray view.
         parameters:
           base:
             type: astx.AST
@@ -234,11 +234,11 @@ class NdarrayView(astx.base.DataType):
         self.shape = tuple(shape)
         self.strides = None if strides is None else tuple(strides)
         self.offset_bytes = offset_bytes
-        self.type_ = NdarrayType()
+        self.type_ = NDArrayType()
 
     def get_struct(self, simplified: bool = False) -> astx.base.ReprStruct:
         """
-        title: Return the structured representation of the ndarray view.
+        title: Return the structured representation of the NDArray view.
         parameters:
           simplified:
             type: bool
@@ -252,16 +252,16 @@ class NdarrayView(astx.base.DataType):
             "offset_bytes": self.offset_bytes,
         }
         return self._prepare_struct(
-            "NdarrayView",
+            "NDArrayView",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayIndex(astx.base.DataType):
+class NDArrayIndex(astx.base.DataType):
     """
-    title: Internal ndarray indexed read.
+    title: Internal NDArray indexed read.
     attributes:
       base:
         type: astx.AST
@@ -281,7 +281,7 @@ class NdarrayIndex(astx.base.DataType):
         indices: Sequence[astx.AST],
     ) -> None:
         """
-        title: Initialize one ndarray indexed read.
+        title: Initialize one NDArray indexed read.
         parameters:
           base:
             type: astx.AST
@@ -311,16 +311,16 @@ class NdarrayIndex(astx.base.DataType):
             ],
         }
         return self._prepare_struct(
-            "NdarrayIndex",
+            "NDArrayIndex",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayStore(astx.base.DataType):
+class NDArrayStore(astx.base.DataType):
     """
-    title: Internal ndarray indexed store.
+    title: Internal NDArray indexed store.
     summary: >-
       Stores one scalar through ndarray shape and stride metadata. Arrow-backed
       ndarrays remain readonly in this phase, but the node keeps the surface
@@ -348,7 +348,7 @@ class NdarrayStore(astx.base.DataType):
         value: astx.AST,
     ) -> None:
         """
-        title: Initialize one ndarray indexed store.
+        title: Initialize one NDArray indexed store.
         parameters:
           base:
             type: astx.AST
@@ -382,16 +382,16 @@ class NdarrayStore(astx.base.DataType):
             "value": self.value.get_struct(simplified),
         }
         return self._prepare_struct(
-            "NdarrayStore",
+            "NDArrayStore",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayNdim(astx.base.DataType):
+class NDArrayNDim(astx.base.DataType):
     """
-    title: Internal ndarray rank query.
+    title: Internal NDArray rank query.
     attributes:
       base:
         type: astx.AST
@@ -404,7 +404,7 @@ class NdarrayNdim(astx.base.DataType):
 
     def __init__(self, base: astx.AST) -> None:
         """
-        title: Initialize one ndarray rank query.
+        title: Initialize one NDArray rank query.
         parameters:
           base:
             type: astx.AST
@@ -423,16 +423,16 @@ class NdarrayNdim(astx.base.DataType):
           type: astx.base.ReprStruct
         """
         return self._prepare_struct(
-            "NdarrayNdim",
+            "NDArrayNDim",
             self.base.get_struct(simplified),
             simplified,
         )
 
 
 @typechecked
-class NdarrayShape(astx.base.DataType):
+class NDArrayShape(astx.base.DataType):
     """
-    title: Internal ndarray shape-entry query.
+    title: Internal NDArray shape-entry query.
     attributes:
       base:
         type: astx.AST
@@ -448,7 +448,7 @@ class NdarrayShape(astx.base.DataType):
 
     def __init__(self, base: astx.AST, axis: int) -> None:
         """
-        title: Initialize one ndarray shape query.
+        title: Initialize one NDArray shape query.
         parameters:
           base:
             type: astx.AST
@@ -474,16 +474,16 @@ class NdarrayShape(astx.base.DataType):
             "axis": self.axis,
         }
         return self._prepare_struct(
-            "NdarrayShape",
+            "NDArrayShape",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayStride(astx.base.DataType):
+class NDArrayStride(astx.base.DataType):
     """
-    title: Internal ndarray stride-entry query.
+    title: Internal NDArray stride-entry query.
     attributes:
       base:
         type: astx.AST
@@ -499,7 +499,7 @@ class NdarrayStride(astx.base.DataType):
 
     def __init__(self, base: astx.AST, axis: int) -> None:
         """
-        title: Initialize one ndarray stride query.
+        title: Initialize one NDArray stride query.
         parameters:
           base:
             type: astx.AST
@@ -525,16 +525,16 @@ class NdarrayStride(astx.base.DataType):
             "axis": self.axis,
         }
         return self._prepare_struct(
-            "NdarrayStride",
+            "NDArrayStride",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayElementCount(astx.base.DataType):
+class NDArrayElementCount(astx.base.DataType):
     """
-    title: Internal ndarray element-count query.
+    title: Internal NDArray element-count query.
     attributes:
       base:
         type: astx.AST
@@ -547,7 +547,7 @@ class NdarrayElementCount(astx.base.DataType):
 
     def __init__(self, base: astx.AST) -> None:
         """
-        title: Initialize one ndarray element-count query.
+        title: Initialize one NDArray element-count query.
         parameters:
           base:
             type: astx.AST
@@ -566,16 +566,16 @@ class NdarrayElementCount(astx.base.DataType):
           type: astx.base.ReprStruct
         """
         return self._prepare_struct(
-            "NdarrayElementCount",
+            "NDArrayElementCount",
             self.base.get_struct(simplified),
             simplified,
         )
 
 
 @typechecked
-class NdarrayByteOffset(astx.base.DataType):
+class NDArrayByteOffset(astx.base.DataType):
     """
-    title: Internal ndarray byte-offset query for indexed addressing.
+    title: Internal NDArray byte-offset query for indexed addressing.
     attributes:
       base:
         type: astx.AST
@@ -595,7 +595,7 @@ class NdarrayByteOffset(astx.base.DataType):
         indices: Sequence[astx.AST],
     ) -> None:
         """
-        title: Initialize one ndarray byte-offset query.
+        title: Initialize one NDArray byte-offset query.
         parameters:
           base:
             type: astx.AST
@@ -625,16 +625,16 @@ class NdarrayByteOffset(astx.base.DataType):
             ],
         }
         return self._prepare_struct(
-            "NdarrayByteOffset",
+            "NDArrayByteOffset",
             cast(astx.base.ReprStruct, value),
             simplified,
         )
 
 
 @typechecked
-class NdarrayRetain(astx.base.DataType):
+class NDArrayRetain(astx.base.DataType):
     """
-    title: Internal explicit retain for ndarray-backed storage.
+    title: Internal explicit retain for NDArray-backed storage.
     attributes:
       base:
         type: astx.AST
@@ -647,7 +647,7 @@ class NdarrayRetain(astx.base.DataType):
 
     def __init__(self, base: astx.AST) -> None:
         """
-        title: Initialize one ndarray retain helper.
+        title: Initialize one NDArray retain helper.
         parameters:
           base:
             type: astx.AST
@@ -666,16 +666,16 @@ class NdarrayRetain(astx.base.DataType):
           type: astx.base.ReprStruct
         """
         return self._prepare_struct(
-            "NdarrayRetain",
+            "NDArrayRetain",
             self.base.get_struct(simplified),
             simplified,
         )
 
 
 @typechecked
-class NdarrayRelease(astx.base.DataType):
+class NDArrayRelease(astx.base.DataType):
     """
-    title: Internal explicit release for ndarray-backed storage.
+    title: Internal explicit release for NDArray-backed storage.
     attributes:
       base:
         type: astx.AST
@@ -688,7 +688,7 @@ class NdarrayRelease(astx.base.DataType):
 
     def __init__(self, base: astx.AST) -> None:
         """
-        title: Initialize one ndarray release helper.
+        title: Initialize one NDArray release helper.
         parameters:
           base:
             type: astx.AST
@@ -707,7 +707,7 @@ class NdarrayRelease(astx.base.DataType):
           type: astx.base.ReprStruct
         """
         return self._prepare_struct(
-            "NdarrayRelease",
+            "NDArrayRelease",
             self.base.get_struct(simplified),
             simplified,
         )
@@ -715,16 +715,16 @@ class NdarrayRelease(astx.base.DataType):
 
 __all__ = [
     "ArrayInt32ArrayLength",
-    "NdarrayByteOffset",
-    "NdarrayElementCount",
-    "NdarrayIndex",
-    "NdarrayLiteral",
-    "NdarrayNdim",
-    "NdarrayRelease",
-    "NdarrayRetain",
-    "NdarrayShape",
-    "NdarrayStore",
-    "NdarrayStride",
-    "NdarrayType",
-    "NdarrayView",
+    "NDArrayByteOffset",
+    "NDArrayElementCount",
+    "NDArrayIndex",
+    "NDArrayLiteral",
+    "NDArrayNDim",
+    "NDArrayRelease",
+    "NDArrayRetain",
+    "NDArrayShape",
+    "NDArrayStore",
+    "NDArrayStride",
+    "NDArrayType",
+    "NDArrayView",
 ]

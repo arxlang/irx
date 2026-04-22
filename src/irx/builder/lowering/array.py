@@ -1,7 +1,7 @@
 # mypy: disable-error-code=no-redef
 
 """
-title: Array and ndarray visitor mixins for llvmliteir.
+title: Array and NDArray visitor mixins for llvmliteir.
 """
 
 from __future__ import annotations
@@ -16,18 +16,18 @@ from irx.array import (
     NDARRAY_ELEMENT_TYPE_EXTRA,
     NDARRAY_FLAGS_EXTRA,
     NDARRAY_LAYOUT_EXTRA,
-    NdarrayLayout,
+    NDArrayLayout,
     ndarray_element_count,
     ndarray_primitive_type_name,
+)
+from irx.array_primitives import (
+    ARRAY_PRIMITIVE_TYPE_SPECS,
+    ArrayPrimitiveTypeSpec,
 )
 from irx.buffer import BUFFER_VIEW_FIELD_INDICES
 from irx.builder.core import VisitorCore
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
-from irx.builder.runtime.array.feature import (
-    ARRAY_PRIMITIVE_TYPE_SPECS,
-    ArrayPrimitiveTypeSpec,
-)
 from irx.builder.types import is_int_type
 from irx.typecheck import typechecked
 
@@ -35,22 +35,22 @@ from irx.typecheck import typechecked
 @typechecked
 class ArrayVisitorMixin(VisitorMixinBase):
     """
-    title: Array and ndarray visitor mixin.
+    title: Array and NDArray visitor mixin.
     """
 
-    def _static_ndarray_layout(self, node: astx.AST) -> NdarrayLayout:
+    def _static_ndarray_layout(self, node: astx.AST) -> NDArrayLayout:
         """
-        title: Return static ndarray layout metadata for lowering.
+        title: Return static NDArray layout metadata for lowering.
         parameters:
           node:
             type: astx.AST
         returns:
-          type: NdarrayLayout
+          type: NDArrayLayout
         """
         semantic = getattr(node, "semantic", None)
         extras = getattr(semantic, "extras", {})
         layout = extras.get(NDARRAY_LAYOUT_EXTRA)
-        if isinstance(layout, NdarrayLayout):
+        if isinstance(layout, NDArrayLayout):
             return layout
 
         symbol = getattr(semantic, "resolved_symbol", None)
@@ -59,13 +59,13 @@ class ArrayVisitorMixin(VisitorMixinBase):
         initializer_semantic = getattr(initializer, "semantic", None)
         initializer_extras = getattr(initializer_semantic, "extras", {})
         layout = initializer_extras.get(NDARRAY_LAYOUT_EXTRA)
-        if isinstance(layout, NdarrayLayout):
+        if isinstance(layout, NDArrayLayout):
             return layout
         raise Exception("ndarray lowering requires static layout metadata")
 
     def _static_ndarray_element_type(self, node: astx.AST) -> astx.DataType:
         """
-        title: Return static ndarray element type for lowering.
+        title: Return static NDArray element type for lowering.
         parameters:
           node:
             type: astx.AST
@@ -84,7 +84,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
             getattr(node, "type_", None),
         )
         if (
-            isinstance(resolved_type, astx.NdarrayType)
+            isinstance(resolved_type, astx.NDArrayType)
             and resolved_type.element_type is not None
         ):
             return resolved_type.element_type
@@ -101,7 +101,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
 
     def _static_ndarray_flags(self, node: astx.AST) -> int:
         """
-        title: Return static ndarray flags for lowering.
+        title: Return static NDArray flags for lowering.
         parameters:
           node:
             type: astx.AST
@@ -124,51 +124,6 @@ class ArrayVisitorMixin(VisitorMixinBase):
             return flags
         raise Exception("ndarray lowering requires static flags metadata")
 
-    def _array_i64_array_pointer(
-        self,
-        values: tuple[int, ...],
-        *,
-        purpose: str,
-    ) -> ir.Value:
-        """
-        title: Lower one tuple of i64 values to a stable global pointer.
-        parameters:
-          values:
-            type: tuple[int, Ellipsis]
-          purpose:
-            type: str
-        returns:
-          type: ir.Value
-        """
-        ptr_type = self._llvm.INT64_TYPE.as_pointer()
-        if not values:
-            return ir.Constant(ptr_type, None)
-
-        array_type = ir.ArrayType(self._llvm.INT64_TYPE, len(values))
-        initializer = ir.Constant(
-            array_type,
-            [ir.Constant(self._llvm.INT64_TYPE, value) for value in values],
-        )
-        index = self._buffer_view_global_counter
-        self._buffer_view_global_counter += 1
-        global_value = ir.GlobalVariable(
-            self._llvm.module,
-            array_type,
-            name=f"irx_ndarray_{purpose}_{index}",
-        )
-        global_value.linkage = "internal"
-        global_value.global_constant = True
-        global_value.initializer = initializer
-        return self._llvm.ir_builder.gep(
-            global_value,
-            [
-                ir.Constant(self._llvm.INT32_TYPE, 0),
-                ir.Constant(self._llvm.INT32_TYPE, 0),
-            ],
-            inbounds=True,
-            name=f"irx_ndarray_{purpose}_ptr_{index}",
-        )
-
     def _extract_view_field(
         self,
         view: ir.Value,
@@ -177,7 +132,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
         name: str,
     ) -> ir.Value:
         """
-        title: Extract one canonical buffer-view field from an ndarray value.
+        title: Extract one canonical buffer-view field from an NDArray value.
         parameters:
           view:
             type: ir.Value
@@ -200,7 +155,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
         data: ir.Value,
         owner: ir.Value,
         dtype: ir.Value,
-        layout: NdarrayLayout,
+        layout: NDArrayLayout,
         flags: int,
         offset_value: ir.Value | None = None,
     ) -> ir.Value:
@@ -215,7 +170,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
           dtype:
             type: ir.Value
           layout:
-            type: NdarrayLayout
+            type: NDArrayLayout
           flags:
             type: int
           offset_value:
@@ -228,8 +183,16 @@ class ArrayVisitorMixin(VisitorMixinBase):
             owner,
             dtype,
             ir.Constant(self._llvm.INT32_TYPE, layout.ndim),
-            self._array_i64_array_pointer(layout.shape, purpose="shape"),
-            self._array_i64_array_pointer(layout.strides, purpose="strides"),
+            self._i64_array_pointer(
+                layout.shape,
+                purpose="shape",
+                symbol_namespace="ndarray",
+            ),
+            self._i64_array_pointer(
+                layout.strides,
+                purpose="strides",
+                symbol_namespace="ndarray",
+            ),
             (
                 ir.Constant(self._llvm.INT64_TYPE, layout.offset_bytes)
                 if offset_value is None
@@ -250,7 +213,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
 
     def _require_ndarray_value(self, node: astx.AST) -> ir.Value:
         """
-        title: Lower one ndarray expression and require buffer-view storage.
+        title: Lower one NDArray expression and require buffer-view storage.
         parameters:
           node:
             type: astx.AST
@@ -260,7 +223,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.visit_child(node)
         value = safe_pop(self.result_stack)
         if value is None or value.type != self._llvm.BUFFER_VIEW_TYPE:
-            raise Exception("ndarray lowering requires a NdarrayType value")
+            raise Exception("ndarray lowering requires a NDArrayType value")
         return value
 
     def _array_primitive_spec(
@@ -268,7 +231,7 @@ class ArrayVisitorMixin(VisitorMixinBase):
         element_type: astx.DataType,
     ) -> ArrayPrimitiveTypeSpec:
         """
-        title: Return one runtime primitive storage spec for ndarray lowering.
+        title: Return one runtime primitive storage spec for NDArray lowering.
         parameters:
           element_type:
             type: astx.DataType
@@ -435,16 +398,16 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self,
         *,
         array_handle: ir.Value,
-        layout: NdarrayLayout,
+        layout: NDArrayLayout,
         flags: int,
     ) -> ir.Value:
         """
-        title: Wrap one Arrow array handle as an owned ndarray value.
+        title: Wrap one Arrow array handle as an owned NDArray value.
         parameters:
           array_handle:
             type: ir.Value
           layout:
-            type: NdarrayLayout
+            type: NDArrayLayout
           flags:
             type: int
         returns:
@@ -598,12 +561,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.result_stack.append(length_i32)
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayLiteral) -> None:
+    def visit(self, node: astx.NDArrayLiteral) -> None:
         """
-        title: Visit NdarrayLiteral nodes.
+        title: Visit NDArrayLiteral nodes.
         parameters:
           node:
-            type: astx.NdarrayLiteral
+            type: astx.NDArrayLiteral
         """
         layout = self._static_ndarray_layout(node)
         flags = self._static_ndarray_flags(node)
@@ -621,12 +584,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayView) -> None:
+    def visit(self, node: astx.NDArrayView) -> None:
         """
-        title: Visit NdarrayView nodes.
+        title: Visit NDArrayView nodes.
         parameters:
           node:
-            type: astx.NdarrayView
+            type: astx.NDArrayView
         """
         base_value = self._require_ndarray_value(node.base)
         layout = self._static_ndarray_layout(node)
@@ -655,12 +618,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayIndex) -> None:
+    def visit(self, node: astx.NDArrayIndex) -> None:
         """
-        title: Visit NdarrayIndex nodes.
+        title: Visit NDArrayIndex nodes.
         parameters:
           node:
-            type: astx.NdarrayIndex
+            type: astx.NDArrayIndex
         """
         view = self._require_ndarray_value(node.base)
         indices = cast(Any, self)._lower_buffer_index_indices(node.indices)
@@ -677,12 +640,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.result_stack.append(result)
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayStore) -> None:
+    def visit(self, node: astx.NDArrayStore) -> None:
         """
-        title: Visit NdarrayStore nodes.
+        title: Visit NDArrayStore nodes.
         parameters:
           node:
-            type: astx.NdarrayStore
+            type: astx.NDArrayStore
         """
         view = self._require_ndarray_value(node.base)
         indices = cast(Any, self)._lower_buffer_index_indices(node.indices)
@@ -707,12 +670,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.result_stack.append(ir.Constant(self._llvm.INT32_TYPE, 0))
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayNdim) -> None:
+    def visit(self, node: astx.NDArrayNDim) -> None:
         """
-        title: Visit NdarrayNdim nodes.
+        title: Visit NDArrayNDim nodes.
         parameters:
           node:
-            type: astx.NdarrayNdim
+            type: astx.NDArrayNDim
         """
         view = self._require_ndarray_value(node.base)
         self.result_stack.append(
@@ -724,12 +687,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayShape) -> None:
+    def visit(self, node: astx.NDArrayShape) -> None:
         """
-        title: Visit NdarrayShape nodes.
+        title: Visit NDArrayShape nodes.
         parameters:
           node:
-            type: astx.NdarrayShape
+            type: astx.NDArrayShape
         """
         view = self._require_ndarray_value(node.base)
         shape_ptr = self._extract_view_field(
@@ -750,12 +713,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayStride) -> None:
+    def visit(self, node: astx.NDArrayStride) -> None:
         """
-        title: Visit NdarrayStride nodes.
+        title: Visit NDArrayStride nodes.
         parameters:
           node:
-            type: astx.NdarrayStride
+            type: astx.NDArrayStride
         """
         view = self._require_ndarray_value(node.base)
         stride_ptr = self._extract_view_field(
@@ -776,12 +739,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayElementCount) -> None:
+    def visit(self, node: astx.NDArrayElementCount) -> None:
         """
-        title: Visit NdarrayElementCount nodes.
+        title: Visit NDArrayElementCount nodes.
         parameters:
           node:
-            type: astx.NdarrayElementCount
+            type: astx.NDArrayElementCount
         """
         layout = self._static_ndarray_layout(node.base)
         self.result_stack.append(
@@ -792,12 +755,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayByteOffset) -> None:
+    def visit(self, node: astx.NDArrayByteOffset) -> None:
         """
-        title: Visit NdarrayByteOffset nodes.
+        title: Visit NDArrayByteOffset nodes.
         parameters:
           node:
-            type: astx.NdarrayByteOffset
+            type: astx.NDArrayByteOffset
         """
         view = self._require_ndarray_value(node.base)
         indices = cast(Any, self)._lower_buffer_index_indices(node.indices)
@@ -809,12 +772,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         self.result_stack.append(offset)
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayRetain) -> None:
+    def visit(self, node: astx.NDArrayRetain) -> None:
         """
-        title: Visit NdarrayRetain nodes.
+        title: Visit NDArrayRetain nodes.
         parameters:
           node:
-            type: astx.NdarrayRetain
+            type: astx.NDArrayRetain
         """
         retain = self.require_runtime_symbol(
             "buffer",
@@ -835,12 +798,12 @@ class ArrayVisitorMixin(VisitorMixinBase):
         )
 
     @VisitorCore.visit.dispatch
-    def visit(self, node: astx.NdarrayRelease) -> None:
+    def visit(self, node: astx.NDArrayRelease) -> None:
         """
-        title: Visit NdarrayRelease nodes.
+        title: Visit NDArrayRelease nodes.
         parameters:
           node:
-            type: astx.NdarrayRelease
+            type: astx.NDArrayRelease
         """
         release = self.require_runtime_symbol(
             "buffer",

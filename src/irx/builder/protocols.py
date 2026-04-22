@@ -121,6 +121,27 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         """
         ...
 
+    def _i64_array_pointer(
+        self,
+        _values: tuple[int, ...],
+        *,
+        purpose: str,
+        symbol_namespace: str = "buffer",
+    ) -> ir.Value:
+        """
+        title: Lower one tuple of i64 values to a stable global pointer.
+        parameters:
+          _values:
+            type: tuple[int, Ellipsis]
+          purpose:
+            type: str
+          symbol_namespace:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        ...
+
     def _field_address(self, _node: astx.FieldAccess) -> ir.Value:
         """
         title: Lower one field access to an address.
@@ -597,6 +618,28 @@ class VisitorMixinTypingBase:
           type: Any
         """
         return cast(Any, None)
+
+    def _i64_array_pointer(
+        self,
+        _values: tuple[int, ...],
+        *,
+        purpose: str,
+        symbol_namespace: str = "buffer",
+    ) -> ir.Value:
+        """
+        title: Lower one tuple of i64 values to a stable global pointer.
+        parameters:
+          _values:
+            type: tuple[int, Ellipsis]
+          purpose:
+            type: str
+          symbol_namespace:
+            type: str
+        returns:
+          type: ir.Value
+        """
+        _ = purpose, symbol_namespace
+        return cast(ir.Value, None)
 
     def _field_address(self, _node: astx.FieldAccess) -> ir.Value:
         """

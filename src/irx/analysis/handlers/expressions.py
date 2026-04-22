@@ -61,7 +61,7 @@ from irx.array import (
     NDARRAY_ELEMENT_TYPE_EXTRA,
     NDARRAY_FLAGS_EXTRA,
     NDARRAY_LAYOUT_EXTRA,
-    NdarrayLayout,
+    NDArrayLayout,
     ndarray_byte_bounds,
     ndarray_default_strides,
     ndarray_element_count,
@@ -177,7 +177,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
     def _static_ndarray_layout(
         self,
         node: astx.AST,
-    ) -> NdarrayLayout | None:
+    ) -> NDArrayLayout | None:
         """
         title: >-
           Return static ndarray layout metadata when analysis can prove it.
@@ -185,11 +185,11 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
           node:
             type: astx.AST
         returns:
-          type: NdarrayLayout | None
+          type: NDArrayLayout | None
         """
         semantic = self._semantic(node)
         layout = semantic.extras.get(NDARRAY_LAYOUT_EXTRA)
-        if isinstance(layout, NdarrayLayout):
+        if isinstance(layout, NDArrayLayout):
             return layout
 
         symbol = semantic.resolved_symbol
@@ -201,7 +201,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         initializer_semantic = getattr(initializer, "semantic", None)
         initializer_extras = getattr(initializer_semantic, "extras", {})
         layout = initializer_extras.get(NDARRAY_LAYOUT_EXTRA)
-        if isinstance(layout, NdarrayLayout):
+        if isinstance(layout, NDArrayLayout):
             return layout
         return None
 
@@ -225,7 +225,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
 
         ndarray_type = self._expr_type(node)
         if (
-            isinstance(ndarray_type, astx.NdarrayType)
+            isinstance(ndarray_type, astx.NDArrayType)
             and ndarray_type.element_type is not None
         ):
             return ndarray_type.element_type
@@ -248,7 +248,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             getattr(initializer, "type_", None),
         )
         if (
-            isinstance(initializer_type, astx.NdarrayType)
+            isinstance(initializer_type, astx.NDArrayType)
             and initializer_type.element_type is not None
         ):
             return initializer_type.element_type
@@ -259,7 +259,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         node: astx.AST,
     ) -> int | None:
         """
-        title: Return static ndarray flags when analysis can prove them.
+        title: Return static NDArray flags when analysis can prove them.
         parameters:
           node:
             type: astx.AST
@@ -1519,7 +1519,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         is_store: bool,
     ) -> astx.DataType | None:
         """
-        title: Validate one ndarray indexed access.
+        title: Validate one NDArray indexed access.
         parameters:
           node:
             type: astx.AST
@@ -1533,9 +1533,9 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
           type: astx.DataType | None
         """
         base_type = self._expr_type(base)
-        if not isinstance(base_type, astx.NdarrayType):
+        if not isinstance(base_type, astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray indexing requires a NdarrayType base",
+                "ndarray indexing requires a NDArrayType base",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -1646,7 +1646,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         operation: str,
     ) -> None:
         """
-        title: Validate one explicit ndarray lifetime helper operation.
+        title: Validate one explicit NDArray lifetime helper operation.
         parameters:
           node:
             type: astx.AST
@@ -2577,12 +2577,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayLiteral) -> None:
+    def visit(self, node: astx.NDArrayLiteral) -> None:
         """
-        title: Visit NdarrayLiteral nodes.
+        title: Visit NDArrayLiteral nodes.
         parameters:
           node:
-            type: astx.NdarrayLiteral
+            type: astx.NDArrayLiteral
         """
         for item in node.values:
             self.visit(item)
@@ -2620,7 +2620,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         else:
             strides = tuple(node.strides)
 
-        layout = NdarrayLayout(
+        layout = NDArrayLayout(
             shape=shape,
             strides=strides,
             offset_bytes=node.offset_bytes,
@@ -2671,22 +2671,22 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
             node.element_type
         )
-        node.type_ = astx.NdarrayType(node.element_type)
+        node.type_ = astx.NDArrayType(node.element_type)
         self._set_type(node, node.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayView) -> None:
+    def visit(self, node: astx.NDArrayView) -> None:
         """
-        title: Visit NdarrayView nodes.
+        title: Visit NDArrayView nodes.
         parameters:
           node:
-            type: astx.NdarrayView
+            type: astx.NDArrayView
         """
         self.visit(node.base)
         base_type = self._expr_type(node.base)
-        if not isinstance(base_type, astx.NdarrayType):
+        if not isinstance(base_type, astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray views require a NdarrayType base",
+                "ndarray views require a NDArrayType base",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -2751,7 +2751,7 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         base_offset_bytes = (
             base_layout.offset_bytes if base_layout is not None else 0
         )
-        layout = NdarrayLayout(
+        layout = NDArrayLayout(
             shape=shape,
             strides=strides,
             offset_bytes=base_offset_bytes + node.offset_bytes,
@@ -2827,18 +2827,18 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
             self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
                 element_type
             )
-            node.type_ = astx.NdarrayType(element_type)
+            node.type_ = astx.NDArrayType(element_type)
         self._semantic(node).extras[NDARRAY_LAYOUT_EXTRA] = layout
         self._semantic(node).extras[NDARRAY_FLAGS_EXTRA] = flags
         self._set_type(node, node.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayIndex) -> None:
+    def visit(self, node: astx.NDArrayIndex) -> None:
         """
-        title: Visit NdarrayIndex nodes.
+        title: Visit NDArrayIndex nodes.
         parameters:
           node:
-            type: astx.NdarrayIndex
+            type: astx.NDArrayIndex
         """
         self.visit(node.base)
         for index in node.indices:
@@ -2854,12 +2854,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, element_type)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayStore) -> None:
+    def visit(self, node: astx.NDArrayStore) -> None:
         """
-        title: Visit NdarrayStore nodes.
+        title: Visit NDArrayStore nodes.
         parameters:
           node:
-            type: astx.NdarrayStore
+            type: astx.NDArrayStore
         """
         self.visit(node.base)
         for index in node.indices:
@@ -2882,34 +2882,34 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayNdim) -> None:
+    def visit(self, node: astx.NDArrayNDim) -> None:
         """
-        title: Visit NdarrayNdim nodes.
+        title: Visit NDArrayNDim nodes.
         parameters:
           node:
-            type: astx.NdarrayNdim
+            type: astx.NDArrayNDim
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray ndim requires a NdarrayType value",
+                "ndarray ndim requires a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayShape) -> None:
+    def visit(self, node: astx.NDArrayShape) -> None:
         """
-        title: Visit NdarrayShape nodes.
+        title: Visit NDArrayShape nodes.
         parameters:
           node:
-            type: astx.NdarrayShape
+            type: astx.NDArrayShape
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray shape queries require a NdarrayType value",
+                "ndarray shape queries require a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -2929,17 +2929,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayStride) -> None:
+    def visit(self, node: astx.NDArrayStride) -> None:
         """
-        title: Visit NdarrayStride nodes.
+        title: Visit NDArrayStride nodes.
         parameters:
           node:
-            type: astx.NdarrayStride
+            type: astx.NDArrayStride
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray stride queries require a NdarrayType value",
+                "ndarray stride queries require a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -2959,17 +2959,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayElementCount) -> None:
+    def visit(self, node: astx.NDArrayElementCount) -> None:
         """
-        title: Visit NdarrayElementCount nodes.
+        title: Visit NDArrayElementCount nodes.
         parameters:
           node:
-            type: astx.NdarrayElementCount
+            type: astx.NDArrayElementCount
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray element_count requires a NdarrayType value",
+                "ndarray element_count requires a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -2982,12 +2982,12 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayByteOffset) -> None:
+    def visit(self, node: astx.NDArrayByteOffset) -> None:
         """
-        title: Visit NdarrayByteOffset nodes.
+        title: Visit NDArrayByteOffset nodes.
         parameters:
           node:
-            type: astx.NdarrayByteOffset
+            type: astx.NDArrayByteOffset
         """
         self.visit(node.base)
         for index in node.indices:
@@ -3001,17 +3001,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayRetain) -> None:
+    def visit(self, node: astx.NDArrayRetain) -> None:
         """
-        title: Visit NdarrayRetain nodes.
+        title: Visit NDArrayRetain nodes.
         parameters:
           node:
-            type: astx.NdarrayRetain
+            type: astx.NDArrayRetain
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray retain requires a NdarrayType value",
+                "ndarray retain requires a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -3023,17 +3023,17 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NdarrayRelease) -> None:
+    def visit(self, node: astx.NDArrayRelease) -> None:
         """
-        title: Visit NdarrayRelease nodes.
+        title: Visit NDArrayRelease nodes.
         parameters:
           node:
-            type: astx.NdarrayRelease
+            type: astx.NDArrayRelease
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NdarrayType):
+        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
             self.context.diagnostics.add(
-                "ndarray release requires a NdarrayType value",
+                "ndarray release requires a NDArrayType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )

@@ -1056,7 +1056,7 @@ class VisitorCore(BuilderVisitor):
             return pointee_type.as_pointer()
         if isinstance(type_, astx.BufferViewType):
             return self._llvm.BUFFER_VIEW_TYPE
-        if isinstance(type_, astx.NdarrayType):
+        if isinstance(type_, astx.NDArrayType):
             return self._llvm.BUFFER_VIEW_TYPE
         if isinstance(type_, astx.StructType):
             struct_key = type_.qualified_name

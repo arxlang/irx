@@ -60,6 +60,7 @@ class BufferVisitorMixin(VisitorMixinBase):
         values: tuple[int, ...],
         *,
         purpose: str,
+        symbol_namespace: str = "buffer",
     ) -> ir.Value:
         """
         title: Lower one tuple of i64 values to a stable global pointer.
@@ -67,6 +68,8 @@ class BufferVisitorMixin(VisitorMixinBase):
           values:
             type: tuple[int, Ellipsis]
           purpose:
+            type: str
+          symbol_namespace:
             type: str
         returns:
           type: ir.Value
@@ -85,7 +88,7 @@ class BufferVisitorMixin(VisitorMixinBase):
         global_value = ir.GlobalVariable(
             self._llvm.module,
             array_type,
-            name=f"irx_buffer_{purpose}_{index}",
+            name=f"irx_{symbol_namespace}_{purpose}_{index}",
         )
         global_value.linkage = "internal"
         global_value.global_constant = True
@@ -97,7 +100,7 @@ class BufferVisitorMixin(VisitorMixinBase):
                 ir.Constant(self._llvm.INT32_TYPE, 0),
             ],
             inbounds=True,
-            name=f"irx_buffer_{purpose}_ptr_{index}",
+            name=f"irx_{symbol_namespace}_{purpose}_ptr_{index}",
         )
 
     def _buffer_view_value_from_metadata(

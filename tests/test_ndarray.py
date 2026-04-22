@@ -1,5 +1,5 @@
 """
-title: Tests for the IRx ndarray layer.
+title: Tests for the IRx NDArray layer.
 """
 
 from __future__ import annotations
@@ -12,6 +12,8 @@ import pytest
 
 from irx import astx
 from irx.analysis import SemanticError, analyze
+from irx.array import ndarray_element_size_bytes_from_dtype
+from irx.buffer import buffer_dtype_handle
 from irx.builder import Builder
 
 from tests.conftest import assert_ir_parses, build_and_run
@@ -48,9 +50,9 @@ def _int32_ndarray(
     shape: tuple[int, ...],
     strides: tuple[int, ...] | None = None,
     offset_bytes: int = 0,
-) -> astx.NdarrayLiteral:
+) -> astx.NDArrayLiteral:
     """
-    title: Build one int32 ndarray literal node.
+    title: Build one int32 NDArray literal node.
     parameters:
       values:
         type: list[int]
@@ -61,9 +63,9 @@ def _int32_ndarray(
       offset_bytes:
         type: int
     returns:
-      type: astx.NdarrayLiteral
+      type: astx.NDArrayLiteral
     """
-    return astx.NdarrayLiteral(
+    return astx.NDArrayLiteral(
         [astx.LiteralInt32(value) for value in values],
         element_type=astx.Int32(),
         shape=shape,
@@ -74,13 +76,13 @@ def _int32_ndarray(
 
 def test_ndarray_literal_get_struct_shapes() -> None:
     """
-    title: Ndarray literal get_struct should expose shape and stride metadata.
+    title: NDArray literal get_struct should expose shape and stride metadata.
     """
     node = _int32_ndarray([1, 2, 3, 4], shape=(2, 2), strides=(8, 4))
 
     full = node.get_struct()
     assert isinstance(full, dict)
-    full_entry = cast(dict[str, Any], full["NdarrayLiteral"])
+    full_entry = cast(dict[str, Any], full["NDArrayLiteral"])
     entry = cast(dict[str, Any], full_entry["content"])
     assert entry["shape"] == [2, 2]
     assert entry["strides"] == [8, 4]
@@ -88,18 +90,33 @@ def test_ndarray_literal_get_struct_shapes() -> None:
 
     simplified = node.get_struct(simplified=True)
     assert isinstance(simplified, dict)
-    simplified_entry = cast(dict[str, Any], simplified["NdarrayLiteral"])
+    simplified_entry = cast(dict[str, Any], simplified["NDArrayLiteral"])
     assert simplified_entry["shape"] == [2, 2]
+
+
+def test_ndarray_element_size_uses_shared_dtype_metadata() -> None:
+    """
+    title: NDArray dtype sizes should come from shared primitive metadata.
+    """
+    int32_dtype = buffer_dtype_handle("int32")
+    float64_dtype = buffer_dtype_handle("float64")
+    bool_dtype = buffer_dtype_handle("bool")
+    int32_size = 4
+    float64_size = 8
+
+    assert ndarray_element_size_bytes_from_dtype(int32_dtype) == int32_size
+    assert ndarray_element_size_bytes_from_dtype(float64_dtype) == float64_size
+    assert ndarray_element_size_bytes_from_dtype(bool_dtype) is None
 
 
 def test_ndarray_rejects_bool_elements() -> None:
     """
-    title: Bool ndarrays should fail semantic analysis in this phase.
+    title: Bool NDArrays should fail semantic analysis in this phase.
     """
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NdarrayNdim(
-                astx.NdarrayLiteral(
+            astx.NDArrayNDim(
+                astx.NDArrayLiteral(
                     [astx.LiteralBoolean(True), astx.LiteralBoolean(False)],
                     element_type=astx.Boolean(),
                     shape=(2,),
@@ -114,11 +131,11 @@ def test_ndarray_rejects_bool_elements() -> None:
 
 def test_ndarray_rejects_wrong_static_rank_index_count() -> None:
     """
-    title: Ndarray indexing should validate static rank against index arity.
+    title: NDArray indexing should validate static rank against index arity.
     """
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NdarrayIndex(
+            astx.NDArrayIndex(
                 _int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
                 [astx.LiteralInt32(0)],
             )
@@ -131,10 +148,10 @@ def test_ndarray_rejects_wrong_static_rank_index_count() -> None:
 
 def test_ndarray_store_rejects_arrow_backed_readonly_values() -> None:
     """
-    title: Arrow-backed ndarray literals should remain readonly in this phase.
+    title: Arrow-backed NDArray literals should remain readonly in this phase.
     """
     module = _module_with_main(
-        astx.NdarrayStore(
+        astx.NDArrayStore(
             _int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
             [astx.LiteralInt32(0), astx.LiteralInt32(1)],
             astx.LiteralInt32(99),
@@ -150,18 +167,18 @@ def test_ndarray_literal_lowers_through_array_runtime_and_owner_bridge() -> (
 ):
     """
     title: >-
-      Ndarray literals should use Arrow storage plus a buffer-owner bridge.
+      NDArray literals should use Arrow storage plus a buffer-owner bridge.
     """
     builder = Builder()
     module = _module_with_main(
         astx.VariableDeclaration(
             name="arr",
-            type_=astx.NdarrayType(astx.Int32()),
+            type_=astx.NDArrayType(astx.Int32()),
             mutability=astx.MutabilityKind.mutable,
             value=_int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
         ),
         astx.FunctionReturn(
-            astx.NdarrayIndex(
+            astx.NDArrayIndex(
                 astx.Identifier("arr"),
                 [astx.LiteralInt32(1), astx.LiteralInt32(1)],
             )
@@ -181,10 +198,10 @@ def test_ndarray_literal_lowers_through_array_runtime_and_owner_bridge() -> (
 
 def test_ndarray_view_lowers_custom_shape_stride_and_offset() -> None:
     """
-    title: Ndarray views should lower with explicit shape, stride, and offset.
+    title: NDArray views should lower with explicit shape, stride, and offset.
     """
     builder = Builder()
-    view = astx.NdarrayView(
+    view = astx.NDArrayView(
         _int32_ndarray([10, 20, 30, 40, 50, 60], shape=(2, 3)),
         shape=(2, 2),
         strides=(12, 4),
@@ -192,7 +209,7 @@ def test_ndarray_view_lowers_custom_shape_stride_and_offset() -> None:
     )
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NdarrayIndex(
+            astx.NDArrayIndex(
                 view,
                 [astx.LiteralInt32(1), astx.LiteralInt32(0)],
             )
@@ -219,17 +236,17 @@ def test_ndarray_view_lowers_custom_shape_stride_and_offset() -> None:
 
 def test_ndarray_queries_lower_to_shape_stride_metadata() -> None:
     """
-    title: Ndarray queries should lower to rank, shape, and stride metadata.
+    title: NDArray queries should lower to rank, shape, and stride metadata.
     """
     builder = Builder()
     module = _module_with_main(
         astx.VariableDeclaration(
             name="arr",
-            type_=astx.NdarrayType(astx.Int32()),
+            type_=astx.NDArrayType(astx.Int32()),
             mutability=astx.MutabilityKind.mutable,
             value=_int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
         ),
-        astx.FunctionReturn(astx.NdarrayNdim(astx.Identifier("arr"))),
+        astx.FunctionReturn(astx.NDArrayNDim(astx.Identifier("arr"))),
     )
 
     ir_text = builder.translate(module)
@@ -240,14 +257,14 @@ def test_ndarray_queries_lower_to_shape_stride_metadata() -> None:
 
 def test_ndarray_build_returns_indexed_element() -> None:
     """
-    title: Built ndarray programs should return indexed element values.
+    title: Built NDArray programs should return indexed element values.
     """
     if shutil.which("clang") is None:
         pytest.skip("builder.build() currently requires clang")
 
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NdarrayIndex(
+            astx.NDArrayIndex(
                 _int32_ndarray([1, 2, 3, 4, 5, 6], shape=(2, 3)),
                 [astx.LiteralInt32(1), astx.LiteralInt32(2)],
             )
@@ -262,12 +279,12 @@ def test_ndarray_build_returns_indexed_element() -> None:
 
 def test_ndarray_view_build_returns_view_element() -> None:
     """
-    title: Built ndarray views should return values through view metadata.
+    title: Built NDArray views should return values through view metadata.
     """
     if shutil.which("clang") is None:
         pytest.skip("builder.build() currently requires clang")
 
-    view = astx.NdarrayView(
+    view = astx.NDArrayView(
         _int32_ndarray([10, 20, 30, 40, 50, 60], shape=(2, 3)),
         shape=(2, 2),
         strides=(12, 4),
@@ -275,7 +292,7 @@ def test_ndarray_view_build_returns_view_element() -> None:
     )
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NdarrayIndex(
+            astx.NDArrayIndex(
                 view,
                 [astx.LiteralInt32(1), astx.LiteralInt32(0)],
             )

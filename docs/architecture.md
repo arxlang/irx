@@ -223,9 +223,9 @@ element type and emit a store. The default bounds policy means semantic static
 bounds rejection when provable and no emitted runtime bounds helper yet. Future
 checked and unchecked runtime modes can reuse the same element-pointer helper.
 
-## Ndarray Layering
+## NDArray Layering
 
-IRx now treats ndarray support as a distinct semantic layer built on two
+IRx now treats NDArray support as a distinct semantic layer built on two
 existing foundations:
 
 - the builtin Arrow-backed array runtime provides storage and backend
@@ -246,7 +246,7 @@ Current ndarray lowering stays intentionally conservative:
 - indexing and byte-offset queries reuse buffer/view stride arithmetic
 - view construction is shallow and metadata-driven
 - fixed-width numeric element types are supported in this phase
-- Arrow-backed ndarrays remain readonly in this phase
+- Arrow-backed NDArrays remain readonly in this phase
 
 ## Why `visit(...)` Remains the Public Lowering Boundary
 

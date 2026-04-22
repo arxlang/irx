@@ -751,14 +751,14 @@ IRx exposes arrays through a builtin runtime surface backed by Arrow. The
 high-level abstraction is array-oriented; the low-level FFI ABI remains
 Arrow-specific. It is not a first-class language container model.
 
-IRx also now exposes an internal ndarray layer on top of that runtime:
+IRx also now exposes an initial internal NDArray layer on top of that runtime:
 
 - ndarray storage still comes from Arrow-backed array handles
 - ndarray layout still lowers through the canonical `irx_buffer_view` descriptor
 - ndarray indexing and view construction reuse explicit `shape`, `strides`, and
   `offset_bytes` metadata
-- current ndarray support is limited to fixed-width numeric element types and
-  readonly Arrow-backed storage
+- current NDArray support in this initial phase is limited to fixed-width
+  numeric element types and readonly Arrow-backed storage
 
 Stable scope in this phase:
 
@@ -806,7 +806,7 @@ Arrow-to-buffer-view bridge rules:
 - bool arrays are supported as Arrow handles but are not buffer-view compatible
   because their values are bit-packed
 
-Ndarray layering rules:
+NDArray layering rules:
 
 - fresh ndarray literals build flat Arrow arrays, then wrap them in
   external-owner buffer views so lifetime remains explicit

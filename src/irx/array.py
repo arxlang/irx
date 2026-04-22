@@ -1,7 +1,7 @@
 """
-title: Ndarray layout helpers layered on the builtin array runtime.
+title: Initial NDArray layout helpers layered on the builtin array runtime.
 summary: >-
-  Define IRx's backend-neutral ndarray metadata helpers on top of the canonical
+  Define IRx's backend-neutral NDArray metadata helpers on top of the canonical
   buffer/view substrate and the Arrow-backed array runtime.
 """
 
@@ -14,6 +14,7 @@ import astx
 
 from public import public
 
+from irx.array_primitives import ARRAY_PRIMITIVE_TYPE_SPECS
 from irx.buffer import (
     BUFFER_FLAG_VALIDITY_BITMAP,
     BufferHandle,
@@ -28,13 +29,18 @@ from irx.typecheck import typechecked
 NDARRAY_LAYOUT_EXTRA = "ndarray_layout"
 NDARRAY_ELEMENT_TYPE_EXTRA = "ndarray_element_type"
 NDARRAY_FLAGS_EXTRA = "ndarray_flags"
+_DTYPE_ELEMENT_SIZE_BYTES = {
+    buffer_dtype_handle(spec.name): spec.element_size_bytes
+    for spec in ARRAY_PRIMITIVE_TYPE_SPECS.values()
+    if spec.element_size_bytes is not None
+}
 
 
 @public
 @typechecked
-class NdarrayOrder(str, Enum):
+class NDArrayOrder(str, Enum):
     """
-    title: Canonical contiguous layout order for ndarray helpers.
+    title: Canonical contiguous layout order for NDArray helpers.
     """
 
     C = "C"
@@ -44,12 +50,12 @@ class NdarrayOrder(str, Enum):
 @public
 @typechecked
 @dataclass(frozen=True)
-class NdarrayLayout:
+class NDArrayLayout:
     """
-    title: Static ndarray layout metadata.
+    title: Static NDArray layout metadata.
     summary: >-
       Represent the logical rank, shape, strides, and byte offset of one
-      ndarray value without duplicating the lower-level storage machinery.
+      NDArray value without duplicating the lower-level storage machinery.
     attributes:
       shape:
         type: tuple[int, Ellipsis]
@@ -91,12 +97,12 @@ def _shape_extent(shape: tuple[int, ...]) -> int:
 
 @public
 @typechecked
-def ndarray_element_count(layout: NdarrayLayout) -> int:
+def ndarray_element_count(layout: NDArrayLayout) -> int:
     """
     title: Return the logical element count for one layout.
     parameters:
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
     returns:
       type: int
     """
@@ -109,17 +115,17 @@ def ndarray_default_strides(
     shape: tuple[int, ...],
     item_size_bytes: int,
     *,
-    order: NdarrayOrder = NdarrayOrder.C,
+    order: NDArrayOrder = NDArrayOrder.C,
 ) -> tuple[int, ...]:
     """
-    title: Return canonical byte strides for one contiguous ndarray shape.
+    title: Return canonical byte strides for one contiguous NDArray shape.
     parameters:
       shape:
         type: tuple[int, Ellipsis]
       item_size_bytes:
         type: int
       order:
-        type: NdarrayOrder
+        type: NDArrayOrder
     returns:
       type: tuple[int, Ellipsis]
     """
@@ -131,7 +137,7 @@ def ndarray_default_strides(
     strides = [0] * len(shape)
     stride = item_size_bytes
 
-    if order is NdarrayOrder.C:
+    if order is NDArrayOrder.C:
         indices = range(len(shape) - 1, -1, -1)
     else:
         indices = range(len(shape))
@@ -146,14 +152,14 @@ def ndarray_default_strides(
 @public
 @typechecked
 def ndarray_is_c_contiguous(
-    layout: NdarrayLayout,
+    layout: NDArrayLayout,
     item_size_bytes: int,
 ) -> bool:
     """
     title: Return whether one layout matches canonical C-order strides.
     parameters:
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
       item_size_bytes:
         type: int
     returns:
@@ -162,21 +168,21 @@ def ndarray_is_c_contiguous(
     return layout.strides == ndarray_default_strides(
         layout.shape,
         item_size_bytes,
-        order=NdarrayOrder.C,
+        order=NDArrayOrder.C,
     )
 
 
 @public
 @typechecked
 def ndarray_is_f_contiguous(
-    layout: NdarrayLayout,
+    layout: NDArrayLayout,
     item_size_bytes: int,
 ) -> bool:
     """
     title: Return whether one layout matches canonical Fortran-order strides.
     parameters:
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
       item_size_bytes:
         type: int
     returns:
@@ -185,20 +191,20 @@ def ndarray_is_f_contiguous(
     return layout.strides == ndarray_default_strides(
         layout.shape,
         item_size_bytes,
-        order=NdarrayOrder.F,
+        order=NDArrayOrder.F,
     )
 
 
 @public
 @typechecked
 def validate_ndarray_layout(
-    layout: NdarrayLayout,
+    layout: NDArrayLayout,
 ) -> tuple[str, ...]:
     """
-    title: Validate one static ndarray layout.
+    title: Validate one static NDArray layout.
     parameters:
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
     returns:
       type: tuple[str, Ellipsis]
     """
@@ -217,7 +223,7 @@ def validate_ndarray_layout(
 @public
 @typechecked
 def ndarray_byte_bounds(
-    layout: NdarrayLayout,
+    layout: NDArrayLayout,
 ) -> tuple[int, int] | None:
     """
     title: Return the minimum and maximum element-start byte offsets.
@@ -226,7 +232,7 @@ def ndarray_byte_bounds(
       logical layout has zero extent and therefore addresses no elements.
     parameters:
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
     returns:
       type: tuple[int, int] | None
     """
@@ -252,7 +258,7 @@ def ndarray_byte_bounds(
 @typechecked
 def ndarray_primitive_type_name(type_: astx.DataType | None) -> str | None:
     """
-    title: Return the builtin primitive storage name for one ndarray element.
+    title: Return the builtin primitive storage name for one NDArray element.
     parameters:
       type_:
         type: astx.DataType | None
@@ -288,7 +294,7 @@ def ndarray_primitive_type_name(type_: astx.DataType | None) -> str | None:
 @typechecked
 def ndarray_element_size_bytes(type_: astx.DataType | None) -> int | None:
     """
-    title: Return the byte width for one ndarray element type.
+    title: Return the byte width for one NDArray element type.
     parameters:
       type_:
         type: astx.DataType | None
@@ -296,24 +302,19 @@ def ndarray_element_size_bytes(type_: astx.DataType | None) -> int | None:
       type: int | None
     """
     primitive_name = ndarray_primitive_type_name(type_)
-    if primitive_name == "bool":
+    if primitive_name is None:
         return None
-    if primitive_name in {"int8", "uint8"}:
-        return 1
-    if primitive_name in {"int16", "uint16"}:
-        return 2
-    if primitive_name in {"int32", "uint32", "float32"}:
-        return 4
-    if primitive_name in {"int64", "uint64", "float64"}:
-        return 8
-    return None
+    spec = ARRAY_PRIMITIVE_TYPE_SPECS.get(primitive_name)
+    if spec is None:
+        return None
+    return spec.element_size_bytes
 
 
 @public
 @typechecked
 def ndarray_buffer_dtype(type_: astx.DataType | None) -> BufferHandle | None:
     """
-    title: Return the canonical buffer dtype handle for one ndarray element.
+    title: Return the canonical buffer dtype handle for one NDArray element.
     parameters:
       type_:
         type: astx.DataType | None
@@ -333,13 +334,13 @@ def ndarray_buffer_view_metadata(
     data: BufferHandle,
     owner: BufferHandle,
     dtype: BufferHandle,
-    layout: NdarrayLayout,
+    layout: NDArrayLayout,
     ownership: BufferOwnership,
     mutability: BufferMutability,
     has_validity_bitmap: bool = False,
 ) -> BufferViewMetadata:
     """
-    title: Bridge one ndarray layout into canonical buffer/view metadata.
+    title: Bridge one NDArray layout into canonical buffer/view metadata.
     parameters:
       data:
         type: BufferHandle
@@ -348,7 +349,7 @@ def ndarray_buffer_view_metadata(
       dtype:
         type: BufferHandle
       layout:
-        type: NdarrayLayout
+        type: NDArrayLayout
       ownership:
         type: BufferOwnership
       mutability:
@@ -396,28 +397,17 @@ def ndarray_element_size_bytes_from_dtype(dtype: BufferHandle) -> int | None:
     returns:
       type: int | None
     """
-    if dtype.is_null or dtype.address is None:
+    if dtype.is_null:
         return None
-    return {
-        2: 1,
-        3: 2,
-        4: 4,
-        5: 8,
-        6: 1,
-        7: 2,
-        8: 4,
-        9: 8,
-        10: 4,
-        11: 8,
-    }.get(dtype.address)
+    return _DTYPE_ELEMENT_SIZE_BYTES.get(dtype)
 
 
 __all__ = [
     "NDARRAY_ELEMENT_TYPE_EXTRA",
     "NDARRAY_FLAGS_EXTRA",
     "NDARRAY_LAYOUT_EXTRA",
-    "NdarrayLayout",
-    "NdarrayOrder",
+    "NDArrayLayout",
+    "NDArrayOrder",
     "ndarray_buffer_dtype",
     "ndarray_buffer_view_metadata",
     "ndarray_byte_bounds",
