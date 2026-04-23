@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING
 from arx_nanoarrow_sources import get_include_dir, get_source_files
 from llvmlite import ir
 
-from irx.array_primitives import (
+from irx.builder.runtime.features import (
+    ExternalSymbolSpec,
+    NativeArtifact,
+    RuntimeFeature,
+    declare_external_function,
+)
+from irx.builtins.collections.array_primitives import (
     ARRAY_PRIMITIVE_TYPE_SPECS,
     IRX_ARROW_TYPE_BOOL,
     IRX_ARROW_TYPE_FLOAT32,
@@ -25,12 +31,6 @@ from irx.array_primitives import (
     IRX_ARROW_TYPE_UINT64,
     IRX_ARROW_TYPE_UNKNOWN,
     ArrayPrimitiveTypeSpec,
-)
-from irx.builder.runtime.features import (
-    ExternalSymbolSpec,
-    NativeArtifact,
-    RuntimeFeature,
-    declare_external_function,
 )
 from irx.typecheck import typechecked
 

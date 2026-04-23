@@ -45,6 +45,8 @@ when needed.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `array` Declares the builtin array runtime surface and links the Arrow-backed
   native implementation.
+- `list` Declares the minimal dynamic-list runtime used by `ListCreate`,
+  `ListAppend`, and lowered list indexing.
 
 The builder and visitor cooperate as follows:
 

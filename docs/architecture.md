@@ -213,7 +213,21 @@ runtime checks are intentionally deferred.
 Backend lowering keeps address computation separate from load/store emission.
 The address helper extracts descriptor fields through
 `BUFFER_VIEW_FIELD_INDICES`, starts from `data`, includes `offset_bytes`, loads
-byte strides from `strides`, and computes:
+
+## Dynamic List Construction
+
+IRx also exposes one intentionally small list-building surface for frontend-
+emitted AST:
+
+- `ListCreate(element_type)` creates an empty list value with explicit element
+  type
+- `ListAppend(base, value)` grows a mutable list variable or field
+- regular `SubscriptExpr` lowering may read from produced list values
+
+This is deliberately narrower than a full collection API. The goal is to let
+frontends author pure source routines that accumulate list results inside loops
+without moving collection policy into the frontend. byte strides from `strides`,
+and computes:
 
 `effective_byte_offset = offset_bytes + sum(index_k * stride_k)`
 

@@ -14,7 +14,6 @@ import astx
 
 from public import public
 
-from irx.array_primitives import ARRAY_PRIMITIVE_TYPE_SPECS
 from irx.buffer import (
     BUFFER_FLAG_VALIDITY_BITMAP,
     BufferHandle,
@@ -23,6 +22,9 @@ from irx.buffer import (
     BufferViewMetadata,
     buffer_dtype_handle,
     buffer_view_flags,
+)
+from irx.builtins.collections.array_primitives import (
+    ARRAY_PRIMITIVE_TYPE_SPECS,
 )
 from irx.typecheck import typechecked
 

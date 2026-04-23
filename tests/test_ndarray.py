@@ -12,9 +12,11 @@ import pytest
 
 from irx import astx
 from irx.analysis import SemanticError, analyze
-from irx.array import ndarray_element_size_bytes_from_dtype
 from irx.buffer import buffer_dtype_handle
 from irx.builder import Builder
+from irx.builtins.collections.array import (
+    ndarray_element_size_bytes_from_dtype,
+)
 
 from tests.conftest import assert_ir_parses, build_and_run
 

@@ -115,6 +115,7 @@ class LiteralVisitorMixin(VisitorMixinBase):
             type_,
             (
                 astx.StructType,
+                astx.ListType,
                 astx.BufferViewType,
                 astx.NDArrayType,
                 astx.PointerType,
@@ -685,6 +686,10 @@ class LiteralVisitorMixin(VisitorMixinBase):
           node:
             type: astx.SubscriptExpr
         """
+        if isinstance(self._resolved_ast_type(node.value), astx.ListType):
+            cast(Any, self)._lower_list_subscript(node)
+            return
+
         dict_pair_fields = 2
         self.visit_child(node.value)
         dict_val = self.result_stack.pop()
