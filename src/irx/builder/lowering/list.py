@@ -17,6 +17,7 @@ from irx.builder.runtime import safe_pop
 from irx.builtins.collections.list import (
     LIST_APPEND_SYMBOL,
     LIST_AT_SYMBOL,
+    LIST_FIELD_INDICES,
     LIST_RUNTIME_FEATURE,
     list_element_type,
 )
@@ -351,7 +352,10 @@ class ListVisitorMixin(VisitorMixinBase):
             list_ptr,
             [
                 ir.Constant(self._llvm.INT32_TYPE, 0),
-                ir.Constant(self._llvm.INT32_TYPE, 1),
+                ir.Constant(
+                    self._llvm.INT32_TYPE,
+                    LIST_FIELD_INDICES["length"],
+                ),
             ],
             inbounds=True,
             name="irx_list_length_ptr",

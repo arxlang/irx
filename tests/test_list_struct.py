@@ -4,9 +4,24 @@ title: Structural tests for list helper AST nodes.
 
 from __future__ import annotations
 
+import importlib
+
 from typing import Any, cast
 
 from irx import astx
+
+
+def test_collections_package_reexports_list_helpers() -> None:
+    """
+    title: Collections package should preserve the list helper import surface.
+    """
+    package = importlib.import_module("irx.astx.collections")
+    list_module = importlib.import_module("irx.astx.collections.list")
+
+    assert package.ListCreate is list_module.ListCreate is astx.ListCreate
+    assert package.ListIndex is list_module.ListIndex is astx.ListIndex
+    assert package.ListAppend is list_module.ListAppend is astx.ListAppend
+    assert package.ListLength is list_module.ListLength is astx.ListLength
 
 
 def test_list_create_get_struct_shapes() -> None:

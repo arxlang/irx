@@ -16,9 +16,10 @@ from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.builder import Builder
 
-from .conftest import assert_ir_parses
+from .conftest import assert_ir_parses, assert_jit_int_main_result
 
 HAS_CLANG = shutil.which("clang") is not None
+HAS_LITERAL_LIST = hasattr(astx, "LiteralList")
 EXPECTED_LIST_AT_CALLS = 3
 
 
@@ -384,6 +385,25 @@ def test_dynamic_list_appends_variable_values() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_direct_list_length_from_temporary_list_create() -> None:
+    """
+    title: Direct list length should work for a non-lvalue ListCreate node.
+    """
+    builder = Builder()
+    module = _module_with_main(
+        astx.FunctionReturn(astx.ListLength(astx.ListCreate(astx.Int32())))
+    )
+    ir_text = builder.translate(module)
+
+    assert "irx_list_length_i32" in ir_text
+    assert 'call i32 @"irx_list_append"' not in ir_text
+    assert 'call i8* @"irx_list_at"' not in ir_text
+    assert_ir_parses(ir_text)
+
+    EXPECTED_EMPTY_LENGTH = 0
+    assert_jit_int_main_result(builder, module, EXPECTED_EMPTY_LENGTH)
+
+
 @pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
 def test_direct_list_nodes_build_and_return() -> None:
     """
@@ -403,6 +423,73 @@ def test_direct_list_nodes_build_and_return() -> None:
     _assert_workspace_build_output(
         builder, module, str(EXPECTED_DIRECT_NODE_RESULT)
     )
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST,
+    reason="astx.LiteralList not available",
+)
+def test_direct_list_length_from_literal_list_returns_constant() -> None:
+    """
+    title: Direct list length should lower LiteralList bases as constants.
+    """
+    builder = Builder()
+    module = _module_with_main(
+        astx.FunctionReturn(
+            astx.ListLength(
+                astx.LiteralList(
+                    elements=[
+                        astx.LiteralInt32(2),
+                        astx.LiteralInt32(4),
+                        astx.LiteralInt32(8),
+                    ]
+                )
+            )
+        )
+    )
+    ir_text = builder.translate(module)
+
+    assert "irx_list_length_i32" not in ir_text
+    assert 'call i32 @"irx_list_append"' not in ir_text
+    assert 'call i8* @"irx_list_at"' not in ir_text
+    assert_ir_parses(ir_text)
+
+    EXPECTED_LITERAL_LENGTH = 3
+    assert_jit_int_main_result(builder, module, EXPECTED_LITERAL_LENGTH)
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST,
+    reason="astx.LiteralList not available",
+)
+def test_direct_list_index_from_literal_list() -> None:
+    """
+    title: >-
+      Direct list index should lower LiteralList bases without runtime calls.
+    """
+    builder = Builder()
+    module = _module_with_main(
+        astx.FunctionReturn(
+            astx.ListIndex(
+                astx.LiteralList(
+                    elements=[
+                        astx.LiteralInt32(10),
+                        astx.LiteralInt32(20),
+                        astx.LiteralInt32(30),
+                    ]
+                ),
+                astx.LiteralInt32(1),
+            )
+        )
+    )
+    ir_text = builder.translate(module)
+
+    assert "literal_list_index_load" in ir_text
+    assert 'call i8* @"irx_list_at"' not in ir_text
+    assert_ir_parses(ir_text)
+
+    EXPECTED_LITERAL_INDEX = 20
+    assert_jit_int_main_result(builder, module, EXPECTED_LITERAL_INDEX)
 
 
 @pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
