@@ -213,6 +213,15 @@ runtime checks are intentionally deferred.
 Backend lowering keeps address computation separate from load/store emission.
 The address helper extracts descriptor fields through
 `BUFFER_VIEW_FIELD_INDICES`, starts from `data`, includes `offset_bytes`, loads
+byte strides from `strides`, and computes:
+
+`effective_byte_offset = offset_bytes + sum(index_k * stride_k)`
+
+The result is cast to the resolved element pointer type. Indexed reads emit a
+load from that pointer; indexed stores cast the right-hand side to the resolved
+element type and emit a store. The default bounds policy means semantic static
+bounds rejection when provable and no emitted runtime bounds helper yet. Future
+checked and unchecked runtime modes can reuse the same element-pointer helper.
 
 ## Dynamic List Construction
 
@@ -226,16 +235,9 @@ emitted AST:
 
 This is deliberately narrower than a full collection API. The goal is to let
 frontends author pure source routines that accumulate list results inside loops
-without moving collection policy into the frontend. byte strides from `strides`,
-and computes:
-
-`effective_byte_offset = offset_bytes + sum(index_k * stride_k)`
-
-The result is cast to the resolved element pointer type. Indexed reads emit a
-load from that pointer; indexed stores cast the right-hand side to the resolved
-element type and emit a store. The default bounds policy means semantic static
-bounds rejection when provable and no emitted runtime bounds helper yet. Future
-checked and unchecked runtime modes can reuse the same element-pointer helper.
+without moving collection policy into the frontend. The current runtime owns
+append/growth and indexed reads only; list teardown is intentionally deferred to
+a future ownership API.
 
 ## NDArray Layering
 

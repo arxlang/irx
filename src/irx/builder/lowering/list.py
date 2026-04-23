@@ -47,16 +47,19 @@ class ListVisitorMixin(VisitorMixinBase):
             ),
         )
 
-    def _list_element_llvm_type(self, node: astx.AST) -> ir.Type:
+    def _list_element_llvm_type_from_type(
+        self,
+        type_: astx.DataType | None,
+    ) -> ir.Type:
         """
-        title: Return the lowered element type for one list-valued AST node.
+        title: Return the lowered LLVM type for one concrete list element type.
         parameters:
-          node:
-            type: astx.AST
+          type_:
+            type: astx.DataType | None
         returns:
           type: ir.Type
         """
-        element_type = list_element_type(self._resolved_ast_type(node))
+        element_type = list_element_type(type_)
         if element_type is None:
             raise Exception(
                 "dynamic list lowering requires a single concrete element type"
@@ -68,6 +71,37 @@ class ListVisitorMixin(VisitorMixinBase):
             )
         return llvm_type
 
+    def _list_element_llvm_type(self, node: astx.AST) -> ir.Type:
+        """
+        title: Return the lowered element type for one list-valued AST node.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ir.Type
+        """
+        return self._list_element_llvm_type_from_type(
+            self._resolved_ast_type(node)
+        )
+
+    def _list_element_size_from_type(
+        self,
+        type_: astx.DataType | None,
+    ) -> int:
+        """
+        title: Return the ABI size in bytes for one concrete list type.
+        parameters:
+          type_:
+            type: astx.DataType | None
+        returns:
+          type: int
+        """
+        llvm_type = self._list_element_llvm_type_from_type(type_)
+        return cast(
+            int,
+            llvm_type.get_abi_size(self.target_machine.target_data),
+        )
+
     def _list_element_size(self, node: astx.AST) -> int:
         """
         title: Return the ABI size in bytes for one list element type.
@@ -77,18 +111,17 @@ class ListVisitorMixin(VisitorMixinBase):
         returns:
           type: int
         """
-        llvm_type = self._list_element_llvm_type(node)
-        return cast(
-            int,
-            llvm_type.get_abi_size(self.target_machine.target_data),
-        )
+        return self._list_element_size_from_type(self._resolved_ast_type(node))
 
-    def _empty_list_value(self, node: astx.AST) -> ir.Constant:
+    def _empty_list_value_for_type(
+        self,
+        type_: astx.DataType | None,
+    ) -> ir.Constant:
         """
-        title: Return one zero-length lowered list value.
+        title: Return one zero-length lowered list value for one list type.
         parameters:
-          node:
-            type: astx.AST
+          type_:
+            type: astx.DataType | None
         returns:
           type: ir.Constant
         """
@@ -100,10 +133,21 @@ class ListVisitorMixin(VisitorMixinBase):
                 ir.Constant(self._llvm.INT64_TYPE, 0),
                 ir.Constant(
                     self._llvm.INT64_TYPE,
-                    self._list_element_size(node),
+                    self._list_element_size_from_type(type_),
                 ),
             ],
         )
+
+    def _empty_list_value(self, node: astx.AST) -> ir.Constant:
+        """
+        title: Return one zero-length lowered list value.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ir.Constant
+        """
+        return self._empty_list_value_for_type(self._resolved_ast_type(node))
 
     def _list_pointer_for_call(self, node: astx.AST, *, name: str) -> ir.Value:
         """

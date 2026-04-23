@@ -111,11 +111,15 @@ class LiteralVisitorMixin(VisitorMixinBase):
             return ir.Constant(self._llvm.get_data_type(type_name), 0.0)
         if isinstance(type_, astx.ClassType):
             return ir.Constant(llvm_type, None)
+        if isinstance(type_, astx.ListType):
+            return cast(
+                ir.Constant,
+                cast(Any, self)._empty_list_value_for_type(type_),
+            )
         if isinstance(
             type_,
             (
                 astx.StructType,
-                astx.ListType,
                 astx.BufferViewType,
                 astx.NDArrayType,
                 astx.PointerType,

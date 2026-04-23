@@ -1,5 +1,9 @@
 """
 title: Dynamic-list runtime feature declarations.
+summary: >-
+  Declares the narrow append/index runtime surface for IRX lists. The current
+  ABI intentionally does not expose a destroy/release helper yet, so produced
+  list storage remains process-lifetime for now.
 """
 
 from __future__ import annotations
@@ -56,6 +60,10 @@ def build_list_runtime_feature() -> RuntimeFeature:
         metadata={
             "canonical_name": "list",
             "symbols": (LIST_APPEND_SYMBOL, LIST_AT_SYMBOL),
+            "limitations": (
+                "append/index only",
+                "no destroy or release helper yet",
+            ),
         },
     )
 

@@ -267,6 +267,46 @@ def _loop_module() -> astx.Module:
     return module
 
 
+def _uninitialized_local_module() -> astx.Module:
+    """
+    title: >-
+      Build one module that appends after an uninitialized list declaration.
+    returns:
+      type: astx.Module
+    """
+    list_type = _list_i32_type()
+    module = astx.Module()
+
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=astx.Block(),
+    )
+    main.body.append(
+        astx.VariableDeclaration(
+            name="out",
+            type_=list_type,
+            mutability=astx.MutabilityKind.mutable,
+        )
+    )
+    main.body.append(
+        astx.ListAppend(astx.Identifier("out"), astx.LiteralInt32(11))
+    )
+    main.body.append(
+        _mutable_decl(
+            "first",
+            astx.Int32(),
+            _index(astx.Identifier("out"), 0),
+        )
+    )
+    main.body.append(astx.FunctionReturn(astx.Identifier("first")))
+    module.block.append(main)
+    return module
+
+
 def test_dynamic_list_appends_variable_values() -> None:
     """
     title: Dynamic list creation should accept appended variable values.
@@ -294,6 +334,23 @@ def test_dynamic_list_loop_build_and_return() -> None:
 
     EXPECTED_LOOP_SUM = 6
     _assert_workspace_build_output(builder, module, str(EXPECTED_LOOP_SUM))
+
+
+@pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
+def test_dynamic_list_uninitialized_local_build_and_append() -> None:
+    """
+    title: Uninitialized mutable list locals should still append correctly.
+    """
+    builder = Builder()
+    module = _uninitialized_local_module()
+    ir_text = builder.translate(module)
+
+    assert 'call i32 @"irx_list_append"' in ir_text
+    assert 'call i8* @"irx_list_at"' in ir_text
+    assert_ir_parses(ir_text)
+
+    EXPECTED_FIRST_VALUE = 11
+    _assert_workspace_build_output(builder, module, str(EXPECTED_FIRST_VALUE))
 
 
 def test_dynamic_list_append_rejects_type_mismatch() -> None:
