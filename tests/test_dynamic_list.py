@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from irx import astx
-from irx.analysis import SemanticError
+from irx.analysis import SemanticError, analyze
 from irx.builder import Builder
 
 from .conftest import assert_ir_parses
@@ -68,6 +68,33 @@ def _index(base: astx.AST, index: int) -> astx.SubscriptExpr:
       type: astx.SubscriptExpr
     """
     return astx.SubscriptExpr(base, astx.LiteralInt32(index))
+
+
+def _module_with_main(*nodes: astx.AST) -> astx.Module:
+    """
+    title: Build one int32 main module from the provided nodes.
+    parameters:
+      nodes:
+        type: astx.AST
+        variadic: positional
+    returns:
+      type: astx.Module
+    """
+    module = astx.Module()
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=astx.Block(),
+    )
+    for node in nodes:
+        main.body.append(node)
+    if not any(isinstance(node, astx.FunctionReturn) for node in nodes):
+        main.body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module.block.append(main)
+    return module
 
 
 def _assert_workspace_build_output(
@@ -307,6 +334,44 @@ def _uninitialized_local_module() -> astx.Module:
     return module
 
 
+def _direct_list_node_module() -> astx.Module:
+    """
+    title: Build one module that exercises the direct list helper nodes.
+    returns:
+      type: astx.Module
+    """
+    list_type = _list_i32_type()
+    return _module_with_main(
+        _mutable_decl("out", list_type, astx.ListCreate(astx.Int32())),
+        _mutable_decl(
+            "status",
+            astx.Int32(),
+            astx.ListAppend(astx.Identifier("out"), astx.LiteralInt32(11)),
+        ),
+        _mutable_decl(
+            "first",
+            astx.Int32(),
+            astx.ListIndex(astx.Identifier("out"), astx.LiteralInt32(0)),
+        ),
+        _mutable_decl(
+            "length",
+            astx.Int32(),
+            astx.ListLength(astx.Identifier("out")),
+        ),
+        astx.FunctionReturn(
+            astx.BinaryOp(
+                "+",
+                astx.Identifier("status"),
+                astx.BinaryOp(
+                    "+",
+                    astx.Identifier("first"),
+                    astx.Identifier("length"),
+                ),
+            )
+        ),
+    )
+
+
 def test_dynamic_list_appends_variable_values() -> None:
     """
     title: Dynamic list creation should accept appended variable values.
@@ -317,6 +382,27 @@ def test_dynamic_list_appends_variable_values() -> None:
     assert 'call i32 @"irx_list_append"' in ir_text
     assert 'call i8* @"irx_list_at"' in ir_text
     assert_ir_parses(ir_text)
+
+
+@pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
+def test_direct_list_nodes_build_and_return() -> None:
+    """
+    title: Direct list helper nodes should build, lower, and execute cleanly.
+    """
+    builder = Builder()
+    module = _direct_list_node_module()
+    ir_text = builder.translate(module)
+
+    assert 'call i32 @"irx_list_append"' in ir_text
+    assert 'call i8* @"irx_list_at"' in ir_text
+    assert "irx_list_length_i32" in ir_text
+    assert "list" in builder.translator.runtime_features.active_feature_names()
+    assert_ir_parses(ir_text)
+
+    EXPECTED_DIRECT_NODE_RESULT = 12
+    _assert_workspace_build_output(
+        builder, module, str(EXPECTED_DIRECT_NODE_RESULT)
+    )
 
 
 @pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
@@ -378,3 +464,79 @@ def test_dynamic_list_append_rejects_type_mismatch() -> None:
 
     with pytest.raises(SemanticError, match="cannot assign Float32"):
         Builder().translate(module)
+
+
+def test_direct_list_append_rejects_non_lvalue_target() -> None:
+    """
+    title: >-
+      Direct list append should require a mutable variable or field target.
+    """
+    module = _module_with_main(
+        astx.FunctionReturn(
+            astx.ListAppend(
+                astx.ListCreate(astx.Int32()),
+                astx.LiteralInt32(1),
+            )
+        )
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="list append target must be a variable or field",
+    ):
+        analyze(module)
+
+
+def test_direct_list_index_rejects_non_list_base() -> None:
+    """
+    title: Direct list index should require a list-valued base expression.
+    """
+    module = _module_with_main(
+        astx.FunctionReturn(
+            astx.ListIndex(astx.LiteralInt32(1), astx.LiteralInt32(0))
+        )
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="list indexing requires a list value",
+    ):
+        analyze(module)
+
+
+def test_direct_list_index_rejects_non_integer_index() -> None:
+    """
+    title: Direct list index should require an integer index expression.
+    """
+    list_type = _list_i32_type()
+    module = _module_with_main(
+        _mutable_decl("out", list_type, astx.ListCreate(astx.Int32())),
+        astx.ListAppend(astx.Identifier("out"), astx.LiteralInt32(7)),
+        astx.FunctionReturn(
+            astx.ListIndex(
+                astx.Identifier("out"),
+                astx.LiteralFloat32(0.0),
+            )
+        ),
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="list indexing requires an integer index",
+    ):
+        analyze(module)
+
+
+def test_direct_list_length_rejects_non_list_base() -> None:
+    """
+    title: Direct list length should require a list-valued base expression.
+    """
+    module = _module_with_main(
+        astx.FunctionReturn(astx.ListLength(astx.LiteralInt32(1)))
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="list length requires a list value",
+    ):
+        analyze(module)
