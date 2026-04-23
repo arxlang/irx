@@ -99,6 +99,8 @@ from irx.astx.classes import StaticFieldAccess as StaticFieldAccess
 from irx.astx.classes import StaticMethodCall as StaticMethodCall
 from irx.astx.collections import ListAppend as ListAppend
 from irx.astx.collections import ListCreate as ListCreate
+from irx.astx.collections import ListIndex as ListIndex
+from irx.astx.collections import ListLength as ListLength
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
 from irx.astx.modules import ModuleNamespaceType as ModuleNamespaceType
@@ -168,6 +170,8 @@ __all__ = (
     "LeBinOp",
     "ListAppend",
     "ListCreate",
+    "ListIndex",
+    "ListLength",
     "LogicalAndBinOp",
     "LogicalOrBinOp",
     "LtBinOp",

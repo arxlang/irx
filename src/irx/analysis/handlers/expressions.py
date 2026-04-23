@@ -3345,6 +3345,66 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, node.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ListIndex) -> None:
+        """
+        title: Visit ListIndex nodes.
+        parameters:
+          node:
+            type: astx.ListIndex
+        """
+        self.visit(node.base)
+        self.visit(node.index)
+
+        value_type = self._expr_type(node.base)
+        if not isinstance(value_type, astx.ListType):
+            self.context.diagnostics.add(
+                "list indexing requires a list value",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            self._set_type(node, None)
+            return
+
+        index_type = self._expr_type(node.index)
+        if not is_integer_type(index_type):
+            self.context.diagnostics.add(
+                "list indexing requires an integer index",
+                node=node.index,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        if not list_has_concrete_element_type(value_type):
+            self.context.diagnostics.add(
+                "list indexing requires a single concrete list element type",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        self._set_type(node, list_element_type(value_type))
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ListLength) -> None:
+        """
+        title: Visit ListLength nodes.
+        parameters:
+          node:
+            type: astx.ListLength
+        """
+        self.visit(node.base)
+        if not self._require_value_expression(
+            node.base,
+            context="list length",
+        ):
+            self._set_type(node, astx.Int32())
+            return
+
+        if not isinstance(self._expr_type(node.base), astx.ListType):
+            self.context.diagnostics.add(
+                "list length requires a list value",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.ListAppend) -> None:
         """
         title: Visit ListAppend nodes.

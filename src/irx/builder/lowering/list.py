@@ -180,14 +180,24 @@ class ListVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.store(value, temp)
         return temp
 
-    def _lower_list_subscript(self, node: astx.SubscriptExpr) -> None:
+    def _lower_list_subscript(
+        self,
+        *,
+        base: astx.AST,
+        index_node: astx.AST,
+    ) -> None:
         """
         title: Lower one list indexing operation.
         parameters:
-          node:
-            type: astx.SubscriptExpr
+          base:
+            type: astx.AST
+          index_node:
+            type: astx.AST
         """
-        if list_element_type(self._resolved_ast_type(node.value)) is None:
+        if isinstance(base, astx.LiteralList):
+            self._lower_literal_list_index(base=base, index_node=index_node)
+            return
+        if list_element_type(self._resolved_ast_type(base)) is None:
             raise Exception(
                 "dynamic list subscript requires a single concrete element "
                 "type"
@@ -198,17 +208,17 @@ class ListVisitorMixin(VisitorMixinBase):
             LIST_AT_SYMBOL,
         )
         list_ptr = self._list_pointer_for_call(
-            node.value,
+            base,
             name="irx_list_index_value",
         )
 
-        self.visit_child(node.index)
+        self.visit_child(index_node)
         index = safe_pop(self.result_stack)
         if index is None:
             raise Exception("dynamic list subscript requires an index value")
         index = self._cast_ast_value(
             index,
-            source_type=self._resolved_ast_type(node.index),
+            source_type=self._resolved_ast_type(index_node),
             target_type=astx.Int64(),
         )
 
@@ -217,7 +227,7 @@ class ListVisitorMixin(VisitorMixinBase):
             [list_ptr, index],
             name="irx_list_at_ptr",
         )
-        llvm_element_type = self._list_element_llvm_type(node.value)
+        llvm_element_type = self._list_element_llvm_type(base)
         typed_ptr = self._llvm.ir_builder.bitcast(
             raw_ptr,
             llvm_element_type.as_pointer(),
@@ -230,6 +240,73 @@ class ListVisitorMixin(VisitorMixinBase):
             )
         )
 
+    def _lower_literal_list_index(
+        self,
+        *,
+        base: astx.LiteralList,
+        index_node: astx.AST,
+    ) -> None:
+        """
+        title: Lower one literal-list indexing operation.
+        parameters:
+          base:
+            type: astx.LiteralList
+          index_node:
+            type: astx.AST
+        """
+        self.visit_child(base)
+        literal_value = safe_pop(self.result_stack)
+        if literal_value is None:
+            raise Exception("literal list indexing requires a lowered value")
+
+        self.visit_child(index_node)
+        index = safe_pop(self.result_stack)
+        if index is None:
+            raise Exception("literal list indexing requires an index value")
+        index = self._cast_ast_value(
+            index,
+            source_type=self._resolved_ast_type(index_node),
+            target_type=astx.Int32(),
+        )
+
+        zero = ir.Constant(self._llvm.INT32_TYPE, 0)
+        if isinstance(literal_value.type, ir.ArrayType):
+            literal_slot = self._llvm.ir_builder.alloca(
+                literal_value.type,
+                name="literal_list_index_value",
+            )
+            self._llvm.ir_builder.store(literal_value, literal_slot)
+            element_ptr = self._llvm.ir_builder.gep(
+                literal_slot,
+                [zero, index],
+                inbounds=True,
+                name="literal_list_index_ptr",
+            )
+            self.result_stack.append(
+                self._llvm.ir_builder.load(
+                    element_ptr,
+                    name="literal_list_index_load",
+                )
+            )
+            return
+
+        if isinstance(literal_value.type, ir.PointerType):
+            element_ptr = self._llvm.ir_builder.gep(
+                literal_value,
+                [index],
+                inbounds=True,
+                name="literal_list_index_ptr",
+            )
+            self.result_stack.append(
+                self._llvm.ir_builder.load(
+                    element_ptr,
+                    name="literal_list_index_load",
+                )
+            )
+            return
+
+        raise Exception("literal list indexing requires array-like storage")
+
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.ListCreate) -> None:
         """
@@ -239,6 +316,57 @@ class ListVisitorMixin(VisitorMixinBase):
             type: astx.ListCreate
         """
         self.result_stack.append(self._empty_list_value(node))
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.ListIndex) -> None:
+        """
+        title: Visit ListIndex nodes.
+        parameters:
+          node:
+            type: astx.ListIndex
+        """
+        self._lower_list_subscript(
+            base=node.base,
+            index_node=node.index,
+        )
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.ListLength) -> None:
+        """
+        title: Visit ListLength nodes.
+        parameters:
+          node:
+            type: astx.ListLength
+        """
+        if isinstance(node.base, astx.LiteralList):
+            self.result_stack.append(
+                ir.Constant(self._llvm.INT32_TYPE, len(node.base.elements))
+            )
+            return
+        list_ptr = self._list_pointer_for_call(
+            node.base,
+            name="irx_list_length_value",
+        )
+        length_ptr = self._llvm.ir_builder.gep(
+            list_ptr,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(self._llvm.INT32_TYPE, 1),
+            ],
+            inbounds=True,
+            name="irx_list_length_ptr",
+        )
+        length_i64 = self._llvm.ir_builder.load(
+            length_ptr,
+            name="irx_list_length_i64",
+        )
+        self.result_stack.append(
+            self._llvm.ir_builder.trunc(
+                length_i64,
+                self._llvm.INT32_TYPE,
+                "irx_list_length_i32",
+            )
+        )
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.ListAppend) -> None:
