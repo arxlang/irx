@@ -1,6 +1,13 @@
 # Release Notes
 ---
 
+# [1.16.0](https://github.com/arxlang/irx/compare/1.15.0...1.16.0) (2026-04-23)
+
+
+### Features
+
+* Improve list initial functions ([#306](https://github.com/arxlang/irx/issues/306)) ([06da000](https://github.com/arxlang/irx/commit/06da000ab0ffedb5d019fe2516668a1d45e1888c))
+
 # [1.15.0](https://github.com/arxlang/irx/compare/1.14.0...1.15.0) (2026-04-22)
 
 
