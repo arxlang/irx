@@ -4,6 +4,8 @@
 title: Variable visitor mixins for llvmliteir.
 """
 
+from typing import Any, cast
+
 from llvmlite import ir
 
 from irx import astx
@@ -225,6 +227,12 @@ class VariableVisitorMixin(VisitorMixinBase):
             elif isinstance(node.type_, astx.StructType):
                 init_val = ir.Constant(llvm_type, None)
                 alloca = self.create_entry_block_alloca(node.name, llvm_type)
+            elif isinstance(node.type_, astx.ListType):
+                init_val = cast(
+                    ir.Constant,
+                    cast(Any, self)._empty_list_value_for_type(node.type_),
+                )
+                alloca = self.create_entry_block_alloca(node.name, llvm_type)
             elif isinstance(node.type_, astx.ClassType):
                 init_val = ir.Constant(llvm_type, None)
                 alloca = self.create_entry_block_alloca(node.name, llvm_type)
@@ -272,6 +280,11 @@ class VariableVisitorMixin(VisitorMixinBase):
             )
         elif isinstance(node.type_, astx.StructType):
             init_val = ir.Constant(llvm_type, None)
+        elif isinstance(node.type_, astx.ListType):
+            init_val = cast(
+                ir.Constant,
+                cast(Any, self)._empty_list_value_for_type(node.type_),
+            )
         elif isinstance(node.type_, astx.ClassType):
             init_val = ir.Constant(llvm_type, None)
         elif "float" in type_str:

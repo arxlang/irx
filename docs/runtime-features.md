@@ -45,6 +45,8 @@ when needed.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
 - `array` Declares the builtin array runtime surface and links the Arrow-backed
   native implementation.
+- `list` Declares the minimal dynamic-list runtime used by `ListCreate`,
+  `ListAppend`, and lowered list indexing.
 
 The builder and visitor cooperate as follows:
 
@@ -59,6 +61,18 @@ The builder and visitor cooperate as follows:
 This is intentionally separate from any future language-level import or module
 system. A future Arx array-facing layer can decide when to activate `array`, but
 the native integration remains owned by IRx.
+
+## Dynamic List Runtime Caveat
+
+The current list runtime is intentionally narrow:
+
+- it supports append/growth
+- it supports indexed access
+- it does not yet expose a destroy/release helper
+
+That means dynamically produced list storage is currently process-lifetime. This
+is acceptable for the current MVP surface, but it is not a complete ownership
+model yet and should not be read as a final memory-management contract.
 
 ## Extern Declarations And Feature-Backed Linking
 

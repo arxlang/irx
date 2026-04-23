@@ -223,6 +223,22 @@ element type and emit a store. The default bounds policy means semantic static
 bounds rejection when provable and no emitted runtime bounds helper yet. Future
 checked and unchecked runtime modes can reuse the same element-pointer helper.
 
+## Dynamic List Construction
+
+IRx also exposes one intentionally small list-building surface for frontend-
+emitted AST:
+
+- `ListCreate(element_type)` creates an empty list value with explicit element
+  type
+- `ListAppend(base, value)` grows a mutable list variable or field
+- regular `SubscriptExpr` lowering may read from produced list values
+
+This is deliberately narrower than a full collection API. The goal is to let
+frontends author pure source routines that accumulate list results inside loops
+without moving collection policy into the frontend. The current runtime owns
+append/growth and indexed reads only; list teardown is intentionally deferred to
+a future ownership API.
+
 ## NDArray Layering
 
 IRx now treats NDArray support as a distinct semantic layer built on two

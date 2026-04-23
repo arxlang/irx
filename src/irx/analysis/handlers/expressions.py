@@ -57,19 +57,6 @@ from irx.analysis.validation import (
     validate_literal_time,
     validate_literal_timestamp,
 )
-from irx.array import (
-    NDARRAY_ELEMENT_TYPE_EXTRA,
-    NDARRAY_FLAGS_EXTRA,
-    NDARRAY_LAYOUT_EXTRA,
-    NDArrayLayout,
-    ndarray_byte_bounds,
-    ndarray_default_strides,
-    ndarray_element_count,
-    ndarray_element_size_bytes,
-    ndarray_is_c_contiguous,
-    ndarray_is_f_contiguous,
-    validate_ndarray_layout,
-)
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA,
     specialize_binary_op,
@@ -86,6 +73,23 @@ from irx.buffer import (
     buffer_view_is_readonly,
     buffer_view_ownership,
     validate_buffer_view_metadata,
+)
+from irx.builtins.collections.array import (
+    NDARRAY_ELEMENT_TYPE_EXTRA,
+    NDARRAY_FLAGS_EXTRA,
+    NDARRAY_LAYOUT_EXTRA,
+    NDArrayLayout,
+    ndarray_byte_bounds,
+    ndarray_default_strides,
+    ndarray_element_count,
+    ndarray_element_size_bytes,
+    ndarray_is_c_contiguous,
+    ndarray_is_f_contiguous,
+    validate_ndarray_layout,
+)
+from irx.builtins.collections.list import (
+    list_element_type,
+    list_has_concrete_element_type,
 )
 from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
@@ -3331,6 +3335,69 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         )
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ListCreate) -> None:
+        """
+        title: Visit ListCreate nodes.
+        parameters:
+          node:
+            type: astx.ListCreate
+        """
+        self._set_type(node, node.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ListAppend) -> None:
+        """
+        title: Visit ListAppend nodes.
+        parameters:
+          node:
+            type: astx.ListAppend
+        """
+        self.visit(node.base)
+        self.visit(node.value)
+
+        resolved_target = self._resolve_mutation_target(
+            node.base,
+            node=node,
+            action="append to",
+            invalid_message="list append target must be a variable or field",
+        )
+        if resolved_target is None:
+            self._set_type(node, astx.Int32())
+            return
+
+        assignment_symbol, _target_name, target_type = resolved_target
+        if not isinstance(target_type, astx.ListType):
+            self.context.diagnostics.add(
+                "list append requires a list target",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            self._set_assignment(node, assignment_symbol)
+            self._set_type(node, astx.Int32())
+            return
+
+        element_type = list_element_type(target_type)
+        if element_type is None:
+            self.context.diagnostics.add(
+                "list append requires a single concrete list element type",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            self._set_assignment(node, assignment_symbol)
+            self._set_type(node, astx.Int32())
+            return
+
+        validate_assignment(
+            self.context.diagnostics,
+            target_name="list element",
+            target_type=element_type,
+            value_type=self._expr_type(node.value),
+            node=node,
+        )
+        self._set_assignment(node, assignment_symbol)
+        self._set_type(node, astx.Int32())
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.SubscriptExpr) -> None:
         """
         title: Visit SubscriptExpr nodes.
@@ -3342,6 +3409,31 @@ class ExpressionVisitorMixin(SemanticVisitorMixinBase):
         if not isinstance(node.index, astx.LiteralNone):
             self.visit(node.index)
         value_type = self._expr_type(node.value)
+        if isinstance(value_type, astx.ListType):
+            if isinstance(node.index, astx.LiteralNone):
+                self.context.diagnostics.add(
+                    "list slicing is not supported",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+                self._set_type(node, None)
+                return
+            index_type = self._expr_type(node.index)
+            if not is_integer_type(index_type):
+                self.context.diagnostics.add(
+                    "list indexing requires an integer index",
+                    node=node.index,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+            if not list_has_concrete_element_type(value_type):
+                self.context.diagnostics.add(
+                    "list indexing requires a single concrete list element "
+                    "type",
+                    node=node.value,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+            self._set_type(node, list_element_type(value_type))
+            return
         if isinstance(node.value, astx.LiteralDict):
             if not node.value.elements:
                 self.context.diagnostics.add(

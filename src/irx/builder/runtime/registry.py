@@ -17,6 +17,7 @@ from irx.builder.runtime.buffer.feature import build_buffer_runtime_feature
 from irx.builder.runtime.feature_libc import build_libc_runtime_feature
 from irx.builder.runtime.feature_libm import build_libm_runtime_feature
 from irx.builder.runtime.features import NativeArtifact, RuntimeFeature
+from irx.builder.runtime.list.feature import build_list_runtime_feature
 from irx.diagnostics import (
     Diagnostic,
     DiagnosticCodes,
@@ -297,4 +298,5 @@ def get_default_runtime_feature_registry() -> RuntimeFeatureRegistry:
     registry.register(build_libm_runtime_feature())
     registry.register(build_buffer_runtime_feature())
     registry.register(build_array_runtime_feature())
+    registry.register(build_list_runtime_feature())
     return registry

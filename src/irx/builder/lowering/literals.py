@@ -111,6 +111,11 @@ class LiteralVisitorMixin(VisitorMixinBase):
             return ir.Constant(self._llvm.get_data_type(type_name), 0.0)
         if isinstance(type_, astx.ClassType):
             return ir.Constant(llvm_type, None)
+        if isinstance(type_, astx.ListType):
+            return cast(
+                ir.Constant,
+                cast(Any, self)._empty_list_value_for_type(type_),
+            )
         if isinstance(
             type_,
             (
@@ -685,6 +690,10 @@ class LiteralVisitorMixin(VisitorMixinBase):
           node:
             type: astx.SubscriptExpr
         """
+        if isinstance(self._resolved_ast_type(node.value), astx.ListType):
+            cast(Any, self)._lower_list_subscript(node)
+            return
+
         dict_pair_fields = 2
         self.visit_child(node.value)
         dict_val = self.result_stack.pop()

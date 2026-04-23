@@ -9,6 +9,7 @@ from irx.builder.lowering.control_flow import (
     ControlFlowVisitorMixin,
 )
 from irx.builder.lowering.functions import FunctionVisitorMixin
+from irx.builder.lowering.list import ListVisitorMixin
 from irx.builder.lowering.literals import LiteralVisitorMixin
 from irx.builder.lowering.modules import ModuleVisitorMixin
 from irx.builder.lowering.system import SystemVisitorMixin
@@ -22,6 +23,7 @@ __all__ = [
     "BufferVisitorMixin",
     "ControlFlowVisitorMixin",
     "FunctionVisitorMixin",
+    "ListVisitorMixin",
     "LiteralVisitorMixin",
     "ModuleVisitorMixin",
     "SystemVisitorMixin",

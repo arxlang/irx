@@ -12,7 +12,12 @@ from llvmlite import ir
 
 from irx import astx
 from irx.analysis.types import is_float_type, is_unsigned_type
-from irx.array import (
+from irx.buffer import BUFFER_VIEW_FIELD_INDICES
+from irx.builder.core import VisitorCore
+from irx.builder.protocols import VisitorMixinBase
+from irx.builder.runtime import safe_pop
+from irx.builder.types import is_int_type
+from irx.builtins.collections.array import (
     NDARRAY_ELEMENT_TYPE_EXTRA,
     NDARRAY_FLAGS_EXTRA,
     NDARRAY_LAYOUT_EXTRA,
@@ -20,15 +25,10 @@ from irx.array import (
     ndarray_element_count,
     ndarray_primitive_type_name,
 )
-from irx.array_primitives import (
+from irx.builtins.collections.array_primitives import (
     ARRAY_PRIMITIVE_TYPE_SPECS,
     ArrayPrimitiveTypeSpec,
 )
-from irx.buffer import BUFFER_VIEW_FIELD_INDICES
-from irx.builder.core import VisitorCore
-from irx.builder.protocols import VisitorMixinBase
-from irx.builder.runtime import safe_pop
-from irx.builder.types import is_int_type
 from irx.typecheck import typechecked
 
 

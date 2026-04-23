@@ -7,6 +7,8 @@ summary: >-
 
 from __future__ import annotations
 
+from typing import cast
+
 from public import public
 
 from irx import astx
@@ -106,6 +108,13 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             else None
         )
         return astx.PointerType(pointee_type)
+    if isinstance(type_, astx.ListType):
+        return astx.ListType(
+            [
+                clone_type(cast(astx.DataType, element_type))
+                for element_type in type_.element_types
+            ]
+        )
     if isinstance(type_, astx.BufferOwnerType):
         return type_.__class__()
     if isinstance(type_, astx.OpaqueHandleType):
@@ -159,6 +168,17 @@ def display_type_name(type_: astx.DataType | None) -> str:
         if type_.pointee_type is None:
             return "PointerType"
         return f"PointerType[{display_type_name(type_.pointee_type)}]"
+    if isinstance(type_, astx.ListType):
+        if not type_.element_types:
+            return "ListType"
+        return (
+            "ListType["
+            + ", ".join(
+                display_type_name(cast(astx.DataType, member))
+                for member in type_.element_types
+            )
+            + "]"
+        )
     if isinstance(type_, astx.OpaqueHandleType):
         return type_.handle_name
     if isinstance(type_, astx.BufferViewType):
@@ -221,6 +241,19 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         if lhs.pointee_type is None or rhs.pointee_type is None:
             return lhs.pointee_type is None and rhs.pointee_type is None
         return same_type(lhs.pointee_type, rhs.pointee_type)
+    if isinstance(lhs, astx.ListType) and isinstance(rhs, astx.ListType):
+        if len(lhs.element_types) != len(rhs.element_types):
+            return False
+        return all(
+            same_type(
+                cast(astx.DataType, left_member),
+                cast(astx.DataType, right_member),
+            )
+            for left_member, right_member in zip(
+                lhs.element_types,
+                rhs.element_types,
+            )
+        )
     if isinstance(lhs, astx.OpaqueHandleType) and isinstance(
         rhs,
         astx.OpaqueHandleType,
@@ -634,6 +667,22 @@ def is_assignable(
         return is_assignable(target.bound, value)
     if isinstance(value, astx.TemplateTypeVar):
         return is_assignable(target, value.bound)
+    if isinstance(target, astx.ListType) and isinstance(value, astx.ListType):
+        if not target.element_types or not value.element_types:
+            return True
+        target_members = [
+            cast(astx.DataType, member) for member in target.element_types
+        ]
+        value_members = [
+            cast(astx.DataType, member) for member in value.element_types
+        ]
+        return all(
+            any(
+                is_assignable(target_member, value_member)
+                for target_member in target_members
+            )
+            for value_member in value_members
+        )
     if isinstance(target, astx.ClassType) and isinstance(
         value, astx.ClassType
     ):

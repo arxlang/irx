@@ -1054,6 +1054,15 @@ class VisitorCore(BuilderVisitor):
             if pointee_type is None:
                 return None
             return pointee_type.as_pointer()
+        if isinstance(type_, astx.ListType):
+            return ir.LiteralStructType(
+                [
+                    self._llvm.INT8_TYPE.as_pointer(),
+                    self._llvm.INT64_TYPE,
+                    self._llvm.INT64_TYPE,
+                    self._llvm.INT64_TYPE,
+                ]
+            )
         if isinstance(type_, astx.BufferViewType):
             return self._llvm.BUFFER_VIEW_TYPE
         if isinstance(type_, astx.NDArrayType):
