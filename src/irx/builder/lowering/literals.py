@@ -691,7 +691,10 @@ class LiteralVisitorMixin(VisitorMixinBase):
             type: astx.SubscriptExpr
         """
         if isinstance(self._resolved_ast_type(node.value), astx.ListType):
-            cast(Any, self)._lower_list_subscript(node)
+            cast(Any, self)._lower_list_subscript(
+                base=node.value,
+                index_node=node.index,
+            )
             return
 
         dict_pair_fields = 2
