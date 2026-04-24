@@ -191,6 +191,7 @@ def validate_call(
         | astx.FunctionCall
         | astx.MethodCall
         | astx.StaticMethodCall
+        | astx.WithStmt
     ),
 ) -> CallResolution:
     """
@@ -205,7 +206,7 @@ def validate_call(
       node:
         type: >-
           astx.BaseMethodCall | astx.FunctionCall | astx.MethodCall |
-          astx.StaticMethodCall
+          astx.StaticMethodCall | astx.WithStmt
     returns:
       type: CallResolution
     """
@@ -250,7 +251,7 @@ def validate_call(
 
     resolved_argument_types: list[astx.DataType | None] = []
     implicit_conversions: list[ImplicitConversion | None] = []
-    call_args = list(node.args)
+    call_args = list(getattr(node, "args", ()))
 
     for idx, (param, arg_type) in enumerate(
         zip(signature.parameters, arg_types)

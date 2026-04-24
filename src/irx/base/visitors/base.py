@@ -1533,6 +1533,16 @@ class BaseVisitor:
         self._not_implemented(node)
 
     @dispatch
+    def visit(self, node: astx.WithStmt) -> None:
+        """
+        title: Visit WithStmt nodes.
+        parameters:
+          node:
+            type: astx.WithStmt
+        """
+        self._not_implemented(node)
+
+    @dispatch
     def visit(self, node: astx.XnorOp) -> None:
         """
         title: Visit XnorOp nodes.

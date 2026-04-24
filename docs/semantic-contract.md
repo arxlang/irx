@@ -46,6 +46,7 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_base_class_field_access`
 - `resolved_static_class_field_access`
 - `resolved_method_call`
+- `resolved_context_manager`
 - `resolved_class_construction`
 - `semantic_flags`
 - `extras`
@@ -661,6 +662,26 @@ control flow:
 - loop misuse such as `break` or `continue` outside a loop is rejected
   semantically before lowering and still surfaces as a structured lowering
   diagnostic in direct backend use
+
+## Context Manager Contract
+
+`WithStmt(manager, body, target=None)` models a Python-like context-manager
+statement over IRx class values:
+
+- the manager expression is evaluated exactly once
+- the manager must resolve to a class value
+- semantic analysis resolves zero-argument instance methods named `__enter__`
+  and `__exit__`
+- `__enter__` runs before the body
+- `__exit__` runs on normal fallthrough and before structured `return`, `break`,
+  or `continue` transfers leave the body
+- an optional target binds the `__enter__` result for the with-body scope only
+- targets require `__enter__` to return a non-void value
+- the initial contract does not implement Python exception propagation or
+  `__exit__(exc_type, exc_value, traceback)` suppression semantics
+
+Lowering consumes the resolved context-manager sidecar instead of rediscovering
+method names in codegen.
 
 ## Struct Contract
 

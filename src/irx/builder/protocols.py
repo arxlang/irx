@@ -12,7 +12,12 @@ from llvmlite import ir
 from irx import astx
 from irx.analysis.resolved_nodes import FunctionSignature
 from irx.base.visitors.protocols import BaseVisitorProtocol
-from irx.builder.state import LoopTargets, NamedValueMap, ResultStackValue
+from irx.builder.state import (
+    CleanupEmitter,
+    LoopTargets,
+    NamedValueMap,
+    ResultStackValue,
+)
 from irx.builder.types import VariablesLLVM
 from irx.typecheck import typechecked
 
@@ -40,6 +45,8 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: int
       loop_stack:
         type: list[LoopTargets]
+      cleanup_stack:
+        type: list[CleanupEmitter]
       struct_types:
         type: dict[str, ir.Type]
       llvm_structs_by_qualified_name:
@@ -68,6 +75,7 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     result_stack: list[ResultStackValue]
     _buffer_view_global_counter: int
     loop_stack: list[LoopTargets]
+    cleanup_stack: list[CleanupEmitter]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     runtime_features: RuntimeFeatureState
@@ -220,6 +228,15 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
             type: Any
         returns:
           type: ir.Function
+        """
+        ...
+
+    def _emit_active_cleanups(self, _start_depth: int = 0) -> None:
+        """
+        title: Emit all active cleanup actions.
+        parameters:
+          _start_depth:
+            type: int
         """
         ...
 
@@ -520,6 +537,8 @@ class VisitorMixinTypingBase:
         type: int
       loop_stack:
         type: list[LoopTargets]
+      cleanup_stack:
+        type: list[CleanupEmitter]
       struct_types:
         type: dict[str, ir.Type]
       llvm_structs_by_qualified_name:
@@ -548,6 +567,7 @@ class VisitorMixinTypingBase:
     result_stack: list[ResultStackValue]
     _buffer_view_global_counter: int
     loop_stack: list[LoopTargets]
+    cleanup_stack: list[CleanupEmitter]
     struct_types: dict[str, ir.Type]
     llvm_structs_by_qualified_name: dict[str, ir.IdentifiedStructType]
     runtime_features: RuntimeFeatureState
@@ -707,6 +727,15 @@ class VisitorMixinTypingBase:
           type: ir.Function
         """
         return cast(ir.Function, None)
+
+    def _emit_active_cleanups(self, _start_depth: int = 0) -> None:
+        """
+        title: Emit all active cleanup actions.
+        parameters:
+          _start_depth:
+            type: int
+        """
+        _ = _start_depth
 
     def require_runtime_symbol(
         self, _feature_name: str, _symbol_name: str

@@ -177,6 +177,7 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "resolved_operator",
         "resolved_assignment",
         "resolved_iteration",
+        "resolved_context_manager",
         "resolved_field_access",
         "semantic_flags",
         "extras",

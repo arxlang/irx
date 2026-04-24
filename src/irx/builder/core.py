@@ -49,7 +49,12 @@ from irx.builder.runtime.registry import (
     RuntimeFeatureState,
     get_default_runtime_feature_registry,
 )
-from irx.builder.state import LoopTargets, NamedValueMap, ResultStackValue
+from irx.builder.state import (
+    CleanupEmitter,
+    LoopTargets,
+    NamedValueMap,
+    ResultStackValue,
+)
 from irx.builder.types import (
     VariablesLLVM,
     is_fp_type,
@@ -343,6 +348,7 @@ class VisitorCore(BuilderVisitor):
     runtime_features: RuntimeFeatureState
     const_vars: set[str]
     loop_stack: list[LoopTargets]
+    cleanup_stack: list[CleanupEmitter]
     _set_value_ids: dict[int, ir.Value]
     _buffer_view_global_counter: int
     struct_types: dict[str, ir.Type]
@@ -377,6 +383,7 @@ class VisitorCore(BuilderVisitor):
         self.llvm_functions_by_symbol_id = {}
         self.result_stack = []
         self.loop_stack = []
+        self.cleanup_stack = []
         self._set_value_ids = {}
         self._buffer_view_global_counter = 0
         self.struct_types = {}
@@ -426,6 +433,16 @@ class VisitorCore(BuilderVisitor):
             type: astx.AST
         """
         super().visit(node)
+
+    def _emit_active_cleanups(self, start_depth: int = 0) -> None:
+        """
+        title: Emit all active cleanup actions in innermost-first order.
+        parameters:
+          start_depth:
+            type: int
+        """
+        for cleanup in reversed(self.cleanup_stack[start_depth:]):
+            cleanup()
 
     def translate(self, node: astx.AST) -> str:
         """
