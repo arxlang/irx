@@ -239,6 +239,27 @@ without moving collection policy into the frontend. The current runtime owns
 append/growth and indexed reads only; list teardown is intentionally deferred to
 a future ownership API.
 
+## Common Collection Methods
+
+IRx also exposes backend-neutral query nodes for common collection operations:
+
+- `CollectionLength(base)` returns the logical length as `Int32`
+- `CollectionIsEmpty(base)` returns a Boolean emptiness check
+- `CollectionContains(base, value)` checks list, tuple, or set values and dict
+  keys
+- `CollectionIndex(base, value)` returns the first list/tuple index or `-1`
+- `CollectionCount(base, value)` returns the number of list/tuple matches
+
+Semantic analysis validates the receiver kind, probe type, and result type and
+attaches a `ResolvedCollectionMethod` sidecar. Lowering consumes that sidecar
+instead of re-resolving the collection operation from raw AST shape.
+
+Literal lists, tuples, sets, and dictionaries support common length, emptiness,
+and containment queries. Dynamic IRx lists also support length, emptiness,
+contains, index, and count by reusing the existing list runtime and emitting
+small search loops where needed. Dynamic set and dictionary method lowering
+remains intentionally deferred until those runtime representations exist.
+
 ## Iterable Semantics
 
 IRx now models iteration as a semantic capability instead of as backend-specific

@@ -115,6 +115,22 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
                 for element_type in type_.element_types
             ]
         )
+    if isinstance(type_, astx.TupleType):
+        return astx.TupleType(
+            [
+                clone_type(cast(astx.DataType, element_type))
+                for element_type in type_.element_types
+            ]
+        )
+    if isinstance(type_, astx.SetType):
+        return astx.SetType(
+            clone_type(cast(astx.DataType, type_.element_type))
+        )
+    if isinstance(type_, astx.DictType):
+        return astx.DictType(
+            clone_type(cast(astx.DataType, type_.key_type)),
+            clone_type(cast(astx.DataType, type_.value_type)),
+        )
     if isinstance(type_, astx.BufferOwnerType):
         return type_.__class__()
     if isinstance(type_, astx.OpaqueHandleType):
@@ -178,6 +194,25 @@ def display_type_name(type_: astx.DataType | None) -> str:
                 for member in type_.element_types
             )
             + "]"
+        )
+    if isinstance(type_, astx.TupleType):
+        if not type_.element_types:
+            return "TupleType"
+        return (
+            "TupleType["
+            + ", ".join(
+                display_type_name(cast(astx.DataType, member))
+                for member in type_.element_types
+            )
+            + "]"
+        )
+    if isinstance(type_, astx.SetType):
+        return f"SetType[{display_type_name(type_.element_type)}]"
+    if isinstance(type_, astx.DictType):
+        return (
+            "DictType["
+            f"{display_type_name(type_.key_type)}, "
+            f"{display_type_name(type_.value_type)}]"
         )
     if isinstance(type_, astx.OpaqueHandleType):
         return type_.handle_name
@@ -253,6 +288,26 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
                 lhs.element_types,
                 rhs.element_types,
             )
+        )
+    if isinstance(lhs, astx.TupleType) and isinstance(rhs, astx.TupleType):
+        if len(lhs.element_types) != len(rhs.element_types):
+            return False
+        return all(
+            same_type(
+                cast(astx.DataType, left_member),
+                cast(astx.DataType, right_member),
+            )
+            for left_member, right_member in zip(
+                lhs.element_types,
+                rhs.element_types,
+            )
+        )
+    if isinstance(lhs, astx.SetType) and isinstance(rhs, astx.SetType):
+        return same_type(lhs.element_type, rhs.element_type)
+    if isinstance(lhs, astx.DictType) and isinstance(rhs, astx.DictType):
+        return same_type(lhs.key_type, rhs.key_type) and same_type(
+            lhs.value_type,
+            rhs.value_type,
         )
     if isinstance(lhs, astx.OpaqueHandleType) and isinstance(
         rhs,
@@ -682,6 +737,31 @@ def is_assignable(
                 for target_member in target_members
             )
             for value_member in value_members
+        )
+    if isinstance(target, astx.TupleType) and isinstance(
+        value,
+        astx.TupleType,
+    ):
+        if len(target.element_types) != len(value.element_types):
+            return False
+        return all(
+            is_assignable(
+                cast(astx.DataType, target_member),
+                cast(astx.DataType, value_member),
+            )
+            for target_member, value_member in zip(
+                target.element_types,
+                value.element_types,
+            )
+        )
+    if isinstance(target, astx.SetType) and isinstance(value, astx.SetType):
+        return is_assignable(target.element_type, value.element_type)
+    if isinstance(target, astx.DictType) and isinstance(value, astx.DictType):
+        return is_assignable(
+            target.key_type, value.key_type
+        ) and is_assignable(
+            target.value_type,
+            value.value_type,
         )
     if isinstance(target, astx.ClassType) and isinstance(
         value, astx.ClassType

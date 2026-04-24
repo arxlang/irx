@@ -15,13 +15,23 @@ from dataclasses import replace
 from typing import cast
 
 from irx import astx
+from irx.analysis.collections import (
+    collection_contains_types,
+    collection_supports_sequence_search,
+    is_collection_type,
+)
 from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
 from irx.analysis.iterables import resolve_iteration_capability
+from irx.analysis.resolved_nodes import (
+    CollectionMethodKind,
+    ResolvedCollectionMethod,
+)
 from irx.analysis.types import (
     display_type_name,
+    is_assignable,
     is_boolean_type,
     is_integer_type,
 )
@@ -202,6 +212,409 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
         for element in cast(list[astx.AST], getattr(node, "elements")):
             self.visit(element)
         self._set_type(node, getattr(node, "type_", None))
+
+    def _has_compatible_collection_probe(
+        self,
+        expected_types: tuple[astx.DataType, ...],
+        actual_type: astx.DataType | None,
+    ) -> bool:
+        """
+        title: Return whether one collection probe type is compatible.
+        parameters:
+          expected_types:
+            type: tuple[astx.DataType, Ellipsis]
+          actual_type:
+            type: astx.DataType | None
+        returns:
+          type: bool
+        """
+        if actual_type is None or not expected_types:
+            return True
+        return any(
+            is_assignable(expected_type, actual_type)
+            for expected_type in expected_types
+        )
+
+    def _set_resolved_collection_method(
+        self,
+        node: astx.AST,
+        *,
+        base: astx.AST,
+        method: CollectionMethodKind,
+        return_type: astx.DataType,
+        argument_types: tuple[astx.DataType, ...] = (),
+    ) -> None:
+        """
+        title: Attach resolved collection method metadata.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          method:
+            type: CollectionMethodKind
+          return_type:
+            type: astx.DataType
+          argument_types:
+            type: tuple[astx.DataType, Ellipsis]
+        """
+        receiver_type = self._expr_type(base)
+        if receiver_type is None:
+            self._set_collection_method(node, None)
+            return
+        self._set_collection_method(
+            node,
+            ResolvedCollectionMethod(
+                receiver_node=base,
+                receiver_type=receiver_type,
+                method=method,
+                return_type=return_type,
+                argument_types=argument_types,
+            ),
+        )
+
+    def _validate_collection_query_base(
+        self,
+        node: astx.AST,
+        base: astx.AST,
+        *,
+        context: str,
+    ) -> astx.DataType | None:
+        """
+        title: Validate one collection query receiver.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          context:
+            type: str
+        returns:
+          type: astx.DataType | None
+        """
+        self.visit(base)
+        if not self._require_value_expression(base, context=context):
+            return None
+        base_type = self._expr_type(base)
+        if is_collection_type(base_type):
+            return base_type
+        self.context.diagnostics.add(
+            f"{context} requires a collection value, got "
+            f"{display_type_name(base_type)}",
+            node=base,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+        )
+        return None
+
+    def _collection_method_supported_by_lowering(
+        self,
+        *,
+        method: CollectionMethodKind,
+        base: astx.AST,
+        base_type: astx.DataType | None,
+    ) -> bool:
+        """
+        title: Return whether the backend can lower a collection method.
+        parameters:
+          method:
+            type: CollectionMethodKind
+          base:
+            type: astx.AST
+          base_type:
+            type: astx.DataType | None
+        returns:
+          type: bool
+        """
+        if base_type is None:
+            return True
+        if isinstance(base_type, astx.ListType):
+            return True
+        if isinstance(base_type, astx.TupleType):
+            if method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+            ):
+                return True
+            return isinstance(base, astx.LiteralTuple)
+        if isinstance(base_type, astx.SetType):
+            return isinstance(base, astx.LiteralSet) and method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+                CollectionMethodKind.CONTAINS,
+            )
+        if isinstance(base_type, astx.DictType):
+            return isinstance(base, astx.LiteralDict) and method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+                CollectionMethodKind.CONTAINS,
+            )
+        return False
+
+    def _validate_collection_lowering_support(
+        self,
+        *,
+        node: astx.AST,
+        base: astx.AST,
+        base_type: astx.DataType | None,
+        method: CollectionMethodKind,
+        context: str,
+    ) -> bool:
+        """
+        title: Validate that one collection method is currently lowerable.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          base_type:
+            type: astx.DataType | None
+          method:
+            type: CollectionMethodKind
+          context:
+            type: str
+        returns:
+          type: bool
+        """
+        if self._collection_method_supported_by_lowering(
+            method=method,
+            base=base,
+            base_type=base_type,
+        ):
+            return True
+
+        self.context.diagnostics.add(
+            f"{context} currently supports literal collections, "
+            "dynamic lists, and tuple length/emptiness only",
+            node=base,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+        )
+        return False
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.CollectionLength) -> None:
+        """
+        title: Visit CollectionLength nodes.
+        parameters:
+          node:
+            type: astx.CollectionLength
+        """
+        return_type = astx.Int32()
+        base_type = self._validate_collection_query_base(
+            node,
+            node.base,
+            context="collection length",
+        )
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.LENGTH,
+            context="collection length",
+        )
+        if base_type is not None and supported:
+            self._set_resolved_collection_method(
+                node,
+                base=node.base,
+                method=CollectionMethodKind.LENGTH,
+                return_type=return_type,
+            )
+        self._set_type(node, return_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.CollectionIsEmpty) -> None:
+        """
+        title: Visit CollectionIsEmpty nodes.
+        parameters:
+          node:
+            type: astx.CollectionIsEmpty
+        """
+        return_type = astx.Boolean()
+        base_type = self._validate_collection_query_base(
+            node,
+            node.base,
+            context="collection emptiness",
+        )
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.IS_EMPTY,
+            context="collection emptiness",
+        )
+        if base_type is not None and supported:
+            self._set_resolved_collection_method(
+                node,
+                base=node.base,
+                method=CollectionMethodKind.IS_EMPTY,
+                return_type=return_type,
+            )
+        self._set_type(node, return_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.CollectionContains) -> None:
+        """
+        title: Visit CollectionContains nodes.
+        parameters:
+          node:
+            type: astx.CollectionContains
+        """
+        return_type = astx.Boolean()
+        base_type = self._validate_collection_query_base(
+            node,
+            node.base,
+            context="collection containment",
+        )
+        self.visit(node.value)
+        expected_types = collection_contains_types(base_type)
+        actual_type = self._expr_type(node.value)
+        if not self._has_compatible_collection_probe(
+            expected_types,
+            actual_type,
+        ):
+            self.context.diagnostics.add(
+                "collection containment probe expects "
+                + " or ".join(
+                    display_type_name(expected_type)
+                    for expected_type in expected_types
+                )
+                + f", got {display_type_name(actual_type)}",
+                node=node.value,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.CONTAINS,
+            context="collection containment",
+        )
+        if base_type is not None and supported:
+            self._set_resolved_collection_method(
+                node,
+                base=node.base,
+                method=CollectionMethodKind.CONTAINS,
+                return_type=return_type,
+                argument_types=expected_types,
+            )
+        self._set_type(node, return_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.CollectionIndex) -> None:
+        """
+        title: Visit CollectionIndex nodes.
+        parameters:
+          node:
+            type: astx.CollectionIndex
+        """
+        return_type = astx.Int32()
+        base_type = self._validate_collection_query_base(
+            node,
+            node.base,
+            context="collection index",
+        )
+        self.visit(node.value)
+        expected_types = collection_contains_types(base_type)
+        if base_type is not None and not collection_supports_sequence_search(
+            base_type
+        ):
+            self.context.diagnostics.add(
+                "collection index requires a list or tuple value",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        elif not self._has_compatible_collection_probe(
+            expected_types,
+            self._expr_type(node.value),
+        ):
+            self.context.diagnostics.add(
+                "collection index probe expects "
+                + " or ".join(
+                    display_type_name(expected_type)
+                    for expected_type in expected_types
+                )
+                + f", got {display_type_name(self._expr_type(node.value))}",
+                node=node.value,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.INDEX,
+            context="collection index",
+        )
+        if (
+            base_type is not None
+            and collection_supports_sequence_search(base_type)
+            and supported
+        ):
+            self._set_resolved_collection_method(
+                node,
+                base=node.base,
+                method=CollectionMethodKind.INDEX,
+                return_type=return_type,
+                argument_types=expected_types,
+            )
+        self._set_type(node, return_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.CollectionCount) -> None:
+        """
+        title: Visit CollectionCount nodes.
+        parameters:
+          node:
+            type: astx.CollectionCount
+        """
+        return_type = astx.Int32()
+        base_type = self._validate_collection_query_base(
+            node,
+            node.base,
+            context="collection count",
+        )
+        self.visit(node.value)
+        expected_types = collection_contains_types(base_type)
+        if base_type is not None and not collection_supports_sequence_search(
+            base_type
+        ):
+            self.context.diagnostics.add(
+                "collection count requires a list or tuple value",
+                node=node.base,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        elif not self._has_compatible_collection_probe(
+            expected_types,
+            self._expr_type(node.value),
+        ):
+            self.context.diagnostics.add(
+                "collection count probe expects "
+                + " or ".join(
+                    display_type_name(expected_type)
+                    for expected_type in expected_types
+                )
+                + f", got {display_type_name(self._expr_type(node.value))}",
+                node=node.value,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.COUNT,
+            context="collection count",
+        )
+        if (
+            base_type is not None
+            and collection_supports_sequence_search(base_type)
+            and supported
+        ):
+            self._set_resolved_collection_method(
+                node,
+                base=node.base,
+                method=CollectionMethodKind.COUNT,
+                return_type=return_type,
+                argument_types=expected_types,
+            )
+        self._set_type(node, return_type)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.LiteralList) -> None:

@@ -1473,6 +1473,55 @@ class ResolvedIteration:
 
 @public
 @typechecked
+class CollectionMethodKind(str, Enum):
+    """
+    title: Stable collection-method semantic categories.
+    """
+
+    LENGTH = "length"
+    IS_EMPTY = "is_empty"
+    CONTAINS = "contains"
+    INDEX = "index"
+    COUNT = "count"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedCollectionMethod:
+    """
+    title: Resolved collection method capability.
+    summary: >-
+      Attach the semantic collection operation that lowering should consume
+      without re-resolving receiver kind or result type.
+    attributes:
+      receiver_node:
+        type: astx.AST
+      receiver_type:
+        type: astx.DataType
+      method:
+        type: CollectionMethodKind
+      return_type:
+        type: astx.DataType
+      argument_types:
+        type: tuple[astx.DataType, Ellipsis]
+      mutates:
+        type: bool
+      extras:
+        type: dict[str, Any]
+    """
+
+    receiver_node: astx.AST
+    receiver_type: astx.DataType
+    method: CollectionMethodKind
+    return_type: astx.DataType
+    argument_types: tuple[astx.DataType, ...] = ()
+    mutates: bool = False
+    extras: dict[str, Any] = field(default_factory=dict)
+
+
+@public
+@typechecked
 @dataclass
 class SemanticInfo:
     """
@@ -1523,6 +1572,8 @@ class SemanticInfo:
         type: ReturnResolution | None
       resolved_iteration:
         type: ResolvedIteration | None
+      resolved_collection_method:
+        type: ResolvedCollectionMethod | None
       semantic_flags:
         type: SemanticFlags
       extras:
@@ -1554,5 +1605,6 @@ class SemanticInfo:
     resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None
     resolved_iteration: ResolvedIteration | None = None
+    resolved_collection_method: ResolvedCollectionMethod | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)
