@@ -4,6 +4,8 @@ title: Context-manager statement tests.
 
 from __future__ import annotations
 
+import re
+
 from typing import cast
 
 import pytest
@@ -206,6 +208,38 @@ def _exit_method() -> astx.FunctionDef:
     )
 
 
+def _exit_with_parameter_method() -> astx.FunctionDef:
+    """
+    title: Build an invalid context __exit__ method.
+    returns:
+      type: astx.FunctionDef
+    """
+    return astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "__exit__",
+            args=astx.Arguments(astx.Argument("code", astx.Int32())),
+            return_type=astx.NoneType(),
+        ),
+        body=astx.Block(),
+    )
+
+
+def _main_ir(ir_text: str) -> str:
+    """
+    title: Return the emitted LLVM body for main.
+    parameters:
+      ir_text:
+        type: str
+    returns:
+      type: str
+    """
+    start = ir_text.index('define i32 @"main"(')
+    end = ir_text.find("\ndefine ", start + 1)
+    if end < 0:
+        return ir_text[start:]
+    return ir_text[start:end]
+
+
 def test_analyze_with_resolves_context_protocol_and_target() -> None:
     """
     title: With statements resolve enter, exit, and target metadata.
@@ -288,6 +322,74 @@ def test_with_statement_binds_enter_result_to_target(
 
 
 @pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_break_inside_with_calls_exit(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Break inside a with body should run __exit__.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    with_body = astx.Block()
+    with_body.append(astx.BreakStmt())
+    loop_body = astx.Block()
+    loop_body.append(astx.WithStmt(astx.ClassConstruct("Manager"), with_body))
+    loop = astx.WhileStmt(astx.LiteralBoolean(True), loop_body)
+    module = _module(
+        _manager_class(_enter_method(), _exit_method()),
+        _main(
+            loop,
+            astx.FunctionReturn(astx.StaticFieldAccess("Manager", "state")),
+        ),
+    )
+
+    assert_jit_int_main_result(builder, module, EXIT_STATE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_continue_inside_with_calls_exit(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Continue inside a with body should run __exit__.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    with_body = astx.Block()
+    with_body.append(astx.ContinueStmt())
+    loop_body = astx.Block()
+    loop_body.append(astx.WithStmt(astx.ClassConstruct("Manager"), with_body))
+    loop = astx.ForCountLoopStmt(
+        initializer=astx.InlineVariableDeclaration(
+            "i",
+            type_=astx.Int32(),
+            value=astx.LiteralInt32(0),
+            mutability=astx.MutabilityKind.mutable,
+        ),
+        condition=astx.BinaryOp(
+            "<",
+            astx.Identifier("i"),
+            astx.LiteralInt32(1),
+        ),
+        update=astx.UnaryOp("++", astx.Identifier("i")),
+        body=loop_body,
+    )
+    module = _module(
+        _manager_class(_enter_method(), _exit_method()),
+        _main(
+            loop,
+            astx.FunctionReturn(astx.StaticFieldAccess("Manager", "state")),
+        ),
+    )
+
+    assert_jit_int_main_result(builder, module, EXIT_STATE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
 def test_break_inside_loop_keeps_outer_with_active(
     builder_class: type[Builder],
 ) -> None:
@@ -312,6 +414,68 @@ def test_break_inside_loop_keeps_outer_with_active(
     )
 
     assert_jit_int_main_result(builder, module, ENTER_STATE)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_return_inside_with_emits_exit_before_ret(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Return inside a with body should emit __exit__ before ret.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    with_body = astx.Block()
+    with_body.append(
+        astx.FunctionReturn(astx.StaticFieldAccess("Manager", "state"))
+    )
+    with_stmt = astx.WithStmt(astx.ClassConstruct("Manager"), with_body)
+    module = _module(
+        _manager_class(_enter_method(), _exit_method()),
+        _main(with_stmt),
+    )
+
+    main_ir = _main_ir(builder.translate(module))
+    ret_index = main_ir.index("ret i32")
+    exit_before_return = main_ir[:ret_index]
+
+    assert re.search(r"call void .*__exit__", exit_before_return) is not None
+
+
+def test_with_target_is_scoped_to_body() -> None:
+    """
+    title: With targets should not be visible after the body.
+    """
+    body = astx.Block()
+    with_stmt = astx.WithStmt(
+        astx.ClassConstruct("Manager"),
+        body,
+        target=astx.Identifier("value"),
+    )
+    module = _module(
+        _manager_class(_enter_method(), _exit_method()),
+        _main(with_stmt, astx.FunctionReturn(astx.Identifier("value"))),
+    )
+
+    with pytest.raises(SemanticError, match="cannot resolve name 'value'"):
+        analyze(module)
+
+
+def test_analyze_with_rejects_exit_parameters() -> None:
+    """
+    title: Context __exit__ should currently be zero-argument.
+    """
+    body = astx.Block()
+    with_stmt = astx.WithStmt(astx.ClassConstruct("Manager"), body)
+    module = _module(
+        _manager_class(_enter_method(), _exit_with_parameter_method()),
+        _main(with_stmt, astx.FunctionReturn(astx.LiteralInt32(0))),
+    )
+
+    with pytest.raises(SemanticError, match="expects 1 arguments but got 0"):
+        analyze(module)
 
 
 def test_analyze_with_requires_exit_method() -> None:
