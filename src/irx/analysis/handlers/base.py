@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from astx.types import AnyType as AstxAnyType
 from plum import dispatch
 
 from irx import astx
@@ -1037,7 +1038,7 @@ class SemanticAnalyzerCore(BaseVisitor):
             return None
 
         declared_type = target.type_
-        if isinstance(declared_type, astx.AnyType):
+        if isinstance(declared_type, AstxAnyType):
             target.type_ = element_type
         elif not is_assignable(declared_type, element_type):
             self.context.diagnostics.add(

@@ -469,6 +469,24 @@ class GeneratorVisitorMixin(VisitorMixinBase):
             frame_type.as_pointer(),
             name="generator_frame",
         )
+        done_bb = resume.append_basic_block("done")
+        dispatch_bb = resume.append_basic_block("dispatch")
+        exhausted_addr = self._generator_field_address(
+            frame_ptr,
+            GENERATOR_EXHAUSTED_FIELD_INDEX,
+            name="generator_exhausted_addr",
+        )
+        exhausted_value = self._llvm.ir_builder.load(
+            exhausted_addr,
+            name="generator_exhausted",
+        )
+        self._llvm.ir_builder.cbranch(
+            exhausted_value,
+            done_bb,
+            dispatch_bb,
+        )
+
+        self._llvm.ir_builder.position_at_start(dispatch_bb)
         state_addr = self._generator_field_address(
             frame_ptr,
             GENERATOR_STATE_FIELD_INDEX,
@@ -478,7 +496,6 @@ class GeneratorVisitorMixin(VisitorMixinBase):
             state_addr,
             name="generator_state",
         )
-        done_bb = resume.append_basic_block("done")
         switch = self._llvm.ir_builder.switch(state_value, done_bb)
         state_blocks = [
             resume.append_basic_block(f"state.{index}")
@@ -665,6 +682,19 @@ class GeneratorVisitorMixin(VisitorMixinBase):
             if iteration.target_symbol is not None
             else iteration.element_type
         )
+        llvm_element_type = self._llvm_type_for_ast_type(
+            iteration.element_type
+        )
+        if llvm_element_type is None or isinstance(
+            llvm_element_type,
+            ir.VoidType,
+        ):
+            raise_lowering_error(
+                "generator element type is not lowerable",
+                node=node.iterable,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+
         llvm_target_type = self._llvm_type_for_ast_type(target_type)
         if llvm_target_type is None or isinstance(
             llvm_target_type,
@@ -694,7 +724,7 @@ class GeneratorVisitorMixin(VisitorMixinBase):
         )
         resume_type = ir.FunctionType(
             self._llvm.BOOLEAN_TYPE,
-            [self._llvm.OPAQUE_POINTER_TYPE, llvm_target_type.as_pointer()],
+            [self._llvm.OPAQUE_POINTER_TYPE, llvm_element_type.as_pointer()],
         )
         resume = self._llvm.ir_builder.bitcast(
             resume_raw,
@@ -708,7 +738,7 @@ class GeneratorVisitorMixin(VisitorMixinBase):
         )
         yielded_addr = self.create_entry_block_alloca(
             f"{target_name}_yielded",
-            llvm_target_type,
+            llvm_element_type,
         )
 
         cond_bb, body_bb, advance_bb, exit_bb = cast(
