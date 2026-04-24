@@ -101,6 +101,7 @@ from irx.astx.collections import ListAppend as ListAppend
 from irx.astx.collections import ListCreate as ListCreate
 from irx.astx.collections import ListIndex as ListIndex
 from irx.astx.collections import ListLength as ListLength
+from irx.astx.context import WithStmt as WithStmt
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
 from irx.astx.iterables import DictComprehension as DictComprehension
@@ -208,6 +209,7 @@ __all__ = (
     "TemplateParam",
     "TemplateTypeVar",
     "UnionType",
+    "WithStmt",
     "add_generated_template_node",
     "binary_op_type_for_opcode",
     "clear_generated_template_nodes",

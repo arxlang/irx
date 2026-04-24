@@ -313,7 +313,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
     def _indirect_method_callee(
         self,
         *,
-        node: astx.MethodCall,
+        node: astx.AST,
         method_resolution: ResolvedMethodCall,
         receiver_value: ir.Value,
     ) -> ir.Value:
@@ -321,7 +321,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
         title: Lower one dispatch-table lookup for an instance method.
         parameters:
           node:
-            type: astx.MethodCall
+            type: astx.AST
           method_resolution:
             type: ResolvedMethodCall
           receiver_value:
@@ -924,6 +924,7 @@ class FunctionVisitorMixin(VisitorMixinBase):
         """
         return_resolution = self._semantic_return_resolution(node)
         if return_resolution.returns_void:
+            self._emit_active_cleanups()
             self._llvm.ir_builder.ret_void()
             return
 
@@ -954,4 +955,5 @@ class FunctionVisitorMixin(VisitorMixinBase):
         if is_int_type(fn_return_type) and fn_return_type.width == 1:
             if is_int_type(retval.type) and retval.type.width != 1:
                 retval = self._llvm.ir_builder.trunc(retval, ir.IntType(1))
+        self._emit_active_cleanups()
         self._llvm.ir_builder.ret(retval)

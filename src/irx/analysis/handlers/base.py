@@ -23,6 +23,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedBaseClassFieldAccess,
     ResolvedClassConstruction,
     ResolvedClassFieldAccess,
+    ResolvedContextManager,
     ResolvedFieldAccess,
     ResolvedImportBinding,
     ResolvedIteration,
@@ -518,6 +519,21 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           method_call:
             type: ResolvedMethodCall | None
+        """
+        raise NotImplementedError
+
+    def _set_context_manager(
+        self,
+        node: astx.AST,
+        context_manager: ResolvedContextManager | None,
+    ) -> None:
+        """
+        title: Attach resolved context-manager metadata.
+        parameters:
+          node:
+            type: astx.AST
+          context_manager:
+            type: ResolvedContextManager | None
         """
         raise NotImplementedError
 
@@ -1244,6 +1260,21 @@ class SemanticAnalyzerCore(BaseVisitor):
         """
         self._semantic(node).resolved_method_call = method_call
 
+    def _set_context_manager(
+        self,
+        node: astx.AST,
+        context_manager: ResolvedContextManager | None,
+    ) -> None:
+        """
+        title: Attach resolved context-manager metadata.
+        parameters:
+          node:
+            type: astx.AST
+          context_manager:
+            type: ResolvedContextManager | None
+        """
+        self._semantic(node).resolved_context_manager = context_manager
+
     def _set_class_construction(
         self,
         node: astx.AST,
@@ -1709,6 +1740,8 @@ class SemanticAnalyzerCore(BaseVisitor):
             return self._guarantees_return(
                 node.then
             ) and self._guarantees_return(node.else_)
+        if isinstance(node, astx.WithStmt):
+            return self._guarantees_return(node.body)
         return False
 
     @dispatch

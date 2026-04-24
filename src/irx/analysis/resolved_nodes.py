@@ -1373,6 +1373,35 @@ class ResolvedMethodCall:
 
 @public
 @typechecked
+@dataclass(frozen=True)
+class ResolvedContextManager:
+    """
+    title: Resolved context-manager metadata.
+    summary: >-
+      Capture the manager class, resolved ``__enter__``/``__exit__`` methods,
+      and optional target binding for one ``with`` statement.
+    attributes:
+      class_:
+        type: SemanticClass
+      manager_type:
+        type: astx.DataType
+      enter:
+        type: ResolvedMethodCall
+      exit:
+        type: ResolvedMethodCall
+      target_symbol:
+        type: SemanticSymbol | None
+    """
+
+    class_: SemanticClass
+    manager_type: astx.DataType
+    enter: ResolvedMethodCall
+    exit: ResolvedMethodCall
+    target_symbol: SemanticSymbol | None = None
+
+
+@public
+@typechecked
 class IterationKind(str, Enum):
     """
     title: Stable iterable adapter kinds.
@@ -1486,6 +1515,8 @@ class SemanticInfo:
         type: ResolvedStaticClassFieldAccess | None
       resolved_method_call:
         type: ResolvedMethodCall | None
+      resolved_context_manager:
+        type: ResolvedContextManager | None
       resolved_class_construction:
         type: ResolvedClassConstruction | None
       resolved_return:
@@ -1519,6 +1550,7 @@ class SemanticInfo:
         ResolvedStaticClassFieldAccess | None
     ) = None
     resolved_method_call: ResolvedMethodCall | None = None
+    resolved_context_manager: ResolvedContextManager | None = None
     resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None
     resolved_iteration: ResolvedIteration | None = None
