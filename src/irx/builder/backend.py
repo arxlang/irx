@@ -20,6 +20,7 @@ from irx.builder.lowering import (
     ArrayVisitorMixin,
     BinaryOpVisitorMixin,
     BufferVisitorMixin,
+    CollectionVisitorMixin,
     ControlFlowVisitorMixin,
     FunctionVisitorMixin,
     ListVisitorMixin,
@@ -39,6 +40,7 @@ from irx.typecheck import typechecked
 class Visitor(
     LiteralVisitorMixin,
     ListVisitorMixin,
+    CollectionVisitorMixin,
     VariableVisitorMixin,
     UnaryOpVisitorMixin,
     BinaryOpVisitorMixin,

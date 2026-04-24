@@ -97,6 +97,11 @@ from irx.astx.classes import ClassType as ClassType
 from irx.astx.classes import MethodCall as MethodCall
 from irx.astx.classes import StaticFieldAccess as StaticFieldAccess
 from irx.astx.classes import StaticMethodCall as StaticMethodCall
+from irx.astx.collections import CollectionContains as CollectionContains
+from irx.astx.collections import CollectionCount as CollectionCount
+from irx.astx.collections import CollectionIndex as CollectionIndex
+from irx.astx.collections import CollectionIsEmpty as CollectionIsEmpty
+from irx.astx.collections import CollectionLength as CollectionLength
 from irx.astx.collections import ListAppend as ListAppend
 from irx.astx.collections import ListCreate as ListCreate
 from irx.astx.collections import ListIndex as ListIndex
@@ -165,6 +170,11 @@ __all__ = (
     "ClassConstruct",
     "ClassDefStmt",
     "ClassType",
+    "CollectionContains",
+    "CollectionCount",
+    "CollectionIndex",
+    "CollectionIsEmpty",
+    "CollectionLength",
     "DictComprehension",
     "DivBinOp",
     "EqBinOp",

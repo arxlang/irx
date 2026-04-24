@@ -23,6 +23,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedBaseClassFieldAccess,
     ResolvedClassConstruction,
     ResolvedClassFieldAccess,
+    ResolvedCollectionMethod,
     ResolvedContextManager,
     ResolvedFieldAccess,
     ResolvedImportBinding,
@@ -140,6 +141,21 @@ class SemanticVisitorMixinTypingBase:
             type: ResolvedIteration | None
         returns:
           type: ResolvedIteration | None
+        """
+        raise NotImplementedError
+
+    def _set_collection_method(
+        self,
+        node: astx.AST,
+        collection_method: ResolvedCollectionMethod | None,
+    ) -> None:
+        """
+        title: Attach one resolved collection method.
+        parameters:
+          node:
+            type: astx.AST
+          collection_method:
+            type: ResolvedCollectionMethod | None
         """
         raise NotImplementedError
 
@@ -926,6 +942,21 @@ class SemanticAnalyzerCore(BaseVisitor):
         """
         self._semantic(node).resolved_iteration = iteration
         return iteration
+
+    def _set_collection_method(
+        self,
+        node: astx.AST,
+        collection_method: ResolvedCollectionMethod | None,
+    ) -> None:
+        """
+        title: Attach one resolved collection method.
+        parameters:
+          node:
+            type: astx.AST
+          collection_method:
+            type: ResolvedCollectionMethod | None
+        """
+        self._semantic(node).resolved_collection_method = collection_method
 
     def _declare_iteration_target(
         self,

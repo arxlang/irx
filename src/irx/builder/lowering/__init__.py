@@ -5,6 +5,7 @@ title: Concern-grouped lowering mixins.
 from irx.builder.lowering.array import ArrayVisitorMixin
 from irx.builder.lowering.binary_ops import BinaryOpVisitorMixin
 from irx.builder.lowering.buffer import BufferVisitorMixin
+from irx.builder.lowering.collections import CollectionVisitorMixin
 from irx.builder.lowering.control_flow import (
     ControlFlowVisitorMixin,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "ArrayVisitorMixin",
     "BinaryOpVisitorMixin",
     "BufferVisitorMixin",
+    "CollectionVisitorMixin",
     "ControlFlowVisitorMixin",
     "FunctionVisitorMixin",
     "ListVisitorMixin",
