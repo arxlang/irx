@@ -11,6 +11,7 @@ summary: >-
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import cast
 
 from irx import astx
@@ -18,7 +19,12 @@ from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
-from irx.analysis.types import is_integer_type
+from irx.analysis.iterables import resolve_iteration_capability
+from irx.analysis.types import (
+    display_type_name,
+    is_boolean_type,
+    is_integer_type,
+)
 from irx.analysis.validation import (
     validate_assignment,
     validate_literal_datetime,
@@ -38,6 +44,92 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
     """
     title: Expression visitors for literals, list operations, and subscripts
     """
+
+    def _validate_comprehension_condition(
+        self,
+        condition: astx.AST,
+    ) -> None:
+        """
+        title: Validate one comprehension filter expression.
+        parameters:
+          condition:
+            type: astx.AST
+        """
+        if not self._require_value_expression(
+            condition,
+            context="comprehension filter",
+        ):
+            return
+        condition_type = self._expr_type(condition)
+        if condition_type is None or is_boolean_type(condition_type):
+            return
+        self.context.diagnostics.add(
+            "comprehension filter must be Boolean, got "
+            f"{display_type_name(condition_type)}",
+            node=condition,
+            code=DiagnosticCodes.SEMANTIC_INVALID_CONDITION,
+        )
+
+    def _visit_comprehension_clause(
+        self,
+        clause: astx.ComprehensionClause,
+    ) -> None:
+        """
+        title: Visit one comprehension clause in the active scope.
+        parameters:
+          clause:
+            type: astx.ComprehensionClause
+        """
+        if clause.is_async:
+            self.context.diagnostics.add(
+                "async comprehensions are not supported",
+                node=clause,
+                code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
+            )
+
+        self.visit(clause.iterable)
+        iterable_type = self._expr_type(clause.iterable)
+        iteration = resolve_iteration_capability(
+            clause.iterable,
+            iterable_type,
+        )
+        if iteration is None:
+            self.context.diagnostics.add(
+                "comprehension requires an iterable value, got "
+                f"{display_type_name(iterable_type)}",
+                node=clause.iterable,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            self._set_iteration(clause, None)
+            self._set_type(clause, None)
+            return
+
+        symbol = self._declare_iteration_target(
+            clause.target,
+            iteration.element_type,
+            kind="comprehension",
+        )
+        resolved_iteration = replace(iteration, target_symbol=symbol)
+        self._set_iteration(clause.iterable, resolved_iteration)
+        self._set_iteration(clause, resolved_iteration)
+        self._set_type(clause, iteration.element_type)
+
+        for condition in clause.conditions.nodes:
+            self.visit(condition)
+            self._validate_comprehension_condition(condition)
+
+    def _visit_comprehension_clauses(
+        self,
+        clauses: list[astx.ComprehensionClause],
+    ) -> None:
+        """
+        title: Visit all comprehension clauses in left-to-right order.
+        parameters:
+          clauses:
+            type: list[astx.ComprehensionClause]
+        """
+        for clause in clauses:
+            self._visit_comprehension_clause(clause)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.AliasExpr) -> None:
@@ -177,6 +269,70 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
             type: astx.ListCreate
         """
         self._set_type(node, node.type_)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ComprehensionClause) -> None:
+        """
+        title: Visit ComprehensionClause nodes.
+        parameters:
+          node:
+            type: astx.ComprehensionClause
+        """
+        with self.context.scope("comprehension-clause"):
+            self._visit_comprehension_clause(node)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ListComprehension) -> None:
+        """
+        title: Visit ListComprehension nodes.
+        parameters:
+          node:
+            type: astx.ListComprehension
+        """
+        with self.context.scope("list-comprehension"):
+            self._visit_comprehension_clauses(list(node.generators.nodes))
+            self.visit(node.element)
+            element_type = self._expr_type(node.element)
+        if element_type is None:
+            self._set_type(node, None)
+            return
+        self._set_type(node, astx.ListType([element_type]))
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.SetComprehension) -> None:
+        """
+        title: Visit SetComprehension nodes.
+        parameters:
+          node:
+            type: astx.SetComprehension
+        """
+        with self.context.scope("set-comprehension"):
+            self._visit_comprehension_clauses(list(node.generators.nodes))
+            self.visit(node.element)
+            element_type = self._expr_type(node.element)
+        if element_type is None:
+            self._set_type(node, None)
+            return
+        self._set_type(node, astx.SetType(element_type))
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.DictComprehension) -> None:
+        """
+        title: Visit DictComprehension nodes.
+        parameters:
+          node:
+            type: astx.DictComprehension
+        """
+        with self.context.scope("dict-comprehension"):
+            self._visit_comprehension_clauses(list(node.generators.nodes))
+            self.visit(node.key)
+            self.visit(node.value)
+            key_type = self._expr_type(node.key)
+            value_type = self._expr_type(node.value)
+        if key_type is None or value_type is None:
+            self._set_type(node, None)
+            return
+        self._set_type(node, astx.DictType(key_type, value_type))
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.ListIndex) -> None:

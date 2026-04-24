@@ -152,7 +152,8 @@ _SEMANTIC_CONTRACT = SemanticContract(
                 "Normalize resolved symbols, functions, structs, "
                 "classes, modules, operators, callable metadata, "
                 "call results, return "
-                "semantics, assignment targets, and semantic flags.",
+                "semantics, assignment targets, iterable capabilities, "
+                "and semantic flags.",
                 "Validate explicit extern declarations against the narrow "
                 "public FFI admissibility contract before lowering.",
                 "Validate explicit low-level buffer/view ownership, "
@@ -175,6 +176,7 @@ _SEMANTIC_CONTRACT = SemanticContract(
         "resolved_imports",
         "resolved_operator",
         "resolved_assignment",
+        "resolved_iteration",
         "resolved_field_access",
         "semantic_flags",
         "extras",

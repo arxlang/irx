@@ -25,6 +25,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedClassFieldAccess,
     ResolvedFieldAccess,
     ResolvedImportBinding,
+    ResolvedIteration,
     ResolvedMethodCall,
     ResolvedModuleMemberAccess,
     ResolvedOperator,
@@ -119,6 +120,44 @@ class SemanticVisitorMixinTypingBase:
             type: astx.AST
           symbol:
             type: SemanticSymbol | None
+        returns:
+          type: SemanticSymbol | None
+        """
+        raise NotImplementedError
+
+    def _set_iteration(
+        self,
+        node: astx.AST,
+        iteration: ResolvedIteration | None,
+    ) -> ResolvedIteration | None:
+        """
+        title: Attach one resolved iterable capability.
+        parameters:
+          node:
+            type: astx.AST
+          iteration:
+            type: ResolvedIteration | None
+        returns:
+          type: ResolvedIteration | None
+        """
+        raise NotImplementedError
+
+    def _declare_iteration_target(
+        self,
+        target: astx.AST,
+        element_type: astx.DataType,
+        *,
+        kind: str,
+    ) -> SemanticSymbol | None:
+        """
+        title: Declare one loop or comprehension target.
+        parameters:
+          target:
+            type: astx.AST
+          element_type:
+            type: astx.DataType
+          kind:
+            type: str
         returns:
           type: SemanticSymbol | None
         """
@@ -852,6 +891,88 @@ class SemanticAnalyzerCore(BaseVisitor):
         info.resolved_symbol = symbol
         if symbol is not None:
             self._set_type(node, symbol.type_)
+        return symbol
+
+    def _set_iteration(
+        self,
+        node: astx.AST,
+        iteration: ResolvedIteration | None,
+    ) -> ResolvedIteration | None:
+        """
+        title: Attach one resolved iterable capability.
+        parameters:
+          node:
+            type: astx.AST
+          iteration:
+            type: ResolvedIteration | None
+        returns:
+          type: ResolvedIteration | None
+        """
+        self._semantic(node).resolved_iteration = iteration
+        return iteration
+
+    def _declare_iteration_target(
+        self,
+        target: astx.AST,
+        element_type: astx.DataType,
+        *,
+        kind: str,
+    ) -> SemanticSymbol | None:
+        """
+        title: Declare one loop or comprehension target.
+        summary: >-
+          Normalize identifier and inline-declaration targets into a lexical
+          symbol with the iterable element type.
+        parameters:
+          target:
+            type: astx.AST
+          element_type:
+            type: astx.DataType
+          kind:
+            type: str
+        returns:
+          type: SemanticSymbol | None
+        """
+        if isinstance(target, astx.Identifier):
+            symbol = self.registry.declare_local(
+                target.name,
+                element_type,
+                is_mutable=False,
+                declaration=target,
+                kind=kind,
+            )
+            self._set_symbol(target, symbol)
+            return symbol
+
+        if not isinstance(target, astx.InlineVariableDeclaration):
+            self.context.diagnostics.add(
+                "iteration target must be an identifier or inline "
+                "variable declaration",
+                node=target,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            return None
+
+        declared_type = target.type_
+        if isinstance(declared_type, astx.AnyType):
+            target.type_ = element_type
+        elif not is_assignable(declared_type, element_type):
+            self.context.diagnostics.add(
+                "iteration target "
+                f"'{target.name}' expects {display_type_name(declared_type)} "
+                f"but iterable yields {display_type_name(element_type)}",
+                node=target,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+
+        symbol = self.registry.declare_local(
+            target.name,
+            target.type_,
+            is_mutable=(target.mutability != astx.MutabilityKind.constant),
+            declaration=target,
+            kind=kind,
+        )
+        self._set_symbol(target, symbol)
         return symbol
 
     def _set_function(

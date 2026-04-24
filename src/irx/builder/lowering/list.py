@@ -6,12 +6,14 @@ title: Dynamic-list visitor mixins for llvmliteir.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from llvmlite import ir
 
 from irx import astx
-from irx.builder.core import VisitorCore
+from irx.analysis.resolved_nodes import IterationKind, ResolvedIteration
+from irx.builder.core import VisitorCore, semantic_symbol_key
+from irx.builder.diagnostics import raise_lowering_error
 from irx.builder.protocols import VisitorMixinBase
 from irx.builder.runtime import safe_pop
 from irx.builtins.collections.list import (
@@ -21,6 +23,7 @@ from irx.builtins.collections.list import (
     LIST_RUNTIME_FEATURE,
     list_element_type,
 )
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -84,6 +87,22 @@ class ListVisitorMixin(VisitorMixinBase):
         return self._list_element_llvm_type_from_type(
             self._resolved_ast_type(node)
         )
+
+    def _resolved_iteration(
+        self,
+        node: astx.AST,
+    ) -> ResolvedIteration | None:
+        """
+        title: Return one node's resolved iteration sidecar.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ResolvedIteration | None
+        """
+        semantic = getattr(node, "semantic", None)
+        iteration = getattr(semantic, "resolved_iteration", None)
+        return iteration if isinstance(iteration, ResolvedIteration) else None
 
     def _list_element_size_from_type(
         self,
@@ -224,11 +243,6 @@ class ListVisitorMixin(VisitorMixinBase):
           index_node:
             type: astx.AST
         """
-        at_fn = self.require_runtime_symbol(
-            LIST_RUNTIME_FEATURE,
-            LIST_AT_SYMBOL,
-        )
-
         self.visit_child(index_node)
         index = safe_pop(self.result_stack)
         if index is None:
@@ -238,9 +252,38 @@ class ListVisitorMixin(VisitorMixinBase):
             source_type=self._resolved_ast_type(index_node),
             target_type=astx.Int64(),
         )
+        self.result_stack.append(
+            self._load_list_element_at_index(
+                base=base,
+                list_ptr=list_ptr,
+                index=index,
+            )
+        )
 
+    def _load_list_element_at_index(
+        self,
+        *,
+        base: astx.AST,
+        list_ptr: ir.Value,
+        index: ir.Value,
+    ) -> ir.Value:
+        """
+        title: Load one list element at a lowered Int64 index.
+        parameters:
+          base:
+            type: astx.AST
+          list_ptr:
+            type: ir.Value
+          index:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
         raw_ptr = self._llvm.ir_builder.call(
-            at_fn,
+            self.require_runtime_symbol(
+                LIST_RUNTIME_FEATURE,
+                LIST_AT_SYMBOL,
+            ),
             [list_ptr, index],
             name="irx_list_at_ptr",
         )
@@ -250,11 +293,12 @@ class ListVisitorMixin(VisitorMixinBase):
             llvm_element_type.as_pointer(),
             name="irx_list_at_typed_ptr",
         )
-        self.result_stack.append(
+        return cast(
+            ir.Value,
             self._llvm.ir_builder.load(
                 typed_ptr,
                 name="irx_list_at_load",
-            )
+            ),
         )
 
     def _literal_list_pointer_for_runtime(
@@ -383,6 +427,56 @@ class ListVisitorMixin(VisitorMixinBase):
             index_node=index_node,
         )
 
+    def _list_pointer_and_length_for_iteration(
+        self,
+        base: astx.AST,
+    ) -> tuple[ir.Value, ir.Value]:
+        """
+        title: Return an addressable list value and Int64 length for iteration.
+        parameters:
+          base:
+            type: astx.AST
+        returns:
+          type: tuple[ir.Value, ir.Value]
+        """
+        if isinstance(base, astx.LiteralList):
+            self.visit_child(base)
+            literal_value = safe_pop(self.result_stack)
+            if literal_value is None:
+                raise Exception("literal list iteration requires a value")
+            list_ptr = self._literal_list_pointer_for_runtime(
+                base=base,
+                literal_value=literal_value,
+            )
+            return (
+                list_ptr,
+                ir.Constant(self._llvm.INT64_TYPE, len(base.elements)),
+            )
+
+        list_ptr = self._list_pointer_for_call(
+            base,
+            name="irx_list_iter_value",
+        )
+        length_ptr = self._llvm.ir_builder.gep(
+            list_ptr,
+            [
+                ir.Constant(self._llvm.INT32_TYPE, 0),
+                ir.Constant(
+                    self._llvm.INT32_TYPE,
+                    LIST_FIELD_INDICES["length"],
+                ),
+            ],
+            inbounds=True,
+            name="irx_list_iter_length_ptr",
+        )
+        return (
+            list_ptr,
+            self._llvm.ir_builder.load(
+                length_ptr,
+                name="irx_list_iter_length_i64",
+            ),
+        )
+
     def _lower_list_subscript(
         self,
         *,
@@ -497,6 +591,355 @@ class ListVisitorMixin(VisitorMixinBase):
             return
 
         raise Exception("literal list indexing requires array-like storage")
+
+    def _append_list_comprehension_value(
+        self,
+        *,
+        node: astx.ListComprehension,
+        output_ptr: ir.Value,
+        element_type: astx.DataType,
+    ) -> None:
+        """
+        title: Append one computed comprehension element to the output list.
+        parameters:
+          node:
+            type: astx.ListComprehension
+          output_ptr:
+            type: ir.Value
+          element_type:
+            type: astx.DataType
+        """
+        self.visit_child(node.element)
+        value = safe_pop(self.result_stack)
+        if value is None:
+            raise Exception("list comprehension element did not lower")
+        value = self._cast_ast_value(
+            value,
+            source_type=self._resolved_ast_type(node.element),
+            target_type=element_type,
+        )
+
+        llvm_element_type = self._llvm_type_for_ast_type(element_type)
+        if llvm_element_type is None:
+            raise_lowering_error(
+                "list comprehension element type is not lowerable",
+                node=node.element,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+        value_ptr = self._llvm.ir_builder.alloca(
+            llvm_element_type,
+            name="irx_list_comprehension_value",
+        )
+        self._llvm.ir_builder.store(value, value_ptr)
+        raw_value_ptr = self._llvm.ir_builder.bitcast(
+            value_ptr,
+            self._llvm.INT8_TYPE.as_pointer(),
+            name="irx_list_comprehension_bytes",
+        )
+        self._llvm.ir_builder.call(
+            self.require_runtime_symbol(
+                LIST_RUNTIME_FEATURE,
+                LIST_APPEND_SYMBOL,
+            ),
+            [output_ptr, raw_value_ptr],
+            name="irx_list_comprehension_append_status",
+        )
+
+    def _lower_list_comprehension_filters(
+        self,
+        *,
+        node: astx.ListComprehension,
+        clauses: list[astx.ComprehensionClause],
+        clause_index: int,
+        condition_index: int,
+        advance_block: ir.Block,
+        output_ptr: ir.Value,
+        element_type: astx.DataType,
+    ) -> None:
+        """
+        title: Lower one clause's comprehension filters.
+        parameters:
+          node:
+            type: astx.ListComprehension
+          clauses:
+            type: list[astx.ComprehensionClause]
+          clause_index:
+            type: int
+          condition_index:
+            type: int
+          advance_block:
+            type: ir.Block
+          output_ptr:
+            type: ir.Value
+          element_type:
+            type: astx.DataType
+        """
+        clause = clauses[clause_index]
+        conditions = list(clause.conditions.nodes)
+        if condition_index >= len(conditions):
+            self._lower_list_comprehension_clause(
+                node=node,
+                clauses=clauses,
+                clause_index=clause_index + 1,
+                output_ptr=output_ptr,
+                element_type=element_type,
+            )
+            return
+
+        condition = conditions[condition_index]
+        passed_block = self._llvm.ir_builder.function.append_basic_block(
+            f"list.comp.{clause_index}.filter.{condition_index}.pass"
+        )
+        self.visit_child(condition)
+        condition_value = cast(Any, self)._lower_boolean_condition(
+            safe_pop(self.result_stack),
+            node=condition,
+            context="list comprehension filter",
+        )
+        self._llvm.ir_builder.cbranch(
+            condition_value,
+            passed_block,
+            advance_block,
+        )
+        self._llvm.ir_builder.position_at_start(passed_block)
+        self._lower_list_comprehension_filters(
+            node=node,
+            clauses=clauses,
+            clause_index=clause_index,
+            condition_index=condition_index + 1,
+            advance_block=advance_block,
+            output_ptr=output_ptr,
+            element_type=element_type,
+        )
+
+    def _lower_list_comprehension_clause(
+        self,
+        *,
+        node: astx.ListComprehension,
+        clauses: list[astx.ComprehensionClause],
+        clause_index: int,
+        output_ptr: ir.Value,
+        element_type: astx.DataType,
+    ) -> None:
+        """
+        title: Lower one nested list-comprehension clause.
+        parameters:
+          node:
+            type: astx.ListComprehension
+          clauses:
+            type: list[astx.ComprehensionClause]
+          clause_index:
+            type: int
+          output_ptr:
+            type: ir.Value
+          element_type:
+            type: astx.DataType
+        """
+        if clause_index >= len(clauses):
+            self._append_list_comprehension_value(
+                node=node,
+                output_ptr=output_ptr,
+                element_type=element_type,
+            )
+            return
+
+        clause = clauses[clause_index]
+        iteration = self._resolved_iteration(clause)
+        if iteration is None:
+            raise_lowering_error(
+                "list comprehension clause is missing resolved iteration "
+                "metadata",
+                node=clause,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+        if iteration.kind is not IterationKind.LIST:
+            raise_lowering_error(
+                "list comprehension lowering currently supports only list "
+                f"iterables, got {iteration.kind.value}",
+                node=clause.iterable,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+
+        target_name = cast(str, getattr(clause.target, "name", "item"))
+        target_type = (
+            iteration.target_symbol.type_
+            if iteration.target_symbol is not None
+            else iteration.element_type
+        )
+        target_llvm_type = self._llvm_type_for_ast_type(target_type)
+        if target_llvm_type is None:
+            raise_lowering_error(
+                "list comprehension target type is not lowerable",
+                node=clause.target,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+        target_addr = self.create_entry_block_alloca(
+            target_name,
+            target_llvm_type,
+        )
+        index_addr = self.create_entry_block_alloca(
+            f"{target_name}_comp_index",
+            self._llvm.INT64_TYPE,
+        )
+        self._llvm.ir_builder.store(
+            ir.Constant(self._llvm.INT64_TYPE, 0),
+            index_addr,
+        )
+        list_ptr, length = self._list_pointer_and_length_for_iteration(
+            clause.iterable
+        )
+
+        cond_block = self._llvm.ir_builder.function.append_basic_block(
+            f"list.comp.{clause_index}.cond"
+        )
+        body_block = self._llvm.ir_builder.function.append_basic_block(
+            f"list.comp.{clause_index}.body"
+        )
+        advance_block = self._llvm.ir_builder.function.append_basic_block(
+            f"list.comp.{clause_index}.advance"
+        )
+        exit_block = self._llvm.ir_builder.function.append_basic_block(
+            f"list.comp.{clause_index}.exit"
+        )
+        self._llvm.ir_builder.branch(cond_block)
+
+        self._llvm.ir_builder.position_at_start(cond_block)
+        current_index = self._llvm.ir_builder.load(
+            index_addr,
+            name="list_comp_index",
+        )
+        has_item = self._llvm.ir_builder.icmp_signed(
+            "<",
+            current_index,
+            length,
+            name="list_comp_has_item",
+        )
+        self._llvm.ir_builder.cbranch(has_item, body_block, exit_block)
+
+        self._llvm.ir_builder.position_at_start(body_block)
+        body_index = self._llvm.ir_builder.load(
+            index_addr,
+            name="list_comp_body_index",
+        )
+        item_value = self._load_list_element_at_index(
+            base=clause.iterable,
+            list_ptr=list_ptr,
+            index=body_index,
+        )
+        item_value = self._cast_ast_value(
+            item_value,
+            source_type=iteration.element_type,
+            target_type=target_type,
+        )
+        self._llvm.ir_builder.store(item_value, target_addr)
+        target_key = semantic_symbol_key(clause.target, target_name)
+        with cast(Any, self)._temporary_named_value(
+            target_key,
+            target_addr,
+            is_constant=True,
+        ):
+            self._lower_list_comprehension_filters(
+                node=node,
+                clauses=clauses,
+                clause_index=clause_index,
+                condition_index=0,
+                advance_block=advance_block,
+                output_ptr=output_ptr,
+                element_type=element_type,
+            )
+        if not self._llvm.ir_builder.block.is_terminated:
+            self._llvm.ir_builder.branch(advance_block)
+
+        self._llvm.ir_builder.position_at_start(advance_block)
+        next_index = self._llvm.ir_builder.add(
+            self._llvm.ir_builder.load(
+                index_addr,
+                name="list_comp_step_index",
+            ),
+            ir.Constant(self._llvm.INT64_TYPE, 1),
+            name="list_comp_next_index",
+        )
+        self._llvm.ir_builder.store(next_index, index_addr)
+        self._llvm.ir_builder.branch(cond_block)
+
+        self._llvm.ir_builder.position_at_start(exit_block)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.ListComprehension) -> None:
+        """
+        title: Visit ListComprehension nodes.
+        parameters:
+          node:
+            type: astx.ListComprehension
+        """
+        result_type = self._resolved_ast_type(node)
+        element_type = list_element_type(result_type)
+        if element_type is None:
+            raise_lowering_error(
+                "list comprehension requires a concrete element type",
+                node=node,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+        output_ptr = self._llvm.ir_builder.alloca(
+            self._llvm_list_type(),
+            name="irx_list_comprehension_out",
+        )
+        self._llvm.ir_builder.store(
+            self._empty_list_value_for_type(result_type),
+            output_ptr,
+        )
+        clauses = list(node.generators.nodes)
+        if clauses:
+            self._lower_list_comprehension_clause(
+                node=node,
+                clauses=clauses,
+                clause_index=0,
+                output_ptr=output_ptr,
+                element_type=element_type,
+            )
+        else:
+            self._append_list_comprehension_value(
+                node=node,
+                output_ptr=output_ptr,
+                element_type=element_type,
+            )
+
+        self.result_stack.append(
+            self._llvm.ir_builder.load(
+                output_ptr,
+                name="irx_list_comprehension_result",
+            )
+        )
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.SetComprehension) -> None:
+        """
+        title: Visit SetComprehension nodes.
+        parameters:
+          node:
+            type: astx.SetComprehension
+        """
+        raise_lowering_error(
+            "set comprehension lowering requires the future dynamic set "
+            "runtime",
+            node=node,
+            code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+        )
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.DictComprehension) -> None:
+        """
+        title: Visit DictComprehension nodes.
+        parameters:
+          node:
+            type: astx.DictComprehension
+        """
+        raise_lowering_error(
+            "dict comprehension lowering requires the future dynamic dict "
+            "runtime",
+            node=node,
+            code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+        )
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.ListCreate) -> None:

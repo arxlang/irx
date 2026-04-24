@@ -39,6 +39,7 @@ Before lowering starts, IRx guarantees that analyzed nodes may carry
 - `resolved_imports`
 - `resolved_operator`
 - `resolved_assignment`
+- `resolved_iteration`
 - `resolved_field_access`
 - `resolved_module_member_access`
 - `resolved_class_field_access`

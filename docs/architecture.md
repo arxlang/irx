@@ -239,6 +239,23 @@ without moving collection policy into the frontend. The current runtime owns
 append/growth and indexed reads only; list teardown is intentionally deferred to
 a future ownership API.
 
+## Iterable Semantics
+
+IRx now models iteration as a semantic capability instead of as backend-specific
+collection probing. Semantic analysis resolves known iterable expressions into a
+`ResolvedIteration` sidecar that records the adapter kind, yielded element type,
+ordering contract, and loop/comprehension target symbol. Backend lowering
+consumes that sidecar instead of rediscovering whether an expression is a list,
+set, or dict.
+
+The executable MVP supports `ForInLoopStmt` and `ListComprehension` over list
+iterables, including literal lists and dynamic IRx lists. List iteration follows
+index order and evaluates the iterable once when that loop or comprehension
+clause is entered. Dict and set literals are recognized semantically as
+iterables as well: dict iteration yields keys, while set iteration order remains
+unspecified. Their dynamic lowering is intentionally guarded until IRx has
+runtime-backed dynamic dict and set construction APIs.
+
 ## NDArray Layering
 
 IRx now treats NDArray support as a distinct semantic layer built on two

@@ -9,11 +9,14 @@ summary: >-
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from irx import astx
 from irx.analysis.handlers.base import (
     SemanticAnalyzerCore,
     SemanticVisitorMixinBase,
 )
+from irx.analysis.iterables import resolve_iteration_capability
 from irx.analysis.types import (
     display_type_name,
     is_boolean_type,
@@ -195,6 +198,44 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
                 declaration=node.variable,
             )
             self._set_symbol(node.variable, symbol)
+            with self.context.in_loop():
+                self.visit(node.body)
+        self._set_type(node, None)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.ForInLoopStmt) -> None:
+        """
+        title: Visit ForInLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForInLoopStmt
+        """
+        with self.context.scope("for-in"):
+            self.visit(node.iterable)
+            iterable_type = self._expr_type(node.iterable)
+            iteration = resolve_iteration_capability(
+                node.iterable,
+                iterable_type,
+            )
+            if iteration is None:
+                self.context.diagnostics.add(
+                    "for-in requires an iterable value, got "
+                    f"{display_type_name(iterable_type)}",
+                    node=node.iterable,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+                self._set_iteration(node, None)
+                self._set_type(node, None)
+                return
+
+            symbol = self._declare_iteration_target(
+                node.target,
+                iteration.element_type,
+                kind="for-in",
+            )
+            resolved_iteration = replace(iteration, target_symbol=symbol)
+            self._set_iteration(node.iterable, resolved_iteration)
+            self._set_iteration(node, resolved_iteration)
             with self.context.in_loop():
                 self.visit(node.body)
         self._set_type(node, None)

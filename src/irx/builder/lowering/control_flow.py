@@ -7,11 +7,12 @@ title: Control-flow visitor mixins for llvmliteir.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterator, Literal, cast
+from typing import Any, Iterator, Literal, cast
 
 from llvmlite import ir
 
 from irx import astx
+from irx.analysis.resolved_nodes import IterationKind, ResolvedIteration
 from irx.analysis.types import (
     is_boolean_type,
     is_float_type,
@@ -398,6 +399,131 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
             source_type=self._resolved_ast_type(node),
             target_type=target_type,
         )
+
+    def _resolved_iteration(
+        self,
+        node: astx.AST,
+    ) -> ResolvedIteration | None:
+        """
+        title: Return one node's resolved iteration sidecar.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ResolvedIteration | None
+        """
+        semantic = getattr(node, "semantic", None)
+        iteration = getattr(semantic, "resolved_iteration", None)
+        return iteration if isinstance(iteration, ResolvedIteration) else None
+
+    def _lower_list_for_in_loop(
+        self,
+        node: astx.ForInLoopStmt,
+        iteration: ResolvedIteration,
+    ) -> None:
+        """
+        title: Lower one for-in loop over a list iterable.
+        parameters:
+          node:
+            type: astx.ForInLoopStmt
+          iteration:
+            type: ResolvedIteration
+        """
+        target_name = getattr(node.target, "name", "item")
+        target_type = (
+            iteration.target_symbol.type_
+            if iteration.target_symbol is not None
+            else iteration.element_type
+        )
+        llvm_target_type = self._require_llvm_type(
+            target_type,
+            node=node.target,
+            context="for-in loop target",
+        )
+        target_addr = self.create_entry_block_alloca(
+            target_name,
+            llvm_target_type,
+        )
+        index_addr = self.create_entry_block_alloca(
+            f"{target_name}_iter_index",
+            self._llvm.INT64_TYPE,
+        )
+        self._llvm.ir_builder.store(
+            ir.Constant(self._llvm.INT64_TYPE, 0),
+            index_addr,
+        )
+
+        list_ptr, length = cast(
+            Any,
+            self,
+        )._list_pointer_and_length_for_iteration(node.iterable)
+
+        cond_bb, body_bb, advance_bb, exit_bb = self._append_basic_blocks(
+            "for.in",
+            "cond",
+            "body",
+            "advance",
+            "exit",
+        )
+        self._llvm.ir_builder.branch(cond_bb)
+
+        self._llvm.ir_builder.position_at_start(cond_bb)
+        current_index = self._llvm.ir_builder.load(
+            index_addr,
+            name="for_in_index",
+        )
+        loop_cond = self._llvm.ir_builder.icmp_signed(
+            "<",
+            current_index,
+            length,
+            name="for_in_has_item",
+        )
+        self._llvm.ir_builder.cbranch(loop_cond, body_bb, exit_bb)
+
+        target_key = semantic_symbol_key(node.target, target_name)
+        is_constant = False
+        if isinstance(node.target, astx.InlineVariableDeclaration):
+            is_constant = (
+                node.target.mutability == astx.MutabilityKind.constant
+            )
+        else:
+            is_constant = True
+
+        with self._loop_scope(
+            break_target=exit_bb,
+            continue_target=advance_bb,
+        ):
+            self._llvm.ir_builder.position_at_start(body_bb)
+            item_value = cast(Any, self)._load_list_element_at_index(
+                base=node.iterable,
+                list_ptr=list_ptr,
+                index=current_index,
+            )
+            item_value = self._cast_ast_value(
+                item_value,
+                source_type=iteration.element_type,
+                target_type=target_type,
+            )
+            self._llvm.ir_builder.store(item_value, target_addr)
+            with self._temporary_named_value(
+                target_key,
+                target_addr,
+                is_constant=is_constant,
+            ):
+                self._discard_child_results(node.body)
+            if not self._llvm.ir_builder.block.is_terminated:
+                self._llvm.ir_builder.branch(advance_bb)
+
+        self._llvm.ir_builder.position_at_start(advance_bb)
+        next_index = self._llvm.ir_builder.add(
+            self._llvm.ir_builder.load(index_addr, name="for_in_step_index"),
+            ir.Constant(self._llvm.INT64_TYPE, 1),
+            name="for_in_next_index",
+        )
+        self._llvm.ir_builder.store(next_index, index_addr)
+        self._llvm.ir_builder.branch(cond_bb)
+
+        self._llvm.ir_builder.position_at_start(exit_bb)
 
     def _zero_value(self, llvm_type: ir.Type) -> ir.Constant:
         """
@@ -990,6 +1116,31 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.branch(cond_bb)
 
         self._llvm.ir_builder.position_at_start(exit_bb)
+
+    @VisitorCore.visit.dispatch
+    def visit(self, node: astx.ForInLoopStmt) -> None:
+        """
+        title: Visit ForInLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForInLoopStmt
+        """
+        iteration = self._resolved_iteration(node)
+        if iteration is None:
+            raise_lowering_error(
+                "for-in loop is missing resolved iteration metadata",
+                node=node,
+                code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+            )
+        if iteration.kind is IterationKind.LIST:
+            self._lower_list_for_in_loop(node, iteration)
+            return
+        raise_lowering_error(
+            f"for-in lowering does not yet support {iteration.kind.value} "
+            "iterables",
+            node=node.iterable,
+            code=DiagnosticCodes.LOWERING_TYPE_MISMATCH,
+        )
 
     @VisitorCore.visit.dispatch
     def visit(self, node: astx.BreakStmt) -> None:
