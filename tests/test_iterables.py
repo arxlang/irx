@@ -146,6 +146,109 @@ def _filtered_comprehension_module() -> astx.Module:
     )
 
 
+def _dynamic_for_in_module() -> astx.Module:
+    """
+    title: Build one module that iterates a runtime list variable.
+    returns:
+      type: astx.Module
+    """
+    list_type = astx.ListType([astx.Int32()])
+    loop_body = _block_of(
+        astx.VariableAssignment(
+            "total",
+            astx.BinaryOp(
+                "+",
+                astx.Identifier("total"),
+                astx.Identifier("item"),
+            ),
+        )
+    )
+    return _main_module(
+        astx.VariableDeclaration(
+            "values",
+            list_type,
+            mutability=astx.MutabilityKind.mutable,
+            value=astx.ListCreate(astx.Int32()),
+        ),
+        astx.ListAppend(astx.Identifier("values"), astx.LiteralInt32(4)),
+        astx.ListAppend(astx.Identifier("values"), astx.LiteralInt32(5)),
+        astx.VariableDeclaration(
+            "total",
+            astx.Int32(),
+            mutability=astx.MutabilityKind.mutable,
+            value=astx.LiteralInt32(0),
+        ),
+        astx.ForInLoopStmt(
+            astx.Identifier("item"),
+            astx.Identifier("values"),
+            loop_body,
+        ),
+        astx.FunctionReturn(astx.Identifier("total")),
+    )
+
+
+def _nested_comprehension_module() -> astx.Module:
+    """
+    title: Build one module with two comprehension clauses.
+    returns:
+      type: astx.Module
+    """
+    comprehension = astx.ListComprehension(
+        element=astx.BinaryOp(
+            "+",
+            astx.Identifier("left"),
+            astx.Identifier("right"),
+        ),
+        generators=[
+            astx.ComprehensionClause(
+                astx.Identifier("left"),
+                _literal_list(1, 2),
+            ),
+            astx.ComprehensionClause(
+                astx.Identifier("right"),
+                _literal_list(10, 20, 30),
+                [
+                    astx.BinaryOp(
+                        ">",
+                        astx.Identifier("right"),
+                        astx.BinaryOp(
+                            "*",
+                            astx.Identifier("left"),
+                            astx.LiteralInt32(10),
+                        ),
+                    )
+                ],
+            ),
+        ],
+    )
+    list_type = astx.ListType([astx.Int32()])
+    result_sum = astx.BinaryOp(
+        "+",
+        astx.ListIndex(astx.Identifier("values"), astx.LiteralInt32(0)),
+        astx.BinaryOp(
+            "+",
+            astx.ListIndex(astx.Identifier("values"), astx.LiteralInt32(1)),
+            astx.BinaryOp(
+                "+",
+                astx.ListIndex(
+                    astx.Identifier("values"),
+                    astx.LiteralInt32(2),
+                ),
+                astx.ListLength(astx.Identifier("values")),
+            ),
+        ),
+    )
+    return _main_module(
+        astx.VariableDeclaration(
+            "values",
+            list_type,
+            mutability=astx.MutabilityKind.mutable,
+            value=comprehension,
+        ),
+        astx.FunctionReturn(result_sum),
+    )
+
+
 def test_for_in_resolves_list_iteration() -> None:
     """
     title: For-in analysis should attach list iteration metadata.
@@ -279,6 +382,19 @@ def test_for_in_lowers_to_list_iteration_blocks() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_dynamic_list_for_in_lowers() -> None:
+    """
+    title: For-in over runtime list variables should lower via list length.
+    """
+    builder = Builder()
+    ir_text = builder.translate(_dynamic_for_in_module())
+
+    assert "irx_list_iter_length_i64" in ir_text
+    assert "for.in.cond" in ir_text
+    assert 'call i8* @"irx_list_at"' in ir_text
+    assert_ir_parses(ir_text)
+
+
 @pytest.mark.skipif(
     not HAS_CLANG,
     reason="clang is required for runtime tests",
@@ -291,6 +407,22 @@ def test_for_in_list_builds_and_runs() -> None:
     assert_build_output(Builder(), _sum_for_in_module(), str(expected_sum))
 
 
+@pytest.mark.skipif(
+    not HAS_CLANG,
+    reason="clang is required for runtime tests",
+)
+def test_dynamic_list_for_in_builds_and_runs() -> None:
+    """
+    title: For-in over runtime list variables should execute.
+    """
+    expected_sum = 9
+    assert_build_output(
+        Builder(),
+        _dynamic_for_in_module(),
+        str(expected_sum),
+    )
+
+
 def test_list_comprehension_lowers_to_dynamic_list_append() -> None:
     """
     title: List comprehensions should lower through dynamic list append.
@@ -300,6 +432,19 @@ def test_list_comprehension_lowers_to_dynamic_list_append() -> None:
 
     assert "list.comp.0.cond" in ir_text
     assert 'call i32 @"irx_list_append"' in ir_text
+    assert_ir_parses(ir_text)
+
+
+def test_nested_list_comprehension_lowers() -> None:
+    """
+    title: Nested list comprehensions should lower nested clause blocks.
+    """
+    builder = Builder()
+    ir_text = builder.translate(_nested_comprehension_module())
+
+    assert "list.comp.0.cond" in ir_text
+    assert "list.comp.1.cond" in ir_text
+    assert "list.comp.1.filter.0.pass" in ir_text
     assert_ir_parses(ir_text)
 
 
@@ -316,6 +461,28 @@ def test_list_comprehension_builds_and_runs() -> None:
         Builder(),
         _filtered_comprehension_module(),
         str(expected_length),
+    )
+
+
+@pytest.mark.skipif(
+    not HAS_CLANG,
+    reason="clang is required for runtime tests",
+)
+def test_nested_list_comprehension_builds_and_runs() -> None:
+    """
+    title: Nested list comprehensions should preserve loop order.
+    """
+    expected_first = 21
+    expected_second = 31
+    expected_third = 32
+    expected_length = 3
+    expected_result = (
+        expected_first + expected_second + expected_third + expected_length
+    )
+    assert_build_output(
+        Builder(),
+        _nested_comprehension_module(),
+        str(expected_result),
     )
 
 
