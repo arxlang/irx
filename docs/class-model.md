@@ -87,8 +87,9 @@ IRx supports multiple inheritance with deterministic C3 linearization.
 - no stable foreign object ABI for general classes
 - no implicit ancestor field views beyond explicit base-qualified access
 - no callback/function-pointer class interop in the public FFI layer
-- overload selection requires exact matches; conversion-ranked method overloads
-  remain deferred
+- overload selection requires exact provided-argument matches after accounting
+  for any trailing declared defaults; conversion-ranked method overloads remain
+  deferred
 
 ## Examples
 

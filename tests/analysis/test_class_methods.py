@@ -351,6 +351,44 @@ def test_analyze_base_method_call_bypasses_override_dispatch() -> None:
     assert resolved_call.slot_index is None
 
 
+def test_analyze_method_overload_prefers_exact_match_before_defaults() -> None:
+    """
+    title: Exact method overloads should win before default-compatible ones.
+    """
+    exact = _returning_method(
+        "render",
+        astx.LiteralInt32(1),
+        astx.Argument("value", astx.Int32()),
+    )
+    defaulted = _returning_method(
+        "render",
+        astx.LiteralInt32(2),
+        astx.Argument("value", astx.Int32()),
+        astx.Argument(
+            "scale",
+            astx.Int32(),
+            default=astx.LiteralInt32(3),
+        ),
+    )
+    painter = astx.ClassDefStmt(
+        name="Painter",
+        methods=[exact, defaulted],
+    )
+    call = astx.MethodCall(
+        astx.ClassConstruct("Painter"),
+        "render",
+        [astx.LiteralInt32(7)],
+    )
+
+    analyze(make_module("app.main", painter, _main_returning(call)))
+
+    resolved_call = _semantic(call).resolved_method_call
+
+    assert resolved_call is not None
+    assert resolved_call.member.signature is not None
+    assert len(resolved_call.member.signature.parameters) == 1
+
+
 def test_analyze_rejects_base_field_access_for_unrelated_class() -> None:
     """
     title: Base-qualified access requires the named base in receiver MRO.

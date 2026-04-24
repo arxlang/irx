@@ -39,8 +39,9 @@ from irx.analysis.resolved_nodes import (
     SemanticSymbol,
 )
 from irx.analysis.session import CompilationSession
-from irx.analysis.types import clone_type
+from irx.analysis.types import clone_type, display_type_name, is_assignable
 from irx.base.visitors.base import BaseVisitor
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
@@ -627,6 +628,32 @@ class SemanticVisitorMixinTypingBase:
             type: str
         returns:
           type: bool
+        """
+        raise NotImplementedError
+
+    def _argument_has_default(
+        self,
+        argument: astx.Argument,
+    ) -> bool:
+        """
+        title: Return whether one parameter declares a default value.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: bool
+        """
+        raise NotImplementedError
+
+    def _analyze_parameter_defaults(
+        self,
+        function: SemanticFunction,
+    ) -> None:
+        """
+        title: Analyze one callable's declared parameter default expressions.
+        parameters:
+          function:
+            type: SemanticFunction
         """
         raise NotImplementedError
 
@@ -1359,6 +1386,53 @@ class SemanticAnalyzerCore(BaseVisitor):
         if info is not None and info.resolved_type is not None:
             return info.resolved_type
         return getattr(node, "type_", None)
+
+    def _argument_has_default(
+        self,
+        argument: astx.Argument,
+    ) -> bool:
+        """
+        title: Return whether one parameter declares a default value.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: bool
+        """
+        return not isinstance(argument.default, astx.Undefined)
+
+    def _analyze_parameter_defaults(
+        self,
+        function: SemanticFunction,
+    ) -> None:
+        """
+        title: Analyze one callable's declared parameter default expressions.
+        parameters:
+          function:
+            type: SemanticFunction
+        """
+        visible_arguments = tuple(function.prototype.args.nodes)
+        hidden_parameter_count = len(function.args) - len(visible_arguments)
+        with self.context.scope("parameter_defaults"):
+            for hidden_symbol in function.args[:hidden_parameter_count]:
+                self.context.scopes.declare(hidden_symbol)
+            for index, argument in enumerate(visible_arguments):
+                if self._argument_has_default(argument):
+                    self.visit(argument.default)
+                    default_type = self._expr_type(argument.default)
+                    if not is_assignable(argument.type_, default_type):
+                        self.context.diagnostics.add(
+                            "default value for parameter "
+                            f"'{argument.name}' expects "
+                            f"{display_type_name(argument.type_)} but got "
+                            f"{display_type_name(default_type)}",
+                            node=argument.default,
+                            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                        )
+                symbol_index = hidden_parameter_count + index
+                if symbol_index >= len(function.args):
+                    continue
+                self.context.scopes.declare(function.args[symbol_index])
 
     def _require_value_expression(
         self,

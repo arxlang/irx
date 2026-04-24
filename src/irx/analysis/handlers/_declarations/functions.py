@@ -55,7 +55,6 @@ class DeclarationFunctionVisitorMixin(SemanticVisitorMixinBase):
         )
         if (
             function.prototype is not prototype
-            and definition is None
             and not self.registry.signatures_match(
                 function.signature, signature
             )
@@ -130,6 +129,8 @@ class DeclarationFunctionVisitorMixin(SemanticVisitorMixinBase):
         if function.template_params:
             self._set_type(node, None)
             return
+        with self.context.in_function(function):
+            self._analyze_parameter_defaults(function)
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.FunctionDef) -> None:
@@ -163,6 +164,7 @@ class DeclarationFunctionVisitorMixin(SemanticVisitorMixinBase):
             self._set_type(node, None)
             return
         with self.context.in_function(function):
+            self._analyze_parameter_defaults(function)
             with self.context.scope("function"):
                 for arg_node, arg_symbol in zip(
                     node.prototype.args.nodes,

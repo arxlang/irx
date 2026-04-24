@@ -128,6 +128,7 @@ class TemplateAnalysisVisitorMixin(TemplateResolutionVisitorMixin):
             definition.prototype.args.nodes
         )
         with self.context.in_function(function):
+            self._analyze_parameter_defaults(function)
             with self.context.scope("function"):
                 for index, arg_symbol in enumerate(function.args):
                     self.context.scopes.declare(arg_symbol)
