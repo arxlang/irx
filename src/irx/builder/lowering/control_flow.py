@@ -1307,6 +1307,9 @@ class ControlFlowVisitorMixin(VisitorMixinBase):
         if iteration.kind is IterationKind.LIST:
             self._lower_list_for_in_loop(node, iteration)
             return
+        if iteration.kind is IterationKind.GENERATOR:
+            cast(Any, self)._lower_generator_for_in_loop(node, iteration)
+            return
         raise_lowering_error(
             f"for-in lowering does not yet support {iteration.kind.value} "
             "iterables",

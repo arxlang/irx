@@ -32,6 +32,8 @@ via `clang`.
     `BreakStmt`, `ContinueStmt`, `system.AssertStmt`
   - **Functions:** `FunctionPrototype`, `Function`, `FunctionReturn`,
     `FunctionCall`
+  - **Generators:** `GeneratorType`, `YieldStmt`, and `ForInLoopStmt` over
+    straight-line named generators
   - **System:** `system.PrintExpr` (string printing)
   - **Assertions:** `system.AssertStmt` (fatal assertion with machine-readable
     stderr reporting)

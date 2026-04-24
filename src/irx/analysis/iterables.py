@@ -75,6 +75,16 @@ def resolve_iteration_capability(
             order=IterationOrder.UNSPECIFIED,
         )
 
+    if isinstance(iterable_type, astx.GeneratorType):
+        return ResolvedIteration(
+            iterable_node=iterable_node,
+            iterable_type=iterable_type,
+            element_type=iterable_type.yield_type,
+            kind=IterationKind.GENERATOR,
+            is_reiterable=False,
+            order=IterationOrder.STABLE,
+        )
+
     return None
 
 

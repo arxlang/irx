@@ -26,12 +26,14 @@ from irx.analysis.resolved_nodes import (
     ResolvedCollectionMethod,
     ResolvedContextManager,
     ResolvedFieldAccess,
+    ResolvedGeneratorFunction,
     ResolvedImportBinding,
     ResolvedIteration,
     ResolvedMethodCall,
     ResolvedModuleMemberAccess,
     ResolvedOperator,
     ResolvedStaticClassFieldAccess,
+    ResolvedYield,
     ReturnResolution,
     SemanticClass,
     SemanticFlags,
@@ -228,6 +230,40 @@ class SemanticVisitorMixinTypingBase:
             type: ReturnResolution | None
         returns:
           type: ReturnResolution | None
+        """
+        raise NotImplementedError
+
+    def _set_generator_function(
+        self,
+        node: astx.AST,
+        generator: ResolvedGeneratorFunction | None,
+    ) -> ResolvedGeneratorFunction | None:
+        """
+        title: Attach one resolved generator-function sidecar.
+        parameters:
+          node:
+            type: astx.AST
+          generator:
+            type: ResolvedGeneratorFunction | None
+        returns:
+          type: ResolvedGeneratorFunction | None
+        """
+        raise NotImplementedError
+
+    def _set_yield(
+        self,
+        node: astx.AST,
+        yield_resolution: ResolvedYield | None,
+    ) -> ResolvedYield | None:
+        """
+        title: Attach one resolved yield-site sidecar.
+        parameters:
+          node:
+            type: astx.AST
+          yield_resolution:
+            type: ResolvedYield | None
+        returns:
+          type: ResolvedYield | None
         """
         raise NotImplementedError
 
@@ -1086,6 +1122,44 @@ class SemanticAnalyzerCore(BaseVisitor):
         info.resolved_return = return_resolution
         return return_resolution
 
+    def _set_generator_function(
+        self,
+        node: astx.AST,
+        generator: ResolvedGeneratorFunction | None,
+    ) -> ResolvedGeneratorFunction | None:
+        """
+        title: Attach one resolved generator-function sidecar.
+        parameters:
+          node:
+            type: astx.AST
+          generator:
+            type: ResolvedGeneratorFunction | None
+        returns:
+          type: ResolvedGeneratorFunction | None
+        """
+        info = self._semantic(node)
+        info.resolved_generator_function = generator
+        return generator
+
+    def _set_yield(
+        self,
+        node: astx.AST,
+        yield_resolution: ResolvedYield | None,
+    ) -> ResolvedYield | None:
+        """
+        title: Attach one resolved yield-site sidecar.
+        parameters:
+          node:
+            type: astx.AST
+          yield_resolution:
+            type: ResolvedYield | None
+        returns:
+          type: ResolvedYield | None
+        """
+        info = self._semantic(node)
+        info.resolved_yield = yield_resolution
+        return yield_resolution
+
     def _set_struct(
         self,
         node: astx.AST,
@@ -1460,6 +1534,14 @@ class SemanticAnalyzerCore(BaseVisitor):
         if isinstance(type_, astx.TemplateTypeVar):
             self._resolve_declared_type(
                 type_.bound,
+                node=node,
+                unknown_message=unknown_message,
+            )
+            self._set_type(type_, type_)
+            return type_
+        if isinstance(type_, astx.GeneratorType):
+            self._resolve_declared_type(
+                type_.yield_type,
                 node=node,
                 unknown_message=unknown_message,
             )

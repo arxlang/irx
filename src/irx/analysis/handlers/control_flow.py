@@ -21,9 +21,12 @@ from irx.analysis.handlers.base import (
 )
 from irx.analysis.iterables import resolve_iteration_capability
 from irx.analysis.resolved_nodes import (
+    ImplicitConversion,
     MethodDispatchKind,
     ResolvedContextManager,
+    ResolvedGeneratorFunction,
     ResolvedMethodCall,
+    ResolvedYield,
     SemanticClass,
     SemanticSymbol,
 )
@@ -43,6 +46,105 @@ from irx.typecheck import typechecked
 
 @typechecked
 class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
+    def _current_generator(
+        self,
+        node: astx.AST,
+    ) -> ResolvedGeneratorFunction | None:
+        """
+        title: Return the active generator metadata, if any.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: ResolvedGeneratorFunction | None
+        """
+        function = self.context.current_function
+        if function is None:
+            self.context.diagnostics.add(
+                "Yield statement outside function.",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
+            )
+            return None
+
+        generator = function.signature.metadata.get("generator")
+        if isinstance(generator, ResolvedGeneratorFunction):
+            return generator
+
+        self.context.diagnostics.add(
+            f"Function '{function.name}' must declare GeneratorType[...] "
+            "to use yield",
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
+        )
+        return None
+
+    def _yield_value_type(self, value: astx.AST | None) -> astx.DataType:
+        """
+        title: Analyze and return one yielded value type.
+        parameters:
+          value:
+            type: astx.AST | None
+        returns:
+          type: astx.DataType
+        """
+        if value is None:
+            return astx.NoneType()
+        self.visit(value)
+        value_type = self._expr_type(value)
+        return value_type if value_type is not None else astx.NoneType()
+
+    def _resolve_yield(
+        self,
+        node: astx.AST,
+        value: astx.AST | None,
+    ) -> ResolvedYield | None:
+        """
+        title: Resolve one yield statement or expression.
+        parameters:
+          node:
+            type: astx.AST
+          value:
+            type: astx.AST | None
+        returns:
+          type: ResolvedYield | None
+        """
+        generator = self._current_generator(node)
+        value_type = self._yield_value_type(value)
+        if generator is None:
+            self._set_type(node, None)
+            return None
+
+        conversion = None
+        if not is_assignable(generator.yield_type, value_type):
+            self.context.diagnostics.add(
+                "yield expects "
+                f"{display_type_name(generator.yield_type)} but got "
+                f"{display_type_name(value_type)}",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+        elif not is_none_type(value_type):
+            conversion = ImplicitConversion(
+                source_type=value_type,
+                target_type=generator.yield_type,
+            )
+
+        try:
+            site_index = generator.yield_nodes.index(node)
+        except ValueError:
+            site_index = -1
+
+        resolved = ResolvedYield(
+            generator=generator,
+            expected_type=generator.yield_type,
+            value_type=value_type,
+            site_index=site_index,
+            implicit_conversion=conversion,
+        )
+        self._set_yield(node, resolved)
+        return resolved
+
     def _resolve_context_method(
         self,
         node: astx.WithStmt,
@@ -278,6 +380,22 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
                 code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
             )
             return
+        generator = self.context.current_function.signature.metadata.get(
+            "generator"
+        )
+        if isinstance(generator, ResolvedGeneratorFunction):
+            if node.value is not None:
+                self.visit(node.value)
+            value_type = self._expr_type(node.value)
+            if node.value is not None and not is_none_type(value_type):
+                self.context.diagnostics.add(
+                    "generator functions may only use bare return or "
+                    "return None in this phase",
+                    node=node,
+                    code=DiagnosticCodes.SEMANTIC_INVALID_RETURN,
+                )
+            self._set_type(node, None)
+            return
         if node.value is not None:
             self.visit(node.value)
         return_resolution = resolve_return(
@@ -289,6 +407,44 @@ class ControlFlowVisitorMixin(SemanticVisitorMixinBase):
         )
         self._set_return(node, return_resolution)
         self._set_type(node, return_resolution.expected_type)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.YieldStmt) -> None:
+        """
+        title: Visit YieldStmt nodes.
+        parameters:
+          node:
+            type: astx.YieldStmt
+        """
+        self._resolve_yield(node, node.value)
+        self._set_type(node, None)
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.YieldExpr) -> None:
+        """
+        title: Visit YieldExpr nodes.
+        parameters:
+          node:
+            type: astx.YieldExpr
+        """
+        self._resolve_yield(node, node.value)
+        self._set_type(node, astx.NoneType())
+
+    @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.YieldFromExpr) -> None:
+        """
+        title: Visit YieldFromExpr nodes.
+        parameters:
+          node:
+            type: astx.YieldFromExpr
+        """
+        self.context.diagnostics.add(
+            "yield from is not supported yet",
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_INVALID_CONTROL_FLOW,
+        )
+        self.visit(node.value)
+        self._set_type(node, astx.NoneType())
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.IfStmt) -> None:

@@ -363,6 +363,13 @@ class VisitorCore(BuilderVisitor):
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
     _current_function_signature: FunctionSignature | None
+    _generator_frame_types: dict[str, ir.IdentifiedStructType]
+    _generator_frame_slots_by_symbol_id: dict[str, dict[str, int]]
+    _generator_resume_functions: dict[str, ir.Function]
+    _current_generator_frame_ptr: ir.Value | None
+    _current_generator_frame_slots: dict[str, int]
+    _current_generator_out_ptr: ir.Value | None
+    _current_generator_next_state: int | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -398,6 +405,13 @@ class VisitorCore(BuilderVisitor):
         self._fast_math_enabled = False
         self._current_function_return_type = None
         self._current_function_signature = None
+        self._generator_frame_types = {}
+        self._generator_frame_slots_by_symbol_id = {}
+        self._generator_resume_functions = {}
+        self._current_generator_frame_ptr = None
+        self._current_generator_frame_slots = {}
+        self._current_generator_out_ptr = None
+        self._current_generator_next_state = None
 
         self.initialize()
         self.target = llvm.Target.from_default_triple()
@@ -1060,6 +1074,13 @@ class VisitorCore(BuilderVisitor):
             return None
         if isinstance(type_, astx.NamespaceType):
             return self._llvm.OPAQUE_POINTER_TYPE
+        if isinstance(type_, astx.GeneratorType):
+            return ir.LiteralStructType(
+                [
+                    self._llvm.OPAQUE_POINTER_TYPE,
+                    self._llvm.OPAQUE_POINTER_TYPE,
+                ]
+            )
         if isinstance(type_, astx.BufferOwnerType):
             return self._llvm.BUFFER_OWNER_HANDLE_TYPE
         if isinstance(type_, astx.OpaqueHandleType):

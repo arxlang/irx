@@ -80,6 +80,8 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             type_.name,
             bound=clone_type(type_.bound),
         )
+    if isinstance(type_, astx.GeneratorType):
+        return astx.GeneratorType(clone_type(type_.yield_type))
     if isinstance(type_, astx.StructType):
         return astx.StructType(
             type_.name,
@@ -173,6 +175,8 @@ def display_type_name(type_: astx.DataType | None) -> str:
         )
     if isinstance(type_, astx.TemplateTypeVar):
         return type_.name
+    if isinstance(type_, astx.GeneratorType):
+        return f"GeneratorType[{display_type_name(type_.yield_type)}]"
     if isinstance(type_, astx.StructType):
         return type_.qualified_name or type_.name
     if isinstance(type_, astx.ClassType):
@@ -256,6 +260,11 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         astx.TemplateTypeVar,
     ):
         return lhs.name == rhs.name and same_type(lhs.bound, rhs.bound)
+    if isinstance(lhs, astx.GeneratorType) and isinstance(
+        rhs,
+        astx.GeneratorType,
+    ):
+        return same_type(lhs.yield_type, rhs.yield_type)
     if isinstance(lhs, astx.StructType) and isinstance(rhs, astx.StructType):
         lhs_identity = lhs.qualified_name or lhs.name
         rhs_identity = rhs.qualified_name or rhs.name
@@ -722,6 +731,11 @@ def is_assignable(
         return is_assignable(target.bound, value)
     if isinstance(value, astx.TemplateTypeVar):
         return is_assignable(target, value.bound)
+    if isinstance(target, astx.GeneratorType) and isinstance(
+        value,
+        astx.GeneratorType,
+    ):
+        return is_assignable(target.yield_type, value.yield_type)
     if isinstance(target, astx.ListType) and isinstance(value, astx.ListType):
         if not target.element_types or not value.element_types:
             return True

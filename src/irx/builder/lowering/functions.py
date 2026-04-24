@@ -820,6 +820,14 @@ class FunctionVisitorMixin(VisitorMixinBase):
             node,
             label="function definition",
         )
+        generator = getattr(
+            getattr(node, "semantic", None),
+            "resolved_generator_function",
+            None,
+        )
+        if generator is not None:
+            cast(Any, self)._lower_generator_function(node, generator)
+            return
         signature = function.signature
         function_key = function.symbol_id
         fn = self._declare_semantic_function(function)
@@ -922,6 +930,9 @@ class FunctionVisitorMixin(VisitorMixinBase):
           node:
             type: astx.FunctionReturn
         """
+        if self._current_generator_frame_ptr is not None:
+            cast(Any, self)._emit_generator_stop(node)
+            return
         return_resolution = self._semantic_return_resolution(node)
         if return_resolution.returns_void:
             self._emit_active_cleanups()

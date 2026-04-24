@@ -712,6 +712,23 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
         self._set_type(node, astx.ListType([element_type]))
 
     @SemanticAnalyzerCore.visit.dispatch
+    def visit(self, node: astx.GeneratorExpr) -> None:
+        """
+        title: Visit GeneratorExpr nodes.
+        parameters:
+          node:
+            type: astx.GeneratorExpr
+        """
+        with self.context.scope("generator-expression"):
+            self._visit_comprehension_clauses(list(node.generators.nodes))
+            self.visit(node.element)
+            element_type = self._expr_type(node.element)
+        if element_type is None:
+            self._set_type(node, None)
+            return
+        self._set_type(node, astx.GeneratorType(element_type))
+
+    @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.SetComprehension) -> None:
         """
         title: Visit SetComprehension nodes.
