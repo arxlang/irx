@@ -393,6 +393,16 @@ class BaseVisitor:
         self._not_implemented(node)
 
     @dispatch
+    def visit(self, node: astx.DictComprehension) -> None:
+        """
+        title: Visit DictComprehension nodes.
+        parameters:
+          node:
+            type: astx.DictComprehension
+        """
+        self._not_implemented(node)
+
+    @dispatch
     def visit(self, node: astx.DoWhileExpr) -> None:
         """
         title: Visit DoWhileExpr nodes.
@@ -549,6 +559,16 @@ class BaseVisitor:
         parameters:
           node:
             type: astx.ForRangeLoopStmt
+        """
+        self._not_implemented(node)
+
+    @dispatch
+    def visit(self, node: astx.ForInLoopStmt) -> None:
+        """
+        title: Visit ForInLoopStmt nodes.
+        parameters:
+          node:
+            type: astx.ForInLoopStmt
         """
         self._not_implemented(node)
 

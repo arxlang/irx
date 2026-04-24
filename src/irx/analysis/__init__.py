@@ -17,6 +17,7 @@ from irx.analysis.contract import (
     SemanticPhase,
     get_semantic_contract,
 )
+from irx.analysis.iterables import resolve_iteration_capability
 from irx.analysis.module_interfaces import (
     ImportResolver,
     ModuleKey,
@@ -33,12 +34,15 @@ from irx.analysis.resolved_nodes import (
     FFILinkStrategy,
     FFITypeClass,
     FFITypeInfo,
+    IterationKind,
+    IterationOrder,
     MethodDispatchKind,
     ResolvedAssignment,
     ResolvedBaseClassFieldAccess,
     ResolvedClassConstruction,
     ResolvedClassFieldAccess,
     ResolvedImportBinding,
+    ResolvedIteration,
     ResolvedMethodCall,
     ResolvedOperator,
     ResolvedStaticClassFieldAccess,
@@ -81,6 +85,8 @@ __all__ = [
     "FFITypeClass",
     "FFITypeInfo",
     "ImportResolver",
+    "IterationKind",
+    "IterationOrder",
     "MethodDispatchKind",
     "ModuleKey",
     "ParsedModule",
@@ -90,6 +96,7 @@ __all__ = [
     "ResolvedClassConstruction",
     "ResolvedClassFieldAccess",
     "ResolvedImportBinding",
+    "ResolvedIteration",
     "ResolvedMethodCall",
     "ResolvedOperator",
     "ResolvedStaticClassFieldAccess",
@@ -121,4 +128,5 @@ __all__ = [
     "analyze_module",
     "analyze_modules",
     "get_semantic_contract",
+    "resolve_iteration_capability",
 ]

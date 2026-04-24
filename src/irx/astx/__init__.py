@@ -103,6 +103,8 @@ from irx.astx.collections import ListIndex as ListIndex
 from irx.astx.collections import ListLength as ListLength
 from irx.astx.ffi import OpaqueHandleType as OpaqueHandleType
 from irx.astx.ffi import PointerType as PointerType
+from irx.astx.iterables import DictComprehension as DictComprehension
+from irx.astx.iterables import ForInLoopStmt as ForInLoopStmt
 from irx.astx.modules import ModuleNamespaceType as ModuleNamespaceType
 from irx.astx.modules import NamespaceKind as NamespaceKind
 from irx.astx.modules import NamespaceType as NamespaceType
@@ -162,9 +164,11 @@ __all__ = (
     "ClassConstruct",
     "ClassDefStmt",
     "ClassType",
+    "DictComprehension",
     "DivBinOp",
     "EqBinOp",
     "FieldAccess",
+    "ForInLoopStmt",
     "GeBinOp",
     "GtBinOp",
     "LeBinOp",

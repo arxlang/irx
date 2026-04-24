@@ -1373,6 +1373,77 @@ class ResolvedMethodCall:
 
 @public
 @typechecked
+class IterationKind(str, Enum):
+    """
+    title: Stable iterable adapter kinds.
+    summary: >-
+      Classify the semantic adapter that turns one iterable expression into a
+      backend iteration plan.
+    """
+
+    LIST = "list"
+    DICT_KEYS = "dict_keys"
+    SET = "set"
+    RANGE = "range"
+    CUSTOM = "custom"
+
+
+@public
+@typechecked
+class IterationOrder(str, Enum):
+    """
+    title: Stable iterable ordering categories.
+    summary: >-
+      Describe the user-visible order guarantee, if any, exposed by one
+      iterable adapter.
+    """
+
+    INDEX = "index"
+    INSERTION = "insertion"
+    STABLE = "stable"
+    UNSPECIFIED = "unspecified"
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedIteration:
+    """
+    title: Resolved iterable capability.
+    summary: >-
+      Attach the semantic iteration plan that a for-in loop or comprehension
+      should consume during backend lowering.
+    attributes:
+      iterable_node:
+        type: astx.AST
+      iterable_type:
+        type: astx.DataType
+      element_type:
+        type: astx.DataType
+      kind:
+        type: IterationKind
+      is_reiterable:
+        type: bool
+      order:
+        type: IterationOrder
+      target_symbol:
+        type: SemanticSymbol | None
+      extras:
+        type: dict[str, Any]
+    """
+
+    iterable_node: astx.AST
+    iterable_type: astx.DataType
+    element_type: astx.DataType
+    kind: IterationKind
+    is_reiterable: bool = True
+    order: IterationOrder = IterationOrder.UNSPECIFIED
+    target_symbol: SemanticSymbol | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
+
+
+@public
+@typechecked
 @dataclass
 class SemanticInfo:
     """
@@ -1419,6 +1490,8 @@ class SemanticInfo:
         type: ResolvedClassConstruction | None
       resolved_return:
         type: ReturnResolution | None
+      resolved_iteration:
+        type: ResolvedIteration | None
       semantic_flags:
         type: SemanticFlags
       extras:
@@ -1448,5 +1521,6 @@ class SemanticInfo:
     resolved_method_call: ResolvedMethodCall | None = None
     resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None
+    resolved_iteration: ResolvedIteration | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)
     extras: dict[str, Any] = field(default_factory=dict)
