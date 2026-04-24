@@ -4,17 +4,26 @@ title: Common collection method tests.
 
 from __future__ import annotations
 
+import os
+import shutil
+import tempfile
+
+from pathlib import Path
+
 import pytest
 
 from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.builder import Builder
+from irx.builder.base import CommandResult
 
 from .conftest import (
     assert_ir_parses,
     assert_jit_int_main_result,
     make_main_module,
 )
+
+HAS_CLANG = shutil.which("clang") is not None
 
 
 def _list_i32_type() -> astx.ListType:
@@ -49,6 +58,45 @@ def _mutable_decl(
         value=value,
         mutability=astx.MutabilityKind.mutable,
     )
+
+
+def _run_workspace_build(
+    builder: Builder,
+    module: astx.Module,
+) -> CommandResult:
+    """
+    title: Build and run one module using a workspace-local temporary path.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+    returns:
+      type: CommandResult
+    """
+    temp_root = (Path.cwd() / "tmp").resolve()
+    temp_root.mkdir(exist_ok=True)
+    original_tmpdir = os.environ.get("TMPDIR")
+    output_path = ""
+    try:
+        os.environ["TMPDIR"] = str(temp_root)
+        with tempfile.NamedTemporaryFile(
+            suffix=".exe",
+            prefix="irx_collection_methods_",
+            dir=temp_root,
+            delete=False,
+        ) as handle:
+            output_path = handle.name
+
+        builder.build(module, output_file=output_path)
+        return builder.run(raise_on_error=False)
+    finally:
+        if original_tmpdir is None:
+            os.environ.pop("TMPDIR", None)
+        else:
+            os.environ["TMPDIR"] = original_tmpdir
+        if output_path and os.path.exists(output_path):
+            os.unlink(output_path)
 
 
 def test_literal_collection_lengths() -> None:
@@ -169,6 +217,34 @@ def test_collection_is_empty() -> None:
     assert_ir_parses(ir_text)
 
 
+def test_heterogeneous_tuple_contains_skips_incompatible_entries() -> None:
+    """
+    title: Heterogeneous tuple containment should skip incompatible members.
+    """
+    builder = Builder()
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module = make_main_module(
+        astx.IfStmt(
+            condition=astx.CollectionContains(
+                astx.LiteralTuple(
+                    (
+                        astx.LiteralInt32(1),
+                        astx.LiteralString("x"),
+                    )
+                ),
+                astx.LiteralInt32(1),
+            ),
+            then=then_block,
+            else_=else_block,
+        )
+    )
+
+    assert_jit_int_main_result(builder, module, 1)
+
+
 @pytest.mark.parametrize(
     ("expression", "expected"),
     [
@@ -195,6 +271,31 @@ def test_collection_is_empty() -> None:
                     ]
                 ),
                 astx.LiteralInt32(4),
+            ),
+            2,
+        ),
+        (
+            astx.CollectionIndex(
+                astx.LiteralTuple(
+                    (
+                        astx.LiteralString("x"),
+                        astx.LiteralInt32(1),
+                    )
+                ),
+                astx.LiteralInt32(1),
+            ),
+            1,
+        ),
+        (
+            astx.CollectionCount(
+                astx.LiteralTuple(
+                    (
+                        astx.LiteralInt32(1),
+                        astx.LiteralString("x"),
+                        astx.LiteralInt32(1),
+                    )
+                ),
+                astx.LiteralInt32(1),
             ),
             2,
         ),
@@ -247,6 +348,37 @@ def test_dynamic_list_search_lowers_to_runtime_loop() -> None:
     assert_ir_parses(ir_text)
 
 
+@pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
+def test_dynamic_list_contains_executes() -> None:
+    """
+    title: Dynamic list contains should execute through the runtime loop.
+    """
+    builder = Builder()
+    list_type = _list_i32_type()
+    then_block = astx.Block()
+    then_block.append(astx.FunctionReturn(astx.LiteralInt32(1)))
+    else_block = astx.Block()
+    else_block.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    module = make_main_module(
+        _mutable_decl("out", list_type, astx.ListCreate(astx.Int32())),
+        astx.ListAppend(astx.Identifier("out"), astx.LiteralInt32(4)),
+        astx.ListAppend(astx.Identifier("out"), astx.LiteralInt32(9)),
+        astx.IfStmt(
+            condition=astx.CollectionContains(
+                astx.Identifier("out"),
+                astx.LiteralInt32(9),
+            ),
+            then=then_block,
+            else_=else_block,
+        ),
+    )
+
+    result = _run_workspace_build(builder, module)
+    expected_returncode = 1
+
+    assert result.returncode == expected_returncode
+
+
 def test_collection_contains_rejects_wrong_probe_type() -> None:
     """
     title: Collection containment should reject incompatible probe types.
@@ -279,4 +411,70 @@ def test_collection_count_rejects_dict() -> None:
     )
 
     with pytest.raises(SemanticError, match="requires a list or tuple"):
+        analyze(module)
+
+
+@pytest.mark.parametrize(
+    ("type_", "value", "expression", "return_type"),
+    [
+        (
+            astx.TupleType([astx.Int32(), astx.Int32()]),
+            astx.LiteralTuple((astx.LiteralInt32(1), astx.LiteralInt32(2))),
+            astx.CollectionContains(
+                astx.Identifier("items"),
+                astx.LiteralInt32(1),
+            ),
+            astx.Boolean(),
+        ),
+        (
+            astx.TupleType([astx.Int32(), astx.Int32()]),
+            astx.LiteralTuple((astx.LiteralInt32(1), astx.LiteralInt32(2))),
+            astx.CollectionIndex(
+                astx.Identifier("items"),
+                astx.LiteralInt32(1),
+            ),
+            astx.Int32(),
+        ),
+        (
+            astx.SetType(astx.Int32()),
+            astx.LiteralSet({astx.LiteralInt32(1)}),
+            astx.CollectionLength(astx.Identifier("items")),
+            astx.Int32(),
+        ),
+        (
+            astx.DictType(astx.Int32(), astx.Int32()),
+            astx.LiteralDict({astx.LiteralInt32(1): astx.LiteralInt32(2)}),
+            astx.CollectionContains(
+                astx.Identifier("items"),
+                astx.LiteralInt32(1),
+            ),
+            astx.Boolean(),
+        ),
+    ],
+)
+def test_nonlowerable_collection_forms_reject_semantically(
+    type_: astx.DataType,
+    value: astx.AST,
+    expression: astx.AST,
+    return_type: astx.DataType,
+) -> None:
+    """
+    title: Unsupported collection receiver forms should fail in analysis.
+    parameters:
+      type_:
+        type: astx.DataType
+      value:
+        type: astx.AST
+      expression:
+        type: astx.AST
+      return_type:
+        type: astx.DataType
+    """
+    module = make_main_module(
+        _mutable_decl("items", type_, value),
+        astx.FunctionReturn(expression),
+        return_type=return_type,
+    )
+
+    with pytest.raises(SemanticError, match="currently supports"):
         analyze(module)

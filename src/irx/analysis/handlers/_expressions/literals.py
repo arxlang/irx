@@ -306,6 +306,90 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
         )
         return None
 
+    def _collection_method_supported_by_lowering(
+        self,
+        *,
+        method: CollectionMethodKind,
+        base: astx.AST,
+        base_type: astx.DataType | None,
+    ) -> bool:
+        """
+        title: Return whether the backend can lower a collection method.
+        parameters:
+          method:
+            type: CollectionMethodKind
+          base:
+            type: astx.AST
+          base_type:
+            type: astx.DataType | None
+        returns:
+          type: bool
+        """
+        if base_type is None:
+            return True
+        if isinstance(base_type, astx.ListType):
+            return True
+        if isinstance(base_type, astx.TupleType):
+            if method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+            ):
+                return True
+            return isinstance(base, astx.LiteralTuple)
+        if isinstance(base_type, astx.SetType):
+            return isinstance(base, astx.LiteralSet) and method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+                CollectionMethodKind.CONTAINS,
+            )
+        if isinstance(base_type, astx.DictType):
+            return isinstance(base, astx.LiteralDict) and method in (
+                CollectionMethodKind.LENGTH,
+                CollectionMethodKind.IS_EMPTY,
+                CollectionMethodKind.CONTAINS,
+            )
+        return False
+
+    def _validate_collection_lowering_support(
+        self,
+        *,
+        node: astx.AST,
+        base: astx.AST,
+        base_type: astx.DataType | None,
+        method: CollectionMethodKind,
+        context: str,
+    ) -> bool:
+        """
+        title: Validate that one collection method is currently lowerable.
+        parameters:
+          node:
+            type: astx.AST
+          base:
+            type: astx.AST
+          base_type:
+            type: astx.DataType | None
+          method:
+            type: CollectionMethodKind
+          context:
+            type: str
+        returns:
+          type: bool
+        """
+        if self._collection_method_supported_by_lowering(
+            method=method,
+            base=base,
+            base_type=base_type,
+        ):
+            return True
+
+        self.context.diagnostics.add(
+            f"{context} currently supports literal collections, "
+            "dynamic lists, and tuple length/emptiness only",
+            node=base,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+        )
+        return False
+
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.CollectionLength) -> None:
         """
@@ -320,7 +404,14 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
             node.base,
             context="collection length",
         )
-        if base_type is not None:
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.LENGTH,
+            context="collection length",
+        )
+        if base_type is not None and supported:
             self._set_resolved_collection_method(
                 node,
                 base=node.base,
@@ -343,7 +434,14 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
             node.base,
             context="collection emptiness",
         )
-        if base_type is not None:
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.IS_EMPTY,
+            context="collection emptiness",
+        )
+        if base_type is not None and supported:
             self._set_resolved_collection_method(
                 node,
                 base=node.base,
@@ -383,7 +481,14 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
                 node=node.value,
                 code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
-        if base_type is not None:
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.CONTAINS,
+            context="collection containment",
+        )
+        if base_type is not None and supported:
             self._set_resolved_collection_method(
                 node,
                 base=node.base,
@@ -431,7 +536,18 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
                 node=node.value,
                 code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
-        if base_type is not None:
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.INDEX,
+            context="collection index",
+        )
+        if (
+            base_type is not None
+            and collection_supports_sequence_search(base_type)
+            and supported
+        ):
             self._set_resolved_collection_method(
                 node,
                 base=node.base,
@@ -479,7 +595,18 @@ class ExpressionLiteralVisitorMixin(SemanticVisitorMixinBase):
                 node=node.value,
                 code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
             )
-        if base_type is not None:
+        supported = self._validate_collection_lowering_support(
+            node=node,
+            base=node.base,
+            base_type=base_type,
+            method=CollectionMethodKind.COUNT,
+            context="collection count",
+        )
+        if (
+            base_type is not None
+            and collection_supports_sequence_search(base_type)
+            and supported
+        ):
             self._set_resolved_collection_method(
                 node,
                 base=node.base,

@@ -18,6 +18,7 @@ from irx.analysis.resolved_nodes import (
     CollectionMethodKind,
     ResolvedCollectionMethod,
 )
+from irx.analysis.types import is_assignable
 from irx.builder.core import VisitorCore, uses_unsigned_semantics
 from irx.builder.diagnostics import require_semantic_metadata
 from irx.builder.protocols import VisitorMixinBase
@@ -220,6 +221,25 @@ class CollectionVisitorMixin(VisitorMixinBase):
             return tuple(base.elements)
         return ()
 
+    def _entry_can_match_probe(
+        self,
+        entry_type: astx.DataType | None,
+        probe_type: astx.DataType | None,
+    ) -> bool:
+        """
+        title: Return whether one literal entry can match a probe value.
+        parameters:
+          entry_type:
+            type: astx.DataType | None
+          probe_type:
+            type: astx.DataType | None
+        returns:
+          type: bool
+        """
+        if entry_type is None or probe_type is None:
+            return True
+        return is_assignable(entry_type, probe_type)
+
     def _lower_literal_collection_contains(
         self,
         *,
@@ -245,8 +265,12 @@ class CollectionVisitorMixin(VisitorMixinBase):
         if needle is None:
             raise TypeError("collection containment requires a value")
 
+        probe_type = self._resolved_ast_type(value)
         result: ir.Value = ir.Constant(self._llvm.BOOLEAN_TYPE, 0)
         for index, entry in enumerate(entries):
+            entry_type = self._resolved_ast_type(entry)
+            if not self._entry_can_match_probe(entry_type, probe_type):
+                continue
             self.visit_child(entry)
             candidate = safe_pop(self.result_stack)
             if candidate is None:
@@ -254,8 +278,8 @@ class CollectionVisitorMixin(VisitorMixinBase):
             match = self._emit_collection_equal(
                 candidate,
                 needle,
-                lhs_type=self._resolved_ast_type(entry),
-                rhs_type=self._resolved_ast_type(value),
+                lhs_type=entry_type,
+                rhs_type=probe_type,
                 unsigned=uses_unsigned_semantics(entry)
                 or uses_unsigned_semantics(value),
                 name=f"collection_contains_{index}",
@@ -559,8 +583,12 @@ class CollectionVisitorMixin(VisitorMixinBase):
         if needle is None:
             raise TypeError("collection search requires a value")
 
+        probe_type = self._resolved_ast_type(value)
         result: ir.Value = self._initial_list_search_result(method)
         for index, entry in enumerate(entries):
+            entry_type = self._resolved_ast_type(entry)
+            if not self._entry_can_match_probe(entry_type, probe_type):
+                continue
             self.visit_child(entry)
             candidate = safe_pop(self.result_stack)
             if candidate is None:
@@ -568,8 +596,8 @@ class CollectionVisitorMixin(VisitorMixinBase):
             match = self._emit_collection_equal(
                 candidate,
                 needle,
-                lhs_type=self._resolved_ast_type(entry),
-                rhs_type=self._resolved_ast_type(value),
+                lhs_type=entry_type,
+                rhs_type=probe_type,
                 unsigned=uses_unsigned_semantics(entry)
                 or uses_unsigned_semantics(value),
                 name=f"collection_sequence_match_{index}",
