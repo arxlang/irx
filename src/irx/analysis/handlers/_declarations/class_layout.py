@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Declaration helpers for class layouts and family finalization.
+title: Declaration class-layout helpers.
+summary: >-
+  Build class layouts, initialization metadata, and family-level dispatch
+  finalization structures during declaration analysis.
 """
 
 from __future__ import annotations

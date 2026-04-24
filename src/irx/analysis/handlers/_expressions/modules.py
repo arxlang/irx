@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Expression helpers for module namespaces and function calls.
+title: Expression module-namespace helpers.
+summary: >-
+  Resolve module namespaces, namespace member access, and direct function calls
+  in expression analysis.
 """
 
 from __future__ import annotations

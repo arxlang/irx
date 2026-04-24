@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Expression visitors for unary, binary, cast, and print operations.
+title: Expression operator visitors.
+summary: >-
+  Analyze unary, binary, cast, and print expressions plus their assignment-like
+  operator behavior.
 """
 
 from __future__ import annotations

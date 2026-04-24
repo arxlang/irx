@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Declaration visitors for modules, blocks, and local declarations.
+title: Declaration block visitors.
+summary: >-
+  Handle modules, blocks, and local variable declarations during declaration
+  analysis.
 """
 
 from __future__ import annotations

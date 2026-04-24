@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Declaration helpers for class inheritance and member metadata.
+title: Declaration class-support helpers.
+summary: >-
+  Resolve inheritance metadata and shared class-member support logic used by
+  declaration analysis.
 """
 
 from __future__ import annotations

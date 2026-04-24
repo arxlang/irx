@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Declaration visitors for struct fields and recursion checks.
+title: Declaration struct visitors.
+summary: >-
+  Resolve struct field metadata and reject invalid by-value recursive struct
+  definitions.
 """
 
 from __future__ import annotations

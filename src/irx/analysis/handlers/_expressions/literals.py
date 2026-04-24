@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Expression visitors for literals, list operations, and subscripts.
+title: Expression literal visitors.
+summary: >-
+  Handle literal expressions, list operations, and generic subscript
+  expressions during semantic analysis.
 """
 
 from __future__ import annotations

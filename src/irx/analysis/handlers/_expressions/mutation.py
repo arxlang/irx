@@ -2,7 +2,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Expression helpers for assignment and mutation targets.
+title: Expression mutation helpers.
+summary: >-
+  Resolve assignment and mutation targets, including class-field mutation
+  handling.
 """
 
 from __future__ import annotations

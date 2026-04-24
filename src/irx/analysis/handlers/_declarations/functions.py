@@ -3,7 +3,10 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-Declaration visitors for function signatures and bodies.
+title: Declaration function visitors.
+summary: >-
+  Resolve function declarations, synchronize normalized signatures, and analyze
+  non-template function bodies.
 """
 
 from __future__ import annotations
