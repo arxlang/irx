@@ -171,7 +171,8 @@ class VariableVisitorMixin(VisitorMixinBase):
             type: astx.VariableDeclaration
         """
         symbol_key = semantic_symbol_key(node, node.name)
-        if self.named_values.get(symbol_key):
+        existing_storage = self.named_values.get(symbol_key)
+        if existing_storage and self._current_generator_frame_ptr is None:
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
@@ -197,6 +198,8 @@ class VariableVisitorMixin(VisitorMixinBase):
                 alloca = self.create_entry_block_alloca(
                     node.name, "stringascii"
                 )
+            elif existing_storage is not None:
+                alloca = existing_storage
             else:
                 alloca = self.create_entry_block_alloca(node.name, llvm_type)
             self._llvm.ir_builder.store(init_val, alloca)
@@ -221,27 +224,58 @@ class VariableVisitorMixin(VisitorMixinBase):
                     ],
                     inbounds=True,
                 )
-                alloca = self.create_entry_block_alloca(
-                    node.name, "stringascii"
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(
+                        node.name, "stringascii"
+                    )
                 )
             elif isinstance(node.type_, astx.StructType):
                 init_val = ir.Constant(llvm_type, None)
-                alloca = self.create_entry_block_alloca(node.name, llvm_type)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
             elif isinstance(node.type_, astx.ListType):
                 init_val = cast(
                     ir.Constant,
                     cast(Any, self)._empty_list_value_for_type(node.type_),
                 )
-                alloca = self.create_entry_block_alloca(node.name, llvm_type)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
             elif isinstance(node.type_, astx.ClassType):
                 init_val = ir.Constant(llvm_type, None)
-                alloca = self.create_entry_block_alloca(node.name, llvm_type)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
+            elif isinstance(node.type_, astx.GeneratorType):
+                init_val = ir.Constant(llvm_type, None)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
             elif "float" in type_str:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
-                alloca = self.create_entry_block_alloca(node.name, llvm_type)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
             else:
                 init_val = ir.Constant(self._llvm.get_data_type(type_str), 0)
-                alloca = self.create_entry_block_alloca(node.name, llvm_type)
+                alloca = (
+                    existing_storage
+                    if existing_storage is not None
+                    else self.create_entry_block_alloca(node.name, llvm_type)
+                )
 
             self._llvm.ir_builder.store(init_val, alloca)
 
@@ -258,7 +292,8 @@ class VariableVisitorMixin(VisitorMixinBase):
             type: astx.InlineVariableDeclaration
         """
         symbol_key = semantic_symbol_key(node, node.name)
-        if self.named_values.get(symbol_key):
+        existing_storage = self.named_values.get(symbol_key)
+        if existing_storage and self._current_generator_frame_ptr is None:
             raise Exception(f"Identifier already declared: {node.name}")
 
         type_str = node.type_.__class__.__name__.lower()
@@ -287,6 +322,8 @@ class VariableVisitorMixin(VisitorMixinBase):
             )
         elif isinstance(node.type_, astx.ClassType):
             init_val = ir.Constant(llvm_type, None)
+        elif isinstance(node.type_, astx.GeneratorType):
+            init_val = ir.Constant(llvm_type, None)
         elif "float" in type_str:
             init_val = ir.Constant(self._llvm.get_data_type(type_str), 0.0)
         else:
@@ -294,6 +331,8 @@ class VariableVisitorMixin(VisitorMixinBase):
 
         if type_str == "string":
             alloca = self.create_entry_block_alloca(node.name, "stringascii")
+        elif existing_storage is not None:
+            alloca = existing_storage
         else:
             alloca = self.create_entry_block_alloca(node.name, llvm_type)
 

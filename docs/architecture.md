@@ -277,6 +277,20 @@ iterables as well: dict iteration yields keys, while set iteration order remains
 unspecified. Their dynamic lowering is intentionally guarded until IRx has
 runtime-backed dynamic dict and set construction APIs.
 
+## Generator Semantics
+
+IRx models named generator functions as functions returning `GeneratorType(T)`.
+Semantic analysis validates top-level `yield` sites against the declared yielded
+element type and exposes generator values through the same `ResolvedIteration`
+sidecar used by `ForInLoopStmt`.
+
+The initial executable lowering supports straight-line named generator functions
+with top-level `YieldStmt` nodes. Calls create a small generator object
+containing an opaque frame pointer and an internal resume function pointer.
+For-in lowering calls the resume function until it reports exhaustion. More
+Python-compatible behavior such as nested-control-flow suspension, `yield from`,
+generator expressions, `send`, `throw`, and `close` remains deferred.
+
 ## NDArray Layering
 
 IRx now treats NDArray support as a distinct semantic layer built on two

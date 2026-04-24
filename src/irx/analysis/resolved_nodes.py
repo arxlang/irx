@@ -1042,6 +1042,58 @@ class ReturnResolution:
 @public
 @typechecked
 @dataclass(frozen=True)
+class ResolvedGeneratorFunction:
+    """
+    title: Resolved generator-function semantics.
+    summary: >-
+      Describe one function body that suspends at yield sites and returns a
+      first-class generator object from call sites.
+    attributes:
+      function:
+        type: SemanticFunction
+      yield_type:
+        type: astx.DataType
+      yield_nodes:
+        type: tuple[astx.AST, Ellipsis]
+    """
+
+    function: "SemanticFunction"
+    yield_type: astx.DataType
+    yield_nodes: tuple[astx.AST, ...] = ()
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
+class ResolvedYield:
+    """
+    title: Resolved yield-site semantics.
+    summary: >-
+      Capture how one yield statement or expression maps to its enclosing
+      generator function and yielded element type.
+    attributes:
+      generator:
+        type: ResolvedGeneratorFunction
+      expected_type:
+        type: astx.DataType
+      value_type:
+        type: astx.DataType | None
+      site_index:
+        type: int
+      implicit_conversion:
+        type: ImplicitConversion | None
+    """
+
+    generator: ResolvedGeneratorFunction
+    expected_type: astx.DataType
+    value_type: astx.DataType | None
+    site_index: int
+    implicit_conversion: ImplicitConversion | None = None
+
+
+@public
+@typechecked
+@dataclass(frozen=True)
 class SemanticModule:
     """
     title: Semantic identity for an imported module.
@@ -1413,6 +1465,7 @@ class IterationKind(str, Enum):
     LIST = "list"
     DICT_KEYS = "dict_keys"
     SET = "set"
+    GENERATOR = "generator"
     RANGE = "range"
     CUSTOM = "custom"
 
@@ -1570,6 +1623,10 @@ class SemanticInfo:
         type: ResolvedClassConstruction | None
       resolved_return:
         type: ReturnResolution | None
+      resolved_generator_function:
+        type: ResolvedGeneratorFunction | None
+      resolved_yield:
+        type: ResolvedYield | None
       resolved_iteration:
         type: ResolvedIteration | None
       resolved_collection_method:
@@ -1604,6 +1661,8 @@ class SemanticInfo:
     resolved_context_manager: ResolvedContextManager | None = None
     resolved_class_construction: ResolvedClassConstruction | None = None
     resolved_return: ReturnResolution | None = None
+    resolved_generator_function: ResolvedGeneratorFunction | None = None
+    resolved_yield: ResolvedYield | None = None
     resolved_iteration: ResolvedIteration | None = None
     resolved_collection_method: ResolvedCollectionMethod | None = None
     semantic_flags: SemanticFlags = field(default_factory=SemanticFlags)

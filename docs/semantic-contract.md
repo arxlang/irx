@@ -603,6 +603,26 @@ Void and non-void usage is explicit:
 - void calls may not be used as expression values
 - non-void calls may be used as expressions or discarded as statements
 
+## Generator And Yield Contract
+
+IRx supports an initial typed generator contract for named functions:
+
+- a function that contains `yield` must declare `GeneratorType(T)` as its return
+  type
+- each yielded value must be assignable to `T`
+- calling a generator function returns a first-class generator object
+- generator objects are one-shot iterables and resolve to
+  `IterationKind.GENERATOR`
+- `ForInLoopStmt` consumes generator values through the same `ResolvedIteration`
+  sidecar used by other iterables
+- bare `return` and `return None` terminate a generator
+- non-`None` generator return values, `yield from`, `send`, `throw`, `close`,
+  async generators, and generator expressions are deferred
+
+The current LLVM lowering supports straight-line named generator bodies with
+top-level `YieldStmt` nodes. Yield suspension inside nested control flow is
+diagnosed before lowering until frame and cleanup suspension are extended.
+
 ## `main` Contract
 
 `main` is part of the stable semantic contract rather than a backend caveat:

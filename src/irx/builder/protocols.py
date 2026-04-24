@@ -61,6 +61,14 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
         type: astx.DataType | None
       _current_function_signature:
         type: FunctionSignature | None
+      _current_generator_frame_ptr:
+        type: ir.Value | None
+      _current_generator_frame_slots:
+        type: dict[str, int]
+      _current_generator_out_ptr:
+        type: ir.Value | None
+      _current_generator_next_state:
+        type: int | None
       target:
         type: llvm.TargetRef
       target_machine:
@@ -83,6 +91,10 @@ class VisitorProtocol(BaseVisitorProtocol, Protocol):
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
     _current_function_signature: FunctionSignature | None
+    _current_generator_frame_ptr: ir.Value | None
+    _current_generator_frame_slots: dict[str, int]
+    _current_generator_out_ptr: ir.Value | None
+    _current_generator_next_state: int | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
@@ -553,6 +565,14 @@ class VisitorMixinTypingBase:
         type: astx.DataType | None
       _current_function_signature:
         type: FunctionSignature | None
+      _current_generator_frame_ptr:
+        type: ir.Value | None
+      _current_generator_frame_slots:
+        type: dict[str, int]
+      _current_generator_out_ptr:
+        type: ir.Value | None
+      _current_generator_next_state:
+        type: int | None
       target:
         type: llvm.TargetRef
       target_machine:
@@ -575,6 +595,10 @@ class VisitorMixinTypingBase:
     _fast_math_enabled: bool
     _current_function_return_type: astx.DataType | None
     _current_function_signature: FunctionSignature | None
+    _current_generator_frame_ptr: ir.Value | None
+    _current_generator_frame_slots: dict[str, int]
+    _current_generator_out_ptr: ir.Value | None
+    _current_generator_next_state: int | None
     target: llvm.TargetRef
     target_machine: llvm.TargetMachine
 
