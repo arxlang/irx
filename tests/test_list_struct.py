@@ -108,3 +108,12 @@ def test_list_length_get_struct_shapes() -> None:
     simplified = node.get_struct(simplified=True)
     assert isinstance(simplified, dict)
     assert simplified["ListLength"] == {"base": base.get_struct(True)}
+
+
+def test_list_length_uses_int32_language_type() -> None:
+    """
+    title: ListLength should expose the current Int32 language contract.
+    """
+    node = astx.ListLength(astx.Identifier("items"))
+
+    assert isinstance(node.type_, astx.Int32)

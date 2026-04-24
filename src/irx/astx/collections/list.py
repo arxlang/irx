@@ -179,7 +179,9 @@ class ListLength(astx.base.DataType):
     title: Internal list length node.
     summary: >-
       Return the current logical length of one list-valued expression as an
-      int32 value.
+      int32 value. The runtime stores list lengths as int64, but the current
+      IRx language-level contract intentionally truncates that representation
+      to Int32.
     attributes:
       base:
         type: astx.AST

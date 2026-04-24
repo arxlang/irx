@@ -181,36 +181,52 @@ class ListVisitorMixin(VisitorMixinBase):
         self._llvm.ir_builder.store(value, temp)
         return temp
 
-    def _lower_list_subscript(
+    def _static_integer_literal_value(self, node: astx.AST) -> int | None:
+        """
+        title: Return one static integer literal value when present.
+        parameters:
+          node:
+            type: astx.AST
+        returns:
+          type: int | None
+        """
+        if isinstance(
+            node,
+            (
+                astx.LiteralInt8,
+                astx.LiteralInt16,
+                astx.LiteralInt32,
+                astx.LiteralInt64,
+                astx.LiteralUInt8,
+                astx.LiteralUInt16,
+                astx.LiteralUInt32,
+                astx.LiteralUInt64,
+                astx.LiteralUInt128,
+            ),
+        ):
+            return int(node.value)
+        return None
+
+    def _load_list_element_via_runtime(
         self,
         *,
         base: astx.AST,
+        list_ptr: ir.Value,
         index_node: astx.AST,
     ) -> None:
         """
-        title: Lower one list indexing operation.
+        title: Load one list element through the shared runtime bounds checks.
         parameters:
           base:
             type: astx.AST
+          list_ptr:
+            type: ir.Value
           index_node:
             type: astx.AST
         """
-        if isinstance(base, astx.LiteralList):
-            self._lower_literal_list_index(base=base, index_node=index_node)
-            return
-        if list_element_type(self._resolved_ast_type(base)) is None:
-            raise Exception(
-                "dynamic list subscript requires a single concrete element "
-                "type"
-            )
-
         at_fn = self.require_runtime_symbol(
             LIST_RUNTIME_FEATURE,
             LIST_AT_SYMBOL,
-        )
-        list_ptr = self._list_pointer_for_call(
-            base,
-            name="irx_list_index_value",
         )
 
         self.visit_child(index_node)
@@ -241,6 +257,177 @@ class ListVisitorMixin(VisitorMixinBase):
             )
         )
 
+    def _literal_list_pointer_for_runtime(
+        self,
+        *,
+        base: astx.LiteralList,
+        literal_value: ir.Value,
+    ) -> ir.Value:
+        """
+        title: Build one transient runtime list view over one literal list.
+        parameters:
+          base:
+            type: astx.LiteralList
+          literal_value:
+            type: ir.Value
+        returns:
+          type: ir.Value
+        """
+        list_type = cast(ir.LiteralStructType, self._llvm_list_type())
+        list_slot = self._llvm.ir_builder.alloca(
+            list_type,
+            name="literal_list_runtime_value",
+        )
+        zero = ir.Constant(self._llvm.INT32_TYPE, 0)
+
+        def field_ptr(name: str) -> ir.Value:
+            """
+            title: Return one pointer to one runtime list field.
+            parameters:
+              name:
+                type: str
+            returns:
+              type: ir.Value
+            """
+            return self._llvm.ir_builder.gep(
+                list_slot,
+                [
+                    zero,
+                    ir.Constant(
+                        self._llvm.INT32_TYPE,
+                        LIST_FIELD_INDICES[name],
+                    ),
+                ],
+                inbounds=True,
+                name=f"literal_list_{name}_ptr",
+            )
+
+        element_count = len(base.elements)
+        if element_count == 0:
+            data_ptr = ir.Constant(self._llvm.INT8_TYPE.as_pointer(), None)
+        elif isinstance(literal_value.type, ir.ArrayType):
+            literal_slot = self._llvm.ir_builder.alloca(
+                literal_value.type,
+                name="literal_list_runtime_storage",
+            )
+            self._llvm.ir_builder.store(literal_value, literal_slot)
+            first_ptr = self._llvm.ir_builder.gep(
+                literal_slot,
+                [zero, zero],
+                inbounds=True,
+                name="literal_list_runtime_data",
+            )
+            data_ptr = self._llvm.ir_builder.bitcast(
+                first_ptr,
+                self._llvm.INT8_TYPE.as_pointer(),
+                name="literal_list_runtime_bytes",
+            )
+        elif isinstance(literal_value.type, ir.PointerType):
+            data_ptr = self._llvm.ir_builder.bitcast(
+                literal_value,
+                self._llvm.INT8_TYPE.as_pointer(),
+                name="literal_list_runtime_bytes",
+            )
+        else:
+            raise Exception(
+                "literal list indexing requires array-like storage"
+            )
+
+        element_count_i64 = ir.Constant(self._llvm.INT64_TYPE, element_count)
+        element_size_i64 = ir.Constant(
+            self._llvm.INT64_TYPE,
+            self._list_element_size(base),
+        )
+
+        self._llvm.ir_builder.store(data_ptr, field_ptr("data"))
+        self._llvm.ir_builder.store(
+            element_count_i64,
+            field_ptr("length"),
+        )
+        self._llvm.ir_builder.store(
+            element_count_i64,
+            field_ptr("capacity"),
+        )
+        self._llvm.ir_builder.store(
+            element_size_i64,
+            field_ptr("element_size"),
+        )
+        return list_slot
+
+    def _lower_literal_list_index_via_runtime(
+        self,
+        *,
+        base: astx.LiteralList,
+        index_node: astx.AST,
+    ) -> None:
+        """
+        title: Lower one literal-list index through the runtime checks.
+        parameters:
+          base:
+            type: astx.LiteralList
+          index_node:
+            type: astx.AST
+        """
+        self.visit_child(base)
+        literal_value = safe_pop(self.result_stack)
+        if literal_value is None:
+            raise Exception("literal list indexing requires a lowered value")
+
+        list_ptr = self._literal_list_pointer_for_runtime(
+            base=base,
+            literal_value=literal_value,
+        )
+        self._load_list_element_via_runtime(
+            base=base,
+            list_ptr=list_ptr,
+            index_node=index_node,
+        )
+
+    def _lower_list_subscript(
+        self,
+        *,
+        base: astx.AST,
+        index_node: astx.AST,
+    ) -> None:
+        """
+        title: Lower one list indexing operation.
+        parameters:
+          base:
+            type: astx.AST
+          index_node:
+            type: astx.AST
+        """
+        if isinstance(base, astx.LiteralList):
+            static_index = self._static_integer_literal_value(index_node)
+            if static_index is not None and 0 <= static_index < len(
+                base.elements
+            ):
+                self._lower_literal_list_index(
+                    base=base,
+                    index_node=index_node,
+                )
+                return
+            self._lower_literal_list_index_via_runtime(
+                base=base,
+                index_node=index_node,
+            )
+            return
+        if list_element_type(self._resolved_ast_type(base)) is None:
+            raise Exception(
+                "dynamic list subscript requires a single concrete element "
+                "type"
+            )
+
+        list_ptr = self._list_pointer_for_call(
+            base,
+            name="irx_list_index_value",
+        )
+        self._load_list_element_via_runtime(
+            base=base,
+            list_ptr=list_ptr,
+            index_node=index_node,
+        )
+
     def _lower_literal_list_index(
         self,
         *,
@@ -249,6 +436,9 @@ class ListVisitorMixin(VisitorMixinBase):
     ) -> None:
         """
         title: Lower one literal-list indexing operation.
+        summary: >-
+          Use direct GEP lowering only when the caller has already proven the
+          index is one known-safe constant within bounds.
         parameters:
           base:
             type: astx.LiteralList
@@ -364,6 +554,8 @@ class ListVisitorMixin(VisitorMixinBase):
             length_ptr,
             name="irx_list_length_i64",
         )
+        # IRx currently exposes list lengths as Int32 even though the runtime
+        # stores the backing length field as Int64.
         self.result_stack.append(
             self._llvm.ir_builder.trunc(
                 length_i64,

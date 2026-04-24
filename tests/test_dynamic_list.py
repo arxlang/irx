@@ -15,6 +15,7 @@ import pytest
 from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.builder import Builder
+from irx.builder.base import CommandResult
 
 from .conftest import assert_ir_parses, assert_jit_int_main_result
 
@@ -98,11 +99,10 @@ def _module_with_main(*nodes: astx.AST) -> astx.Module:
     return module
 
 
-def _assert_workspace_build_output(
+def _run_workspace_build(
     builder: Builder,
     module: astx.Module,
-    expected_output: str,
-) -> None:
+) -> CommandResult:
     """
     title: Build and run one module using a workspace-local temporary path.
     parameters:
@@ -110,8 +110,8 @@ def _assert_workspace_build_output(
         type: Builder
       module:
         type: astx.Module
-      expected_output:
-        type: str
+    returns:
+      type: CommandResult
     """
     temp_root = (Path.cwd() / "tmp").resolve()
     temp_root.mkdir(exist_ok=True)
@@ -128,12 +128,7 @@ def _assert_workspace_build_output(
             output_path = handle.name
 
         builder.build(module, output_file=output_path)
-        result = builder.run(raise_on_error=False)
-        actual_output = result.stdout.strip() or str(result.returncode)
-        assert actual_output == expected_output, (
-            f"Expected `{expected_output}`, but got `{actual_output}` "
-            f"(stderr={result.stderr.strip()!r})"
-        )
+        return builder.run(raise_on_error=False)
     finally:
         if original_tmpdir is None:
             os.environ.pop("TMPDIR", None)
@@ -141,6 +136,29 @@ def _assert_workspace_build_output(
             os.environ["TMPDIR"] = original_tmpdir
         if output_path and os.path.exists(output_path):
             os.unlink(output_path)
+
+
+def _assert_workspace_build_output(
+    builder: Builder,
+    module: astx.Module,
+    expected_output: str,
+) -> None:
+    """
+    title: Build and run one module using a workspace-local temporary path.
+    parameters:
+      builder:
+        type: Builder
+      module:
+        type: astx.Module
+      expected_output:
+        type: str
+    """
+    result = _run_workspace_build(builder, module)
+    actual_output = result.stdout.strip() or str(result.returncode)
+    assert actual_output == expected_output, (
+        f"Expected `{expected_output}`, but got `{actual_output}` "
+        f"(stderr={result.stderr.strip()!r})"
+    )
 
 
 def _singleton_module() -> astx.Module:
@@ -373,6 +391,32 @@ def _direct_list_node_module() -> astx.Module:
     )
 
 
+def _literal_list_dynamic_index_module(index: astx.AST) -> astx.Module:
+    """
+    title: Build one module that indexes one literal list through one variable.
+    parameters:
+      index:
+        type: astx.AST
+    returns:
+      type: astx.Module
+    """
+    return _module_with_main(
+        _mutable_decl("index", astx.Int32(), index),
+        astx.FunctionReturn(
+            astx.ListIndex(
+                astx.LiteralList(
+                    elements=[
+                        astx.LiteralInt32(10),
+                        astx.LiteralInt32(20),
+                        astx.LiteralInt32(30),
+                    ]
+                ),
+                astx.Identifier("index"),
+            )
+        ),
+    )
+
+
 def test_dynamic_list_appends_variable_values() -> None:
     """
     title: Dynamic list creation should accept appended variable values.
@@ -490,6 +534,52 @@ def test_direct_list_index_from_literal_list() -> None:
 
     EXPECTED_LITERAL_INDEX = 20
     assert_jit_int_main_result(builder, module, EXPECTED_LITERAL_INDEX)
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST or not HAS_CLANG,
+    reason="LiteralList and clang are required for build tests",
+)
+def test_direct_list_index_from_literal_list_dynamic_index_uses_runtime() -> (
+    None
+):
+    """
+    title: Dynamic literal-list indices should use the checked runtime path.
+    """
+    builder = Builder()
+    module = _literal_list_dynamic_index_module(astx.LiteralInt32(1))
+    ir_text = builder.translate(module)
+
+    assert 'call i8* @"irx_list_at"' in ir_text
+    assert_ir_parses(ir_text)
+
+    EXPECTED_LITERAL_INDEX = 20
+    _assert_workspace_build_output(
+        builder, module, str(EXPECTED_LITERAL_INDEX)
+    )
+
+
+@pytest.mark.skipif(
+    not HAS_LITERAL_LIST or not HAS_CLANG,
+    reason="LiteralList and clang are required for build tests",
+)
+def test_direct_list_index_from_literal_list_dynamic_index_checks_bounds() -> (
+    None
+):
+    """
+    title: Dynamic literal-list indices should preserve runtime bounds errors.
+    """
+    builder = Builder()
+    module = _literal_list_dynamic_index_module(astx.LiteralInt32(99))
+    ir_text = builder.translate(module)
+
+    assert 'call i8* @"irx_list_at"' in ir_text
+    assert_ir_parses(ir_text)
+
+    result = _run_workspace_build(builder, module)
+
+    assert result.returncode == 1
+    assert "dynamic list index out of range" in result.stderr
 
 
 @pytest.mark.skipif(not HAS_CLANG, reason="clang is required for build tests")
