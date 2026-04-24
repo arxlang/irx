@@ -134,6 +134,20 @@ class SemanticRegistry:
         )
         return prototype_name
 
+    def _argument_has_default(
+        self,
+        argument: astx.Argument,
+    ) -> bool:
+        """
+        title: Return whether one parameter declares a default value.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: bool
+        """
+        return not isinstance(argument.default, astx.Undefined)
+
     def _prototype_calling_convention(
         self,
         prototype: astx.FunctionPrototype,
@@ -327,6 +341,7 @@ class SemanticRegistry:
           type: FunctionSignature
         """
         seen_parameter_names: set[str] = set()
+        seen_default_parameter = False
         for argument in prototype.args.nodes:
             if argument.name in seen_parameter_names:
                 self.context.diagnostics.add(
@@ -337,6 +352,18 @@ class SemanticRegistry:
                 )
                 continue
             seen_parameter_names.add(argument.name)
+            if self._argument_has_default(argument):
+                seen_default_parameter = True
+                continue
+            if not seen_default_parameter:
+                continue
+            self.context.diagnostics.add(
+                f"Function '{prototype.name}' parameter '{argument.name}' "
+                "without a default cannot follow a parameter with a "
+                "default value",
+                node=argument,
+                code=DiagnosticCodes.SEMANTIC_CALL_ARITY,
+            )
 
         is_extern = self._prototype_is_extern(prototype)
         is_variadic = self._prototype_is_variadic(prototype)

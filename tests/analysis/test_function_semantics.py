@@ -171,6 +171,65 @@ def test_analyze_rejects_duplicate_parameter_names() -> None:
         analyze(module)
 
 
+def test_analyze_resolves_default_parameter_against_prior_arguments() -> None:
+    """
+    title: Default parameter expressions may reference earlier parameters.
+    """
+    copied_value = astx.Identifier("value")
+    helper = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "helper",
+            args=astx.Arguments(
+                astx.Argument("value", astx.Int32()),
+                astx.Argument("copy", astx.Int32(), default=copied_value),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_block(astx.FunctionReturn(astx.Identifier("copy"))),
+    )
+    module = astx.Module()
+    module.block.append(helper)
+
+    analyze(module)
+
+    value_symbol = _semantic(helper.prototype.args.nodes[0]).resolved_symbol
+    copied_symbol = _semantic(copied_value).resolved_symbol
+
+    assert value_symbol is not None
+    assert copied_symbol is not None
+    assert value_symbol.symbol_id == copied_symbol.symbol_id
+
+
+def test_analyze_rejects_non_trailing_default_parameters() -> None:
+    """
+    title: Parameters without defaults cannot follow defaulted parameters.
+    """
+    module = astx.Module()
+    module.block.append(
+        astx.FunctionDef(
+            prototype=astx.FunctionPrototype(
+                "helper",
+                args=astx.Arguments(
+                    astx.Argument(
+                        "value",
+                        astx.Int32(),
+                        default=astx.LiteralInt32(1),
+                    ),
+                    astx.Argument("other", astx.Int32()),
+                ),
+                return_type=astx.Int32(),
+            ),
+            body=_block(astx.FunctionReturn(astx.Identifier("other"))),
+        )
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="without a default cannot follow a parameter with a default",
+    ):
+        analyze(module)
+
+
 def test_analyze_rejects_conflicting_function_declarations() -> None:
     """
     title: Conflicting declarations should be rejected before lowering.
@@ -350,6 +409,40 @@ def test_analyze_rejects_too_many_call_arguments() -> None:
     with pytest.raises(
         SemanticError,
         match="call to 'helper' expects 0 arguments but got 1",
+    ):
+        analyze(module)
+
+
+def test_analyze_rejects_missing_required_call_arguments_before_defaults() -> (
+    None
+):
+    """
+    title: Calls may omit only the trailing arguments covered by defaults.
+    """
+    helper = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            "helper",
+            args=astx.Arguments(
+                astx.Argument("value", astx.Int32()),
+                astx.Argument(
+                    "copy",
+                    astx.Int32(),
+                    default=astx.LiteralInt32(1),
+                ),
+            ),
+            return_type=astx.Int32(),
+        ),
+        body=_block(astx.FunctionReturn(astx.Identifier("value"))),
+    )
+    module = _main_module(
+        astx.FunctionCall("helper", []),
+        astx.FunctionReturn(astx.LiteralInt32(0)),
+    )
+    module.block.insert(0, helper)
+
+    with pytest.raises(
+        SemanticError,
+        match="call to 'helper' expects at least 1 arguments but got 0",
     ):
         analyze(module)
 

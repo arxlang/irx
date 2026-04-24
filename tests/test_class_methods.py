@@ -790,3 +790,45 @@ def test_default_class_construction_initializes_fields_and_dispatch(
     module = make_module("main", counter, main_fn)
 
     assert_jit_int_main_result(builder, module, 7)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_instance_method_call_uses_default_argument_bound_to_self(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Omitted method arguments may lower through defaults that read self.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    read = _returning_method(
+        "read",
+        astx.Identifier("value"),
+        astx.Argument(
+            "value",
+            astx.Int32(),
+            default=astx.FieldAccess(astx.Identifier("self"), "value"),
+        ),
+    )
+    counter = astx.ClassDefStmt(
+        name="Counter",
+        attributes=[
+            _attribute("value", astx.Int32(), value=astx.LiteralInt32(7))
+        ],
+        methods=[read],
+    )
+    main_fn = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="main",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.ClassConstruct("Counter"), "read", [])
+        ),
+    )
+    module = make_module("main", counter, main_fn)
+
+    assert_jit_int_main_result(builder, module, 7)

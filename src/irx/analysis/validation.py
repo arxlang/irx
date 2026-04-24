@@ -211,16 +211,36 @@ def validate_call(
     """
     signature = function.signature
     fixed_param_count = len(signature.parameters)
+    required_param_count = sum(
+        1
+        for argument in function.prototype.args.nodes
+        if isinstance(argument.default, astx.Undefined)
+    )
     arg_count = len(arg_types)
     if signature.is_variadic:
-        if arg_count < fixed_param_count:
+        if arg_count < required_param_count:
             diagnostics.add(
                 f"call to '{function.name}' expects at least "
-                f"{fixed_param_count} arguments but got {arg_count}",
+                f"{required_param_count} arguments but got {arg_count}",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_CALL_ARITY,
             )
-    elif fixed_param_count != arg_count:
+    elif arg_count < required_param_count:
+        expected_count = (
+            required_param_count
+            if required_param_count != fixed_param_count
+            else fixed_param_count
+        )
+        qualifier = (
+            "at least " if required_param_count != fixed_param_count else ""
+        )
+        diagnostics.add(
+            f"call to '{function.name}' expects {qualifier}{expected_count} "
+            f"arguments but got {arg_count}",
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_CALL_ARITY,
+        )
+    elif arg_count > fixed_param_count:
         diagnostics.add(
             f"call to '{function.name}' expects {fixed_param_count} "
             f"arguments but got {arg_count}",

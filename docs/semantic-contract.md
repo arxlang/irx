@@ -178,6 +178,7 @@ Callable semantics are part of IRx's stable semantic boundary.
   public FFI classification metadata
 - parameter order is stable and exactly matches declaration order
 - duplicate parameter names are rejected semantically
+- parameters without defaults must not follow parameters with defaults
 - unresolved parameter or return types are rejected semantically
 - conflicting declarations are rejected semantically
 
@@ -568,9 +569,11 @@ take_point.symbol_name = "take_point"
 Function calls are validated through one semantic path before lowering:
 
 - callee resolution must produce a callable symbol with a canonical signature
-- fixed-arity calls must match the declared parameter count exactly
+- fixed-arity calls may omit only a trailing suffix covered by declared defaults
 - variadic calls are limited to explicit extern/native declarations
 - fixed prefix arguments use the canonical implicit-cast policy
+- declared default expressions are analyzed semantically before lowering and
+  lowered at the call site when callers omit those trailing arguments
 - successful call analysis records resolved callable metadata, resolved argument
   types, result type, and any inserted implicit conversions
 - lowering must consume that metadata instead of repairing malformed calls

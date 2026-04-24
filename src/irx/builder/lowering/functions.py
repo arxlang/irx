@@ -4,7 +4,7 @@
 title: Function visitor mixins for llvmliteir.
 """
 
-from typing import Sequence, cast
+from typing import Any, Sequence, cast
 
 from llvmlite import ir
 
@@ -164,6 +164,151 @@ class FunctionVisitorMixin(VisitorMixinBase):
                 )
             )
         return llvm_args
+
+    def _bind_temporary_call_symbol(
+        self,
+        *,
+        symbol_name: str,
+        symbol_id: str,
+        llvm_value: ir.Value,
+        saved_bindings: dict[str, Any | None],
+    ) -> None:
+        """
+        title: Bind one temporary symbol while lowering default arguments.
+        parameters:
+          symbol_name:
+            type: str
+          symbol_id:
+            type: str
+          llvm_value:
+            type: ir.Value
+          saved_bindings:
+            type: dict[str, Any | None]
+        """
+        if symbol_id not in saved_bindings:
+            saved_bindings[symbol_id] = self.named_values.get(symbol_id)
+        alloca = self.create_entry_block_alloca(symbol_name, llvm_value.type)
+        self._llvm.ir_builder.store(llvm_value, alloca)
+        self.named_values[symbol_id] = alloca
+
+    def _restore_temporary_call_bindings(
+        self,
+        saved_bindings: dict[str, Any | None],
+    ) -> None:
+        """
+        title: Restore the temporary symbol bindings used for one call.
+        parameters:
+          saved_bindings:
+            type: dict[str, Any | None]
+        """
+        for symbol_id, previous in saved_bindings.items():
+            if previous is None:
+                self.named_values.pop(symbol_id, None)
+                continue
+            self.named_values[symbol_id] = previous
+
+    def _lower_default_call_arguments(
+        self,
+        *,
+        function: SemanticFunction,
+        explicit_arg_values: Sequence[ir.Value],
+        label: str,
+        receiver_value: ir.Value | None = None,
+    ) -> list[ir.Value]:
+        """
+        title: Lower omitted trailing default arguments for one call.
+        parameters:
+          function:
+            type: SemanticFunction
+          explicit_arg_values:
+            type: Sequence[ir.Value]
+          label:
+            type: str
+          receiver_value:
+            type: ir.Value | None
+        returns:
+          type: list[ir.Value]
+        """
+        visible_arguments = tuple(function.prototype.args.nodes)
+        explicit_arg_count = len(explicit_arg_values)
+        if explicit_arg_count >= len(visible_arguments):
+            return []
+
+        hidden_parameter_count = len(function.args) - len(visible_arguments)
+        if hidden_parameter_count < 0:
+            raise_lowering_internal_error(
+                "call lowering found fewer semantic arguments than declared "
+                "prototype parameters",
+                node=function.prototype,
+            )
+
+        saved_bindings: dict[str, Any | None] = {}
+        try:
+            if hidden_parameter_count > 0:
+                if receiver_value is None:
+                    raise_lowering_internal_error(
+                        "instance method default-argument lowering requires "
+                        "a lowered receiver value",
+                        node=function.prototype,
+                    )
+                receiver_symbol = function.args[0]
+                self._bind_temporary_call_symbol(
+                    symbol_name=receiver_symbol.name,
+                    symbol_id=receiver_symbol.symbol_id,
+                    llvm_value=receiver_value,
+                    saved_bindings=saved_bindings,
+                )
+
+            for index, llvm_value in enumerate(explicit_arg_values):
+                arg_symbol = function.args[hidden_parameter_count + index]
+                self._bind_temporary_call_symbol(
+                    symbol_name=arg_symbol.name,
+                    symbol_id=arg_symbol.symbol_id,
+                    llvm_value=llvm_value,
+                    saved_bindings=saved_bindings,
+                )
+
+            llvm_defaults: list[ir.Value] = []
+            for visible_index in range(
+                explicit_arg_count,
+                len(visible_arguments),
+            ):
+                argument = visible_arguments[visible_index]
+                if isinstance(argument.default, astx.Undefined):
+                    raise_lowering_internal_error(
+                        "call lowering reached an omitted parameter without "
+                        "a declared default value",
+                        node=argument,
+                    )
+                self.visit_child(argument.default)
+                lowered_default = require_lowered_value(
+                    safe_pop(self.result_stack),
+                    node=argument.default,
+                    context=(
+                        f"default value for parameter '{argument.name}' of "
+                        f"{label}"
+                    ),
+                )
+                parameter_index = hidden_parameter_count + visible_index
+                target_type = function.signature.parameters[
+                    parameter_index
+                ].type_
+                lowered_default = self._cast_ast_value(
+                    lowered_default,
+                    source_type=self._resolved_ast_type(argument.default),
+                    target_type=target_type,
+                )
+                llvm_defaults.append(lowered_default)
+                arg_symbol = function.args[parameter_index]
+                self._bind_temporary_call_symbol(
+                    symbol_name=arg_symbol.name,
+                    symbol_id=arg_symbol.symbol_id,
+                    llvm_value=lowered_default,
+                    saved_bindings=saved_bindings,
+                )
+            return llvm_defaults
+        finally:
+            self._restore_temporary_call_bindings(saved_bindings)
 
     def _indirect_method_callee(
         self,
@@ -442,8 +587,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
             type: astx.FunctionCall
         """
         resolution = self._semantic_call_resolution(node)
-        callee_f = self._declare_semantic_function(resolution.callee.function)
+        target_function = resolution.callee.function
+        callee_f = self._declare_semantic_function(target_function)
         llvm_args = self._lower_call_arguments(node, resolution)
+        llvm_args.extend(
+            self._lower_default_call_arguments(
+                function=target_function,
+                explicit_arg_values=llvm_args,
+                label=f"call to '{node.fn}'",
+            )
+        )
         self._apply_calling_convention(resolution.signature)
         if isinstance(callee_f.function_type.return_type, ir.VoidType):
             self._llvm.ir_builder.call(callee_f, llvm_args)
@@ -496,6 +649,15 @@ class FunctionVisitorMixin(VisitorMixinBase):
             )
             self.visit_child(node.receiver)
             _ = safe_pop(self.result_stack)
+            llvm_args.extend(
+                self._lower_default_call_arguments(
+                    function=function,
+                    explicit_arg_values=llvm_args,
+                    label=(
+                        f"module namespace call '{module_member.member_name}'"
+                    ),
+                )
+            )
             self._apply_calling_convention(function.signature)
             if isinstance(callee.function_type.return_type, ir.VoidType):
                 self._llvm.ir_builder.call(callee, llvm_args)
@@ -526,7 +688,13 @@ class FunctionVisitorMixin(VisitorMixinBase):
             source_type=self._resolved_ast_type(node.receiver),
             target_type=receiver_parameter_type,
         )
-        lowered_args = [lowered_receiver, *llvm_args]
+        llvm_defaults = self._lower_default_call_arguments(
+            function=method_resolution.function,
+            explicit_arg_values=llvm_args,
+            label=f"method call '{method_resolution.member.name}'",
+            receiver_value=lowered_receiver,
+        )
+        lowered_args = [lowered_receiver, *llvm_args, *llvm_defaults]
         callee: ir.Value
         if method_resolution.dispatch_kind is MethodDispatchKind.INDIRECT:
             callee = self._indirect_method_callee(
@@ -584,7 +752,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
             source_type=self._resolved_ast_type(node.receiver),
             target_type=receiver_parameter_type,
         )
-        lowered_args = [lowered_receiver, *llvm_args]
+        llvm_defaults = self._lower_default_call_arguments(
+            function=method_resolution.function,
+            explicit_arg_values=llvm_args,
+            label=(
+                f"base method call '{method_resolution.class_.name}."
+                f"{method_resolution.member.name}'"
+            ),
+            receiver_value=lowered_receiver,
+        )
+        lowered_args = [lowered_receiver, *llvm_args, *llvm_defaults]
         callee = self._declare_semantic_function(method_resolution.function)
         self._apply_calling_convention(method_resolution.function.signature)
         if isinstance(
@@ -613,6 +790,16 @@ class FunctionVisitorMixin(VisitorMixinBase):
                 f"static method call '{method_resolution.class_.name}."
                 f"{method_resolution.member.name}'"
             ),
+        )
+        llvm_args.extend(
+            self._lower_default_call_arguments(
+                function=method_resolution.function,
+                explicit_arg_values=llvm_args,
+                label=(
+                    f"static method call '{method_resolution.class_.name}."
+                    f"{method_resolution.member.name}'"
+                ),
+            )
         )
         self._apply_calling_convention(method_resolution.function.signature)
         if isinstance(callee.function_type.return_type, ir.VoidType):

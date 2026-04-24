@@ -455,6 +455,46 @@ class ExpressionClassSupportVisitorMixin(ClassMemberFormattingVisitorMixin):
             )
         )
 
+    def _method_arguments_match_declared_defaults(
+        self,
+        member: SemanticClassMember,
+        arg_types: list[astx.DataType | None],
+    ) -> bool:
+        """
+        title: Return whether one method can accept omitted trailing defaults.
+        parameters:
+          member:
+            type: SemanticClassMember
+          arg_types:
+            type: list[astx.DataType | None]
+        returns:
+          type: bool
+        """
+        declaration = member.declaration
+        if member.signature is None or not isinstance(
+            declaration, astx.FunctionDef
+        ):
+            return False
+        provided_count = len(arg_types)
+        fixed_param_count = len(member.signature.parameters)
+        required_param_count = sum(
+            1
+            for argument in declaration.prototype.args.nodes
+            if isinstance(argument.default, astx.Undefined)
+        )
+        if (
+            provided_count < required_param_count
+            or provided_count > fixed_param_count
+        ):
+            return False
+        return all(
+            same_type(parameter.type_, arg_type)
+            for parameter, arg_type in zip(
+                member.signature.parameters,
+                arg_types,
+            )
+        )
+
     def _resolve_method_overload(
         self,
         class_: SemanticClass,
@@ -571,6 +611,31 @@ class ExpressionClassSupportVisitorMixin(ClassMemberFormattingVisitorMixin):
         if len(exact_matches) == 1:
             return exact_matches[0], accessible_candidates
         if len(exact_matches) > 1:
+            available = ", ".join(
+                self._format_method_signature(candidate)
+                for candidate in accessible_candidates
+            )
+            self.context.diagnostics.add(
+                (
+                    f"call to '{class_.name}.{method_name}' is ambiguous; "
+                    f"available overloads: {available}"
+                ),
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_INVALID_FIELD_ACCESS,
+            )
+            return None
+
+        compatible_matches = tuple(
+            candidate
+            for candidate in accessible_candidates
+            if self._method_arguments_match_declared_defaults(
+                candidate,
+                arg_types,
+            )
+        )
+        if len(compatible_matches) == 1:
+            return compatible_matches[0], accessible_candidates
+        if len(compatible_matches) > 1:
             available = ", ".join(
                 self._format_method_signature(candidate)
                 for candidate in accessible_candidates
