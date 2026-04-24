@@ -7,6 +7,10 @@ summary: >-
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from enum import Enum
+from typing import Any
+
 from public import public
 
 from irx import astx
@@ -38,6 +42,20 @@ from irx.analysis.resolved_nodes import (
 from irx.analysis.symbols import variable_symbol
 from irx.analysis.types import clone_type
 from irx.typecheck import typechecked
+
+PARAMETER_DEFAULT_FINGERPRINT_METADATA = "default_fingerprint"
+PARAMETER_HAS_DEFAULT_METADATA = "has_default"
+_TRANSIENT_AST_FIELDS = frozenset(
+    {
+        "comment",
+        "kind",
+        "loc",
+        "parent",
+        "ref",
+        "semantic",
+        "type_",
+    }
+)
 
 
 @public
@@ -126,6 +144,168 @@ class SemanticEntityFactory:
             kind="argument",
         )
 
+    def _argument_has_default(
+        self,
+        argument: astx.Argument,
+    ) -> bool:
+        """
+        title: Return whether one parameter declares a default value.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: bool
+        """
+        return not isinstance(argument.default, astx.Undefined)
+
+    def _is_transient_ast_name(
+        self,
+        node: object,
+        value: object,
+    ) -> bool:
+        """
+        title: Return whether an AST name is an implementation-generated name.
+        parameters:
+          node:
+            type: object
+          value:
+            type: object
+        returns:
+          type: bool
+        """
+        if isinstance(node, astx.Identifier):
+            return False
+        return (
+            isinstance(value, str)
+            and value.startswith("temp_")
+            and value[5:].isdigit()
+        )
+
+    def _default_fingerprint(self, value: object) -> object:
+        """
+        title: Build one structural fingerprint for a parameter default.
+        summary: >-
+          Compare AST default expressions without relying on ASTx equality,
+          which lowers equality into expression nodes instead of booleans.
+        parameters:
+          value:
+            type: object
+        returns:
+          type: object
+        """
+        if value is None or isinstance(value, (bool, int, float, str)):
+            return value
+        if isinstance(value, (bytes, bytearray)):
+            return bytes(value)
+        if isinstance(value, Enum):
+            return (
+                "enum",
+                type(value).__module__,
+                type(value).__qualname__,
+                self._default_fingerprint(value.value),
+            )
+        if isinstance(value, astx.AST):
+            return self._object_fingerprint(
+                "ast",
+                value,
+            )
+        if isinstance(value, Mapping):
+            items = tuple(
+                sorted(
+                    (
+                        (
+                            self._default_fingerprint(key),
+                            self._default_fingerprint(item),
+                        )
+                        for key, item in value.items()
+                    ),
+                    key=repr,
+                )
+            )
+            return ("mapping", items)
+        if isinstance(value, Sequence) and not isinstance(
+            value,
+            (str, bytes, bytearray),
+        ):
+            return (
+                "sequence",
+                tuple(self._default_fingerprint(item) for item in value),
+            )
+        if isinstance(value, type):
+            return ("type", value.__module__, value.__qualname__)
+        if hasattr(value, "__dict__"):
+            return self._object_fingerprint(
+                "object",
+                value,
+            )
+        return (
+            "value",
+            type(value).__module__,
+            type(value).__qualname__,
+            repr(value),
+        )
+
+    def _object_fingerprint(
+        self,
+        tag: str,
+        value: object,
+    ) -> object:
+        """
+        title: Build one structural fingerprint for an object's data fields.
+        parameters:
+          tag:
+            type: str
+          value:
+            type: object
+        returns:
+          type: object
+        """
+        fields: list[tuple[str, object]] = []
+        for field_name, field_value in sorted(vars(value).items()):
+            if field_name in _TRANSIENT_AST_FIELDS:
+                continue
+            if field_name == "name" and self._is_transient_ast_name(
+                value,
+                field_value,
+            ):
+                continue
+            fields.append(
+                (
+                    field_name,
+                    self._default_fingerprint(field_value),
+                )
+            )
+        return (
+            tag,
+            type(value).__module__,
+            type(value).__qualname__,
+            tuple(fields),
+        )
+
+    def _parameter_default_metadata(
+        self,
+        argument: astx.Argument,
+    ) -> dict[str, Any]:
+        """
+        title: Return normalized default metadata for one parameter.
+        parameters:
+          argument:
+            type: astx.Argument
+        returns:
+          type: dict[str, Any]
+        """
+        if not self._argument_has_default(argument):
+            return {
+                PARAMETER_HAS_DEFAULT_METADATA: False,
+                PARAMETER_DEFAULT_FINGERPRINT_METADATA: None,
+            }
+        return {
+            PARAMETER_HAS_DEFAULT_METADATA: True,
+            PARAMETER_DEFAULT_FINGERPRINT_METADATA: (
+                self._default_fingerprint(argument.default)
+            ),
+        }
+
     def make_parameter_spec(
         self,
         argument: astx.Argument,
@@ -142,6 +322,7 @@ class SemanticEntityFactory:
             name=argument.name,
             type_=clone_type(argument.type_),
             passing_kind=ParameterPassingKind.BY_VALUE,
+            metadata=self._parameter_default_metadata(argument),
         )
 
     def make_function_signature(

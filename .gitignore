@@ -106,4 +106,5 @@ pytest-*/
 
 # LLM
 PLAN.md
+REVIEW.md
 .codex/*

@@ -14,7 +14,11 @@ from public import public
 
 from irx import astx
 from irx.analysis.context import SemanticContext
-from irx.analysis.factories import SemanticEntityFactory
+from irx.analysis.factories import (
+    PARAMETER_DEFAULT_FINGERPRINT_METADATA,
+    PARAMETER_HAS_DEFAULT_METADATA,
+    SemanticEntityFactory,
+)
 from irx.analysis.ffi import (
     build_ffi_callable_info,
     normalize_runtime_features,
@@ -202,7 +206,58 @@ class SemanticRegistry:
             lhs.name == rhs.name
             and lhs.passing_kind is rhs.passing_kind
             and same_type(lhs.type_, rhs.type_)
+            and self._same_parameter_default(lhs, rhs)
         )
+
+    def _parameter_has_default(self, parameter: ParameterSpec) -> bool:
+        """
+        title: Return whether one normalized parameter has a default.
+        parameters:
+          parameter:
+            type: ParameterSpec
+        returns:
+          type: bool
+        """
+        return bool(parameter.metadata.get(PARAMETER_HAS_DEFAULT_METADATA))
+
+    def _parameter_default_fingerprint(
+        self,
+        parameter: ParameterSpec,
+    ) -> object:
+        """
+        title: Return one normalized parameter default fingerprint.
+        parameters:
+          parameter:
+            type: ParameterSpec
+        returns:
+          type: object
+        """
+        return parameter.metadata.get(
+            PARAMETER_DEFAULT_FINGERPRINT_METADATA,
+        )
+
+    def _same_parameter_default(
+        self,
+        lhs: ParameterSpec,
+        rhs: ParameterSpec,
+    ) -> bool:
+        """
+        title: Return whether two parameter default contracts match.
+        parameters:
+          lhs:
+            type: ParameterSpec
+          rhs:
+            type: ParameterSpec
+        returns:
+          type: bool
+        """
+        if self._parameter_has_default(lhs) != self._parameter_has_default(
+            rhs
+        ):
+            return False
+        return self._parameter_default_fingerprint(
+            lhs
+        ) == self._parameter_default_fingerprint(rhs)
 
     def _signature_mismatch_detail(
         self,
@@ -280,6 +335,14 @@ class SemanticRegistry:
                     f"('{display_type_name(lhs_param.type_)}' vs "
                     f"'{display_type_name(rhs_param.type_)}')"
                 )
+            if self._parameter_has_default(
+                lhs_param
+            ) != self._parameter_has_default(rhs_param):
+                return f"parameter {idx} default presence differs"
+            if self._parameter_default_fingerprint(
+                lhs_param
+            ) != self._parameter_default_fingerprint(rhs_param):
+                return f"parameter {idx} default value differs"
         return "signature differs"
 
     def signatures_match(

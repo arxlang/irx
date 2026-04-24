@@ -252,7 +252,7 @@ class ParameterSpec:
     title: One canonical semantic parameter specification.
     summary: >-
       Describe one ordered callable parameter together with its declared type
-      and passing policy.
+      and passing policy, plus stable metadata such as default fingerprints.
     attributes:
       name:
         type: str

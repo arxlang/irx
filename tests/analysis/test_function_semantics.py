@@ -90,6 +90,49 @@ def _int_function(name: str, *nodes: astx.AST) -> astx.FunctionDef:
     )
 
 
+def _duplicate_prototype(
+    copy_default: astx.AST | None,
+) -> astx.FunctionPrototype:
+    """
+    title: Build one duplicate function prototype with an optional default.
+    parameters:
+      copy_default:
+        type: astx.AST | None
+    returns:
+      type: astx.FunctionPrototype
+    """
+    arguments = [
+        astx.Argument("value", astx.Int32()),
+        (
+            astx.Argument("copy", astx.Int32())
+            if copy_default is None
+            else astx.Argument("copy", astx.Int32(), default=copy_default)
+        ),
+    ]
+    return astx.FunctionPrototype(
+        "duplicate",
+        args=astx.Arguments(*arguments),
+        return_type=astx.Int32(),
+    )
+
+
+def _duplicate_definition(
+    copy_default: astx.AST | None,
+) -> astx.FunctionDef:
+    """
+    title: Build one duplicate function definition with an optional default.
+    parameters:
+      copy_default:
+        type: astx.AST | None
+    returns:
+      type: astx.FunctionDef
+    """
+    return astx.FunctionDef(
+        prototype=_duplicate_prototype(copy_default),
+        body=_block(astx.FunctionReturn(astx.Identifier("copy"))),
+    )
+
+
 def test_analyze_attaches_canonical_function_signature() -> None:
     """
     title: >-
@@ -227,6 +270,53 @@ def test_analyze_rejects_non_trailing_default_parameters() -> None:
         SemanticError,
         match="without a default cannot follow a parameter with a default",
     ):
+        analyze(module)
+
+
+def test_analyze_accepts_matching_prototype_definition_defaults() -> None:
+    """
+    title: Matching prototype and definition defaults are one contract.
+    """
+    module = astx.Module()
+    module.block.append(_duplicate_prototype(astx.LiteralInt32(1)))
+    module.block.append(_duplicate_definition(astx.LiteralInt32(1)))
+
+    analyze(module)
+
+
+def test_analyze_rejects_changed_definition_default() -> None:
+    """
+    title: Definitions must not change defaults declared by prototypes.
+    """
+    module = astx.Module()
+    module.block.append(_duplicate_prototype(astx.LiteralInt32(1)))
+    module.block.append(_duplicate_definition(astx.LiteralInt32(2)))
+
+    with pytest.raises(SemanticError, match="default value differs"):
+        analyze(module)
+
+
+def test_analyze_rejects_removed_definition_default() -> None:
+    """
+    title: Definitions must not remove defaults declared by prototypes.
+    """
+    module = astx.Module()
+    module.block.append(_duplicate_prototype(astx.LiteralInt32(1)))
+    module.block.append(_duplicate_definition(None))
+
+    with pytest.raises(SemanticError, match="default presence differs"):
+        analyze(module)
+
+
+def test_analyze_rejects_added_definition_default() -> None:
+    """
+    title: Definitions must not add defaults missing from prototypes.
+    """
+    module = astx.Module()
+    module.block.append(_duplicate_prototype(None))
+    module.block.append(_duplicate_definition(astx.LiteralInt32(1)))
+
+    with pytest.raises(SemanticError, match="default presence differs"):
         analyze(module)
 
 

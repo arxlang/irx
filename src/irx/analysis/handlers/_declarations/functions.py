@@ -55,7 +55,6 @@ class DeclarationFunctionVisitorMixin(SemanticVisitorMixinBase):
         )
         if (
             function.prototype is not prototype
-            and definition is None
             and not self.registry.signatures_match(
                 function.signature, signature
             )
