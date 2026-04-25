@@ -483,6 +483,7 @@ class SemanticEntityFactory:
             module_key=module_key,
             qualified_name=qualified_class_name(module_key, node.name),
             declaration=node,
+            is_abstract=bool(getattr(node, "is_abstract", False)),
         )
 
     def make_class_member(
@@ -496,6 +497,7 @@ class SemanticEntityFactory:
         is_static: bool,
         is_constant: bool,
         is_mutable: bool,
+        is_abstract: bool = False,
         type_: astx.DataType | None = None,
         signature: FunctionSignature | None = None,
         signature_key: str | None = None,
@@ -521,6 +523,8 @@ class SemanticEntityFactory:
           is_constant:
             type: bool
           is_mutable:
+            type: bool
+          is_abstract:
             type: bool
           type_:
             type: astx.DataType | None
@@ -556,6 +560,7 @@ class SemanticEntityFactory:
             kind=kind,
             visibility=visibility,
             is_static=is_static,
+            is_abstract=is_abstract,
             is_constant=is_constant,
             is_mutable=is_mutable,
             declaration=declaration,

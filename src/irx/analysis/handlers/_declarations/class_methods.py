@@ -249,6 +249,10 @@ class DeclarationClassMethodVisitorMixin(SemanticVisitorMixinBase):
         function = member.lowered_function
         if not isinstance(declaration, astx.FunctionDef) or function is None:
             return
+        if member.is_abstract:
+            with self.context.in_function(function):
+                self._analyze_parameter_defaults(function)
+            return
         if function.template_params:
             self._prepare_function_template_specializations(function)
             self._analyze_function_template_specializations(function)

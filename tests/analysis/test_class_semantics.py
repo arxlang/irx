@@ -119,6 +119,45 @@ def _method(
     return astx.FunctionDef(prototype=prototype, body=body)
 
 
+def _abstract_method(
+    name: str,
+    *args: astx.Argument,
+    return_type: astx.DataType | None = None,
+    visibility: astx.VisibilityKind = astx.VisibilityKind.public,
+    is_static: bool = False,
+    body: astx.Block | None = None,
+) -> astx.FunctionDef:
+    """
+    title: Build one abstract class method declaration.
+    parameters:
+      name:
+        type: str
+      return_type:
+        type: astx.DataType | None
+      visibility:
+        type: astx.VisibilityKind
+      is_static:
+        type: bool
+      body:
+        type: astx.Block | None
+      args:
+        type: astx.Argument
+        variadic: positional
+    returns:
+      type: astx.FunctionDef
+    """
+    prototype = astx.FunctionPrototype(
+        name,
+        args=astx.Arguments(*args),
+        return_type=return_type or astx.Int32(),
+        visibility=visibility,
+    )
+    prototype.is_abstract = True
+    if is_static:
+        prototype.is_static = True
+    return astx.FunctionDef(prototype=prototype, body=body or astx.Block())
+
+
 def _attribute(
     name: str,
     type_: astx.DataType,
@@ -177,6 +216,108 @@ def test_analyze_attaches_resolved_class_sidecar_and_qualified_name() -> None:
         "pkg.tools", "Vector"
     )
     assert resolved.member_table["x"].type_.__class__ is astx.Int32
+
+
+def test_analyze_tracks_declared_abstract_class() -> None:
+    """
+    title: Explicit abstract classes keep semantic abstract metadata.
+    """
+    node = astx.ClassDefStmt(name="Shape", is_abstract=True)
+
+    analyze(make_module("app.main", node))
+
+    resolved = _semantic(node).resolved_class
+
+    assert node.is_abstract is True
+    assert resolved is not None
+    assert resolved.is_abstract is True
+    assert resolved.abstract_methods == ()
+
+
+def test_analyze_rejects_abstract_method_on_concrete_class() -> None:
+    """
+    title: Concrete classes cannot leave declared abstract methods unresolved.
+    """
+    node = astx.ClassDefStmt(
+        name="Shape",
+        methods=[_abstract_method("area")],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="Class 'Shape' must be abstract or implement abstract method",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_rejects_abstract_method_body() -> None:
+    """
+    title: Abstract methods declare signatures but no executable body.
+    """
+    body = astx.Block()
+    body.append(astx.FunctionReturn(astx.LiteralInt32(0)))
+    node = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area", body=body)],
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match=r"Abstract class method 'Shape\.area' must not declare a body",
+    ):
+        analyze(make_module("app.main", node))
+
+
+def test_analyze_requires_subclass_to_implement_abstract_method() -> None:
+    """
+    title: Non-abstract subclasses must implement inherited abstract methods.
+    """
+    base = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area")],
+    )
+    child = astx.ClassDefStmt(name="Circle", bases=[_class_type("Shape")])
+
+    with pytest.raises(
+        SemanticError,
+        match="Class 'Circle' must be abstract or implement abstract method",
+    ):
+        analyze(make_module("app.main", base, child))
+
+
+def test_analyze_accepts_abstract_method_implementation() -> None:
+    """
+    title: Concrete overrides satisfy inherited abstract method contracts.
+    """
+    base = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area")],
+    )
+    child = astx.ClassDefStmt(
+        name="Circle",
+        bases=[_class_type("Shape")],
+        methods=[_method("area")],
+    )
+
+    analyze(make_module("app.main", base, child))
+
+    resolved_base = _semantic(base).resolved_class
+    resolved_child = _semantic(child).resolved_class
+
+    assert resolved_base is not None
+    assert resolved_child is not None
+    assert resolved_base.is_abstract is True
+    assert resolved_base.member_table["area"].is_abstract is True
+    assert resolved_child.is_abstract is False
+    assert resolved_child.abstract_methods == ()
+    assert resolved_child.member_table["area"].is_abstract is False
+    assert (
+        resolved_child.member_table["area"].dispatch_slot
+        == resolved_base.member_table["area"].dispatch_slot
+    )
 
 
 def test_analyze_rejects_duplicate_class_definitions() -> None:
@@ -1004,3 +1145,55 @@ def test_analyze_attaches_resolved_class_construction_metadata() -> None:
         "app.main",
         "Counter",
     )
+
+
+def test_analyze_rejects_abstract_class_construction() -> None:
+    """
+    title: ClassConstruct rejects abstract class values.
+    """
+    node = astx.ClassDefStmt(name="Shape", is_abstract=True)
+    construct = astx.ClassConstruct("Shape")
+    body = astx.Block()
+    body.append(astx.FunctionReturn(construct))
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="make_shape",
+            args=astx.Arguments(),
+            return_type=_class_type("Shape"),
+        ),
+        body=body,
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match="abstract class 'Shape' cannot be constructed",
+    ):
+        analyze(make_module("app.main", node, main))
+
+
+def test_analyze_rejects_direct_abstract_method_call() -> None:
+    """
+    title: Abstract methods cannot be called without instance dispatch.
+    """
+    node = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area", is_static=True)],
+    )
+    call = astx.StaticMethodCall("Shape", "area", [])
+    body = astx.Block()
+    body.append(astx.FunctionReturn(call))
+    main = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(),
+            return_type=astx.Int32(),
+        ),
+        body=body,
+    )
+
+    with pytest.raises(
+        SemanticError,
+        match=r"abstract method 'Shape\.area' cannot be called directly",
+    ):
+        analyze(make_module("app.main", node, main))

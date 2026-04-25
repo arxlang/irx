@@ -256,6 +256,11 @@ metadata rather than as implicit runtime behavior.
 
 - every analyzed class method records a normalized source signature plus a
   lowered callable form in `SemanticClassMember.lowered_function`
+- abstract methods are marked with `SemanticClassMember.is_abstract`; they carry
+  signature metadata for call validation but do not lower an executable body
+- `SemanticClass.is_abstract` is true for explicitly abstract classes and for
+  classes with unresolved abstract methods; `SemanticClass.abstract_methods`
+  records the remaining abstract method set
 - instance methods gain one hidden leading `self` parameter whose type is the
   declaring class pointer representation
 - static methods keep their declared parameter list and do not receive an
@@ -286,6 +291,9 @@ metadata rather than as implicit runtime behavior.
 - lowering emits one internal dispatch table global per class when at least one
   visible instance method has a dispatch slot, and instance call sites load the
   callee through that table instead of re-resolving semantics from syntax
+- abstract instance methods reserve dispatch slots so abstract-base-typed calls
+  can dispatch through concrete subclass dispatch tables; abstract slots are
+  emitted as null entries on abstract class dispatch tables
 
 ## Class Member Access Contract
 
@@ -413,6 +421,9 @@ failures.
   analysis before codegen
 - invalid constant or static initialization rules diagnose while building the
   canonical class initialization plan
+- abstract methods with bodies, concrete classes with unresolved abstract
+  methods, direct calls to abstract methods, and construction of abstract
+  classes diagnose during semantic analysis
 
 ## Public FFI Contract
 

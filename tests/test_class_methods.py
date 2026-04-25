@@ -164,6 +164,33 @@ def _returning_method(
     return astx.FunctionDef(prototype=prototype, body=body)
 
 
+def _abstract_method(
+    name: str,
+    *args: astx.Argument,
+    return_type: astx.DataType | None = None,
+) -> astx.FunctionDef:
+    """
+    title: Build one abstract class method declaration.
+    parameters:
+      name:
+        type: str
+      return_type:
+        type: astx.DataType | None
+      args:
+        type: astx.Argument
+        variadic: positional
+    returns:
+      type: astx.FunctionDef
+    """
+    prototype = astx.FunctionPrototype(
+        name,
+        args=astx.Arguments(*args),
+        return_type=return_type or astx.Int32(),
+    )
+    prototype.is_abstract = True
+    return astx.FunctionDef(prototype=prototype, body=astx.Block())
+
+
 def _single_return_body(value: astx.AST) -> astx.Block:
     """
     title: Build one single-return block.
@@ -354,6 +381,70 @@ def test_base_typed_method_dispatch_uses_upcast_and_shared_slot(
     assert 'bitcast %"poly__Child"*' in ir_text
     assert 'to %"poly__Base"*' in ir_text
     assert "area_slot" in ir_text
+    assert_ir_parses(ir_text)
+
+
+@pytest.mark.parametrize("builder_class", [LLVMBuilder])
+def test_abstract_base_method_dispatch_lowers_without_base_body(
+    builder_class: type[Builder],
+) -> None:
+    """
+    title: Abstract base method calls lower through subclass dispatch entries.
+    parameters:
+      builder_class:
+        type: type[Builder]
+    """
+    builder = builder_class()
+    base = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area")],
+    )
+    child = astx.ClassDefStmt(
+        name="Circle",
+        bases=[_class_type("Shape")],
+        methods=[_returning_method("area", astx.LiteralInt32(2))],
+    )
+    measure = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Shape"))),
+            return_type=astx.Int32(),
+        ),
+        body=_single_return_body(
+            astx.MethodCall(astx.Identifier("shape"), "area", [])
+        ),
+    )
+    module = make_module(
+        "abstract_poly",
+        base,
+        child,
+        measure,
+        _main_int32(
+            astx.FunctionReturn(
+                astx.FunctionCall(
+                    "measure",
+                    [astx.ClassConstruct("Circle")],
+                )
+            )
+        ),
+    )
+
+    ir_text = builder.translate(module)
+    resolved_base = _semantic(base).resolved_class
+
+    assert resolved_base is not None
+    base_area = resolved_base.declared_member_table["area"]
+    assert base_area.signature_key is not None
+    abstract_name = mangle_class_method_name(
+        module.name,
+        base.name,
+        "area",
+        base_area.signature_key,
+    )
+    assert f'define i32 @"{abstract_name}"' not in ir_text
+    assert "area_slot" in ir_text
+    assert "area_callee" in ir_text
     assert_ir_parses(ir_text)
 
 

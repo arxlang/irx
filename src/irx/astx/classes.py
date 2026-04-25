@@ -102,11 +102,14 @@ class ClassDefStmt(astx.StructDeclStmt):
     attributes:
       bases:
         type: astx.ASTNodes[ClassType]
+      is_abstract:
+        type: bool
       kind:
         type: astx.ASTKind
     """
 
     bases: astx.ASTNodes[ClassType]
+    is_abstract: bool
     kind: astx.ASTKind
 
     def __init__(
@@ -122,6 +125,7 @@ class ClassDefStmt(astx.StructDeclStmt):
         methods: Iterable[astx.FunctionDef]
         | astx.ASTNodes[astx.FunctionDef] = (),
         visibility: astx.VisibilityKind = astx.VisibilityKind.public,
+        is_abstract: bool = False,
         loc: astx.SourceLocation = astx.base.NO_SOURCE_LOCATION,
         parent: astx.ASTNodes[astx.AST] | None = None,
     ) -> None:
@@ -142,6 +146,8 @@ class ClassDefStmt(astx.StructDeclStmt):
             type: Iterable[astx.FunctionDef] | astx.ASTNodes[astx.FunctionDef]
           visibility:
             type: astx.VisibilityKind
+          is_abstract:
+            type: bool
           loc:
             type: astx.SourceLocation
           parent:
@@ -156,6 +162,7 @@ class ClassDefStmt(astx.StructDeclStmt):
             loc=loc,
             parent=parent,
         )
+        self.is_abstract = is_abstract
         if isinstance(bases, astx.ASTNodes):
             self.bases = bases
         else:
@@ -173,15 +180,18 @@ class ClassDefStmt(astx.StructDeclStmt):
         decorators_str = "".join(
             f"@{decorator}\n" for decorator in self.decorators
         )
-        visibility_str = (
-            self.visibility.name.lower()
-            if self.visibility != astx.VisibilityKind.public
-            else ""
-        )
+        modifiers: list[str] = []
+        if self.visibility != astx.VisibilityKind.public:
+            modifiers.append(self.visibility.name.lower())
+        if self.is_abstract:
+            modifiers.append("abstract")
         bases_str = ""
         if self.bases:
             bases_str = "(" + ", ".join(base.name for base in self.bases) + ")"
-        class_header = f"{visibility_str} class {self.name}{bases_str}".strip()
+        modifier_prefix = " ".join(modifiers)
+        if modifier_prefix:
+            modifier_prefix = f"{modifier_prefix} "
+        class_header = f"{modifier_prefix}class {self.name}{bases_str}"
         member_lines = [str(attribute) for attribute in self.attributes] + [
             str(method) for method in self.methods
         ]
@@ -210,6 +220,10 @@ class ClassDefStmt(astx.StructDeclStmt):
                 "decorators": self.decorators.get_struct(simplified)
             }
 
+        abstract_dict: astx.base.ReprStruct = {}
+        if self.is_abstract:
+            abstract_dict = {"abstract": self.is_abstract}
+
         attrs_dict: astx.base.ReprStruct = {}
         if self.attributes:
             attrs_dict = {"attributes": self.attributes.get_struct(simplified)}
@@ -221,6 +235,7 @@ class ClassDefStmt(astx.StructDeclStmt):
         value = {
             **cast(dict[str, astx.base.ReprStruct], bases_dict),
             **cast(dict[str, astx.base.ReprStruct], decorators_dict),
+            **cast(dict[str, astx.base.ReprStruct], abstract_dict),
             **cast(dict[str, astx.base.ReprStruct], attrs_dict),
             **cast(dict[str, astx.base.ReprStruct], methods_dict),
         }

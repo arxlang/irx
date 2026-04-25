@@ -36,6 +36,7 @@ from irx.analysis.resolved_nodes import (
     SemanticClassStaticInitializer,
     SemanticClassStaticStorage,
 )
+from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 _CLASS_HEADER_LAYOUT: tuple[tuple[str, ClassHeaderFieldKind], ...] = (
@@ -162,10 +163,14 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
 
         dispatch_slots: dict[int, SemanticClassMethodDispatch] = {}
         visible_method_slots: dict[str, SemanticClassMethodDispatch] = {}
+        dispatch_slot_indices: set[int] = set()
         for group in method_groups.values():
             for member in group:
+                if member.dispatch_slot is not None:
+                    dispatch_slot_indices.add(member.dispatch_slot)
                 if (
                     member.is_static
+                    or member.is_abstract
                     or member.dispatch_slot is None
                     or member.lowered_function is None
                     or member.signature_key is None
@@ -184,7 +189,9 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
         dispatch_entries = tuple(
             dispatch_slots[index] for index in sorted(dispatch_slots)
         )
-        dispatch_table_size = len(dispatch_entries)
+        dispatch_table_size = (
+            max(dispatch_slot_indices) + 1 if dispatch_slot_indices else 0
+        )
 
         return SemanticClassLayout(
             llvm_name=mangle_class_name(class_.module_key, class_.name),
@@ -402,8 +409,12 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
                     or member.is_static
                     or member.visibility is astx.VisibilityKind.private
                     or member.signature_key is None
-                    or member.lowered_function is None
-                    or member.lowered_function.template_params
+                ):
+                    continue
+                lowered_function = member.lowered_function
+                if (
+                    lowered_function is not None
+                    and lowered_function.template_params
                 ):
                     continue
                 slot_index = slot_by_signature.get(member.signature_key)
@@ -485,6 +496,26 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
             visible_methods = tuple(
                 member for group in method_groups.values() for member in group
             )
+            abstract_methods = tuple(
+                member for member in visible_methods if member.is_abstract
+            )
+            if abstract_methods and not self._class_is_declared_abstract(
+                structural_class
+            ):
+                method_names = ", ".join(
+                    f"{member.owner_name}.{member.name}"
+                    for member in abstract_methods
+                )
+                self.context.diagnostics.add(
+                    (
+                        f"Class '{structural_class.name}' must be abstract "
+                        "or implement abstract method"
+                        f"{'s' if len(abstract_methods) != 1 else ''} "
+                        f"{method_names}"
+                    ),
+                    node=structural_class.declaration,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
             initialization = self._build_class_initialization(
                 class_stub,
                 layout,
@@ -515,6 +546,7 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
                 static_methods=tuple(
                     member for member in visible_methods if member.is_static
                 ),
+                abstract_methods=abstract_methods,
                 inheritance_graph=tuple(
                     ancestor.qualified_name for ancestor in mro_ancestors
                 ),
@@ -523,6 +555,10 @@ class DeclarationClassLayoutVisitorMixin(SemanticVisitorMixinBase):
                 initialization=initialization,
                 mro=(structural_class, *mro_ancestors),
                 is_resolved=True,
+                is_abstract=(
+                    self._class_is_declared_abstract(structural_class)
+                    or bool(abstract_methods)
+                ),
             )
             updated = replace(updated, mro=(updated, *mro_ancestors))
             self.context.register_class(updated)

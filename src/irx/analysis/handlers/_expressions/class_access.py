@@ -23,6 +23,7 @@ from irx.analysis.resolved_nodes import (
     ResolvedFieldAccess,
     ResolvedMethodCall,
     ResolvedStaticClassFieldAccess,
+    SemanticClassMember,
 )
 from irx.analysis.types import display_type_name
 from irx.analysis.validation import validate_call
@@ -35,6 +36,43 @@ class ExpressionClassAccessVisitorMixin(ExpressionClassSupportVisitorMixin):
     """
     title: Expression class-access visitors.
     """
+
+    def _abstract_method_call_is_invalid(
+        self,
+        node: astx.AST,
+        member: SemanticClassMember,
+        *,
+        allow_indirect_dispatch: bool,
+    ) -> bool:
+        """
+        title: Diagnose one invalid abstract method call.
+        parameters:
+          node:
+            type: astx.AST
+          member:
+            type: SemanticClassMember
+          allow_indirect_dispatch:
+            type: bool
+        returns:
+          type: bool
+        """
+        if not member.is_abstract:
+            return False
+        if (
+            allow_indirect_dispatch
+            and not member.is_static
+            and member.dispatch_slot is not None
+        ):
+            return False
+        self.context.diagnostics.add(
+            (
+                f"abstract method '{member.owner_name}.{member.name}' "
+                "cannot be called directly"
+            ),
+            node=node,
+            code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+        )
+        return True
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.ClassConstruct) -> None:
@@ -51,6 +89,24 @@ class ExpressionClassAccessVisitorMixin(ExpressionClassSupportVisitorMixin):
         resolve_definition = getattr(self, "_resolve_class_definition", None)
         if callable(resolve_definition) and not class_.is_resolved:
             class_ = resolve_definition(class_)
+        if class_.is_abstract:
+            abstract_method_names = ", ".join(
+                f"{member.owner_name}.{member.name}"
+                for member in class_.abstract_methods
+            )
+            suffix = (
+                f"; abstract methods: {abstract_method_names}"
+                if abstract_method_names
+                else ""
+            )
+            self.context.diagnostics.add(
+                f"abstract class '{class_.name}' cannot be constructed"
+                f"{suffix}",
+                node=node,
+                code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+            )
+            self._set_type(node, None)
+            return
         if class_.layout is None or class_.initialization is None:
             raise TypeError(
                 "class construction requires resolved layout metadata"
@@ -124,6 +180,13 @@ class ExpressionClassAccessVisitorMixin(ExpressionClassSupportVisitorMixin):
             self._set_type(node, None)
             return
         member, candidates = resolved_overload
+        if self._abstract_method_call_is_invalid(
+            node,
+            member,
+            allow_indirect_dispatch=True,
+        ):
+            self._set_type(node, None)
+            return
         function = member.lowered_function
         if function is None:
             raise TypeError("instance method must have a lowered function")
@@ -211,6 +274,13 @@ class ExpressionClassAccessVisitorMixin(ExpressionClassSupportVisitorMixin):
             self._set_type(node, None)
             return
         member, candidates = resolved_overload
+        if self._abstract_method_call_is_invalid(
+            node,
+            member,
+            allow_indirect_dispatch=False,
+        ):
+            self._set_type(node, None)
+            return
         function = member.lowered_function
         if function is None:
             raise TypeError("base method must have a lowered function")
@@ -280,6 +350,13 @@ class ExpressionClassAccessVisitorMixin(ExpressionClassSupportVisitorMixin):
             self._set_type(node, None)
             return
         member, candidates = resolved_overload
+        if self._abstract_method_call_is_invalid(
+            node,
+            member,
+            allow_indirect_dispatch=False,
+        ):
+            self._set_type(node, None)
+            return
         function = member.lowered_function
         if function is None:
             raise TypeError("static method must have a lowered function")

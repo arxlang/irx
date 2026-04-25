@@ -133,6 +133,33 @@ def _returning_method(
     return astx.FunctionDef(prototype=prototype, body=body)
 
 
+def _abstract_method(
+    name: str,
+    *args: astx.Argument,
+    return_type: astx.DataType | None = None,
+) -> astx.FunctionDef:
+    """
+    title: Build one abstract class method declaration.
+    parameters:
+      name:
+        type: str
+      return_type:
+        type: astx.DataType | None
+      args:
+        type: astx.Argument
+        variadic: positional
+    returns:
+      type: astx.FunctionDef
+    """
+    prototype = astx.FunctionPrototype(
+        name,
+        args=astx.Arguments(*args),
+        return_type=return_type or astx.Int32(),
+    )
+    prototype.is_abstract = True
+    return astx.FunctionDef(prototype=prototype, body=astx.Block())
+
+
 def _method_body(value: astx.AST) -> astx.Block:
     """
     title: Build one single-return method body block.
@@ -1012,6 +1039,51 @@ def test_analyze_supports_base_typed_method_polymorphism() -> None:
     assert resolved_child is not None
     assert resolved_call is not None
     assert resolved_call.member.owner_name == "Base"
+    assert resolved_call.dispatch_kind is MethodDispatchKind.INDIRECT
+    assert (
+        resolved_call.slot_index
+        == resolved_base.member_table["area"].dispatch_slot
+    )
+    assert (
+        resolved_call.slot_index
+        == resolved_child.member_table["area"].dispatch_slot
+    )
+
+
+def test_analyze_dispatches_abstract_base_typed_method_call() -> None:
+    """
+    title: Abstract base method calls resolve as indirect dispatch.
+    """
+    base = astx.ClassDefStmt(
+        name="Shape",
+        is_abstract=True,
+        methods=[_abstract_method("area")],
+    )
+    child = astx.ClassDefStmt(
+        name="Circle",
+        bases=[_class_type("Shape")],
+        methods=[_returning_method("area", astx.LiteralInt32(2))],
+    )
+    area_call = astx.MethodCall(astx.Identifier("shape"), "area", [])
+    measure = astx.FunctionDef(
+        prototype=astx.FunctionPrototype(
+            name="measure",
+            args=astx.Arguments(astx.Argument("shape", _class_type("Shape"))),
+            return_type=astx.Int32(),
+        ),
+        body=_method_body(area_call),
+    )
+
+    analyze(make_module("app.main", base, child, measure))
+
+    resolved_base = _semantic(base).resolved_class
+    resolved_child = _semantic(child).resolved_class
+    resolved_call = _semantic(area_call).resolved_method_call
+
+    assert resolved_base is not None
+    assert resolved_child is not None
+    assert resolved_call is not None
+    assert resolved_call.member.is_abstract is True
     assert resolved_call.dispatch_kind is MethodDispatchKind.INDIRECT
     assert (
         resolved_call.slot_index
