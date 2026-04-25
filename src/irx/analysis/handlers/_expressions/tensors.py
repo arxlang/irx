@@ -15,7 +15,6 @@ from irx.analysis.handlers._expressions.tensor_buffer_support import (
     ExpressionTensorBufferSupportVisitorMixin,
 )
 from irx.analysis.handlers.base import SemanticAnalyzerCore
-from irx.analysis.types import is_integer_type
 from irx.analysis.validation import validate_assignment
 from irx.buffer import (
     BUFFER_FLAG_VALIDITY_BITMAP,
@@ -48,23 +47,6 @@ class ExpressionTensorVisitorMixin(ExpressionTensorBufferSupportVisitorMixin):
     """
     title: Expression Tensor visitors.
     """
-
-    @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.ArrayInt32ArrayLength) -> None:
-        """
-        title: Visit ArrayInt32ArrayLength nodes.
-        parameters:
-          node:
-            type: astx.ArrayInt32ArrayLength
-        """
-        for item in node.values:
-            self.visit(item)
-            if not is_integer_type(self._expr_type(item)):
-                self.context.diagnostics.add(
-                    "Array helper supports only integer expressions",
-                    node=item,
-                )
-        self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
     def visit(self, node: astx.TensorLiteral) -> None:
