@@ -368,6 +368,8 @@ class SemanticClassMember:
         type: astx.VisibilityKind
       is_static:
         type: bool
+      is_abstract:
+        type: bool
       is_constant:
         type: bool
       is_mutable:
@@ -396,6 +398,7 @@ class SemanticClassMember:
     kind: ClassMemberKind
     visibility: astx.VisibilityKind
     is_static: bool
+    is_abstract: bool
     is_constant: bool
     is_mutable: bool
     declaration: astx.AST
@@ -791,6 +794,8 @@ class SemanticClass:
         type: tuple[SemanticClassMember, Ellipsis]
       static_methods:
         type: tuple[SemanticClassMember, Ellipsis]
+      abstract_methods:
+        type: tuple[SemanticClassMember, Ellipsis]
       inheritance_graph:
         type: tuple[str, Ellipsis]
       shared_ancestors:
@@ -804,6 +809,8 @@ class SemanticClass:
       is_structurally_resolved:
         type: bool
       is_resolved:
+        type: bool
+      is_abstract:
         type: bool
     """
 
@@ -834,6 +841,7 @@ class SemanticClass:
     static_attributes: tuple[SemanticClassMember, ...] = ()
     instance_methods: tuple[SemanticClassMember, ...] = ()
     static_methods: tuple[SemanticClassMember, ...] = ()
+    abstract_methods: tuple[SemanticClassMember, ...] = ()
     inheritance_graph: tuple[str, ...] = ()
     shared_ancestors: tuple["SemanticClass", ...] = ()
     layout: SemanticClassLayout | None = None
@@ -841,6 +849,7 @@ class SemanticClass:
     mro: tuple["SemanticClass", ...] = ()
     is_structurally_resolved: bool = False
     is_resolved: bool = False
+    is_abstract: bool = False
 
 
 @public

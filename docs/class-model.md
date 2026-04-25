@@ -7,7 +7,8 @@ without turning IRx into a high-level object runtime.
 
 - `StructDefStmt` remains the ABI-oriented passive composite type
 - `ClassDefStmt` adds inheritance, methods, access control, static members,
-  deterministic dispatch metadata, and deterministic construction/lowering
+  abstract contracts, deterministic dispatch metadata, and deterministic
+  construction/lowering
 - class values lower as pointers to identified object structs with reserved
   header slots; struct values remain plain by-value composites unless another
   rule says otherwise
@@ -20,6 +21,7 @@ IRx currently supports these class-member modifiers:
 - `protected`
 - `private`
 - `static`
+- `abstract`
 - `constant`
 - `mutable`
 
@@ -29,8 +31,21 @@ Current semantics:
 - `protected` is accessible only inside the declaring class and subclasses
 - `private` is accessible only inside the declaring class
 - `static` members use class-qualified access and class-scoped global storage
+- `abstract` classes cannot be constructed; abstract methods declare a required
+  signature that concrete subclasses must implement
 - `constant` members are immutable after initialization
 - `mutable` members may be reassigned after initialization
+
+## Abstract Classes And Methods
+
+- pass `is_abstract=True` to `ClassDefStmt` to declare an abstract class
+- mark a method prototype with `prototype.is_abstract = True` to declare an
+  abstract method
+- abstract methods must not declare executable bodies
+- non-abstract classes must implement all visible inherited abstract methods
+- abstract instance methods still reserve dispatch slots so base-typed calls can
+  dispatch to concrete subclass implementations
+- `ClassConstruct("Name")` rejects abstract classes during semantic analysis
 
 ## Inheritance And MRO
 

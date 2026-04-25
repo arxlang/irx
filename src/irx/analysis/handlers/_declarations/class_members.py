@@ -167,6 +167,7 @@ class DeclarationClassMemberVisitorMixin(DeclarationClassMethodVisitorMixin):
             )
             signature = self._normalize_class_method_signature(class_, method)
             is_static = self._method_is_static(method)
+            is_abstract = self._method_is_abstract(method)
             signature_key = self._method_signature_key(
                 method.name,
                 signature,
@@ -191,6 +192,36 @@ class DeclarationClassMemberVisitorMixin(DeclarationClassMethodVisitorMixin):
                     code=DiagnosticCodes.SEMANTIC_DUPLICATE_DECLARATION,
                 )
                 continue
+            if is_abstract and (
+                method.prototype.visibility is astx.VisibilityKind.private
+            ):
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot be both abstract and private"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+            if is_abstract and astx.is_template_node(method.prototype):
+                self.context.diagnostics.add(
+                    (
+                        f"Class method '{class_.name}.{method.name}' "
+                        "cannot be both abstract and templated"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
+            if is_abstract and len(method.body.nodes) > 0:
+                self.context.diagnostics.add(
+                    (
+                        f"Abstract class method "
+                        f"'{class_.name}.{method.name}' must not declare "
+                        "a body"
+                    ),
+                    node=method,
+                    code=DiagnosticCodes.SEMANTIC_TYPE_MISMATCH,
+                )
             local_group = method_groups.setdefault(method.name, [])
             if any(
                 existing.is_static != is_static for existing in local_group
@@ -306,6 +337,7 @@ class DeclarationClassMemberVisitorMixin(DeclarationClassMethodVisitorMixin):
                 declaration=method,
                 visibility=method.prototype.visibility,
                 is_static=is_static,
+                is_abstract=is_abstract,
                 is_constant=True,
                 is_mutable=False,
                 signature=signature,

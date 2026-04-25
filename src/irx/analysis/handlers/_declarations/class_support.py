@@ -100,6 +100,43 @@ class DeclarationClassSupportVisitorMixin(ClassMemberFormattingVisitorMixin):
             return raw_value
         return False
 
+    def _method_is_abstract(
+        self,
+        declaration: astx.FunctionDef,
+    ) -> bool:
+        """
+        title: Return whether one class method is abstract.
+        parameters:
+          declaration:
+            type: astx.FunctionDef
+        returns:
+          type: bool
+        """
+        raw_value = getattr(declaration.prototype, "is_abstract", None)
+        if isinstance(raw_value, bool):
+            return raw_value
+        raw_value = getattr(declaration, "is_abstract", None)
+        if isinstance(raw_value, bool):
+            return raw_value
+        return False
+
+    def _class_is_declared_abstract(
+        self,
+        class_: SemanticClass,
+    ) -> bool:
+        """
+        title: Return whether one class declaration is explicitly abstract.
+        parameters:
+          class_:
+            type: SemanticClass
+        returns:
+          type: bool
+        """
+        raw_value = getattr(class_.declaration, "is_abstract", None)
+        if isinstance(raw_value, bool):
+            return raw_value
+        return class_.is_abstract
+
     def _initializer_source_kind(
         self,
         value: astx.AST | None,

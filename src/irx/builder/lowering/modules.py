@@ -266,6 +266,10 @@ class ModuleVisitorMixin(VisitorMixinBase):
             dispatch_global.initializer = dispatch_initializer
 
         for method in node.methods:
-            if astx.is_template_node(method.prototype):
+            if (
+                astx.is_template_node(method.prototype)
+                or bool(getattr(method.prototype, "is_abstract", False))
+                or bool(getattr(method, "is_abstract", False))
+            ):
                 continue
             self.visit(method)
