@@ -16,6 +16,7 @@ from irx.builder.lowering.literals import LiteralVisitorMixin
 from irx.builder.lowering.modules import ModuleVisitorMixin
 from irx.builder.lowering.system import SystemVisitorMixin
 from irx.builder.lowering.temporal import TemporalVisitorMixin
+from irx.builder.lowering.tensor import TensorVisitorMixin
 from irx.builder.lowering.unary_ops import UnaryOpVisitorMixin
 from irx.builder.lowering.variables import VariableVisitorMixin
 
@@ -32,6 +33,7 @@ __all__ = [
     "ModuleVisitorMixin",
     "SystemVisitorMixin",
     "TemporalVisitorMixin",
+    "TensorVisitorMixin",
     "UnaryOpVisitorMixin",
     "VariableVisitorMixin",
 ]

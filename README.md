@@ -247,14 +247,15 @@ inspection, C Data interop, and a conservative buffer/view bridge. Arrow stays
 an implementation and interoperability detail. IRx still does not encode
 dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.
 
-On top of that substrate, IRx now exposes an initial internal NDArray layer for
-multidimensional values:
+Alongside that one-dimensional array substrate, IRx now exposes an initial
+internal `Tensor` layer for homogeneous N-dimensional values:
 
-- storage still lives in the builtin Arrow-backed array runtime
-- layout still lives in the canonical `irx_buffer_view` metadata
-- ndarray lowering adds rank, shape, stride, offset, indexing, and shallow view
+- tensor literals use the Arrow-backed tensor runtime (`irx_arrow_tensor_*`)
+- tensor layout follows Arrow-style dtype, shape, and stride metadata while
+  lowering through the canonical `irx_buffer_view` descriptor for indexing
+- tensor lowering adds rank, shape, stride, offset, indexing, and shallow view
   semantics without introducing a second memory model
-- current NDArray support in this initial phase is limited to fixed-width
+- current `Tensor` support in this initial phase is limited to fixed-width
   numeric element types and readonly Arrow-backed storage
 
 ## Scalar Numeric Semantics

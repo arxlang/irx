@@ -2,20 +2,19 @@
 # mypy: disable-error-code=untyped-decorator
 
 """
-title: Expression NDArray visitors.
+title: Expression Tensor visitors.
 summary: >-
-  Handle ndarray literals, views, indexing, and lifetime helper expressions
-  using the shared array-and-buffer support mixin.
+  Handle tensor literals, views, indexing, and lifetime helper expressions
+  using the shared tensor-and-buffer support mixin.
 """
 
 from __future__ import annotations
 
 from irx import astx
-from irx.analysis.handlers._expressions.array_buffer_support import (
-    ExpressionArrayBufferSupportVisitorMixin,
+from irx.analysis.handlers._expressions.tensor_buffer_support import (
+    ExpressionTensorBufferSupportVisitorMixin,
 )
 from irx.analysis.handlers.base import SemanticAnalyzerCore
-from irx.analysis.types import is_integer_type
 from irx.analysis.validation import validate_assignment
 from irx.buffer import (
     BUFFER_FLAG_VALIDITY_BITMAP,
@@ -26,77 +25,60 @@ from irx.buffer import (
     buffer_view_is_readonly,
     buffer_view_ownership,
 )
-from irx.builtins.collections.array import (
-    NDARRAY_ELEMENT_TYPE_EXTRA,
-    NDARRAY_FLAGS_EXTRA,
-    NDARRAY_LAYOUT_EXTRA,
-    NDArrayLayout,
-    ndarray_byte_bounds,
-    ndarray_default_strides,
-    ndarray_element_count,
-    ndarray_element_size_bytes,
-    ndarray_is_c_contiguous,
-    ndarray_is_f_contiguous,
-    validate_ndarray_layout,
+from irx.builtins.collections.tensor import (
+    TENSOR_ELEMENT_TYPE_EXTRA,
+    TENSOR_FLAGS_EXTRA,
+    TENSOR_LAYOUT_EXTRA,
+    TensorLayout,
+    tensor_byte_bounds,
+    tensor_default_strides,
+    tensor_element_count,
+    tensor_element_size_bytes,
+    tensor_is_c_contiguous,
+    tensor_is_f_contiguous,
+    validate_tensor_layout,
 )
 from irx.diagnostics import DiagnosticCodes
 from irx.typecheck import typechecked
 
 
 @typechecked
-class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
+class ExpressionTensorVisitorMixin(ExpressionTensorBufferSupportVisitorMixin):
     """
-    title: Expression NDArray visitors.
+    title: Expression Tensor visitors.
     """
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.ArrayInt32ArrayLength) -> None:
+    def visit(self, node: astx.TensorLiteral) -> None:
         """
-        title: Visit ArrayInt32ArrayLength nodes.
+        title: Visit TensorLiteral nodes.
         parameters:
           node:
-            type: astx.ArrayInt32ArrayLength
-        """
-        for item in node.values:
-            self.visit(item)
-            if not is_integer_type(self._expr_type(item)):
-                self.context.diagnostics.add(
-                    "Array helper supports only integer expressions",
-                    node=item,
-                )
-        self._set_type(node, astx.Int32())
-
-    @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayLiteral) -> None:
-        """
-        title: Visit NDArrayLiteral nodes.
-        parameters:
-          node:
-            type: astx.NDArrayLiteral
+            type: astx.TensorLiteral
         """
         for item in node.values:
             self.visit(item)
             validate_assignment(
                 self.context.diagnostics,
-                target_name="ndarray element",
+                target_name="tensor element",
                 target_type=node.element_type,
                 value_type=self._expr_type(item),
                 node=item,
             )
 
         shape = tuple(node.shape)
-        element_size_bytes = ndarray_element_size_bytes(node.element_type)
+        element_size_bytes = tensor_element_size_bytes(node.element_type)
         if element_size_bytes is None:
             if isinstance(node.element_type, astx.Boolean):
                 self.context.diagnostics.add(
-                    "bool ndarrays are not supported because bit-packed Arrow "
+                    "bool tensors are not supported because bit-packed Arrow "
                     "values are not buffer-view compatible",
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                 )
             else:
                 self.context.diagnostics.add(
-                    "ndarray literals require a fixed-width numeric element "
+                    "tensor literals require a fixed-width numeric element "
                     "type",
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
@@ -106,38 +88,38 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
             if element_size_bytes is None or any(dim < 0 for dim in shape):
                 strides = tuple(0 for _ in shape)
             else:
-                strides = ndarray_default_strides(shape, element_size_bytes)
+                strides = tensor_default_strides(shape, element_size_bytes)
         else:
             strides = tuple(node.strides)
 
-        layout = NDArrayLayout(
+        layout = TensorLayout(
             shape=shape,
             strides=strides,
             offset_bytes=node.offset_bytes,
         )
-        for error in validate_ndarray_layout(layout):
+        for error in validate_tensor_layout(layout):
             self.context.diagnostics.add(
                 error,
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
-        expected_value_count = ndarray_element_count(layout)
+        expected_value_count = tensor_element_count(layout)
         if len(node.values) != expected_value_count:
             self.context.diagnostics.add(
-                "ndarray literal value count must match the shape extent",
+                "tensor literal value count must match the shape extent",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
         if element_size_bytes is not None:
-            bounds = ndarray_byte_bounds(layout)
+            bounds = tensor_byte_bounds(layout)
             if bounds is not None:
                 minimum, maximum = bounds
                 storage_bytes = len(node.values) * element_size_bytes
                 if minimum < 0 or maximum + element_size_bytes > storage_bytes:
                     self.context.diagnostics.add(
-                        "ndarray literal layout exceeds compact backing "
+                        "tensor literal layout exceeds compact backing "
                         "storage",
                         node=node,
                         code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
@@ -146,61 +128,61 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
             flags = buffer_view_flags(
                 BufferOwnership.EXTERNAL_OWNER,
                 BufferMutability.READONLY,
-                c_contiguous=ndarray_is_c_contiguous(
+                c_contiguous=tensor_is_c_contiguous(
                     layout,
                     element_size_bytes,
                 ),
-                f_contiguous=ndarray_is_f_contiguous(
+                f_contiguous=tensor_is_f_contiguous(
                     layout,
                     element_size_bytes,
                 ),
             )
-            self._semantic(node).extras[NDARRAY_FLAGS_EXTRA] = flags
+            self._semantic(node).extras[TENSOR_FLAGS_EXTRA] = flags
 
-        self._semantic(node).extras[NDARRAY_LAYOUT_EXTRA] = layout
-        self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
+        self._semantic(node).extras[TENSOR_LAYOUT_EXTRA] = layout
+        self._semantic(node).extras[TENSOR_ELEMENT_TYPE_EXTRA] = (
             node.element_type
         )
-        node.type_ = astx.NDArrayType(node.element_type)
+        node.type_ = astx.TensorType(node.element_type)
         self._set_type(node, node.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayView) -> None:
+    def visit(self, node: astx.TensorView) -> None:
         """
-        title: Visit NDArrayView nodes.
+        title: Visit TensorView nodes.
         parameters:
           node:
-            type: astx.NDArrayView
+            type: astx.TensorView
         """
         self.visit(node.base)
         base_type = self._expr_type(node.base)
-        if not isinstance(base_type, astx.NDArrayType):
+        if not isinstance(base_type, astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray views require a NDArrayType base",
+                "tensor views require a TensorType base",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
-        base_layout = self._static_ndarray_layout(node.base)
+        base_layout = self._static_tensor_layout(node.base)
         if base_layout is None:
             self.context.diagnostics.add(
-                "ndarray views require static base layout metadata",
+                "tensor views require static base layout metadata",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
-        element_type = self._static_ndarray_element_type(node.base)
+        element_type = self._static_tensor_element_type(node.base)
         if element_type is None:
             self.context.diagnostics.add(
-                "ndarray views require a known element type",
+                "tensor views require a known element type",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
 
-        element_size_bytes = ndarray_element_size_bytes(element_type)
+        element_size_bytes = tensor_element_size_bytes(element_type)
         if element_type is not None and element_size_bytes is None:
             self.context.diagnostics.add(
-                "ndarray views require a fixed-width numeric element type",
+                "tensor views require a fixed-width numeric element type",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
@@ -214,12 +196,12 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
             ):
                 strides = tuple(0 for _ in shape)
             else:
-                if not ndarray_is_c_contiguous(
+                if not tensor_is_c_contiguous(
                     base_layout,
                     element_size_bytes,
                 ):
                     self.context.diagnostics.add(
-                        "ndarray views without explicit strides require a "
+                        "tensor views without explicit strides require a "
                         "C-contiguous base",
                         node=node,
                         code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
@@ -227,26 +209,26 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
                 expected_count = 1
                 for dim in shape:
                     expected_count *= dim
-                if expected_count != ndarray_element_count(base_layout):
+                if expected_count != tensor_element_count(base_layout):
                     self.context.diagnostics.add(
-                        "ndarray reshape views require the same element count "
+                        "tensor reshape views require the same element count "
                         "as the base",
                         node=node,
                         code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                     )
-                strides = ndarray_default_strides(shape, element_size_bytes)
+                strides = tensor_default_strides(shape, element_size_bytes)
         else:
             strides = tuple(node.strides)
 
         base_offset_bytes = (
             base_layout.offset_bytes if base_layout is not None else 0
         )
-        layout = NDArrayLayout(
+        layout = TensorLayout(
             shape=shape,
             strides=strides,
             offset_bytes=base_offset_bytes + node.offset_bytes,
         )
-        for error in validate_ndarray_layout(layout):
+        for error in validate_tensor_layout(layout):
             self.context.diagnostics.add(
                 error,
                 node=node,
@@ -254,8 +236,8 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
             )
 
         if base_layout is not None and element_size_bytes is not None:
-            base_bounds = ndarray_byte_bounds(base_layout)
-            view_bounds = ndarray_byte_bounds(layout)
+            base_bounds = tensor_byte_bounds(base_layout)
+            view_bounds = tensor_byte_bounds(layout)
             if (
                 base_bounds is not None
                 and view_bounds is not None
@@ -265,12 +247,12 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
                 )
             ):
                 self.context.diagnostics.add(
-                    "ndarray view exceeds base storage bounds",
+                    "tensor view exceeds base storage bounds",
                     node=node,
                     code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
                 )
 
-        base_flags = self._static_ndarray_flags(node.base)
+        base_flags = self._static_tensor_flags(node.base)
         if base_flags is None:
             flags = buffer_view_flags(
                 BufferOwnership.EXTERNAL_OWNER,
@@ -278,12 +260,12 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
                 c_contiguous=(
                     False
                     if element_size_bytes is None
-                    else ndarray_is_c_contiguous(layout, element_size_bytes)
+                    else tensor_is_c_contiguous(layout, element_size_bytes)
                 ),
                 f_contiguous=(
                     False
                     if element_size_bytes is None
-                    else ndarray_is_f_contiguous(layout, element_size_bytes)
+                    else tensor_is_f_contiguous(layout, element_size_bytes)
                 ),
             )
         else:
@@ -302,38 +284,38 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
                 c_contiguous=(
                     False
                     if element_size_bytes is None
-                    else ndarray_is_c_contiguous(layout, element_size_bytes)
+                    else tensor_is_c_contiguous(layout, element_size_bytes)
                 ),
                 f_contiguous=(
                     False
                     if element_size_bytes is None
-                    else ndarray_is_f_contiguous(layout, element_size_bytes)
+                    else tensor_is_f_contiguous(layout, element_size_bytes)
                 ),
             )
             if buffer_view_has_validity_bitmap(base_flags):
                 flags |= BUFFER_FLAG_VALIDITY_BITMAP
 
         if element_type is not None:
-            self._semantic(node).extras[NDARRAY_ELEMENT_TYPE_EXTRA] = (
+            self._semantic(node).extras[TENSOR_ELEMENT_TYPE_EXTRA] = (
                 element_type
             )
-            node.type_ = astx.NDArrayType(element_type)
-        self._semantic(node).extras[NDARRAY_LAYOUT_EXTRA] = layout
-        self._semantic(node).extras[NDARRAY_FLAGS_EXTRA] = flags
+            node.type_ = astx.TensorType(element_type)
+        self._semantic(node).extras[TENSOR_LAYOUT_EXTRA] = layout
+        self._semantic(node).extras[TENSOR_FLAGS_EXTRA] = flags
         self._set_type(node, node.type_)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayIndex) -> None:
+    def visit(self, node: astx.TensorIndex) -> None:
         """
-        title: Visit NDArrayIndex nodes.
+        title: Visit TensorIndex nodes.
         parameters:
           node:
-            type: astx.NDArrayIndex
+            type: astx.TensorIndex
         """
         self.visit(node.base)
         for index in node.indices:
             self.visit(index)
-        element_type = self._validate_ndarray_index_operation(
+        element_type = self._validate_tensor_index_operation(
             node=node,
             base=node.base,
             indices=node.indices,
@@ -344,18 +326,18 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
         self._set_type(node, element_type)
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayStore) -> None:
+    def visit(self, node: astx.TensorStore) -> None:
         """
-        title: Visit NDArrayStore nodes.
+        title: Visit TensorStore nodes.
         parameters:
           node:
-            type: astx.NDArrayStore
+            type: astx.TensorStore
         """
         self.visit(node.base)
         for index in node.indices:
             self.visit(index)
         self.visit(node.value)
-        element_type = self._validate_ndarray_index_operation(
+        element_type = self._validate_tensor_index_operation(
             node=node,
             base=node.base,
             indices=node.indices,
@@ -364,7 +346,7 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
         if element_type is not None:
             validate_assignment(
                 self.context.diagnostics,
-                target_name="ndarray element",
+                target_name="tensor element",
                 target_type=element_type,
                 value_type=self._expr_type(node.value),
                 node=node,
@@ -372,117 +354,117 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayNDim) -> None:
+    def visit(self, node: astx.TensorNDim) -> None:
         """
-        title: Visit NDArrayNDim nodes.
+        title: Visit TensorNDim nodes.
         parameters:
           node:
-            type: astx.NDArrayNDim
+            type: astx.TensorNDim
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray ndim requires a NDArrayType value",
+                "tensor ndim requires a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayShape) -> None:
+    def visit(self, node: astx.TensorShape) -> None:
         """
-        title: Visit NDArrayShape nodes.
+        title: Visit TensorShape nodes.
         parameters:
           node:
-            type: astx.NDArrayShape
+            type: astx.TensorShape
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray shape queries require a NDArrayType value",
+                "tensor shape queries require a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
-        layout = self._static_ndarray_layout(node.base)
+        layout = self._static_tensor_layout(node.base)
         if layout is None:
             self.context.diagnostics.add(
-                "ndarray shape queries require static layout metadata",
+                "tensor shape queries require static layout metadata",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         elif node.axis < 0 or node.axis >= layout.ndim:
             self.context.diagnostics.add(
-                "ndarray shape axis is out of bounds",
+                "tensor shape axis is out of bounds",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayStride) -> None:
+    def visit(self, node: astx.TensorStride) -> None:
         """
-        title: Visit NDArrayStride nodes.
+        title: Visit TensorStride nodes.
         parameters:
           node:
-            type: astx.NDArrayStride
+            type: astx.TensorStride
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray stride queries require a NDArrayType value",
+                "tensor stride queries require a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
-        layout = self._static_ndarray_layout(node.base)
+        layout = self._static_tensor_layout(node.base)
         if layout is None:
             self.context.diagnostics.add(
-                "ndarray stride queries require static layout metadata",
+                "tensor stride queries require static layout metadata",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         elif node.axis < 0 or node.axis >= layout.ndim:
             self.context.diagnostics.add(
-                "ndarray stride axis is out of bounds",
+                "tensor stride axis is out of bounds",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayElementCount) -> None:
+    def visit(self, node: astx.TensorElementCount) -> None:
         """
-        title: Visit NDArrayElementCount nodes.
+        title: Visit TensorElementCount nodes.
         parameters:
           node:
-            type: astx.NDArrayElementCount
+            type: astx.TensorElementCount
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray element_count requires a NDArrayType value",
+                "tensor element_count requires a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
-        if self._static_ndarray_layout(node.base) is None:
+        if self._static_tensor_layout(node.base) is None:
             self.context.diagnostics.add(
-                "ndarray element_count requires static layout metadata",
+                "tensor element_count requires static layout metadata",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayByteOffset) -> None:
+    def visit(self, node: astx.TensorByteOffset) -> None:
         """
-        title: Visit NDArrayByteOffset nodes.
+        title: Visit TensorByteOffset nodes.
         parameters:
           node:
-            type: astx.NDArrayByteOffset
+            type: astx.TensorByteOffset
         """
         self.visit(node.base)
         for index in node.indices:
             self.visit(index)
-        self._validate_ndarray_index_operation(
+        self._validate_tensor_index_operation(
             node=node,
             base=node.base,
             indices=node.indices,
@@ -491,21 +473,21 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
         self._set_type(node, astx.Int64())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayRetain) -> None:
+    def visit(self, node: astx.TensorRetain) -> None:
         """
-        title: Visit NDArrayRetain nodes.
+        title: Visit TensorRetain nodes.
         parameters:
           node:
-            type: astx.NDArrayRetain
+            type: astx.TensorRetain
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray retain requires a NDArrayType value",
+                "tensor retain requires a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
-        self._validate_ndarray_lifetime_operation(
+        self._validate_tensor_lifetime_operation(
             node=node,
             view=node.base,
             operation="retain",
@@ -513,21 +495,21 @@ class ExpressionNDArrayVisitorMixin(ExpressionArrayBufferSupportVisitorMixin):
         self._set_type(node, astx.Int32())
 
     @SemanticAnalyzerCore.visit.dispatch
-    def visit(self, node: astx.NDArrayRelease) -> None:
+    def visit(self, node: astx.TensorRelease) -> None:
         """
-        title: Visit NDArrayRelease nodes.
+        title: Visit TensorRelease nodes.
         parameters:
           node:
-            type: astx.NDArrayRelease
+            type: astx.TensorRelease
         """
         self.visit(node.base)
-        if not isinstance(self._expr_type(node.base), astx.NDArrayType):
+        if not isinstance(self._expr_type(node.base), astx.TensorType):
             self.context.diagnostics.add(
-                "ndarray release requires a NDArrayType value",
+                "tensor release requires a TensorType value",
                 node=node,
                 code=DiagnosticCodes.SEMANTIC_BUFFER_MISUSE,
             )
-        self._validate_ndarray_lifetime_operation(
+        self._validate_tensor_lifetime_operation(
             node=node,
             view=node.base,
             operation="release",

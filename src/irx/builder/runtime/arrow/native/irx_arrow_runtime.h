@@ -16,6 +16,8 @@ extern "C" {
 typedef struct irx_arrow_schema_handle irx_arrow_schema_handle;
 typedef struct irx_arrow_array_builder_handle irx_arrow_array_builder_handle;
 typedef struct irx_arrow_array_handle irx_arrow_array_handle;
+typedef struct irx_arrow_tensor_builder_handle irx_arrow_tensor_builder_handle;
+typedef struct irx_arrow_tensor_handle irx_arrow_tensor_handle;
 
 enum irx_arrow_type_id {
   IRX_ARROW_TYPE_UNKNOWN = 0,
@@ -110,6 +112,38 @@ int irx_arrow_array_borrow_buffer_view(
 
 int irx_arrow_array_retain(irx_arrow_array_handle* array);
 void irx_arrow_array_release(irx_arrow_array_handle* array);
+
+int irx_arrow_tensor_builder_new(
+    int32_t type_id,
+    int32_t ndim,
+    const int64_t* shape,
+    const int64_t* strides,
+    irx_arrow_tensor_builder_handle** out_builder);
+int irx_arrow_tensor_builder_append_int(
+    irx_arrow_tensor_builder_handle* builder,
+    int64_t value);
+int irx_arrow_tensor_builder_append_uint(
+    irx_arrow_tensor_builder_handle* builder,
+    uint64_t value);
+int irx_arrow_tensor_builder_append_double(
+    irx_arrow_tensor_builder_handle* builder,
+    double value);
+int irx_arrow_tensor_builder_finish(
+    irx_arrow_tensor_builder_handle* builder,
+    irx_arrow_tensor_handle** out_tensor);
+void irx_arrow_tensor_builder_release(
+    irx_arrow_tensor_builder_handle* builder);
+
+int32_t irx_arrow_tensor_type_id(const irx_arrow_tensor_handle* tensor);
+int32_t irx_arrow_tensor_ndim(const irx_arrow_tensor_handle* tensor);
+int64_t irx_arrow_tensor_size(const irx_arrow_tensor_handle* tensor);
+const int64_t* irx_arrow_tensor_shape(const irx_arrow_tensor_handle* tensor);
+const int64_t* irx_arrow_tensor_strides(const irx_arrow_tensor_handle* tensor);
+int irx_arrow_tensor_borrow_buffer_view(
+    const irx_arrow_tensor_handle* tensor,
+    irx_buffer_view* out_view);
+int irx_arrow_tensor_retain(irx_arrow_tensor_handle* tensor);
+void irx_arrow_tensor_release(irx_arrow_tensor_handle* tensor);
 const char* irx_arrow_last_error(void);
 
 #ifdef __cplusplus

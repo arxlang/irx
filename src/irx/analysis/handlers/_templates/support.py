@@ -192,13 +192,13 @@ class TemplateSupportVisitorMixin(SemanticVisitorMixinBase):
                 else None
             )
             return astx.BufferViewType(element_type)
-        if isinstance(type_, astx.NDArrayType):
+        if isinstance(type_, astx.TensorType):
             element_type = (
                 self._substitute_type(type_.element_type, bindings)
                 if type_.element_type is not None
                 else None
             )
-            return astx.NDArrayType(element_type)
+            return astx.TensorType(element_type)
         return clone_type(type_)
 
     def _template_bindings_map(

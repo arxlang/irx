@@ -43,8 +43,9 @@ when needed.
   assertion helper that emits machine-readable stderr reports.
 - `libm` Declares math symbols such as `sqrt` and contributes `-lm`.
 - `buffer` Declares the low-level buffer owner/view lifetime helper ABI.
-- `array` Declares the builtin array runtime surface and links the Arrow-backed
-  native implementation.
+- `array` Declares the builtin one-dimensional Arrow array runtime surface.
+- `tensor` Declares the builtin homogeneous N-dimensional Arrow tensor runtime
+  surface.
 - `list` Declares the minimal dynamic-list runtime used by `ListCreate`,
   `ListAppend`, and lowered list indexing.
 
@@ -157,17 +158,18 @@ Current array substrate:
 - Python `nanoarrow` dependency installed by default in IRx
 - `nanoarrow` used internally for schema/array helpers and validation
 
-Current initial NDArray layer on top of that substrate:
+Current initial Tensor layer alongside that substrate:
 
-- ndarray values lower through the same `irx_buffer_view` descriptor used by the
-  low-level buffer/view model
-- ndarray construction uses Arrow-backed array storage plus a buffer-owner
-  bridge so the view can manage Arrow-backed lifetime explicitly
+- tensor values are created through `irx_arrow_tensor_*` runtime symbols
+- tensor construction stores homogeneous fixed-width values with Arrow-style
+  dtype, shape, and stride metadata
+- tensor values lower through the same `irx_buffer_view` descriptor used by the
+  low-level buffer/view model for indexing and lifetime management
 - indexing and byte-offset calculation reuse descriptor `shape`, `strides`, and
   `offset_bytes`
-- shallow ndarray views may replace shape/stride/offset metadata without
-  creating a second storage runtime
-- current ndarray lowering supports fixed-width numeric element types only
+- shallow tensor views may replace shape/stride/offset metadata without copying
+  storage
+- current tensor lowering supports fixed-width numeric element types only
 
 What IRx does not do here:
 
@@ -242,12 +244,14 @@ The buffer bridge is intentionally conservative:
 - borrowed views use a null owner handle, so the caller must keep the Arrow
   array handle alive explicitly
 
-The NDArray layer builds on top of this bridge rather than bypassing it:
+The Tensor layer uses its own Arrow tensor runtime and then projects tensors
+through the canonical buffer/view descriptor:
 
-- fresh ndarray literals allocate Arrow-backed storage, then wrap that storage
-  in an external-owner `irx_buffer_view`
-- ndarray views stay shallow and metadata-driven
-- readonly semantics are preserved for Arrow-backed NDArrays in this phase
+- fresh tensor literals allocate Arrow tensor handles, then wrap borrowed tensor
+  buffers in external-owner `irx_buffer_view` values
+- tensor views stay shallow and metadata-driven
+- readonly semantics are preserved for Arrow-backed `Tensor` values in this
+  phase
 
 ## Nanoarrow
 
@@ -292,6 +296,7 @@ Implemented in this phase:
 - `libc` routed through the new feature system
 - low-level `buffer` runtime feature for owner/view retain-release helpers
 - builtin array runtime feature with packaged nanoarrow sources
+- builtin tensor runtime feature with Arrow tensor-style handles
 - Python `nanoarrow` dependency and direct interop tests
 - centralized Arrow runtime symbol declarations
 - one internal array lowering path: `irx.astx.ArrayInt32ArrayLength`

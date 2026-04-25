@@ -291,30 +291,33 @@ For-in lowering calls the resume function until it reports exhaustion. More
 Python-compatible behavior such as nested-control-flow suspension, `yield from`,
 generator expressions, `send`, `throw`, and `close` remains deferred.
 
-## NDArray Layering
+## Tensor Layering
 
-IRx now treats NDArray support as a distinct semantic layer built on two
-existing foundations:
+IRx now treats `Tensor` support as a distinct semantic layer aligned with Apache
+Arrow's homogeneous tensor model:
 
-- the builtin Arrow-backed array runtime provides storage and backend
-  interoperability
-- the canonical `irx_buffer_view` substrate provides rank, shape, strides,
-  offset, and layout flags
+- the builtin Arrow-backed tensor runtime provides dtype, shape, stride, and
+  data-buffer ownership for homogeneous N-dimensional values
+- the canonical `irx_buffer_view` substrate remains the lowering descriptor for
+  indexing, byte-offset calculation, ownership, and layout flags
 
-That split keeps high-level naming backend-neutral:
+That split keeps the data-container roles explicit:
 
-- `array` remains the storage/runtime-oriented abstraction
+- `tensor` is the homogeneous N-dimensional semantic abstraction
+- `array` remains the one-dimensional Arrow array/runtime abstraction for
+  column-like values and future `Series` work
+- future `DataFrame` support should wrap heterogeneous named columns backed by
+  Arrow table-style storage
 - `buffer/view` remains the low-level layout and ownership substrate
-- `ndarray` is the multidimensional semantic abstraction layered on top
 
-Current ndarray lowering stays intentionally conservative:
+Current tensor lowering stays intentionally conservative:
 
-- literals build flat Arrow arrays, then wrap them in external-owner buffer
-  views
+- literals build Arrow tensor handles through `irx_arrow_tensor_*`, then wrap
+  borrowed tensor buffers in external-owner buffer views
 - indexing and byte-offset queries reuse buffer/view stride arithmetic
 - view construction is shallow and metadata-driven
 - fixed-width numeric element types are supported in this phase
-- Arrow-backed NDArrays remain readonly in this phase
+- Arrow-backed `Tensor` values remain readonly in this phase
 
 ## Why `visit(...)` Remains the Public Lowering Boundary
 

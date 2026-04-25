@@ -2,7 +2,7 @@
 title: Shared primitive array storage metadata.
 summary: >-
   Define stable primitive type metadata shared by the builtin Arrow-backed
-  array runtime and higher-level NDArray helpers.
+  array runtime and higher-level Tensor helpers.
 """
 
 from __future__ import annotations

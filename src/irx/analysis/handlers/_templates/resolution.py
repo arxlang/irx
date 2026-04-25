@@ -115,9 +115,9 @@ class TemplateResolutionVisitorMixin(TemplateBuildVisitorMixin):
                 node=node,
                 diagnose=diagnose,
             )
-        if isinstance(expected_type, astx.NDArrayType) and isinstance(
+        if isinstance(expected_type, astx.TensorType) and isinstance(
             actual_type,
-            astx.NDArrayType,
+            astx.TensorType,
         ):
             if (
                 expected_type.element_type is None

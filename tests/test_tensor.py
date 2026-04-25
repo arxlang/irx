@@ -1,5 +1,5 @@
 """
-title: Tests for the IRx NDArray layer.
+title: Tests for the IRx Tensor layer.
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from irx import astx
 from irx.analysis import SemanticError, analyze
 from irx.buffer import buffer_dtype_handle
 from irx.builder import Builder
-from irx.builtins.collections.array import (
-    ndarray_element_size_bytes_from_dtype,
+from irx.builtins.collections.tensor import (
+    tensor_element_size_bytes_from_dtype,
 )
 
 from tests.conftest import assert_ir_parses, build_and_run
@@ -46,15 +46,15 @@ def _module_with_main(*nodes: astx.AST) -> astx.Module:
     return module
 
 
-def _int32_ndarray(
+def _int32_tensor(
     values: list[int],
     *,
     shape: tuple[int, ...],
     strides: tuple[int, ...] | None = None,
     offset_bytes: int = 0,
-) -> astx.NDArrayLiteral:
+) -> astx.TensorLiteral:
     """
-    title: Build one int32 NDArray literal node.
+    title: Build one int32 Tensor literal node.
     parameters:
       values:
         type: list[int]
@@ -65,9 +65,9 @@ def _int32_ndarray(
       offset_bytes:
         type: int
     returns:
-      type: astx.NDArrayLiteral
+      type: astx.TensorLiteral
     """
-    return astx.NDArrayLiteral(
+    return astx.TensorLiteral(
         [astx.LiteralInt32(value) for value in values],
         element_type=astx.Int32(),
         shape=shape,
@@ -76,15 +76,15 @@ def _int32_ndarray(
     )
 
 
-def test_ndarray_literal_get_struct_shapes() -> None:
+def test_tensor_literal_get_struct_shapes() -> None:
     """
-    title: NDArray literal get_struct should expose shape and stride metadata.
+    title: Tensor literal get_struct should expose shape and stride metadata.
     """
-    node = _int32_ndarray([1, 2, 3, 4], shape=(2, 2), strides=(8, 4))
+    node = _int32_tensor([1, 2, 3, 4], shape=(2, 2), strides=(8, 4))
 
     full = node.get_struct()
     assert isinstance(full, dict)
-    full_entry = cast(dict[str, Any], full["NDArrayLiteral"])
+    full_entry = cast(dict[str, Any], full["TensorLiteral"])
     entry = cast(dict[str, Any], full_entry["content"])
     assert entry["shape"] == [2, 2]
     assert entry["strides"] == [8, 4]
@@ -92,13 +92,13 @@ def test_ndarray_literal_get_struct_shapes() -> None:
 
     simplified = node.get_struct(simplified=True)
     assert isinstance(simplified, dict)
-    simplified_entry = cast(dict[str, Any], simplified["NDArrayLiteral"])
+    simplified_entry = cast(dict[str, Any], simplified["TensorLiteral"])
     assert simplified_entry["shape"] == [2, 2]
 
 
-def test_ndarray_element_size_uses_shared_dtype_metadata() -> None:
+def test_tensor_element_size_uses_shared_dtype_metadata() -> None:
     """
-    title: NDArray dtype sizes should come from shared primitive metadata.
+    title: Tensor dtype sizes should come from shared primitive metadata.
     """
     int32_dtype = buffer_dtype_handle("int32")
     float64_dtype = buffer_dtype_handle("float64")
@@ -106,19 +106,19 @@ def test_ndarray_element_size_uses_shared_dtype_metadata() -> None:
     int32_size = 4
     float64_size = 8
 
-    assert ndarray_element_size_bytes_from_dtype(int32_dtype) == int32_size
-    assert ndarray_element_size_bytes_from_dtype(float64_dtype) == float64_size
-    assert ndarray_element_size_bytes_from_dtype(bool_dtype) is None
+    assert tensor_element_size_bytes_from_dtype(int32_dtype) == int32_size
+    assert tensor_element_size_bytes_from_dtype(float64_dtype) == float64_size
+    assert tensor_element_size_bytes_from_dtype(bool_dtype) is None
 
 
-def test_ndarray_rejects_bool_elements() -> None:
+def test_tensor_rejects_bool_elements() -> None:
     """
-    title: Bool NDArrays should fail semantic analysis in this phase.
+    title: Bool Tensors should fail semantic analysis in this phase.
     """
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NDArrayNDim(
-                astx.NDArrayLiteral(
+            astx.TensorNDim(
+                astx.TensorLiteral(
                     [astx.LiteralBoolean(True), astx.LiteralBoolean(False)],
                     element_type=astx.Boolean(),
                     shape=(2,),
@@ -127,18 +127,18 @@ def test_ndarray_rejects_bool_elements() -> None:
         )
     )
 
-    with pytest.raises(SemanticError, match="bool ndarrays are not supported"):
+    with pytest.raises(SemanticError, match="bool tensors are not supported"):
         analyze(module)
 
 
-def test_ndarray_rejects_wrong_static_rank_index_count() -> None:
+def test_tensor_rejects_wrong_static_rank_index_count() -> None:
     """
-    title: NDArray indexing should validate static rank against index arity.
+    title: Tensor indexing should validate static rank against index arity.
     """
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NDArrayIndex(
-                _int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
+            astx.TensorIndex(
+                _int32_tensor([1, 2, 3, 4], shape=(2, 2)),
                 [astx.LiteralInt32(0)],
             )
         )
@@ -148,40 +148,40 @@ def test_ndarray_rejects_wrong_static_rank_index_count() -> None:
         analyze(module)
 
 
-def test_ndarray_store_rejects_arrow_backed_readonly_values() -> None:
+def test_tensor_store_rejects_arrow_backed_readonly_values() -> None:
     """
-    title: Arrow-backed NDArray literals should remain readonly in this phase.
+    title: Arrow-backed Tensor literals should remain readonly in this phase.
     """
     module = _module_with_main(
-        astx.NDArrayStore(
-            _int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
+        astx.TensorStore(
+            _int32_tensor([1, 2, 3, 4], shape=(2, 2)),
             [astx.LiteralInt32(0), astx.LiteralInt32(1)],
             astx.LiteralInt32(99),
         )
     )
 
-    with pytest.raises(SemanticError, match="readonly ndarray view"):
+    with pytest.raises(SemanticError, match="readonly tensor view"):
         analyze(module)
 
 
-def test_ndarray_literal_lowers_through_array_runtime_and_owner_bridge() -> (
+def test_tensor_literal_lowers_through_tensor_runtime_and_owner_bridge() -> (
     None
 ):
     """
     title: >-
-      NDArray literals should use Arrow storage plus a buffer-owner bridge.
+      Tensor literals should use the Arrow tensor runtime plus an owner bridge.
     """
     builder = Builder()
     module = _module_with_main(
         astx.VariableDeclaration(
-            name="arr",
-            type_=astx.NDArrayType(astx.Int32()),
+            name="tensor",
+            type_=astx.TensorType(astx.Int32()),
             mutability=astx.MutabilityKind.mutable,
-            value=_int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
+            value=_int32_tensor([1, 2, 3, 4], shape=(2, 2)),
         ),
         astx.FunctionReturn(
-            astx.NDArrayIndex(
-                astx.Identifier("arr"),
+            astx.TensorIndex(
+                astx.Identifier("tensor"),
                 [astx.LiteralInt32(1), astx.LiteralInt32(1)],
             )
         ),
@@ -189,29 +189,29 @@ def test_ndarray_literal_lowers_through_array_runtime_and_owner_bridge() -> (
 
     ir_text = builder.translate(module)
 
-    assert '@"irx_arrow_array_builder_new"' in ir_text
-    assert '@"irx_arrow_array_borrow_buffer_view"' in ir_text
+    assert '@"irx_arrow_tensor_builder_new"' in ir_text
+    assert '@"irx_arrow_tensor_borrow_buffer_view"' in ir_text
     assert '@"irx_buffer_owner_external_new"' in ir_text
-    assert "irx_ndarray_shape" in ir_text
-    assert "irx_ndarray_stride" in ir_text
-    assert "irx_ndarray_index_load" in ir_text
+    assert "irx_tensor_shape" in ir_text
+    assert "irx_tensor_stride" in ir_text
+    assert "irx_tensor_index_load" in ir_text
     assert_ir_parses(ir_text)
 
 
-def test_ndarray_view_lowers_custom_shape_stride_and_offset() -> None:
+def test_tensor_view_lowers_custom_shape_stride_and_offset() -> None:
     """
-    title: NDArray views should lower with explicit shape, stride, and offset.
+    title: Tensor views should lower with explicit shape, stride, and offset.
     """
     builder = Builder()
-    view = astx.NDArrayView(
-        _int32_ndarray([10, 20, 30, 40, 50, 60], shape=(2, 3)),
+    view = astx.TensorView(
+        _int32_tensor([10, 20, 30, 40, 50, 60], shape=(2, 3)),
         shape=(2, 2),
         strides=(12, 4),
         offset_bytes=4,
     )
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NDArrayIndex(
+            astx.TensorIndex(
                 view,
                 [astx.LiteralInt32(1), astx.LiteralInt32(0)],
             )
@@ -220,54 +220,51 @@ def test_ndarray_view_lowers_custom_shape_stride_and_offset() -> None:
 
     ir_text = builder.translate(module)
 
+    assert "irx_tensor_shape_ptr" in ir_text or "irx_tensor_shape_" in ir_text
     assert (
-        "irx_ndarray_shape_ptr" in ir_text or "irx_ndarray_shape_" in ir_text
-    )
-    assert (
-        "irx_ndarray_stride_ptr" in ir_text
-        or "irx_ndarray_strides_" in ir_text
+        "irx_tensor_stride_ptr" in ir_text or "irx_tensor_strides_" in ir_text
     )
     assert "irx_buffer_index_stride_0" in ir_text
     assert "irx_buffer_index_stride_1" in ir_text
     assert (
-        "irx_ndarray_offset_bytes" in ir_text
+        "irx_tensor_offset_bytes" in ir_text
         or "irx_buffer_index_offset_1" in ir_text
     )
     assert_ir_parses(ir_text)
 
 
-def test_ndarray_queries_lower_to_shape_stride_metadata() -> None:
+def test_tensor_queries_lower_to_shape_stride_metadata() -> None:
     """
-    title: NDArray queries should lower to rank, shape, and stride metadata.
+    title: Tensor queries should lower to rank, shape, and stride metadata.
     """
     builder = Builder()
     module = _module_with_main(
         astx.VariableDeclaration(
-            name="arr",
-            type_=astx.NDArrayType(astx.Int32()),
+            name="tensor",
+            type_=astx.TensorType(astx.Int32()),
             mutability=astx.MutabilityKind.mutable,
-            value=_int32_ndarray([1, 2, 3, 4], shape=(2, 2)),
+            value=_int32_tensor([1, 2, 3, 4], shape=(2, 2)),
         ),
-        astx.FunctionReturn(astx.NDArrayNDim(astx.Identifier("arr"))),
+        astx.FunctionReturn(astx.TensorNDim(astx.Identifier("tensor"))),
     )
 
     ir_text = builder.translate(module)
 
-    assert "irx_ndarray_ndim" in ir_text
+    assert "irx_tensor_ndim" in ir_text
     assert_ir_parses(ir_text)
 
 
-def test_ndarray_build_returns_indexed_element() -> None:
+def test_tensor_build_returns_indexed_element() -> None:
     """
-    title: Built NDArray programs should return indexed element values.
+    title: Built Tensor programs should return indexed element values.
     """
     if shutil.which("clang") is None:
         pytest.skip("builder.build() currently requires clang")
 
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NDArrayIndex(
-                _int32_ndarray([1, 2, 3, 4, 5, 6], shape=(2, 3)),
+            astx.TensorIndex(
+                _int32_tensor([1, 2, 3, 4, 5, 6], shape=(2, 3)),
                 [astx.LiteralInt32(1), astx.LiteralInt32(2)],
             )
         )
@@ -279,22 +276,22 @@ def test_ndarray_build_returns_indexed_element() -> None:
     assert result.returncode == expected, result.stderr or result.stdout
 
 
-def test_ndarray_view_build_returns_view_element() -> None:
+def test_tensor_view_build_returns_view_element() -> None:
     """
-    title: Built NDArray views should return values through view metadata.
+    title: Built Tensor views should return values through view metadata.
     """
     if shutil.which("clang") is None:
         pytest.skip("builder.build() currently requires clang")
 
-    view = astx.NDArrayView(
-        _int32_ndarray([10, 20, 30, 40, 50, 60], shape=(2, 3)),
+    view = astx.TensorView(
+        _int32_tensor([10, 20, 30, 40, 50, 60], shape=(2, 3)),
         shape=(2, 2),
         strides=(12, 4),
         offset_bytes=4,
     )
     module = _module_with_main(
         astx.FunctionReturn(
-            astx.NDArrayIndex(
+            astx.TensorIndex(
                 view,
                 [astx.LiteralInt32(1), astx.LiteralInt32(0)],
             )
