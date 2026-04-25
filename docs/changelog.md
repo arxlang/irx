@@ -1,6 +1,19 @@
 # Release Notes
 ---
 
+# [1.17.0](https://github.com/arxlang/irx/compare/1.16.0...1.17.0) (2026-04-25)
+
+
+### Features
+
+* Add support for common collection functions ([#312](https://github.com/arxlang/irx/issues/312)) ([26e6b5d](https://github.com/arxlang/irx/commit/26e6b5d37d5faf94ab9f3a78d06eb7fdb9d5a4dc))
+* Add support for context manager (with) ([#311](https://github.com/arxlang/irx/issues/311)) ([a1f5e63](https://github.com/arxlang/irx/commit/a1f5e6315f8a93f710679adbc85917b79fdc695c))
+* Add support for default arguments ([#309](https://github.com/arxlang/irx/issues/309)) ([1e2331d](https://github.com/arxlang/irx/commit/1e2331d08700643fcd30a40ff0b8fa0d70c20efe))
+* Add support for generators ([#313](https://github.com/arxlang/irx/issues/313)) ([64df6d2](https://github.com/arxlang/irx/commit/64df6d2a805414f40d56019faf40752404439697))
+* Define iterables ([#310](https://github.com/arxlang/irx/issues/310)) ([0d002be](https://github.com/arxlang/irx/commit/0d002bef00f2f18da5fe804fc0660f1f5e88d0b3))
+* Implement class abastraction ([#314](https://github.com/arxlang/irx/issues/314)) ([68422c0](https://github.com/arxlang/irx/commit/68422c02196578e5a85429ce4d463bad0c13e55e))
+* Improve collections ([#307](https://github.com/arxlang/irx/issues/307)) ([1125f47](https://github.com/arxlang/irx/commit/1125f47ed1cd16b677c3807eb9536448018cc09f))
+
 # [1.16.0](https://github.com/arxlang/irx/compare/1.15.0...1.16.0) (2026-04-23)
 
 
