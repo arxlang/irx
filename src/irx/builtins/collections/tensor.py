@@ -2,7 +2,7 @@
 title: Tensor layout helpers layered on the builtin tensor runtime.
 summary: >-
   Define IRx's backend-neutral Tensor metadata helpers on top of the canonical
-  buffer/view substrate and the Arrow-backed tensor runtime.
+  buffer/view substrate and the Arrow C++ backed tensor runtime.
 """
 
 from __future__ import annotations

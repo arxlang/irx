@@ -10,8 +10,8 @@ ABI data without baking array-library behavior into IRx.
 
 IRx's Tensor layer now uses this substrate directly:
 
-- Arrow-backed tensor storage remains the source of physical data buffers for
-  Tensor values
+- Arrow C++ backed tensor storage remains the source of physical data buffers
+  for Tensor values
 - tensor metadata is expressed through `shape`, `strides`, `offset_bytes`, and
   flags on `irx_buffer_view`
 - tensor semantics stay above this layer; the buffer/view descriptor itself

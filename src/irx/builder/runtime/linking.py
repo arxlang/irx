@@ -5,6 +5,7 @@ title: Conditional native linking helpers for runtime features.
 from __future__ import annotations
 
 import hashlib
+import shutil
 import subprocess
 
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ def compile_native_artifacts(
     artifacts: Sequence[NativeArtifact],
     build_dir: Path,
     clang_binary: str = "clang",
+    cxx_binary: str = "c++",
 ) -> NativeLinkInputs:
     """
     title: Compile or collect native artifacts for linking.
@@ -55,6 +57,8 @@ def compile_native_artifacts(
       build_dir:
         type: Path
       clang_binary:
+        type: str
+      cxx_binary:
         type: str
     returns:
       type: NativeLinkInputs
@@ -66,10 +70,20 @@ def compile_native_artifacts(
         linker_flags.extend(artifact.link_flags)
         if artifact.kind == "c_source":
             objects.append(
-                _compile_c_source(
+                _compile_native_source(
                     artifact=artifact,
                     build_dir=build_dir,
-                    clang_binary=clang_binary,
+                    compiler_binary=clang_binary,
+                )
+            )
+            continue
+
+        if artifact.kind == "cxx_source":
+            objects.append(
+                _compile_native_source(
+                    artifact=artifact,
+                    build_dir=build_dir,
+                    compiler_binary=_resolve_cxx_binary(cxx_binary),
                 )
             )
             continue
@@ -87,7 +101,7 @@ def compile_native_artifacts(
                 code=DiagnosticCodes.RUNTIME_ARTIFACT_KIND_INVALID,
                 phase="runtime",
                 notes=(
-                    "supported artifact kinds: c_source, object, "
+                    "supported artifact kinds: c_source, cxx_source, object, "
                     "static_library",
                 ),
             )
@@ -103,6 +117,7 @@ def link_executable(
     artifacts: Sequence[NativeArtifact],
     linker_flags: Sequence[str] = (),
     clang_binary: str = "clang",
+    cxx_binary: str = "c++",
 ) -> None:
     """
     title: Link the main object file plus optional runtime artifacts.
@@ -117,15 +132,23 @@ def link_executable(
         type: Sequence[str]
       clang_binary:
         type: str
+      cxx_binary:
+        type: str
     """
     build_dir = primary_object.parent
     link_inputs = compile_native_artifacts(
         artifacts=artifacts,
         build_dir=build_dir,
         clang_binary=clang_binary,
+        cxx_binary=cxx_binary,
     )
 
-    command = [clang_binary, str(primary_object)]
+    linker_binary = (
+        _resolve_cxx_binary(cxx_binary)
+        if _has_cxx_artifacts(artifacts)
+        else clang_binary
+    )
+    command = [linker_binary, str(primary_object)]
     command.extend(str(obj) for obj in link_inputs.objects)
     command.extend(link_inputs.linker_flags)
     command.extend(linker_flags)
@@ -139,26 +162,26 @@ def link_executable(
         notes=(f"output path: {output_file}",),
         hint=(
             "install clang or pass a valid clang_binary value"
-            if clang_binary == "clang"
+            if linker_binary == "clang"
             else None
         ),
     )
 
 
 @typechecked
-def _compile_c_source(
+def _compile_native_source(
     artifact: NativeArtifact,
     build_dir: Path,
-    clang_binary: str,
+    compiler_binary: str,
 ) -> Path:
     """
-    title: Compile c source.
+    title: Compile native source.
     parameters:
       artifact:
         type: NativeArtifact
       build_dir:
         type: Path
-      clang_binary:
+      compiler_binary:
         type: str
     returns:
       type: Path
@@ -167,7 +190,7 @@ def _compile_c_source(
     object_path = build_dir / f"{artifact.path.stem}_{digest}.o"
 
     command = [
-        clang_binary,
+        compiler_binary,
         "-c",
         str(artifact.path),
         "-o",
@@ -189,12 +212,42 @@ def _compile_c_source(
         ),
         notes=(f"object path: {object_path}",),
         hint=(
-            "install clang or pass a valid clang_binary value"
-            if clang_binary == "clang"
+            "install a native compiler or pass a valid compiler value"
+            if compiler_binary in {"clang", "c++"}
             else None
         ),
     )
     return object_path
+
+
+@typechecked
+def _has_cxx_artifacts(artifacts: Sequence[NativeArtifact]) -> bool:
+    """
+    title: Return whether any artifact requires a C++ linker.
+    parameters:
+      artifacts:
+        type: Sequence[NativeArtifact]
+    returns:
+      type: bool
+    """
+    return any(artifact.kind == "cxx_source" for artifact in artifacts)
+
+
+@typechecked
+def _resolve_cxx_binary(cxx_binary: str) -> str:
+    """
+    title: Resolve the C++ compiler command.
+    parameters:
+      cxx_binary:
+        type: str
+    returns:
+      type: str
+    """
+    if shutil.which(cxx_binary) is not None:
+        return cxx_binary
+    if shutil.which("clang++") is not None:
+        return "clang++"
+    return cxx_binary
 
 
 @typechecked

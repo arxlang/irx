@@ -1,7 +1,8 @@
 """
 title: IRx-owned array AST nodes.
 summary: >-
-  Provide internal nodes for the Arrow-backed one-dimensional array runtime.
+  Provide internal nodes for the Arrow C++ backed one-dimensional array
+  runtime.
 """
 
 from __future__ import annotations
