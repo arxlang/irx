@@ -217,11 +217,7 @@
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/array_buffer_support/</loc>
-         <lastmod>2026-04-25</lastmod>
-    </url>
-    <url>
-         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/arrays_buffers/</loc>
+         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/arrays/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
@@ -253,11 +249,19 @@
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/ndarrays/</loc>
+         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/operators/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/operators/</loc>
+         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/tensor_buffer_support/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/tensors/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/analysis/handlers/_expressions/tensors_buffers/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
@@ -334,6 +338,10 @@
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/astx/templates/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/astx/tensor/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
@@ -465,6 +473,10 @@
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
+         <loc>https://irx.arxlang.org/api/builder/lowering/tensor/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
          <loc>https://irx.arxlang.org/api/builder/lowering/unary_ops/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
@@ -474,6 +486,10 @@
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builder/runtime/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builder/runtime/arrowcpp/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
@@ -533,6 +549,14 @@
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
+         <loc>https://irx.arxlang.org/api/builder/runtime/tensor/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builder/runtime/tensor/feature/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
          <loc>https://irx.arxlang.org/api/builtins/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
@@ -541,15 +565,15 @@
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
-         <loc>https://irx.arxlang.org/api/builtins/collections/array/</loc>
-         <lastmod>2026-04-25</lastmod>
-    </url>
-    <url>
          <loc>https://irx.arxlang.org/api/builtins/collections/array_primitives/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
          <loc>https://irx.arxlang.org/api/builtins/collections/list/</loc>
+         <lastmod>2026-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://irx.arxlang.org/api/builtins/collections/tensor/</loc>
          <lastmod>2026-04-25</lastmod>
     </url>
     <url>
