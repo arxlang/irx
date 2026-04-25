@@ -214,8 +214,8 @@ IRx now has a generic runtime-feature system for native integrations that do not
 belong as handwritten LLVM container logic.
 
 - Features are registered by name, such as `libc`, `libm`, and `array`.
-- Features can declare external symbols, native C sources, objects, or static
-  libraries.
+- Features can declare external symbols, native C/C++ sources, objects, or
+  static libraries.
 - The linker only compiles and links artifacts for features that are active in
   the current compilation unit.
 - This is intentionally separate from any future Arx import/module layer.
@@ -231,7 +231,7 @@ Public extern declarations integrate with the same layer:
 The builtin array runtime uses this path as its first substantial consumer:
 
 - canonical Python exports under `src/irx/builder/runtime/array/`
-- native runtime implemented in C under `src/irx/builder/runtime/arrow/`
+- native runtime implemented in C++ under `src/irx/builder/runtime/arrow/`
 - opaque `irx_arrow_*` handles for schemas, builders, and arrays
 - Arrow C Data import/export boundary with explicit copy and move/adopt import
   modes
@@ -239,8 +239,9 @@ The builtin array runtime uses this path as its first substantial consumer:
   `uint16`, `uint32`, `uint64`, `float32`, `float64`, and `bool`
 - explicit Arrow-side nullability inspection plus a readonly value-buffer bridge
   into the generic `irx_buffer_view` substrate for fixed-width numeric arrays
-- Python `nanoarrow` installed by default for interop and tests
-- `arx-nanoarrow-sources` installed by default for native runtime builds
+- Python `pyarrow` installed by default for Arrow C Data interop and linking
+- `arx-arrowcpp-sources` installed by default for Arrow C++ headers/source
+  metadata used by native runtime builds
 
 The builtin array layer remains intentionally low-level: handles, lifecycle,
 inspection, C Data interop, and a conservative buffer/view bridge. Arrow stays
@@ -250,13 +251,14 @@ dataframe semantics, query/table APIs, or direct Arrow containers in LLVM IR.
 Alongside that one-dimensional array substrate, IRx now exposes an initial
 internal `Tensor` layer for homogeneous N-dimensional values:
 
-- tensor literals use the Arrow-backed tensor runtime (`irx_arrow_tensor_*`)
-- tensor layout follows Arrow-style dtype, shape, and stride metadata while
+- tensor literals use the Arrow C++ backed tensor runtime (`irx_arrow_tensor_*`)
+  backed by `arrow::Tensor`
+- tensor layout follows Arrow C++ dtype, shape, and stride metadata while
   lowering through the canonical `irx_buffer_view` descriptor for indexing
 - tensor lowering adds rank, shape, stride, offset, indexing, and shallow view
   semantics without introducing a second memory model
 - current `Tensor` support in this initial phase is limited to fixed-width
-  numeric element types and readonly Arrow-backed storage
+  numeric element types and readonly Arrow C++ backed storage
 
 ## Scalar Numeric Semantics
 

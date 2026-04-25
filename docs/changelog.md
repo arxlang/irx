@@ -7,6 +7,7 @@
 ### Features
 
 * Add support for common collection functions ([#312](https://github.com/arxlang/irx/issues/312)) ([26e6b5d](https://github.com/arxlang/irx/commit/26e6b5d37d5faf94ab9f3a78d06eb7fdb9d5a4dc))
+* Migrate builtin Arrow containers to the Arrow C++ runtime backend
 * Add support for context manager (with) ([#311](https://github.com/arxlang/irx/issues/311)) ([a1f5e63](https://github.com/arxlang/irx/commit/a1f5e6315f8a93f710679adbc85917b79fdc695c))
 * Add support for default arguments ([#309](https://github.com/arxlang/irx/issues/309)) ([1e2331d](https://github.com/arxlang/irx/commit/1e2331d08700643fcd30a40ff0b8fa0d70c20efe))
 * Add support for generators ([#313](https://github.com/arxlang/irx/issues/313)) ([64df6d2](https://github.com/arxlang/irx/commit/64df6d2a805414f40d56019faf40752404439697))

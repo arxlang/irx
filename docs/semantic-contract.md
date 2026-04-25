@@ -506,8 +506,8 @@ The public FFI layer accepts a validated subset of IRx structs:
 - an extern with `runtime_feature` / `runtime_features` still emits one semantic
   extern declaration, but it also activates the named runtime feature set for
   that compilation unit
-- runtime features remain the only place where IRx packages native C sources,
-  objects, static libraries, or linker flags
+- runtime features remain the only place where IRx packages native C/C++
+  sources, objects, static libraries, or linker flags
 - duplicate extern declarations with incompatible ABI or runtime-feature meaning
   are rejected semantically
 - duplicate source-level declarations or duplicate `symbol_name` aliases must be
@@ -810,14 +810,14 @@ Arrow-specific. It is not a first-class language container model.
 IRx also now exposes an initial internal `Tensor` layer alongside that
 one-dimensional array runtime:
 
-- tensor storage comes from Arrow tensor-style handles under
+- tensor storage comes from Arrow C++ `arrow::Tensor` handles under
   `irx_arrow_tensor_*`
 - tensor layout follows homogeneous dtype, shape, and stride metadata and lowers
   through the canonical `irx_buffer_view` descriptor for indexing
 - tensor indexing and view construction reuse explicit `shape`, `strides`, and
   `offset_bytes` metadata
 - current `Tensor` support in this initial phase is limited to fixed-width
-  numeric element types and readonly Arrow-backed storage
+  numeric element types and readonly Arrow C++ backed storage
 
 Stable scope in this phase:
 

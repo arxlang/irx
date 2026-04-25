@@ -1,7 +1,7 @@
 """
 title: IRx-owned Tensor AST nodes.
 summary: >-
-  Provide internal nodes for the Arrow-backed tensor runtime, aligned with
+  Provide internal nodes for the Arrow C++ backed tensor runtime, aligned with
   Apache Arrow's homogeneous N-dimensional tensor model.
 """
 
@@ -55,10 +55,10 @@ class TensorType(AnyType):
 @typechecked
 class TensorLiteral(astx.base.DataType):
     """
-    title: Internal Arrow-backed Tensor literal node.
+    title: Internal Arrow C++ backed Tensor literal node.
     summary: >-
-      Build one Arrow tensor-style value from scalar values plus shape and
-      stride metadata.
+      Build one Arrow C++ tensor value from scalar values plus shape and stride
+      metadata.
     attributes:
       values:
         type: list[astx.AST]
@@ -274,9 +274,9 @@ class TensorStore(astx.base.DataType):
     """
     title: Internal Tensor indexed store.
     summary: >-
-      Stores one scalar through tensor shape and stride metadata. Arrow-backed
-      tensors remain readonly in this phase, but the node keeps the surface
-      aligned with future writable views.
+      Stores one scalar through tensor shape and stride metadata. Arrow C++
+      backed tensors remain readonly in this phase, but the node keeps the
+      surface aligned with future writable views.
     attributes:
       base:
         type: astx.AST

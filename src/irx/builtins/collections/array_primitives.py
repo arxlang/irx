@@ -1,7 +1,7 @@
 """
 title: Shared primitive array storage metadata.
 summary: >-
-  Define stable primitive type metadata shared by the builtin Arrow-backed
+  Define stable primitive type metadata shared by the builtin Arrow C++ backed
   array runtime and higher-level Tensor helpers.
 """
 

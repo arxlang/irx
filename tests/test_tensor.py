@@ -148,9 +148,9 @@ def test_tensor_rejects_wrong_static_rank_index_count() -> None:
         analyze(module)
 
 
-def test_tensor_store_rejects_arrow_backed_readonly_values() -> None:
+def test_tensor_store_rejects_arrow_cpp_readonly_values() -> None:
     """
-    title: Arrow-backed Tensor literals should remain readonly in this phase.
+    title: Arrow C++ backed Tensor literals remain readonly in this phase.
     """
     module = _module_with_main(
         astx.TensorStore(

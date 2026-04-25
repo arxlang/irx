@@ -15,7 +15,9 @@ from irx.typecheck import typechecked
 if TYPE_CHECKING:
     from irx.builder.protocols import VisitorProtocol
 
-NativeArtifactKind = Literal["c_source", "object", "static_library"]
+NativeArtifactKind = Literal[
+    "c_source", "cxx_source", "object", "static_library"
+]
 if TYPE_CHECKING:
     RuntimeSymbolFactory: TypeAlias = Callable[[VisitorProtocol], ir.Function]
 else:

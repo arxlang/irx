@@ -16,10 +16,15 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TypedDict, cast
 
-import nanoarrow
+import pyarrow as pa
 import pytest
 
-from arx_nanoarrow_sources import get_include_dir, get_source_files
+from arx_arrowcpp_sources import (
+    bundled_arrowcpp_version,
+)
+from arx_arrowcpp_sources import (
+    get_include_dir as get_arrowcpp_include_dir,
+)
 from irx import astx
 from irx.buffer import (
     BUFFER_DTYPE_BOOL,
@@ -27,6 +32,7 @@ from irx.buffer import (
     BUFFER_DTYPE_UINT64,
     BUFFER_FLAG_BORROWED,
     BUFFER_FLAG_C_CONTIGUOUS,
+    BUFFER_FLAG_F_CONTIGUOUS,
     BUFFER_FLAG_READONLY,
     BUFFER_FLAG_VALIDITY_BITMAP,
 )
@@ -51,9 +57,6 @@ from irx.builder.runtime.linking import (
     link_executable,
 )
 from llvmlite import binding as llvm
-from nanoarrow import Array
-from nanoarrow.c_array import allocate_c_array
-from nanoarrow.c_schema import allocate_c_schema
 
 
 class SupportedPrimitiveMetadata(TypedDict):
@@ -119,34 +122,34 @@ PRIMITIVE_IMPORT_CASES: tuple[
     ],
     ...,
 ] = (
-    ("int8", nanoarrow.int8, [1, -2, 127], [1, -2, 127]),
-    ("int16", nanoarrow.int16, [1, -32000, 32000], [1, -32000, 32000]),
+    ("int8", pa.int8, [1, -2, 127], [1, -2, 127]),
+    ("int16", pa.int16, [1, -32000, 32000], [1, -32000, 32000]),
     (
         "int32",
-        nanoarrow.int32,
+        pa.int32,
         [1, -2_000_000_000, 2_000_000_000],
         [1, -2_000_000_000, 2_000_000_000],
     ),
     (
         "int64",
-        nanoarrow.int64,
+        pa.int64,
         [1, -(2**40), 2**40],
         [1, -(2**40), 2**40],
     ),
-    ("uint8", nanoarrow.uint8, [0, 7, 255], [0, 7, 255]),
-    ("uint16", nanoarrow.uint16, [0, 42, 65535], [0, 42, 65535]),
-    ("uint32", nanoarrow.uint32, [0, 7, 2**32 - 1], [0, 7, 2**32 - 1]),
+    ("uint8", pa.uint8, [0, 7, 255], [0, 7, 255]),
+    ("uint16", pa.uint16, [0, 42, 65535], [0, 42, 65535]),
+    ("uint32", pa.uint32, [0, 7, 2**32 - 1], [0, 7, 2**32 - 1]),
     (
         "uint64",
-        nanoarrow.uint64,
+        pa.uint64,
         [0, 7, 2**63 + 7],
         [0, 7, 2**63 + 7],
     ),
-    ("float32", nanoarrow.float32, [1.5, -2.25, 3.75], [1.5, -2.25, 3.75]),
-    ("float64", nanoarrow.float64, [1.25, -2.5, 3.75], [1.25, -2.5, 3.75]),
+    ("float32", pa.float32, [1.5, -2.25, 3.75], [1.5, -2.25, 3.75]),
+    ("float64", pa.float64, [1.25, -2.5, 3.75], [1.25, -2.5, 3.75]),
     (
         "bool",
-        nanoarrow.bool_,
+        pa.bool_,
         [True, False, None, True],
         [True, False, None, True],
     ),
@@ -352,7 +355,7 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
       type: Iterator[ctypes.CDLL]
     """
     if sys.platform == "win32":
-        pytest.skip("nanoarrow interop shared-library tests require Unix")
+        pytest.skip("Arrow C++ shared-library tests require Unix")
 
     feature = build_array_runtime_feature()
     c_compiler = _find_c_compiler()
@@ -370,7 +373,11 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
             c_compiler,
         )
 
-        command = [c_compiler]
+        cxx_compiler = shutil.which("c++") or shutil.which("clang++")
+        if cxx_compiler is None:
+            pytest.skip("a C++ compiler is required for Arrow runtime tests")
+
+        command = [cxx_compiler]
         if sys.platform == "darwin":
             command.append("-dynamiclib")
         else:
@@ -378,6 +385,7 @@ def _load_arrow_runtime_library() -> Iterator[ctypes.CDLL]:
 
         command.extend(str(obj) for obj in link_inputs.objects)
         command.extend(link_inputs.linker_flags)
+        command.extend(feature.linker_flags)
         command.extend(["-o", str(output_path)])
         subprocess.run(
             command,
@@ -516,6 +524,55 @@ def _configure_arrow_runtime_library(library: ctypes.CDLL) -> None:
     library.irx_arrow_array_retain.restype = ctypes.c_int
     library.irx_arrow_array_release.argtypes = [ctypes.c_void_p]
     library.irx_arrow_array_release.restype = None
+    library.irx_arrow_tensor_builder_new.argtypes = [
+        ctypes.c_int32,
+        ctypes.c_int32,
+        ctypes.POINTER(ctypes.c_int64),
+        ctypes.POINTER(ctypes.c_int64),
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    library.irx_arrow_tensor_builder_new.restype = ctypes.c_int
+    library.irx_arrow_tensor_builder_append_int.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int64,
+    ]
+    library.irx_arrow_tensor_builder_append_int.restype = ctypes.c_int
+    library.irx_arrow_tensor_builder_append_uint.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint64,
+    ]
+    library.irx_arrow_tensor_builder_append_uint.restype = ctypes.c_int
+    library.irx_arrow_tensor_builder_append_double.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_double,
+    ]
+    library.irx_arrow_tensor_builder_append_double.restype = ctypes.c_int
+    library.irx_arrow_tensor_builder_finish.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    library.irx_arrow_tensor_builder_finish.restype = ctypes.c_int
+    library.irx_arrow_tensor_builder_release.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_builder_release.restype = None
+    library.irx_arrow_tensor_type_id.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_type_id.restype = ctypes.c_int32
+    library.irx_arrow_tensor_ndim.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_ndim.restype = ctypes.c_int32
+    library.irx_arrow_tensor_size.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_size.restype = ctypes.c_int64
+    library.irx_arrow_tensor_shape.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_shape.restype = ctypes.POINTER(ctypes.c_int64)
+    library.irx_arrow_tensor_strides.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_strides.restype = ctypes.POINTER(ctypes.c_int64)
+    library.irx_arrow_tensor_borrow_buffer_view.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(BufferViewStruct),
+    ]
+    library.irx_arrow_tensor_borrow_buffer_view.restype = ctypes.c_int
+    library.irx_arrow_tensor_retain.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_retain.restype = ctypes.c_int
+    library.irx_arrow_tensor_release.argtypes = [ctypes.c_void_p]
+    library.irx_arrow_tensor_release.restype = None
     library.irx_arrow_last_error.argtypes = []
     library.irx_arrow_last_error.restype = ctypes.c_char_p
 
@@ -614,6 +671,62 @@ def _build_runtime_array(
             library.irx_arrow_array_builder_release(builder)
 
 
+def _build_runtime_tensor(
+    library: ctypes.CDLL,
+    values: Sequence[int],
+    shape: Sequence[int],
+    strides: Sequence[int],
+) -> ctypes.c_void_p:
+    """
+    title: Build one int32 runtime tensor.
+    parameters:
+      library:
+        type: ctypes.CDLL
+      values:
+        type: Sequence[int]
+      shape:
+        type: Sequence[int]
+      strides:
+        type: Sequence[int]
+    returns:
+      type: ctypes.c_void_p
+    """
+    builder = ctypes.c_void_p()
+    tensor_handle = ctypes.c_void_p()
+    shape_array = (ctypes.c_int64 * len(shape))(*shape)
+    strides_array = (ctypes.c_int64 * len(strides))(*strides)
+
+    _assert_arrow_ok(
+        library,
+        library.irx_arrow_tensor_builder_new(
+            IRX_ARROW_TYPE_INT32,
+            len(shape),
+            shape_array,
+            strides_array,
+            ctypes.byref(builder),
+        ),
+    )
+
+    try:
+        for value in values:
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_tensor_builder_append_int(builder, value),
+            )
+
+        _assert_arrow_ok(
+            library,
+            library.irx_arrow_tensor_builder_finish(
+                builder,
+                ctypes.byref(tensor_handle),
+            ),
+        )
+        return tensor_handle
+    finally:
+        if builder.value is not None and tensor_handle.value is None:
+            library.irx_arrow_tensor_builder_release(builder)
+
+
 def _arrow_array_struct(addr: int) -> ArrowArrayStruct:
     """
     title: View one ArrowArray at an address.
@@ -636,6 +749,95 @@ def _arrow_schema_struct(addr: int) -> ArrowSchemaStruct:
       type: ArrowSchemaStruct
     """
     return ctypes.cast(addr, ctypes.POINTER(ArrowSchemaStruct)).contents
+
+
+def _capsule_pointer(capsule: object, name: bytes) -> int:
+    """
+    title: Return a PyCapsule pointer as an integer address.
+    parameters:
+      capsule:
+        type: object
+      name:
+        type: bytes
+    returns:
+      type: int
+    """
+    getter = ctypes.pythonapi.PyCapsule_GetPointer
+    getter.argtypes = [ctypes.py_object, ctypes.c_char_p]
+    getter.restype = ctypes.c_void_p
+    pointer = getter(capsule, name)
+    if pointer is None:
+        raise RuntimeError(f"PyCapsule {name!r} did not expose a pointer")
+    return int(pointer)
+
+
+def _pyarrow_c_array(
+    values: Sequence[object],
+    data_type: pa.DataType,
+) -> tuple[pa.Array, object, object, int, int]:
+    """
+    title: Export one PyArrow array through Arrow C Data capsules.
+    parameters:
+      values:
+        type: Sequence[object]
+      data_type:
+        type: pa.DataType
+    returns:
+      type: tuple[pa.Array, object, object, int, int]
+    """
+    array = pa.array(values, type=data_type)
+    schema_capsule, array_capsule = array.__arrow_c_array__()
+    return (
+        array,
+        schema_capsule,
+        array_capsule,
+        _capsule_pointer(schema_capsule, b"arrow_schema"),
+        _capsule_pointer(array_capsule, b"arrow_array"),
+    )
+
+
+def _import_exported_array(
+    exported_array: ArrowArrayStruct,
+    exported_schema: ArrowSchemaStruct,
+) -> pa.Array:
+    """
+    title: Import exported Arrow C Data into PyArrow.
+    parameters:
+      exported_array:
+        type: ArrowArrayStruct
+      exported_schema:
+        type: ArrowSchemaStruct
+    returns:
+      type: pa.Array
+    """
+    return pa.Array._import_from_c(
+        ctypes.addressof(exported_array),
+        ctypes.addressof(exported_schema),
+    )
+
+
+def _release_c_array(array: ArrowArrayStruct) -> None:
+    """
+    title: Release an ArrowArray ctypes value if it owns resources.
+    parameters:
+      array:
+        type: ArrowArrayStruct
+    """
+    if array.release is not None:
+        release = ctypes.CFUNCTYPE(None, ctypes.c_void_p)(array.release)
+        release(ctypes.c_void_p(ctypes.addressof(array)))
+
+
+def _release_c_schema(schema: ArrowSchemaStruct) -> None:
+    """
+    title: Release an ArrowSchema ctypes value if it owns resources.
+    parameters:
+      schema:
+        type: ArrowSchemaStruct
+    """
+    if schema.release is not None:
+        release = ctypes.CFUNCTYPE(None, ctypes.c_void_p)(schema.release)
+        release(ctypes.c_void_p(ctypes.addressof(schema)))
 
 
 def _primitive_spec(name: str) -> tuple[int, int, bool]:
@@ -688,23 +890,24 @@ def test_arrow_length_codegen_declares_runtime_symbols() -> None:
     assert builder.translator.runtime_features.native_artifacts()
 
 
-def test_arrow_feature_uses_packaged_nanoarrow_sources() -> None:
+def test_arrow_feature_uses_arrowcpp_runtime() -> None:
     """
-    title: Arrow runtime should compile against arx-nanoarrow-sources.
+    title: Arrow runtime should compile against Arrow C++.
     """
     feature = build_array_runtime_feature()
     native_sources = {
         artifact.path
         for artifact in feature.artifacts
-        if artifact.kind == "c_source"
+        if artifact.kind == "cxx_source"
     }
 
-    assert get_source_files()
-    assert set(get_source_files()).issubset(native_sources)
+    assert any(path.name == "irx_arrow_runtime.cc" for path in native_sources)
+    assert feature.metadata["implementation"] == "arrow-cpp"
+    assert feature.metadata["arrowcpp_version"] == bundled_arrowcpp_version()
 
     for artifact in feature.artifacts:
-        if artifact.kind == "c_source":
-            assert get_include_dir() in artifact.include_dirs
+        if artifact.kind == "cxx_source":
+            assert get_arrowcpp_include_dir() in artifact.include_dirs
 
 
 def test_arrow_feature_metadata_exposes_supported_primitive_mapping() -> None:
@@ -913,20 +1116,22 @@ def test_arrow_runtime_harness_buffer_view_bridge() -> None:
     assert result.stderr == ""
 
 
-def test_arrow_runtime_imports_python_nanoarrow_array() -> None:
+def test_arrow_runtime_imports_python_pyarrow_array() -> None:
     """
-    title: Arrow runtime should import arrays built by Python nanoarrow.
+    title: Arrow runtime should import arrays built by Python PyArrow.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array([7, 8, 9], nanoarrow.int32())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([7, 8, 9], pa.int32())
+        )
         array_handle = ctypes.c_void_p()
 
         try:
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_import(
-                    source._addr(),
-                    source.schema._addr(),
+                    array_addr,
+                    schema_addr,
                     ctypes.byref(array_handle),
                 ),
             )
@@ -938,13 +1143,14 @@ def test_arrow_runtime_imports_python_nanoarrow_array() -> None:
                 IRX_ARROW_TYPE_INT32
             )
         finally:
+            _ = (schema_capsule, array_capsule)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
 
 
-def test_arrow_runtime_exports_to_python_nanoarrow_array() -> None:
+def test_arrow_runtime_exports_to_python_pyarrow_array() -> None:
     """
-    title: Arrow runtime should export arrays consumable by Python nanoarrow.
+    title: Arrow runtime should export arrays consumable by Python PyArrow.
     """
     with _load_arrow_runtime_library() as library:
         array_handle = _build_runtime_array(
@@ -954,21 +1160,24 @@ def test_arrow_runtime_exports_to_python_nanoarrow_array() -> None:
             [4, 5, 6],
         )
         try:
-            exported_schema = allocate_c_schema()
-            exported_array = allocate_c_array(exported_schema)
+            exported_schema = ArrowSchemaStruct()
+            exported_array = ArrowArrayStruct()
 
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_export(
                     array_handle,
-                    exported_array._addr(),
-                    exported_schema._addr(),
+                    ctypes.byref(exported_array),
+                    ctypes.byref(exported_schema),
                 ),
             )
 
-            exported = Array(exported_array)
+            exported = _import_exported_array(
+                exported_array,
+                exported_schema,
+            )
             assert len(exported) == 3  # noqa: PLR2004
-            assert list(exported.iter_py()) == [4, 5, 6]
+            assert exported.to_pylist() == [4, 5, 6]
         finally:
             library.irx_arrow_array_release(array_handle)
 
@@ -998,15 +1207,17 @@ def test_arrow_runtime_import_export_roundtrips_supported_primitives(
     """
     with _load_arrow_runtime_library() as library:
         type_id, _, _ = _primitive_spec(name)
-        source = nanoarrow.c_array(values, schema_factory())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array(values, cast(pa.DataType, schema_factory()))
+        )
         array_handle = ctypes.c_void_p()
 
         try:
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_import_copy(
-                    source._addr(),
-                    source.schema._addr(),
+                    array_addr,
+                    schema_addr,
                     ctypes.byref(array_handle),
                 ),
             )
@@ -1019,20 +1230,24 @@ def test_arrow_runtime_import_export_roundtrips_supported_primitives(
                 value is None for value in expected
             )
 
-            exported_schema = allocate_c_schema()
-            exported_array = allocate_c_array(exported_schema)
+            exported_schema = ArrowSchemaStruct()
+            exported_array = ArrowArrayStruct()
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_export(
                     array_handle,
-                    exported_array._addr(),
-                    exported_schema._addr(),
+                    ctypes.byref(exported_array),
+                    ctypes.byref(exported_schema),
                 ),
             )
 
-            exported = Array(exported_array)
+            exported = _import_exported_array(
+                exported_array,
+                exported_schema,
+            )
             assert exported.to_pylist() == expected
         finally:
+            _ = (schema_capsule, array_capsule)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
 
@@ -1081,21 +1296,112 @@ def test_arrow_runtime_builder_supports_supported_primitives(
                 value is None for value in expected
             )
 
-            exported_schema = allocate_c_schema()
-            exported_array = allocate_c_array(exported_schema)
+            exported_schema = ArrowSchemaStruct()
+            exported_array = ArrowArrayStruct()
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_export(
                     array_handle,
-                    exported_array._addr(),
-                    exported_schema._addr(),
+                    ctypes.byref(exported_array),
+                    ctypes.byref(exported_schema),
                 ),
             )
 
-            exported = Array(exported_array)
+            exported = _import_exported_array(
+                exported_array,
+                exported_schema,
+            )
             assert exported.to_pylist() == expected
         finally:
             library.irx_arrow_array_release(array_handle)
+
+
+def test_arrow_cpp_tensor_runtime_borrows_buffer_views() -> None:
+    """
+    title: Arrow C++ tensors should project stable metadata into buffer views.
+    """
+    with _load_arrow_runtime_library() as library:
+        tensor_handle = _build_runtime_tensor(
+            library,
+            [1, 2, 3, 4, 5, 6],
+            [2, 3],
+            [12, 4],
+        )
+        view = BufferViewStruct()
+
+        try:
+            assert (
+                library.irx_arrow_tensor_type_id(tensor_handle)
+                == IRX_ARROW_TYPE_INT32
+            )
+            assert library.irx_arrow_tensor_ndim(tensor_handle) == 2  # noqa: PLR2004
+            assert library.irx_arrow_tensor_size(tensor_handle) == 6  # noqa: PLR2004
+
+            shape = library.irx_arrow_tensor_shape(tensor_handle)
+            strides = library.irx_arrow_tensor_strides(tensor_handle)
+            assert [shape[index] for index in range(2)] == [2, 3]
+            assert [strides[index] for index in range(2)] == [12, 4]
+
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_tensor_borrow_buffer_view(
+                    tensor_handle,
+                    ctypes.byref(view),
+                ),
+            )
+
+            values = ctypes.cast(
+                view.data,
+                ctypes.POINTER(ctypes.c_int32),
+            )
+            assert values[5] == 6  # noqa: PLR2004
+            assert view.dtype == BUFFER_DTYPE_INT32
+            assert view.ndim == 2  # noqa: PLR2004
+            assert [view.shape[index] for index in range(2)] == [2, 3]
+            assert [view.strides[index] for index in range(2)] == [12, 4]
+            assert view.flags == (
+                BUFFER_FLAG_BORROWED
+                | BUFFER_FLAG_READONLY
+                | BUFFER_FLAG_C_CONTIGUOUS
+            )
+
+            _assert_arrow_ok(
+                library, library.irx_arrow_tensor_retain(tensor_handle)
+            )
+            library.irx_arrow_tensor_release(tensor_handle)
+        finally:
+            library.irx_arrow_tensor_release(tensor_handle)
+
+
+def test_arrow_cpp_tensor_runtime_reports_f_contiguous_views() -> None:
+    """
+    title: Arrow C++ tensor buffer views should preserve F-contiguous flags.
+    """
+    with _load_arrow_runtime_library() as library:
+        tensor_handle = _build_runtime_tensor(
+            library,
+            [1, 2, 3, 4, 5, 6],
+            [2, 3],
+            [4, 8],
+        )
+        view = BufferViewStruct()
+
+        try:
+            _assert_arrow_ok(
+                library,
+                library.irx_arrow_tensor_borrow_buffer_view(
+                    tensor_handle,
+                    ctypes.byref(view),
+                ),
+            )
+
+            assert view.flags == (
+                BUFFER_FLAG_BORROWED
+                | BUFFER_FLAG_READONLY
+                | BUFFER_FLAG_F_CONTIGUOUS
+            )
+        finally:
+            library.irx_arrow_tensor_release(tensor_handle)
 
 
 def test_arrow_runtime_nullable_numeric_bridge_is_explicit() -> None:
@@ -1103,7 +1409,9 @@ def test_arrow_runtime_nullable_numeric_bridge_is_explicit() -> None:
     title: Nullable numeric arrays should stay Arrow-aware even when bridged.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array([10, None, 30], nanoarrow.int32())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([10, None, 30], pa.int32())
+        )
         array_handle = ctypes.c_void_p()
         validity_data = ctypes.c_void_p()
         validity_offset_bits = ctypes.c_int64()
@@ -1114,8 +1422,8 @@ def test_arrow_runtime_nullable_numeric_bridge_is_explicit() -> None:
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_import_copy(
-                    source._addr(),
-                    source.schema._addr(),
+                    array_addr,
+                    schema_addr,
                     ctypes.byref(array_handle),
                 ),
             )
@@ -1164,6 +1472,7 @@ def test_arrow_runtime_nullable_numeric_bridge_is_explicit() -> None:
                 | BUFFER_FLAG_VALIDITY_BITMAP
             )
         finally:
+            _ = (schema_capsule, array_capsule)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
 
@@ -1173,7 +1482,9 @@ def test_arrow_runtime_bool_arrays_reject_plain_buffer_view_bridge() -> None:
     title: Bit-packed bool arrays should not masquerade as plain buffer views.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array([True, False, None], nanoarrow.bool_())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([True, False, None], pa.bool_())
+        )
         array_handle = ctypes.c_void_p()
         view = BufferViewStruct()
 
@@ -1181,8 +1492,8 @@ def test_arrow_runtime_bool_arrays_reject_plain_buffer_view_bridge() -> None:
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_import_copy(
-                    source._addr(),
-                    source.schema._addr(),
+                    array_addr,
+                    schema_addr,
                     ctypes.byref(array_handle),
                 ),
             )
@@ -1205,6 +1516,7 @@ def test_arrow_runtime_bool_arrays_reject_plain_buffer_view_bridge() -> None:
                 "bit-packed values" in library.irx_arrow_last_error().decode()
             )
         finally:
+            _ = (schema_capsule, array_capsule)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
 
@@ -1214,8 +1526,10 @@ def test_arrow_runtime_import_move_adopts_offset_arrays() -> None:
     title: Move import should adopt external C Data and preserve offsets.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array([10, 20, 30, 40], nanoarrow.int32())
-        raw_array = _arrow_array_struct(source._addr())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([10, 20, 30, 40], pa.int32())
+        )
+        raw_array = _arrow_array_struct(array_addr)
         raw_array.length = 2
         raw_array.offset = 1
         raw_array.null_count = 0
@@ -1226,15 +1540,15 @@ def test_arrow_runtime_import_move_adopts_offset_arrays() -> None:
         _assert_arrow_ok(
             library,
             library.irx_arrow_array_import_move(
-                source._addr(),
-                source.schema._addr(),
+                array_addr,
+                schema_addr,
                 ctypes.byref(array_handle),
             ),
         )
 
         try:
-            moved_array = _arrow_array_struct(source._addr())
-            moved_schema = _arrow_schema_struct(source.schema._addr())
+            moved_array = _arrow_array_struct(array_addr)
+            moved_schema = _arrow_schema_struct(schema_addr)
 
             assert moved_array.release is None
             assert moved_schema.release is None
@@ -1259,18 +1573,22 @@ def test_arrow_runtime_import_move_adopts_offset_arrays() -> None:
                 | BUFFER_FLAG_C_CONTIGUOUS
             )
 
-            exported_schema = allocate_c_schema()
-            exported_array = allocate_c_array(exported_schema)
+            exported_schema = ArrowSchemaStruct()
+            exported_array = ArrowArrayStruct()
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_export(
                     array_handle,
-                    exported_array._addr(),
-                    exported_schema._addr(),
+                    ctypes.byref(exported_array),
+                    ctypes.byref(exported_schema),
                 ),
             )
-            assert Array(exported_array).to_pylist() == [20, 30]
+            assert _import_exported_array(
+                exported_array,
+                exported_schema,
+            ).to_pylist() == [20, 30]
         finally:
+            _ = (schema_capsule, array_capsule)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
 
@@ -1286,20 +1604,20 @@ def test_arrow_runtime_export_copy_survives_source_release() -> None:
             "int",
             [4, 5, 6],
         )
-        exported_schema = allocate_c_schema()
-        exported_array = allocate_c_array(exported_schema)
+        exported_schema = ArrowSchemaStruct()
+        exported_array = ArrowArrayStruct()
 
         _assert_arrow_ok(
             library,
             library.irx_arrow_array_export(
                 array_handle,
-                exported_array._addr(),
-                exported_schema._addr(),
+                ctypes.byref(exported_array),
+                ctypes.byref(exported_schema),
             ),
         )
         library.irx_arrow_array_release(array_handle)
 
-        exported = Array(exported_array)
+        exported = _import_exported_array(exported_array, exported_schema)
         assert exported.to_pylist() == [4, 5, 6]
 
 
@@ -1308,15 +1626,18 @@ def test_arrow_runtime_schema_handles_roundtrip_supported_schemas() -> None:
     title: Schema handles should import, retain, export, and reapply schemas.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array([1, 2, 3], nanoarrow.int16())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([1, 2, 3], pa.int16())
+        )
         schema_handle = ctypes.c_void_p()
         array_handle = ctypes.c_void_p()
+        exported_schema = ArrowSchemaStruct()
 
         try:
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_schema_import_copy(
-                    source.schema._addr(),
+                    schema_addr,
                     ctypes.byref(schema_handle),
                 ),
             )
@@ -1336,20 +1657,19 @@ def test_arrow_runtime_schema_handles_roundtrip_supported_schemas() -> None:
                 == IRX_ARROW_TYPE_INT16
             )
 
-            exported_schema = allocate_c_schema()
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_schema_export(
                     schema_handle,
-                    exported_schema._addr(),
+                    ctypes.byref(exported_schema),
                 ),
             )
 
             _assert_arrow_ok(
                 library,
                 library.irx_arrow_array_import_copy(
-                    source._addr(),
-                    exported_schema._addr(),
+                    array_addr,
+                    ctypes.byref(exported_schema),
                     ctypes.byref(array_handle),
                 ),
             )
@@ -1358,6 +1678,8 @@ def test_arrow_runtime_schema_handles_roundtrip_supported_schemas() -> None:
                 == IRX_ARROW_TYPE_INT16
             )
         finally:
+            _ = (schema_capsule, array_capsule)
+            _release_c_schema(exported_schema)
             if array_handle.value is not None:
                 library.irx_arrow_array_release(array_handle)
             if schema_handle.value is not None:
@@ -1369,14 +1691,17 @@ def test_arrow_runtime_rejects_unsupported_string_arrays() -> None:
     title: Unsupported variable-width layouts should fail clearly.
     """
     with _load_arrow_runtime_library() as library:
-        source = nanoarrow.c_array(["a", "b"], nanoarrow.string())
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array(["a", "b"], pa.string())
+        )
         array_handle = ctypes.c_void_p()
 
         code = library.irx_arrow_array_import_copy(
-            source._addr(),
-            source.schema._addr(),
+            array_addr,
+            schema_addr,
             ctypes.byref(array_handle),
         )
+        _ = (schema_capsule, array_capsule)
 
         assert code != 0
         assert array_handle.value is None

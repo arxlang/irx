@@ -12,7 +12,7 @@ way to:
 
 - declare external symbols once per feature
 - activate native capabilities per compilation unit
-- compile and link native C sources only when they are actually needed
+- compile and link native C/C++ sources only when they are actually needed
 - keep native runtime ownership rules outside the LLVM IR middle-end
 
 This runtime-feature layer keeps IRx focused on lowering while allowing Arx to
@@ -27,8 +27,8 @@ The runtime stack is layered in four parts:
    native artifacts, linker flags, and metadata.
 2. `irx.builder.runtime.registry` Registers features by name and tracks
    activation/declarations for one LLVM module.
-3. `irx.builder.runtime.linking` Compiles native C sources and links optional
-   objects only for active features.
+3. `irx.builder.runtime.linking` Compiles native C/C++ sources and links
+   optional objects only for active features.
 4. Feature packages such as `libc` and `array` Consume the generic system
    without special cases in the builder.
 
@@ -88,7 +88,7 @@ Public FFI declarations now use one consistent rule:
   reuses that feature-owned declaration instead of inventing a parallel native
   path
 - runtime features remain the only place where IRx packages native objects,
-  native C sources, or extra linker flags
+  native C/C++ sources, or extra linker flags
 
 Example split:
 
@@ -116,11 +116,13 @@ IRx still emits the main object file with `llvmlite` and links with `clang`. The
 difference now is that runtime features may add native artifacts such as:
 
 - C source files
+- C++ source files
 - prebuilt objects
 - static libraries
 
-The current builtin array runtime uses C sources only, which keeps the build
-path reproducible on Linux and macOS without introducing dynamic loading.
+The current builtin Arrow runtime uses a small C++ wrapper with a stable C ABI,
+which keeps Arrow C++ container ownership behind runtime feature declarations
+without introducing dynamic loading.
 
 ## Assertion Failure Reporting
 
@@ -142,8 +144,8 @@ falls back to the module name stored in the AST.
 
 ## Builtin Array Runtime
 
-IRx array support is implemented as a builtin native runtime backed by Arrow,
-not as handwritten LLVM IR container logic.
+IRx array support is implemented as a builtin native runtime backed by Arrow
+C++, not as handwritten LLVM IR container logic.
 
 Current array substrate:
 
@@ -155,14 +157,16 @@ Current array substrate:
 - explicit nullability and validity-bitmap inspection on Arrow handles
 - readonly bridge from supported fixed-width numeric arrays into
   `irx_buffer_view`
-- Python `nanoarrow` dependency installed by default in IRx
-- `nanoarrow` used internally for schema/array helpers and validation
+- Python `pyarrow` dependency installed by default in IRx for Arrow C Data
+  interop tests and linkable Arrow C++ libraries
+- `arx-arrowcpp-sources` installed by default for Arrow C++ headers/source
+  metadata used by native runtime builds
 
 Current initial Tensor layer alongside that substrate:
 
 - tensor values are created through `irx_arrow_tensor_*` runtime symbols
-- tensor construction stores homogeneous fixed-width values with Arrow-style
-  dtype, shape, and stride metadata
+- tensor construction stores homogeneous fixed-width values in Arrow C++
+  `arrow::Tensor` handles with dtype, shape, and stride metadata
 - tensor values lower through the same `irx_buffer_view` descriptor used by the
   low-level buffer/view model for indexing and lifetime management
 - indexing and byte-offset calculation reuse descriptor `shape`, `strides`, and
@@ -189,7 +193,7 @@ Key rules:
 
 - handles are opaque pointers
 - runtime-owned memory is released with explicit `irx_arrow_*_release()`
-- `nanoarrow` stays internal to the implementation
+- Arrow C++ stays internal to the implementation
 - Arrow C Data structs are the interchange boundary
 - import is explicit:
   - `irx_arrow_array_import_copy(...)` copies external C Data into a new
@@ -244,36 +248,38 @@ The buffer bridge is intentionally conservative:
 - borrowed views use a null owner handle, so the caller must keep the Arrow
   array handle alive explicitly
 
-The Tensor layer uses its own Arrow tensor runtime and then projects tensors
-through the canonical buffer/view descriptor:
+The Tensor layer uses Arrow C++ `arrow::Tensor` handles and then projects
+tensors through the canonical buffer/view descriptor:
 
 - fresh tensor literals allocate Arrow tensor handles, then wrap borrowed tensor
   buffers in external-owner `irx_buffer_view` values
 - tensor views stay shallow and metadata-driven
-- readonly semantics are preserved for Arrow-backed `Tensor` values in this
+- readonly semantics are preserved for Arrow C++ backed `Tensor` values in this
   phase
 
-## Nanoarrow
+## Arrow C++ Runtime Backend
 
-IRx now depends on the Python `nanoarrow` package by default and uses it in the
-test suite to validate Arrow C Data interoperability against the installed
-package.
+IRx now depends on `pyarrow` and `arx-arrowcpp-sources` by default for the
+native Arrow runtime.
 
-IRx also depends on `arx-nanoarrow-sources` for the generated nanoarrow header
-and C source bundle used by the native Arrow runtime feature itself.
+`arx-arrowcpp-sources` provides the vendored Apache Arrow C++ 24.0.0 source and
+header snapshot used for native runtime includes and build metadata. `pyarrow`
+provides the installed Arrow C++ shared library used by local builds and tests.
 
 Reasons:
 
-- the installed Python `nanoarrow` package does not ship the raw `nanoarrow.h`
-  header or C sources that IRx compiles into its native runtime
-- reproducible native builds in CI and local development without keeping a
-  second nanoarrow copy inside the IRx repo
-- clear ownership of the narrow C runtime surface while keeping `nanoarrow`
-  hidden behind the IRx ABI
+- real Arrow C++ containers now own array and tensor runtime data
+- `Tensor` values are backed by `arrow::Tensor` while IRx keeps the stable
+  `irx_arrow_tensor_*` C ABI
+- array import/export still uses Arrow C Data structs as the interop boundary
+- reproducible headers/source metadata in CI and local development without
+  keeping a second Arrow C++ copy inside the IRx repo
+- clear ownership of the native runtime surface while keeping Arrow C++ hidden
+  behind the IRx ABI
 
-IRx compiles the packaged nanoarrow sources with
-`-DNANOARROW_NAMESPACE=IrxNanoarrow` to keep those helper symbols internal to
-the feature implementation.
+IRx does not expose C++ types such as `std::shared_ptr`, `arrow::Array`, or
+`arrow::Tensor` through generated LLVM IR. They remain implementation details of
+the native runtime wrapper.
 
 ## Buffer As A Runtime Feature
 
@@ -295,9 +301,9 @@ Implemented in this phase:
 - generic runtime-feature registry/state/linking
 - `libc` routed through the new feature system
 - low-level `buffer` runtime feature for owner/view retain-release helpers
-- builtin array runtime feature with packaged nanoarrow sources
-- builtin tensor runtime feature with Arrow tensor-style handles
-- Python `nanoarrow` dependency and direct interop tests
+- builtin array runtime feature backed by Arrow C++ `arrow::Array`
+- builtin tensor runtime feature backed by Arrow C++ `arrow::Tensor`
+- Python `pyarrow` dependency and direct Arrow C Data interop tests
 - centralized Arrow runtime symbol declarations
 - one internal array lowering path: `irx.astx.ArrayInt32ArrayLength`
 - tests for registry behavior, IR declarations, build integration, primitive

@@ -7,9 +7,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from arx_nanoarrow_sources import get_include_dir, get_source_files
 from llvmlite import ir
 
+from irx.builder.runtime.arrowcpp import (
+    arrowcpp_compile_flags,
+    arrowcpp_include_dirs,
+    arrowcpp_linker_flags,
+    arrowcpp_runtime_metadata,
+)
 from irx.builder.runtime.features import (
     ExternalSymbolSpec,
     NativeArtifact,
@@ -35,33 +40,20 @@ def build_tensor_runtime_feature() -> RuntimeFeature:
     runtime_root = Path(__file__).resolve().parent
     native_root = (runtime_root.parent / "arrow" / "native").resolve()
     buffer_native_root = (runtime_root.parent / "buffer" / "native").resolve()
-    compile_flags = ("-std=c99", "-DNANOARROW_NAMESPACE=IrxNanoarrow")
-    nanoarrow_include_dir = get_include_dir()
-    nanoarrow_sources = get_source_files()
-
-    if not nanoarrow_sources:
-        raise RuntimeError(
-            "arx-nanoarrow-sources did not provide any nanoarrow C sources"
-        )
-
-    include_dirs = (native_root, buffer_native_root, nanoarrow_include_dir)
+    compile_flags = arrowcpp_compile_flags()
+    include_dirs = (
+        native_root,
+        buffer_native_root,
+        *arrowcpp_include_dirs(),
+    )
     artifacts = [
         NativeArtifact(
-            kind="c_source",
-            path=native_root / "irx_arrow_runtime.c",
+            kind="cxx_source",
+            path=native_root / "irx_arrow_runtime.cc",
             include_dirs=include_dirs,
             compile_flags=compile_flags,
         )
     ]
-    artifacts.extend(
-        NativeArtifact(
-            kind="c_source",
-            path=source_path,
-            include_dirs=include_dirs,
-            compile_flags=compile_flags,
-        )
-        for source_path in nanoarrow_sources
-    )
 
     return RuntimeFeature(
         name="tensor",
@@ -152,8 +144,9 @@ def build_tensor_runtime_feature() -> RuntimeFeature:
                 "tensor": "irx_arrow_tensor_handle",
             },
             "canonical_name": "tensor",
-            "implementation": "arrow",
+            **arrowcpp_runtime_metadata(),
         },
+        linker_flags=arrowcpp_linker_flags(),
     )
 
 
