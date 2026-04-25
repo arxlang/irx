@@ -29,6 +29,7 @@ from irx.builder.lowering import (
     ModuleVisitorMixin,
     SystemVisitorMixin,
     TemporalVisitorMixin,
+    TensorVisitorMixin,
     UnaryOpVisitorMixin,
     VariableVisitorMixin,
 )
@@ -49,6 +50,7 @@ class Visitor(
     GeneratorVisitorMixin,
     FunctionVisitorMixin,
     TemporalVisitorMixin,
+    TensorVisitorMixin,
     ArrayVisitorMixin,
     BufferVisitorMixin,
     SystemVisitorMixin,

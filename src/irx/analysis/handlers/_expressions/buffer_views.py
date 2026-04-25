@@ -5,14 +5,14 @@
 title: Expression buffer-view visitors.
 summary: >-
   Handle buffer-view descriptors, indexing, writes, and lifetime helper
-  expressions using the shared array-and-buffer support mixin.
+  expressions using the shared tensor-and-buffer support mixin.
 """
 
 from __future__ import annotations
 
 from irx import astx
-from irx.analysis.handlers._expressions.array_buffer_support import (
-    ExpressionArrayBufferSupportVisitorMixin,
+from irx.analysis.handlers._expressions.tensor_buffer_support import (
+    ExpressionTensorBufferSupportVisitorMixin,
 )
 from irx.analysis.handlers.base import SemanticAnalyzerCore
 from irx.analysis.types import bit_width, is_integer_type
@@ -31,7 +31,7 @@ RAW_BUFFER_BYTE_BITS = 8
 
 @typechecked
 class ExpressionBufferViewVisitorMixin(
-    ExpressionArrayBufferSupportVisitorMixin,
+    ExpressionTensorBufferSupportVisitorMixin,
 ):
     """
     title: Expression buffer-view visitors.

@@ -7,9 +7,6 @@ summary: >-
 
 from __future__ import annotations
 
-from irx.analysis.handlers._expressions.arrays_buffers import (
-    ExpressionArrayBufferVisitorMixin,
-)
 from irx.analysis.handlers._expressions.classes import (
     ExpressionClassVisitorMixin,
 )
@@ -25,6 +22,9 @@ from irx.analysis.handlers._expressions.mutation import (
 from irx.analysis.handlers._expressions.operators import (
     ExpressionOperatorVisitorMixin,
 )
+from irx.analysis.handlers._expressions.tensors_buffers import (
+    ExpressionTensorBufferVisitorMixin,
+)
 from irx.typecheck import typechecked
 
 __all__ = ["ExpressionVisitorMixin"]
@@ -36,7 +36,7 @@ class ExpressionVisitorMixin(
     ExpressionMutationVisitorMixin,
     ExpressionClassVisitorMixin,
     ExpressionOperatorVisitorMixin,
-    ExpressionArrayBufferVisitorMixin,
+    ExpressionTensorBufferVisitorMixin,
     ExpressionLiteralVisitorMixin,
 ):
     """

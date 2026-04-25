@@ -144,13 +144,13 @@ def clone_type(type_: astx.DataType) -> astx.DataType:
             else None
         )
         return astx.BufferViewType(element_type)
-    if isinstance(type_, astx.NDArrayType):
+    if isinstance(type_, astx.TensorType):
         element_type = (
             clone_type(type_.element_type)
             if type_.element_type is not None
             else None
         )
-        return astx.NDArrayType(element_type)
+        return astx.TensorType(element_type)
     return type_.__class__()
 
 
@@ -224,10 +224,10 @@ def display_type_name(type_: astx.DataType | None) -> str:
         if type_.element_type is None:
             return "BufferViewType"
         return f"BufferViewType[{display_type_name(type_.element_type)}]"
-    if isinstance(type_, astx.NDArrayType):
+    if isinstance(type_, astx.TensorType):
         if type_.element_type is None:
-            return "NDArrayType"
-        return f"NDArrayType[{display_type_name(type_.element_type)}]"
+            return "TensorType"
+        return f"TensorType[{display_type_name(type_.element_type)}]"
     return str(type_.__class__.__name__)
 
 
@@ -330,9 +330,9 @@ def same_type(lhs: astx.DataType | None, rhs: astx.DataType | None) -> bool:
         if lhs.element_type is None or rhs.element_type is None:
             return True
         return same_type(lhs.element_type, rhs.element_type)
-    if isinstance(lhs, astx.NDArrayType) and isinstance(
+    if isinstance(lhs, astx.TensorType) and isinstance(
         rhs,
-        astx.NDArrayType,
+        astx.TensorType,
     ):
         if lhs.element_type is None or rhs.element_type is None:
             return True

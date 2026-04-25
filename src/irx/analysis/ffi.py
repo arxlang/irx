@@ -316,13 +316,13 @@ def _classify_ffi_type(
             _display_type_name(type_),
             metadata={"abi_name": "irx_buffer_view"},
         )
-    if isinstance(type_, astx.NDArrayType):
+    if isinstance(type_, astx.TensorType):
         return FFITypeInfo(
             FFITypeClass.STRUCT,
             _display_type_name(type_),
             metadata={
                 "abi_name": "irx_buffer_view",
-                "logical_type": "ndarray",
+                "logical_type": "tensor",
             },
         )
     if isinstance(type_, astx.StructType):

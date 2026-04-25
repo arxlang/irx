@@ -1,8 +1,8 @@
 """
-title: Initial NDArray layout helpers layered on the builtin array runtime.
+title: Tensor layout helpers layered on the builtin tensor runtime.
 summary: >-
-  Define IRx's backend-neutral NDArray metadata helpers on top of the canonical
-  buffer/view substrate and the Arrow-backed array runtime.
+  Define IRx's backend-neutral Tensor metadata helpers on top of the canonical
+  buffer/view substrate and the Arrow-backed tensor runtime.
 """
 
 from __future__ import annotations
@@ -28,9 +28,9 @@ from irx.builtins.collections.array_primitives import (
 )
 from irx.typecheck import typechecked
 
-NDARRAY_LAYOUT_EXTRA = "ndarray_layout"
-NDARRAY_ELEMENT_TYPE_EXTRA = "ndarray_element_type"
-NDARRAY_FLAGS_EXTRA = "ndarray_flags"
+TENSOR_LAYOUT_EXTRA = "tensor_layout"
+TENSOR_ELEMENT_TYPE_EXTRA = "tensor_element_type"
+TENSOR_FLAGS_EXTRA = "tensor_flags"
 _DTYPE_ELEMENT_SIZE_BYTES = {
     buffer_dtype_handle(spec.name): spec.element_size_bytes
     for spec in ARRAY_PRIMITIVE_TYPE_SPECS.values()
@@ -40,9 +40,9 @@ _DTYPE_ELEMENT_SIZE_BYTES = {
 
 @public
 @typechecked
-class NDArrayOrder(str, Enum):
+class TensorOrder(str, Enum):
     """
-    title: Canonical contiguous layout order for NDArray helpers.
+    title: Canonical contiguous layout order for Tensor helpers.
     """
 
     C = "C"
@@ -52,12 +52,12 @@ class NDArrayOrder(str, Enum):
 @public
 @typechecked
 @dataclass(frozen=True)
-class NDArrayLayout:
+class TensorLayout:
     """
-    title: Static NDArray layout metadata.
+    title: Static Tensor layout metadata.
     summary: >-
-      Represent the logical rank, shape, strides, and byte offset of one
-      NDArray value without duplicating the lower-level storage machinery.
+      Represent the logical rank, shape, strides, and byte offset of one Tensor
+      value without duplicating the lower-level storage machinery.
     attributes:
       shape:
         type: tuple[int, Ellipsis]
@@ -99,12 +99,12 @@ def _shape_extent(shape: tuple[int, ...]) -> int:
 
 @public
 @typechecked
-def ndarray_element_count(layout: NDArrayLayout) -> int:
+def tensor_element_count(layout: TensorLayout) -> int:
     """
     title: Return the logical element count for one layout.
     parameters:
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
     returns:
       type: int
     """
@@ -113,33 +113,33 @@ def ndarray_element_count(layout: NDArrayLayout) -> int:
 
 @public
 @typechecked
-def ndarray_default_strides(
+def tensor_default_strides(
     shape: tuple[int, ...],
     item_size_bytes: int,
     *,
-    order: NDArrayOrder = NDArrayOrder.C,
+    order: TensorOrder = TensorOrder.C,
 ) -> tuple[int, ...]:
     """
-    title: Return canonical byte strides for one contiguous NDArray shape.
+    title: Return canonical byte strides for one contiguous Tensor shape.
     parameters:
       shape:
         type: tuple[int, Ellipsis]
       item_size_bytes:
         type: int
       order:
-        type: NDArrayOrder
+        type: TensorOrder
     returns:
       type: tuple[int, Ellipsis]
     """
     if item_size_bytes <= 0:
-        raise ValueError("ndarray item_size_bytes must be positive")
+        raise ValueError("tensor item_size_bytes must be positive")
     if not shape:
         return ()
 
     strides = [0] * len(shape)
     stride = item_size_bytes
 
-    if order is NDArrayOrder.C:
+    if order is TensorOrder.C:
         indices = range(len(shape) - 1, -1, -1)
     else:
         indices = range(len(shape))
@@ -153,79 +153,81 @@ def ndarray_default_strides(
 
 @public
 @typechecked
-def ndarray_is_c_contiguous(
-    layout: NDArrayLayout,
+def tensor_is_c_contiguous(
+    layout: TensorLayout,
     item_size_bytes: int,
 ) -> bool:
     """
     title: Return whether one layout matches canonical C-order strides.
     parameters:
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
       item_size_bytes:
         type: int
     returns:
       type: bool
     """
-    return layout.strides == ndarray_default_strides(
+    return layout.strides == tensor_default_strides(
         layout.shape,
         item_size_bytes,
-        order=NDArrayOrder.C,
+        order=TensorOrder.C,
     )
 
 
 @public
 @typechecked
-def ndarray_is_f_contiguous(
-    layout: NDArrayLayout,
+def tensor_is_f_contiguous(
+    layout: TensorLayout,
     item_size_bytes: int,
 ) -> bool:
     """
     title: Return whether one layout matches canonical Fortran-order strides.
     parameters:
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
       item_size_bytes:
         type: int
     returns:
       type: bool
     """
-    return layout.strides == ndarray_default_strides(
+    return layout.strides == tensor_default_strides(
         layout.shape,
         item_size_bytes,
-        order=NDArrayOrder.F,
+        order=TensorOrder.F,
     )
 
 
 @public
 @typechecked
-def validate_ndarray_layout(
-    layout: NDArrayLayout,
+def validate_tensor_layout(
+    layout: TensorLayout,
 ) -> tuple[str, ...]:
     """
-    title: Validate one static NDArray layout.
+    title: Validate one static Tensor layout.
     parameters:
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
     returns:
       type: tuple[str, Ellipsis]
     """
     errors: list[str] = []
 
     if len(layout.strides) != layout.ndim:
-        errors.append("ndarray stride length must match ndim")
+        errors.append("tensor stride length must match ndim")
     if any(dim < 0 for dim in layout.shape):
-        errors.append("ndarray shape dimensions must be non-negative")
+        errors.append("tensor shape dimensions must be non-negative")
+    if any(stride < 0 for stride in layout.strides):
+        errors.append("tensor strides must be non-negative")
     if layout.offset_bytes < 0:
-        errors.append("ndarray offset_bytes must be non-negative")
+        errors.append("tensor offset_bytes must be non-negative")
 
     return tuple(errors)
 
 
 @public
 @typechecked
-def ndarray_byte_bounds(
-    layout: NDArrayLayout,
+def tensor_byte_bounds(
+    layout: TensorLayout,
 ) -> tuple[int, int] | None:
     """
     title: Return the minimum and maximum element-start byte offsets.
@@ -234,11 +236,11 @@ def ndarray_byte_bounds(
       logical layout has zero extent and therefore addresses no elements.
     parameters:
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
     returns:
       type: tuple[int, int] | None
     """
-    if ndarray_element_count(layout) == 0:
+    if tensor_element_count(layout) == 0:
         return None
 
     minimum = layout.offset_bytes
@@ -258,9 +260,9 @@ def ndarray_byte_bounds(
 
 @public
 @typechecked
-def ndarray_primitive_type_name(type_: astx.DataType | None) -> str | None:
+def tensor_primitive_type_name(type_: astx.DataType | None) -> str | None:
     """
-    title: Return the builtin primitive storage name for one NDArray element.
+    title: Return the builtin primitive storage name for one Tensor element.
     parameters:
       type_:
         type: astx.DataType | None
@@ -294,16 +296,16 @@ def ndarray_primitive_type_name(type_: astx.DataType | None) -> str | None:
 
 @public
 @typechecked
-def ndarray_element_size_bytes(type_: astx.DataType | None) -> int | None:
+def tensor_element_size_bytes(type_: astx.DataType | None) -> int | None:
     """
-    title: Return the byte width for one NDArray element type.
+    title: Return the byte width for one Tensor element type.
     parameters:
       type_:
         type: astx.DataType | None
     returns:
       type: int | None
     """
-    primitive_name = ndarray_primitive_type_name(type_)
+    primitive_name = tensor_primitive_type_name(type_)
     if primitive_name is None:
         return None
     spec = ARRAY_PRIMITIVE_TYPE_SPECS.get(primitive_name)
@@ -314,16 +316,16 @@ def ndarray_element_size_bytes(type_: astx.DataType | None) -> int | None:
 
 @public
 @typechecked
-def ndarray_buffer_dtype(type_: astx.DataType | None) -> BufferHandle | None:
+def tensor_buffer_dtype(type_: astx.DataType | None) -> BufferHandle | None:
     """
-    title: Return the canonical buffer dtype handle for one NDArray element.
+    title: Return the canonical buffer dtype handle for one Tensor element.
     parameters:
       type_:
         type: astx.DataType | None
     returns:
       type: BufferHandle | None
     """
-    primitive_name = ndarray_primitive_type_name(type_)
+    primitive_name = tensor_primitive_type_name(type_)
     if primitive_name is None:
         return None
     return buffer_dtype_handle(primitive_name)
@@ -331,18 +333,18 @@ def ndarray_buffer_dtype(type_: astx.DataType | None) -> BufferHandle | None:
 
 @public
 @typechecked
-def ndarray_buffer_view_metadata(
+def tensor_buffer_view_metadata(
     *,
     data: BufferHandle,
     owner: BufferHandle,
     dtype: BufferHandle,
-    layout: NDArrayLayout,
+    layout: TensorLayout,
     ownership: BufferOwnership,
     mutability: BufferMutability,
     has_validity_bitmap: bool = False,
 ) -> BufferViewMetadata:
     """
-    title: Bridge one NDArray layout into canonical buffer/view metadata.
+    title: Bridge one Tensor layout into canonical buffer/view metadata.
     parameters:
       data:
         type: BufferHandle
@@ -351,7 +353,7 @@ def ndarray_buffer_view_metadata(
       dtype:
         type: BufferHandle
       layout:
-        type: NDArrayLayout
+        type: TensorLayout
       ownership:
         type: BufferOwnership
       mutability:
@@ -363,10 +365,10 @@ def ndarray_buffer_view_metadata(
     """
     c_contiguous = False
     f_contiguous = False
-    item_size_bytes = ndarray_element_size_bytes_from_dtype(dtype)
+    item_size_bytes = tensor_element_size_bytes_from_dtype(dtype)
     if item_size_bytes is not None:
-        c_contiguous = ndarray_is_c_contiguous(layout, item_size_bytes)
-        f_contiguous = ndarray_is_f_contiguous(layout, item_size_bytes)
+        c_contiguous = tensor_is_c_contiguous(layout, item_size_bytes)
+        f_contiguous = tensor_is_f_contiguous(layout, item_size_bytes)
 
     flags = buffer_view_flags(
         ownership,
@@ -390,7 +392,7 @@ def ndarray_buffer_view_metadata(
 
 
 @typechecked
-def ndarray_element_size_bytes_from_dtype(dtype: BufferHandle) -> int | None:
+def tensor_element_size_bytes_from_dtype(dtype: BufferHandle) -> int | None:
     """
     title: Return the byte width for one canonical primitive dtype handle.
     parameters:
@@ -405,20 +407,20 @@ def ndarray_element_size_bytes_from_dtype(dtype: BufferHandle) -> int | None:
 
 
 __all__ = [
-    "NDARRAY_ELEMENT_TYPE_EXTRA",
-    "NDARRAY_FLAGS_EXTRA",
-    "NDARRAY_LAYOUT_EXTRA",
-    "NDArrayLayout",
-    "NDArrayOrder",
-    "ndarray_buffer_dtype",
-    "ndarray_buffer_view_metadata",
-    "ndarray_byte_bounds",
-    "ndarray_default_strides",
-    "ndarray_element_count",
-    "ndarray_element_size_bytes",
-    "ndarray_element_size_bytes_from_dtype",
-    "ndarray_is_c_contiguous",
-    "ndarray_is_f_contiguous",
-    "ndarray_primitive_type_name",
-    "validate_ndarray_layout",
+    "TENSOR_ELEMENT_TYPE_EXTRA",
+    "TENSOR_FLAGS_EXTRA",
+    "TENSOR_LAYOUT_EXTRA",
+    "TensorLayout",
+    "TensorOrder",
+    "tensor_buffer_dtype",
+    "tensor_buffer_view_metadata",
+    "tensor_byte_bounds",
+    "tensor_default_strides",
+    "tensor_element_count",
+    "tensor_element_size_bytes",
+    "tensor_element_size_bytes_from_dtype",
+    "tensor_is_c_contiguous",
+    "tensor_is_f_contiguous",
+    "tensor_primitive_type_name",
+    "validate_tensor_layout",
 ]

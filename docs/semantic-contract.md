@@ -807,13 +807,16 @@ IRx exposes arrays through a builtin runtime surface backed by Arrow. The
 high-level abstraction is array-oriented; the low-level FFI ABI remains
 Arrow-specific. It is not a first-class language container model.
 
-IRx also now exposes an initial internal NDArray layer on top of that runtime:
+IRx also now exposes an initial internal `Tensor` layer alongside that
+one-dimensional array runtime:
 
-- ndarray storage still comes from Arrow-backed array handles
-- ndarray layout still lowers through the canonical `irx_buffer_view` descriptor
-- ndarray indexing and view construction reuse explicit `shape`, `strides`, and
+- tensor storage comes from Arrow tensor-style handles under
+  `irx_arrow_tensor_*`
+- tensor layout follows homogeneous dtype, shape, and stride metadata and lowers
+  through the canonical `irx_buffer_view` descriptor for indexing
+- tensor indexing and view construction reuse explicit `shape`, `strides`, and
   `offset_bytes` metadata
-- current NDArray support in this initial phase is limited to fixed-width
+- current `Tensor` support in this initial phase is limited to fixed-width
   numeric element types and readonly Arrow-backed storage
 
 Stable scope in this phase:
@@ -821,7 +824,8 @@ Stable scope in this phase:
 - supported plain primitive Arrow storage types: `bool`, `int8`, `int16`,
   `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, and
   `float64`
-- opaque schema, array builder, and array handles under `irx_arrow_*`
+- opaque schema, array builder, array, tensor builder, and tensor handles under
+  `irx_arrow_*`
 - Arrow C Data import/export as the external interchange boundary
 - explicit Arrow-to-`irx_buffer_view` projection for supported fixed-width
   numeric arrays
@@ -862,12 +866,13 @@ Arrow-to-buffer-view bridge rules:
 - bool arrays are supported as Arrow handles but are not buffer-view compatible
   because their values are bit-packed
 
-NDArray layering rules:
+Tensor layering rules:
 
-- fresh ndarray literals build flat Arrow arrays, then wrap them in
-  external-owner buffer views so lifetime remains explicit
-- ndarray view nodes are shallow metadata rewrites over the same storage
-- ndarray shape/stride queries and indexed addressing reuse the same descriptor
+- fresh tensor literals build Arrow tensor handles through `irx_arrow_tensor_*`,
+  then wrap borrowed tensor buffers in external-owner buffer views so lifetime
+  remains explicit
+- tensor view nodes are shallow metadata rewrites over the same storage
+- tensor shape/stride queries and indexed addressing reuse the same descriptor
   fields used by low-level buffer/view indexing
 - dynamic-rank runtime validation, broadcasting, and source-language slicing
   syntax remain out of scope in this phase

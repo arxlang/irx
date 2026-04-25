@@ -823,6 +823,12 @@ class VisitorCore(BuilderVisitor):
             self._llvm.ARRAY_BUILDER_HANDLE_TYPE
         )
         self._llvm.ARROW_ARRAY_HANDLE_TYPE = self._llvm.ARRAY_HANDLE_TYPE
+        self._llvm.TENSOR_BUILDER_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        self._llvm.TENSOR_HANDLE_TYPE = self._llvm.OPAQUE_POINTER_TYPE
+        self._llvm.ARROW_TENSOR_BUILDER_HANDLE_TYPE = (
+            self._llvm.TENSOR_BUILDER_HANDLE_TYPE
+        )
+        self._llvm.ARROW_TENSOR_HANDLE_TYPE = self._llvm.TENSOR_HANDLE_TYPE
         self._llvm.TIME_TYPE = ir.LiteralStructType(
             [
                 self._llvm.INT32_TYPE,
@@ -1103,7 +1109,7 @@ class VisitorCore(BuilderVisitor):
             )
         if isinstance(type_, astx.BufferViewType):
             return self._llvm.BUFFER_VIEW_TYPE
-        if isinstance(type_, astx.NDArrayType):
+        if isinstance(type_, astx.TensorType):
             return self._llvm.BUFFER_VIEW_TYPE
         if isinstance(type_, astx.StructType):
             struct_key = type_.qualified_name

@@ -58,6 +58,32 @@ struct irx_arrow_array_handle {
   int64_t strides[1];
 };
 
+struct irx_arrow_tensor_builder_handle {
+  int32_t type_id;
+  int32_t ndim;
+  int64_t element_count;
+  int64_t values_appended;
+  int64_t data_nbytes;
+  uintptr_t dtype_token;
+  int64_t element_size_bytes;
+  void* data;
+  int64_t* shape;
+  int64_t* strides;
+};
+
+struct irx_arrow_tensor_handle {
+  int64_t refcount;
+  int32_t type_id;
+  int32_t ndim;
+  int64_t element_count;
+  int64_t data_nbytes;
+  uintptr_t dtype_token;
+  int64_t element_size_bytes;
+  void* data;
+  int64_t* shape;
+  int64_t* strides;
+};
+
 static const irx_arrow_type_spec irx_arrow_type_specs[] = {
     {
         IRX_ARROW_TYPE_INT32,
@@ -505,6 +531,201 @@ static int irx_arrow_checked_offset_bytes(
 
   *out_offset_bytes = offset * element_size_bytes;
   return NANOARROW_OK;
+}
+
+static void irx_arrow_tensor_builder_free(
+    irx_arrow_tensor_builder_handle* builder) {
+  if (builder == NULL) {
+    return;
+  }
+
+  free(builder->data);
+  free(builder->shape);
+  free(builder->strides);
+  free(builder);
+}
+
+static void irx_arrow_tensor_handle_free(irx_arrow_tensor_handle* tensor) {
+  if (tensor == NULL) {
+    return;
+  }
+
+  free(tensor->data);
+  free(tensor->shape);
+  free(tensor->strides);
+  free(tensor);
+}
+
+static int irx_arrow_tensor_shape_extent(
+    int32_t ndim,
+    const int64_t* shape,
+    int64_t* out_element_count) {
+  int64_t element_count = 1;
+
+  if (ndim < 0) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "tensor ndim must be non-negative");
+  }
+  if (ndim > 0 && shape == NULL) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "tensor shape must not be NULL when ndim is positive");
+  }
+
+  for (int32_t axis = 0; axis < ndim; ++axis) {
+    const int64_t dim = shape[axis];
+    if (dim < 0) {
+      return irx_arrow_set_error_code(
+          EINVAL,
+          "tensor shape dimensions must be non-negative");
+    }
+    if (dim != 0 && element_count > INT64_MAX / dim) {
+      return irx_arrow_set_error_code(
+          EOVERFLOW,
+          "tensor shape extent overflowed int64");
+    }
+    element_count *= dim;
+  }
+
+  *out_element_count = element_count;
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_tensor_copy_layout(
+    int32_t ndim,
+    const int64_t* shape,
+    const int64_t* strides,
+    int64_t element_size_bytes,
+    int64_t** out_shape,
+    int64_t** out_strides) {
+  int64_t* copied_shape = NULL;
+  int64_t* copied_strides = NULL;
+  int64_t stride = element_size_bytes;
+
+  *out_shape = NULL;
+  *out_strides = NULL;
+
+  if (ndim == 0) {
+    return NANOARROW_OK;
+  }
+
+  copied_shape = (int64_t*)calloc((size_t)ndim, sizeof(*copied_shape));
+  copied_strides = (int64_t*)calloc((size_t)ndim, sizeof(*copied_strides));
+  if (copied_shape == NULL || copied_strides == NULL) {
+    free(copied_shape);
+    free(copied_strides);
+    return irx_arrow_set_error_code(
+        ENOMEM,
+        "failed to allocate tensor layout metadata");
+  }
+
+  for (int32_t axis = 0; axis < ndim; ++axis) {
+    copied_shape[axis] = shape[axis];
+  }
+
+  if (strides != NULL) {
+    for (int32_t axis = 0; axis < ndim; ++axis) {
+      if (strides[axis] < 0) {
+        free(copied_shape);
+        free(copied_strides);
+        return irx_arrow_set_error_code(
+            EINVAL,
+            "tensor strides must be non-negative");
+      }
+      copied_strides[axis] = strides[axis];
+    }
+  } else {
+    for (int32_t axis = ndim - 1; axis >= 0; --axis) {
+      copied_strides[axis] = stride;
+      const int64_t dim = copied_shape[axis] > 1 ? copied_shape[axis] : 1;
+      if (stride > 0 && dim > INT64_MAX / stride) {
+        free(copied_shape);
+        free(copied_strides);
+        return irx_arrow_set_error_code(
+            EOVERFLOW,
+            "tensor default stride computation overflowed int64");
+      }
+      stride *= dim;
+    }
+  }
+
+  *out_shape = copied_shape;
+  *out_strides = copied_strides;
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_tensor_data_nbytes(
+    int64_t element_count,
+    int64_t element_size_bytes,
+    int64_t* out_data_nbytes) {
+  if (element_size_bytes <= 0) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "tensor element type must have a positive byte width");
+  }
+  if (element_count > 0 && element_count > INT64_MAX / element_size_bytes) {
+    return irx_arrow_set_error_code(
+        EOVERFLOW,
+        "tensor data size overflowed int64");
+  }
+
+  *out_data_nbytes = element_count * element_size_bytes;
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_tensor_builder_require_slot(
+    irx_arrow_tensor_builder_handle* builder,
+    void** out_slot) {
+  if (builder == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "tensor builder must not be NULL");
+  }
+  if (builder->values_appended >= builder->element_count) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "too many values appended to tensor builder");
+  }
+
+  *out_slot = (void*)((uint8_t*)builder->data +
+                      builder->values_appended * builder->element_size_bytes);
+  builder->values_appended += 1;
+  return NANOARROW_OK;
+}
+
+static int irx_arrow_tensor_is_c_contiguous(
+    const irx_arrow_tensor_handle* tensor) {
+  int64_t stride = tensor->element_size_bytes;
+
+  for (int32_t axis = tensor->ndim - 1; axis >= 0; --axis) {
+    if (tensor->strides[axis] != stride) {
+      return 0;
+    }
+    const int64_t dim = tensor->shape[axis] > 1 ? tensor->shape[axis] : 1;
+    if (stride > 0 && dim > INT64_MAX / stride) {
+      return 0;
+    }
+    stride *= dim;
+  }
+
+  return 1;
+}
+
+static int irx_arrow_tensor_is_f_contiguous(
+    const irx_arrow_tensor_handle* tensor) {
+  int64_t stride = tensor->element_size_bytes;
+
+  for (int32_t axis = 0; axis < tensor->ndim; ++axis) {
+    if (tensor->strides[axis] != stride) {
+      return 0;
+    }
+    const int64_t dim = tensor->shape[axis] > 1 ? tensor->shape[axis] : 1;
+    if (stride > 0 && dim > INT64_MAX / stride) {
+      return 0;
+    }
+    stride *= dim;
+  }
+
+  return 1;
 }
 
 int irx_arrow_schema_import_copy(
@@ -1169,6 +1390,366 @@ void irx_arrow_array_release(irx_arrow_array_handle* array) {
     irx_arrow_release_array(&array->array);
     irx_arrow_release_schema(&array->schema);
     free(array);
+  }
+}
+
+int irx_arrow_tensor_builder_new(
+    int32_t type_id,
+    int32_t ndim,
+    const int64_t* shape,
+    const int64_t* strides,
+    irx_arrow_tensor_builder_handle** out_builder) {
+  int64_t element_count = 0;
+  int64_t data_nbytes = 0;
+  int64_t* copied_shape = NULL;
+  int64_t* copied_strides = NULL;
+  void* data = NULL;
+
+  irx_arrow_clear_error();
+  if (out_builder == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "out_builder must not be NULL");
+  }
+  *out_builder = NULL;
+
+  const irx_arrow_type_spec* spec = irx_arrow_type_spec_from_type_id(type_id);
+  if (spec == NULL) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "unsupported Arrow tensor type id %d",
+        type_id);
+  }
+  if (!spec->buffer_view_compatible || spec->element_size_bytes <= 0) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "Arrow tensor builder requires a fixed-width primitive value type");
+  }
+
+  int code = irx_arrow_tensor_shape_extent(ndim, shape, &element_count);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+  code = irx_arrow_tensor_data_nbytes(
+      element_count,
+      spec->element_size_bytes,
+      &data_nbytes);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+  code = irx_arrow_tensor_copy_layout(
+      ndim,
+      shape,
+      strides,
+      spec->element_size_bytes,
+      &copied_shape,
+      &copied_strides);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+
+  if (data_nbytes > 0) {
+    data = calloc(1, (size_t)data_nbytes);
+    if (data == NULL) {
+      free(copied_shape);
+      free(copied_strides);
+      return irx_arrow_set_error_code(
+          ENOMEM,
+          "failed to allocate Arrow tensor data buffer");
+    }
+  }
+
+  irx_arrow_tensor_builder_handle* builder =
+      (irx_arrow_tensor_builder_handle*)calloc(1, sizeof(*builder));
+  if (builder == NULL) {
+    free(data);
+    free(copied_shape);
+    free(copied_strides);
+    return irx_arrow_set_error_code(
+        ENOMEM,
+        "failed to allocate Arrow tensor builder");
+  }
+
+  builder->type_id = type_id;
+  builder->ndim = ndim;
+  builder->element_count = element_count;
+  builder->data_nbytes = data_nbytes;
+  builder->dtype_token = spec->dtype_token;
+  builder->element_size_bytes = spec->element_size_bytes;
+  builder->data = data;
+  builder->shape = copied_shape;
+  builder->strides = copied_strides;
+
+  *out_builder = builder;
+  return NANOARROW_OK;
+}
+
+int irx_arrow_tensor_builder_append_int(
+    irx_arrow_tensor_builder_handle* builder,
+    int64_t value) {
+  void* slot = NULL;
+  irx_arrow_clear_error();
+
+  const int code = irx_arrow_tensor_builder_require_slot(builder, &slot);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+
+  switch (builder->type_id) {
+    case IRX_ARROW_TYPE_INT8: {
+      const int8_t typed_value = (int8_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_INT16: {
+      const int16_t typed_value = (int16_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_INT32: {
+      const int32_t typed_value = (int32_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_INT64: {
+      const int64_t typed_value = value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    default:
+      builder->values_appended -= 1;
+      return irx_arrow_set_error_code(
+          EINVAL,
+          "tensor builder expected a signed integer element type");
+  }
+}
+
+int irx_arrow_tensor_builder_append_uint(
+    irx_arrow_tensor_builder_handle* builder,
+    uint64_t value) {
+  void* slot = NULL;
+  irx_arrow_clear_error();
+
+  const int code = irx_arrow_tensor_builder_require_slot(builder, &slot);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+
+  switch (builder->type_id) {
+    case IRX_ARROW_TYPE_UINT8: {
+      const uint8_t typed_value = (uint8_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_UINT16: {
+      const uint16_t typed_value = (uint16_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_UINT32: {
+      const uint32_t typed_value = (uint32_t)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_UINT64: {
+      const uint64_t typed_value = value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    default:
+      builder->values_appended -= 1;
+      return irx_arrow_set_error_code(
+          EINVAL,
+          "tensor builder expected an unsigned integer element type");
+  }
+}
+
+int irx_arrow_tensor_builder_append_double(
+    irx_arrow_tensor_builder_handle* builder,
+    double value) {
+  void* slot = NULL;
+  irx_arrow_clear_error();
+
+  const int code = irx_arrow_tensor_builder_require_slot(builder, &slot);
+  if (code != NANOARROW_OK) {
+    return code;
+  }
+
+  switch (builder->type_id) {
+    case IRX_ARROW_TYPE_FLOAT32: {
+      const float typed_value = (float)value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    case IRX_ARROW_TYPE_FLOAT64: {
+      const double typed_value = value;
+      memcpy(slot, &typed_value, sizeof(typed_value));
+      return NANOARROW_OK;
+    }
+    default:
+      builder->values_appended -= 1;
+      return irx_arrow_set_error_code(
+          EINVAL,
+          "tensor builder expected a floating element type");
+  }
+}
+
+int irx_arrow_tensor_builder_finish(
+    irx_arrow_tensor_builder_handle* builder,
+    irx_arrow_tensor_handle** out_tensor) {
+  irx_arrow_clear_error();
+  if (builder == NULL) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "tensor builder must not be NULL");
+  }
+  if (out_tensor == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "out_tensor must not be NULL");
+  }
+  *out_tensor = NULL;
+
+  if (builder->values_appended != builder->element_count) {
+    return irx_arrow_set_error_code(
+        EINVAL,
+        "tensor builder value count does not match tensor shape extent");
+  }
+
+  irx_arrow_tensor_handle* tensor =
+      (irx_arrow_tensor_handle*)calloc(1, sizeof(*tensor));
+  if (tensor == NULL) {
+    return irx_arrow_set_error_code(
+        ENOMEM,
+        "failed to allocate Arrow tensor handle");
+  }
+
+  tensor->refcount = 1;
+  tensor->type_id = builder->type_id;
+  tensor->ndim = builder->ndim;
+  tensor->element_count = builder->element_count;
+  tensor->data_nbytes = builder->data_nbytes;
+  tensor->dtype_token = builder->dtype_token;
+  tensor->element_size_bytes = builder->element_size_bytes;
+  tensor->data = builder->data;
+  tensor->shape = builder->shape;
+  tensor->strides = builder->strides;
+
+  builder->data = NULL;
+  builder->shape = NULL;
+  builder->strides = NULL;
+  irx_arrow_tensor_builder_free(builder);
+
+  *out_tensor = tensor;
+  return NANOARROW_OK;
+}
+
+void irx_arrow_tensor_builder_release(
+    irx_arrow_tensor_builder_handle* builder) {
+  irx_arrow_tensor_builder_free(builder);
+}
+
+int32_t irx_arrow_tensor_type_id(const irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+    return IRX_ARROW_TYPE_UNKNOWN;
+  }
+
+  return tensor->type_id;
+}
+
+int32_t irx_arrow_tensor_ndim(const irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+    return -1;
+  }
+
+  return tensor->ndim;
+}
+
+int64_t irx_arrow_tensor_size(const irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+    return -1;
+  }
+
+  return tensor->element_count;
+}
+
+const int64_t* irx_arrow_tensor_shape(const irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+    return NULL;
+  }
+
+  return tensor->shape;
+}
+
+const int64_t* irx_arrow_tensor_strides(const irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+    return NULL;
+  }
+
+  return tensor->strides;
+}
+
+int irx_arrow_tensor_borrow_buffer_view(
+    const irx_arrow_tensor_handle* tensor,
+    irx_buffer_view* out_view) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "tensor must not be NULL");
+  }
+  if (out_view == NULL) {
+    return irx_arrow_set_error_code(EINVAL, "out_view must not be NULL");
+  }
+
+  memset(out_view, 0, sizeof(*out_view));
+  out_view->data = tensor->data;
+  out_view->owner = NULL;
+  out_view->dtype = (void*)tensor->dtype_token;
+  out_view->ndim = tensor->ndim;
+  out_view->shape = tensor->shape;
+  out_view->strides = tensor->strides;
+  out_view->offset_bytes = 0;
+  out_view->flags = IRX_BUFFER_FLAG_BORROWED | IRX_BUFFER_FLAG_READONLY;
+
+  if (irx_arrow_tensor_is_c_contiguous(tensor)) {
+    out_view->flags |= IRX_BUFFER_FLAG_C_CONTIGUOUS;
+  }
+  if (irx_arrow_tensor_is_f_contiguous(tensor)) {
+    out_view->flags |= IRX_BUFFER_FLAG_F_CONTIGUOUS;
+  }
+
+  return NANOARROW_OK;
+}
+
+int irx_arrow_tensor_retain(irx_arrow_tensor_handle* tensor) {
+  irx_arrow_clear_error();
+  if (tensor == NULL) {
+    return NANOARROW_OK;
+  }
+  if (tensor->refcount <= 0) {
+    return irx_arrow_set_error_code(EINVAL, "tensor handle is released");
+  }
+
+  tensor->refcount += 1;
+  return NANOARROW_OK;
+}
+
+void irx_arrow_tensor_release(irx_arrow_tensor_handle* tensor) {
+  if (tensor == NULL) {
+    return;
+  }
+  if (tensor->refcount <= 0) {
+    return;
+  }
+
+  tensor->refcount -= 1;
+  if (tensor->refcount == 0) {
+    irx_arrow_tensor_handle_free(tensor);
   }
 }
 

@@ -8,12 +8,13 @@ reductions, tensor algebra, or high-level dtype policy.
 The model exists so Arx can lower scientific data structures into stable plain
 ABI data without baking array-library behavior into IRx.
 
-IRx's NDArray layer now uses this substrate directly:
+IRx's Tensor layer now uses this substrate directly:
 
-- Arrow-backed array storage remains the source of physical data buffers
-- ndarray metadata is expressed through `shape`, `strides`, `offset_bytes`, and
+- Arrow-backed tensor storage remains the source of physical data buffers for
+  Tensor values
+- tensor metadata is expressed through `shape`, `strides`, `offset_bytes`, and
   flags on `irx_buffer_view`
-- ndarray semantics stay above this layer; the buffer/view descriptor itself
+- tensor semantics stay above this layer; the buffer/view descriptor itself
   remains the backend-neutral low-level contract
 
 ## Canonical Representation

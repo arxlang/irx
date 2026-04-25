@@ -9,18 +9,6 @@ from typing import Any
 import astx as _upstream_astx
 
 from irx.astx.array import ArrayInt32ArrayLength as ArrayInt32ArrayLength
-from irx.astx.array import NDArrayByteOffset as NDArrayByteOffset
-from irx.astx.array import NDArrayElementCount as NDArrayElementCount
-from irx.astx.array import NDArrayIndex as NDArrayIndex
-from irx.astx.array import NDArrayLiteral as NDArrayLiteral
-from irx.astx.array import NDArrayNDim as NDArrayNDim
-from irx.astx.array import NDArrayRelease as NDArrayRelease
-from irx.astx.array import NDArrayRetain as NDArrayRetain
-from irx.astx.array import NDArrayShape as NDArrayShape
-from irx.astx.array import NDArrayStore as NDArrayStore
-from irx.astx.array import NDArrayStride as NDArrayStride
-from irx.astx.array import NDArrayType as NDArrayType
-from irx.astx.array import NDArrayView as NDArrayView
 from irx.astx.binary_op import (
     SPECIALIZED_BINARY_OP_EXTRA as SPECIALIZED_BINARY_OP_EXTRA,
 )
@@ -143,6 +131,18 @@ from irx.astx.templates import set_template_params as set_template_params
 from irx.astx.templates import (
     template_specialization_name as template_specialization_name,
 )
+from irx.astx.tensor import TensorByteOffset as TensorByteOffset
+from irx.astx.tensor import TensorElementCount as TensorElementCount
+from irx.astx.tensor import TensorIndex as TensorIndex
+from irx.astx.tensor import TensorLiteral as TensorLiteral
+from irx.astx.tensor import TensorNDim as TensorNDim
+from irx.astx.tensor import TensorRelease as TensorRelease
+from irx.astx.tensor import TensorRetain as TensorRetain
+from irx.astx.tensor import TensorShape as TensorShape
+from irx.astx.tensor import TensorStore as TensorStore
+from irx.astx.tensor import TensorStride as TensorStride
+from irx.astx.tensor import TensorType as TensorType
+from irx.astx.tensor import TensorView as TensorView
 from irx.astx.types import GeneratorType as GeneratorType
 from irx.astx.types import TemplateTypeVar as TemplateTypeVar
 from irx.astx.types import UnionType as UnionType
@@ -196,18 +196,6 @@ __all__ = (
     "ModBinOp",
     "ModuleNamespaceType",
     "MulBinOp",
-    "NDArrayByteOffset",
-    "NDArrayElementCount",
-    "NDArrayIndex",
-    "NDArrayLiteral",
-    "NDArrayNDim",
-    "NDArrayRelease",
-    "NDArrayRetain",
-    "NDArrayShape",
-    "NDArrayStore",
-    "NDArrayStride",
-    "NDArrayType",
-    "NDArrayView",
     "NamespaceKind",
     "NamespaceType",
     "NeBinOp",
@@ -220,6 +208,18 @@ __all__ = (
     "SubBinOp",
     "TemplateParam",
     "TemplateTypeVar",
+    "TensorByteOffset",
+    "TensorElementCount",
+    "TensorIndex",
+    "TensorLiteral",
+    "TensorNDim",
+    "TensorRelease",
+    "TensorRetain",
+    "TensorShape",
+    "TensorStore",
+    "TensorStride",
+    "TensorType",
+    "TensorView",
     "UnionType",
     "WithStmt",
     "add_generated_template_node",
