@@ -1,6 +1,14 @@
 # Release Notes
 ---
 
+# [1.18.0](https://github.com/arxlang/irx/compare/1.17.0...1.18.0) (2026-04-25)
+
+
+### Features
+
+* Improve inteface with Arrow; Rename NDArray to Tensor ([#315](https://github.com/arxlang/irx/issues/315)) ([8f81a5f](https://github.com/arxlang/irx/commit/8f81a5f26ee4235de2244d69fb857e5359e06002))
+* Move from nanoarrow to arrow c++ as data container backend ([#316](https://github.com/arxlang/irx/issues/316)) ([ac1622d](https://github.com/arxlang/irx/commit/ac1622dc6d591fc21c074abb7e0914f4f2dff2e2))
+
 # [1.17.0](https://github.com/arxlang/irx/compare/1.16.0...1.17.0) (2026-04-25)
 
 
