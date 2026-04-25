@@ -25,6 +25,7 @@ namespace {
 
 constexpr int kArrowOk = 0;
 constexpr int64_t kInitialRefcount = 1;
+constexpr int64_t kPrimitiveArrayBufferCount = 2;
 
 thread_local char last_error[512] = {0};
 
@@ -356,6 +357,115 @@ bool c_data_value_is_valid(const ArrowArray* array, int64_t logical_index) {
   return c_data_bit_is_set(array->buffers[0], logical_index);
 }
 
+void noop_arrow_array_release(ArrowArray* array) {
+  if (array == nullptr) {
+    return;
+  }
+  array->release = nullptr;
+}
+
+int validate_c_data_array_layout(
+    const ArrowArray* array,
+    const ResolvedSchema& resolved) {
+  if (array == nullptr) {
+    return set_error(EINVAL, "array must not be NULL");
+  }
+  if (array->release == nullptr) {
+    return set_error(
+        EINVAL,
+        "Arrow array release callback must not be NULL");
+  }
+  if (array->length < 0 || array->offset < 0) {
+    return set_error(
+        EINVAL,
+        "Arrow array length and offset must be non-negative");
+  }
+  if (array->null_count < -1) {
+    return set_error(EINVAL, "Arrow array null_count must be -1 or greater");
+  }
+  if (array->null_count > array->length) {
+    return set_error(
+        EINVAL,
+        "Arrow array null_count must not exceed array length");
+  }
+  if (!resolved.nullable && array->null_count != 0) {
+    return set_error(
+        EINVAL,
+        "non-nullable Arrow schema cannot import nullable array data");
+  }
+  if (array->n_children != 0 || array->dictionary != nullptr) {
+    return set_error(
+        EINVAL,
+        "Only plain primitive Arrow arrays are supported in this phase");
+  }
+  if (array->n_buffers < kPrimitiveArrayBufferCount) {
+    return set_error(
+        EINVAL,
+        "Arrow array n_buffers is smaller than the primitive layout requires");
+  }
+  if (array->buffers == nullptr) {
+    return set_error(EINVAL, "Arrow array buffers must not be NULL");
+  }
+  if (array->null_count > 0 && array->buffers[0] == nullptr) {
+    return set_error(
+        EINVAL,
+        "Arrow array validity bitmap must not be NULL when null_count is "
+        "positive");
+  }
+  if (array->length > 0 && array->buffers[1] == nullptr) {
+    return set_error(
+        EINVAL,
+        "Arrow array value buffer must not be NULL for non-empty arrays");
+  }
+  if (array->offset > std::numeric_limits<int64_t>::max() - array->length) {
+    return set_error(
+        EOVERFLOW,
+        "Arrow array logical range overflowed int64");
+  }
+  if (resolved.spec->element_size_bytes > 0 && array->length > 0) {
+    const int64_t logical_end = array->offset + array->length - 1;
+    if (logical_end >
+        std::numeric_limits<int64_t>::max() /
+            resolved.spec->element_size_bytes) {
+      return set_error(
+          EOVERFLOW,
+          "Arrow array value-buffer byte offset overflowed int64");
+    }
+  }
+  return kArrowOk;
+}
+
+int validate_c_data_array_with_arrow_cpp(
+    const ArrowArray* array,
+    const ResolvedSchema& resolved) {
+  int code = validate_c_data_array_layout(array, resolved);
+  if (code != kArrowOk) {
+    return code;
+  }
+
+  ArrowArray temporary = *array;
+  temporary.release = noop_arrow_array_release;
+  arrow::Result<std::shared_ptr<arrow::Array>> import_result =
+      arrow::ImportArray(&temporary, resolved.spec->make_type());
+  if (!import_result.ok()) {
+    return set_arrow_error(
+        EINVAL,
+        "Arrow array validation import failed",
+        import_result.status());
+  }
+
+  std::shared_ptr<arrow::Array> imported =
+      std::move(import_result).ValueUnsafe();
+  const arrow::Status status = imported->ValidateFull();
+  if (!status.ok()) {
+    return set_arrow_error(
+        EINVAL,
+        "Arrow array validation failed",
+        status);
+  }
+  return kArrowOk;
+}
+
 template <typename Builder, typename Value>
 int append_typed_value(arrow::ArrayBuilder* builder, Value value) {
   auto* typed_builder = dynamic_cast<Builder*>(builder);
@@ -472,16 +582,9 @@ int build_array_copy_from_c_data(
     const ArrowArray* array,
     const ResolvedSchema& resolved,
     std::shared_ptr<arrow::Array>* out_array) {
-  if (array == nullptr) {
-    return set_error(EINVAL, "array must not be NULL");
-  }
-  if (array->length < 0 || array->offset < 0) {
-    return set_error(EINVAL, "Arrow array length and offset must be non-negative");
-  }
-  if (array->n_children != 0 || array->dictionary != nullptr) {
-    return set_error(
-        EINVAL,
-        "Only plain primitive Arrow arrays are supported in this phase");
+  int code = validate_c_data_array_with_arrow_cpp(array, resolved);
+  if (code != kArrowOk) {
+    return code;
   }
 
   arrow::Result<std::unique_ptr<arrow::ArrayBuilder>> builder_result =
@@ -497,7 +600,7 @@ int build_array_copy_from_c_data(
   }
 
   for (int64_t index = 0; index < array->length; ++index) {
-    const int code = append_c_data_value(
+    code = append_c_data_value(
         builder.get(),
         resolved.spec,
         array,

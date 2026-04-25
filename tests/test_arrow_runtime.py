@@ -1252,6 +1252,66 @@ def test_arrow_runtime_import_export_roundtrips_supported_primitives(
                 library.irx_arrow_array_release(array_handle)
 
 
+def test_arrow_runtime_import_copy_rejects_short_buffer_layout() -> None:
+    """
+    title: Copy import should reject malformed Arrow C Data buffer counts.
+    """
+    with _load_arrow_runtime_library() as library:
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([1, 2, 3], pa.int32())
+        )
+        raw_array = _arrow_array_struct(array_addr)
+        raw_array.n_buffers = 1
+        array_handle = ctypes.c_void_p()
+
+        try:
+            code = library.irx_arrow_array_import_copy(
+                ctypes.byref(raw_array),
+                schema_addr,
+                ctypes.byref(array_handle),
+            )
+
+            assert code != 0
+            assert array_handle.value is None
+            assert "n_buffers" in library.irx_arrow_last_error().decode()
+        finally:
+            _ = (schema_capsule, array_capsule)
+
+
+def test_arrow_runtime_import_copy_rejects_missing_validity() -> None:
+    """
+    title: Copy import should validate null metadata before reading buffers.
+    """
+    with _load_arrow_runtime_library() as library:
+        _, schema_capsule, array_capsule, schema_addr, array_addr = (
+            _pyarrow_c_array([1, None, 3], pa.int32())
+        )
+        raw_array = _arrow_array_struct(array_addr)
+        raw_buffers = ctypes.cast(
+            raw_array.buffers,
+            ctypes.POINTER(ctypes.c_void_p),
+        )
+        buffers = (ctypes.c_void_p * 2)(None, raw_buffers[1])
+        raw_array.buffers = ctypes.cast(buffers, ctypes.c_void_p).value
+        raw_array.null_count = 1
+        array_handle = ctypes.c_void_p()
+
+        try:
+            code = library.irx_arrow_array_import_copy(
+                ctypes.byref(raw_array),
+                schema_addr,
+                ctypes.byref(array_handle),
+            )
+
+            assert code != 0
+            assert array_handle.value is None
+            assert "validity bitmap" in (
+                library.irx_arrow_last_error().decode()
+            )
+        finally:
+            _ = (schema_capsule, array_capsule, buffers)
+
+
 @pytest.mark.parametrize(
     ("name", "type_id", "append_kind", "values", "expected"),
     BUILDER_CASES,
